@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clip-path polygon evenodd</title>
+<style>
+  @page { size: 200px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 140px;
+    background: #2e7d32;
+    clip-path: polygon(
+      evenodd,
+      0 0,
+      100% 0,
+      100% 100%,
+      0 100%,
+      0 0,
+      30% 28%,
+      70% 28%,
+      70% 72%,
+      30% 72%,
+      30% 28%
+    );
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

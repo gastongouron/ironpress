@@ -411,5 +411,19 @@
     "depends_on": ["probe-fill-box", "probe-image-render"],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "img-object-position-far-edge-length",
+    "category": "images-replaced",
+    "feature": "object-position",
+    "subfeature": "far-edge-length-cover",
+    "description": "object-position:right 20px bottom 10px offsets a cover-fitted image from far edges; catches parsing right 20px as plain right alignment.",
+    "file": "cases/images-replaced/img-object-position-far-edge-length.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-image-render"],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

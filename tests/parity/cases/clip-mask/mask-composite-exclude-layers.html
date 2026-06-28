@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mask composite exclude layers</title>
+<style>
+  @page { size: 200px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 140px;
+    background: #2e7d32;
+    mask-image:
+      linear-gradient(#000000, #000000),
+      radial-gradient(circle 44px at 50% 50%, #000000 0 44px, transparent 45px);
+    mask-size: 100% 100%, 100% 100%;
+    mask-repeat: no-repeat, no-repeat;
+    mask-composite: exclude;
+    -webkit-mask-image:
+      radial-gradient(circle 44px at 50% 50%, #000000 0 44px, transparent 45px),
+      linear-gradient(#000000, #000000);
+    -webkit-mask-size: 100% 100%, 100% 100%;
+    -webkit-mask-repeat: no-repeat, no-repeat;
+    -webkit-mask-composite: source-out;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

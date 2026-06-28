@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 160px 100px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 25px; }
+  .box {
+    width: 80px;
+    height: 40px;
+  }
+  @layer reset, base, theme;
+  @layer reset {
+    .box { background: #bdbdbd; }
+  }
+  @layer theme {
+    .box { background: #0a7f2e; }
+  }
+  @layer base {
+    .box { background: #c62828; }
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

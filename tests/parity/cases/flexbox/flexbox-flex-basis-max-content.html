@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: 420px 140px; margin: 0; }
+    html { font-family: ParitySans; line-height: 1.5; }
+    * { margin: 0; box-sizing: border-box; }
+    body { padding: 20px; }
+    .flex { display: flex; gap: 10px; align-items: flex-start; width: 360px; height: 80px; background: #f0f0f0; border: 2px solid #222222; }
+    .a { flex-grow: 0; flex-shrink: 0; flex-basis: max-content; width: 40px; height: 60px; background: #c0392b; color: #ffffff; font-size: 22px; white-space: nowrap; }
+    .b { flex: 0 0 60px; height: 60px; background: #2980b9; }
+  </style>
+</head>
+<body><div class="flex"><div class="a">WIDETEXT</div><div class="b"></div></div></body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page {
+      size: 200px 150px;
+      margin: 24px 0 0 0;
+      @top-left {
+        content: string(section, last);
+        background: #1d4ed8;
+        color: #ffffff;
+      }
+      @top-right {
+        content: element(head, last);
+        background: #16a34a;
+        color: #ffffff;
+      }
+    }
+    html { font-family: ParitySans; line-height: 1.5; }
+    * { margin: 0; box-sizing: border-box; }
+    h2 {
+      position: running(head);
+      string-set: section content();
+      width: 200px;
+      height: 18px;
+      font-size: 12px;
+      line-height: 18px;
+      background: #ffd166;
+    }
+    .spacer { width: 200px; height: 42px; background: #e5e7eb; }
+    p { width: 200px; height: 60px; background: #bfdbfe; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h2>ONE</h2>
+  <div class="spacer"></div>
+  <h2>TWO</h2>
+  <p>body</p>
+</body>
+</html>

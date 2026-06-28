@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-vertical-align-text-bottom</title>
+<style>
+  @page { size: 240px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 18px; }
+  table { border-collapse: separate; border-spacing: 0; }
+  td {
+    width: 80px;
+    height: 90px;
+    padding: 0;
+    border: 2px solid #111111;
+    background: #f1faee;
+    font-size: 28px;
+    line-height: 32px;
+    color: #111111;
+  }
+  .base { vertical-align: baseline; background: #a8dadc; }
+  .tb { vertical-align: text-bottom; background: #ffbe0b; }
+</style>
+</head>
+<body>
+  <table>
+    <tr><td class="base">A</td><td class="tb">A</td></tr>
+  </table>
+</body>
+</html>

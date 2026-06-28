@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-order-auto-placement</title>
+<style>
+  @page { size: 320px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 80px 80px 80px;
+    grid-template-rows: 70px;
+    width: 240px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .cell { border: 2px solid #003a8c; }
+  .a { background: #d7263d; order: 2; }
+  .b { background: #1b998b; order: 1; }
+  .c { background: #f4d35e; order: -1; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a"></div>
+    <div class="cell b"></div>
+    <div class="cell c"></div>
+  </div>
+</body>
+</html>

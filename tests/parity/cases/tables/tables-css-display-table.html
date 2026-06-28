@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-css-display-table</title>
+<style>
+  @page { size: 220px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 20px; }
+  .t {
+    display: table;
+    border-collapse: separate;
+    border-spacing: 10px;
+    background: #222222;
+  }
+  .r { display: table-row; }
+  .c { display: table-cell; width: 60px; height: 50px; }
+  .a { background: #e63946; }
+  .b { background: #2a9d8f; }
+</style>
+</head>
+<body>
+  <div class="t">
+    <div class="r"><div class="c a"></div><div class="c b"></div></div>
+  </div>
+</body>
+</html>

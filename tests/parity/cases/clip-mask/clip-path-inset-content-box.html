@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>clip-path inset content-box</title>
+<style>
+  @page { size: 180px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 180px;
+    height: 130px;
+    border: 20px solid #1e88e5;
+    padding: 30px;
+    background: #d50000;
+    clip-path: inset(0) content-box;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -363,5 +363,61 @@
     "kind": "feature",
     "expected_support": "unsupported",
     "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-image-render"]
+  },
+  {
+    "id": "linear-gradient-color-hint",
+    "category": "backgrounds-gradients",
+    "feature": "linear-gradient",
+    "subfeature": "interpolation-hint",
+    "description": "A standalone 20% color interpolation hint moves the red/blue midpoint left; catches gradient parsers that ignore hints or drop the gradient.",
+    "file": "cases/backgrounds-gradients/linear-gradient-color-hint.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+  },
+  {
+    "id": "repeating-linear-gradient-px-stops",
+    "category": "backgrounds-gradients",
+    "feature": "repeating-linear-gradient",
+    "subfeature": "length-stops",
+    "description": "repeating-linear-gradient with 12px hard color-stop ranges creates fixed-width stripes; catches percentage-only stop handling.",
+    "file": "cases/backgrounds-gradients/repeating-linear-gradient-px-stops.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+  },
+  {
+    "id": "linear-gradient-alpha-stops",
+    "category": "backgrounds-gradients",
+    "feature": "linear-gradient",
+    "subfeature": "alpha-stops",
+    "description": "Transparent-to-opaque red gradient composites over a blue parent; catches gradient painters that drop alpha from color stops.",
+    "file": "cases/backgrounds-gradients/linear-gradient-alpha-stops.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-color-swatch"]
+  },
+  {
+    "id": "multiple-gradient-layers",
+    "category": "backgrounds-gradients",
+    "feature": "multiple-backgrounds",
+    "subfeature": "two-gradient-layers",
+    "description": "Two gradient background layers use independent size, position, repeat, and paint order; catches one-slot gradient storage or shared geometry.",
+    "file": "cases/backgrounds-gradients/multiple-gradient-layers.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-color-swatch"]
   }
 ]

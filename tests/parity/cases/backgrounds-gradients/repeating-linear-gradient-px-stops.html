@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>repeating-linear-gradient px stops</title>
+<style>
+  @page { size: 240px 96px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stripes {
+    width: 240px;
+    height: 96px;
+    background-color: #eeeeee;
+    background-image: repeating-linear-gradient(
+      to right,
+      #d50000 0 12px,
+      #2962ff 12px 24px
+    );
+  }
+</style>
+</head>
+<body>
+  <div class="stripes"></div>
+</body>
+</html>

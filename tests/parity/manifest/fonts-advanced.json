@@ -10,7 +10,7 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": ["probe-fill-box", "probe-text-baseline"]
   },
   {
@@ -160,6 +160,20 @@
     "subfeature": "ch",
     "description": "font-size: 5ch sized relative to the advance of the '0' glyph in a monospace face (aspirational; the ch unit is not confirmed in length parsing).",
     "file": "cases/fonts-advanced/fonts-advanced-font-size-ch.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+  },
+  {
+    "id": "fonts-advanced-small-caps-synthesis",
+    "category": "fonts-advanced",
+    "feature": "font-variant-caps",
+    "subfeature": "small-caps-synthesis",
+    "description": "font-variant-caps:small-caps synthesizes smaller uppercase forms for lowercase letters; catches implementations that ignore font variant caps.",
+    "file": "cases/fonts-advanced/fonts-advanced-small-caps-synthesis.html",
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,

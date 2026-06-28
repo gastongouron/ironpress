@@ -270,5 +270,22 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-fixed-repeats-pages",
+    "category": "positioning",
+    "feature": "position",
+    "subfeature": "fixed-repeats-paged-media",
+    "description": "position:fixed header repeats at the top of each printed page; catches treating fixed as a one-page absolute box.",
+    "file": "cases/positioning/positioning-fixed-repeats-pages.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

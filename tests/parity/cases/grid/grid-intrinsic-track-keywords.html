@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-intrinsic-track-keywords</title>
+<style>
+  @page { size: 500px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: min-content max-content 1fr;
+    grid-template-rows: 80px;
+    width: 420px;
+    margin: 20px;
+    border: 2px solid #000000;
+    font-size: 18px;
+  }
+  .cell { padding: 4px; color: #ffffff; }
+  .a { background: #d7263d; }
+  .b { background: #1b998b; }
+  .c { background: #5a3fff; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a">red red red red</div>
+    <div class="cell b">red red red red</div>
+    <div class="cell c"></div>
+  </div>
+</body>
+</html>

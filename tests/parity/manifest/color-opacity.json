@@ -548,5 +548,60 @@
       "probe-fill-box",
       "probe-color-swatch"
     ]
+  },
+  {
+    "id": "opacity-percentage",
+    "category": "color-opacity",
+    "feature": "opacity",
+    "subfeature": "percentage-value",
+    "description": "opacity:50% composites a red box at half alpha over a blue stage; catches opacity parsers that accept only numeric values.",
+    "file": "cases/color-opacity/opacity-percentage.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "opacity-text-glyph-group",
+    "category": "color-opacity",
+    "feature": "opacity",
+    "subfeature": "text-group",
+    "description": "Overlapping glyphs in one opacity:.5 element flatten before compositing; catches per-glyph alpha drawing where overlaps become too bright.",
+    "file": "cases/color-opacity/opacity-text-glyph-group.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "interaction_of": [
+      "opacity",
+      "text"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "color-oklch",
+    "category": "color-opacity",
+    "feature": "color-format",
+    "subfeature": "oklch",
+    "description": "CSS Color 4 oklch() background color converts to output sRGB; catches legacy-only parsers that drop the declaration to the fallback color.",
+    "file": "cases/color-opacity/color-oklch.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   }
 ]

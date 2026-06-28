@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-overlap-z-index</title>
+<style>
+  @page { size: 220px 170px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 140px;
+    grid-template-rows: 100px;
+    width: 140px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .high {
+    background: #1b998b;
+    grid-area: 1 / 1 / 2 / 2;
+    z-index: 2;
+    margin: 20px;
+  }
+  .low {
+    background: #d7263d;
+    grid-area: 1 / 1 / 2 / 2;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="high"></div>
+    <div class="low"></div>
+  </div>
+</body>
+</html>

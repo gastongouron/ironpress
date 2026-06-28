@@ -558,5 +558,164 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-after-right-blank",
+    "category": "paged-media",
+    "feature": "break-after",
+    "subfeature": "right-parity-blank",
+    "description": "break-after:right after a full first page must insert a blank left page so the next real block starts on a right page; catches implementations that alias right to an ordinary page break.",
+    "file": "cases/paged-media/paged-break-after-right-blank.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-precedence-before-wins",
+    "category": "paged-media",
+    "feature": "break-precedence",
+    "subfeature": "break-before-over-break-after",
+    "description": "At a shared class-A break point, break-before:right on the following block must win over break-after:left on the preceding block; catches paginators that emit independent breaks and suppress the later side request.",
+    "file": "cases/paged-media/paged-break-precedence-before-wins.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-blank-selector-background",
+    "category": "paged-media",
+    "feature": "page-selector",
+    "subfeature": "blank-background",
+    "description": "@page :blank must style the blank page inserted by a sided break; catches implementations that insert the parity page but leave it with the default page rule.",
+    "file": "cases/paged-media/paged-blank-selector-background.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-side-margin-boxes",
+    "category": "paged-media",
+    "feature": "page-margin-box",
+    "subfeature": "left-right-middle",
+    "description": "@left-middle and @right-middle page-margin boxes must paint in the side margin bands; catches renderers that only implement top and bottom margin boxes.",
+    "file": "cases/paged-media/paged-side-margin-boxes.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-named-page-margin-box",
+    "category": "paged-media",
+    "feature": "page-margin-box",
+    "subfeature": "named-page-override",
+    "description": "A block assigned page:chapter must use the chapter @page top-center margin box instead of the default one; catches engines that apply named-page geometry but collect only unqualified margin boxes.",
+    "file": "cases/paged-media/paged-named-page-margin-box.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-table-header-footer-repeat",
+    "category": "paged-media",
+    "feature": "table-fragmentation",
+    "subfeature": "repeat-header-footer",
+    "description": "A paginated table must repeat the thead and tfoot bands on each page fragment; integer-raster page geometry catches table splitting that fragments rows but forgets header/footer group repetition.",
+    "file": "cases/paged-media/paged-table-header-footer-repeat.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-flex-column-fragmentation",
+    "category": "paged-media",
+    "feature": "flex-fragmentation",
+    "subfeature": "column-children-across-pages",
+    "description": "A vertical flex container taller than one page should continue its child items on later pages; catches paginators that treat flex containers as unsplittable atoms.",
+    "file": "cases/paged-media/paged-flex-column-fragmentation.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-footnote-policy-inline",
+    "category": "paged-media",
+    "feature": "footnote",
+    "subfeature": "policy-line-display-inline",
+    "description": "footnote-policy:line with footnote-display:inline keeps the owning line with its notes and lays the note bodies inline; catches footnote support that only extracts block notes with auto policy.",
+    "file": "cases/paged-media/paged-footnote-policy-inline.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-gcpm-string-element-last",
+    "category": "paged-media",
+    "feature": "running-header",
+    "subfeature": "string-last-element-last",
+    "description": "string(section,last) and element(head,last) in page margin boxes must use the last heading on the page; catches GCPM implementations that ignore named strings or only support element(name)'s default selection.",
+    "file": "cases/paged-media/paged-gcpm-string-element-last.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background-blend-mode overlay</title>
+<style>
+  @page { size: 200px 110px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 200px;
+    height: 110px;
+    background-color: #7b1fa2;
+    background-image: linear-gradient(to right, #000000 0 50%, #ffffff 50% 100%);
+    background-blend-mode: overlay;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

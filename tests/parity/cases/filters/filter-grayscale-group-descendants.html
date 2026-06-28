@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter grayscale group descendants</title>
+<style>
+  @page { size: 260px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .group {
+    width: 260px;
+    height: 150px;
+    padding: 18px 20px;
+    background: #ffffff;
+    color: #d50000;
+    filter: grayscale(1);
+  }
+  .text {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 44px;
+  }
+  .child {
+    width: 160px;
+    height: 46px;
+    margin-top: 18px;
+    background: #2962ff;
+  }
+</style>
+</head>
+<body>
+  <div class="group">
+    <div class="text">COLOR</div>
+    <div class="child"></div>
+  </div>
+</body>
+</html>

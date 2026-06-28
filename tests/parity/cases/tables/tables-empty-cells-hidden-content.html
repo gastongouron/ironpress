@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-empty-cells-hidden-content</title>
+<style>
+  @page { size: 240px 170px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 16px; }
+  table {
+    border-collapse: separate;
+    border-spacing: 8px;
+    empty-cells: hide;
+    background: #f1faee;
+  }
+  td {
+    width: 60px;
+    height: 38px;
+    padding: 0;
+    border: 4px solid #111111;
+    background: #d7263d;
+    color: #111111;
+    font-size: 16px;
+  }
+  .top td { background: #2a9d8f; }
+  .hidden td { visibility: hidden; }
+</style>
+</head>
+<body>
+  <table>
+    <tr class="top"><td>A</td><td>B</td></tr>
+    <tr class="hidden"><td>H</td><td>H</td></tr>
+  </table>
+</body>
+</html>

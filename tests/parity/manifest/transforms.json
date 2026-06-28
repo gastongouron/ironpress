@@ -418,5 +418,19 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-individual-transform-box-content",
+    "category": "transforms",
+    "feature": "individual-transform",
+    "subfeature": "translate-rotate-transform-box-content",
+    "description": "Individual translate and rotate properties compose around transform-box:content-box with transform-origin:0 0; catches shorthand-only and border-box-origin transform implementations.",
+    "file": "cases/transforms/transforms-individual-transform-box-content.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

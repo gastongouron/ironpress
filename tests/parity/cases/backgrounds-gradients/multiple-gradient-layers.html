@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>multiple gradient layers</title>
+<style>
+  @page { size: 180px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 180px;
+    height: 120px;
+    background-color: #eeeeee;
+    background-image:
+      linear-gradient(to right, #d50000, #2962ff),
+      linear-gradient(to bottom, #ffd600, #00c853);
+    background-repeat: no-repeat, no-repeat;
+    background-position: 36px 28px, left top;
+    background-size: 64px 64px, 180px 120px;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

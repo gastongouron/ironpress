@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background-origin border-box</title>
+<style>
+  @page { size: 170px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 170px;
+    height: 130px;
+    border: 20px solid rgba(0, 0, 0, 0.35);
+    padding: 24px;
+    background-color: #e3f2fd;
+    background-image: linear-gradient(#d50000, #d50000);
+    background-origin: border-box;
+    background-clip: border-box;
+    background-position: left top;
+    background-repeat: no-repeat;
+    background-size: 40px 40px;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

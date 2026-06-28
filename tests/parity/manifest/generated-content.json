@@ -10,7 +10,7 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",
@@ -437,6 +437,24 @@
       "probe-border-box",
       "probe-text-baseline",
       "probe-image-render"
+    ]
+  },
+  {
+    "id": "generated-content-first-line-font-size",
+    "category": "generated-content",
+    "feature": "first-line",
+    "subfeature": "font-size-geometry",
+    "description": "::first-line font-size and line-height change the first formatted line geometry; catches implementations that only restyle first-line paint.",
+    "file": "cases/generated-content/generated-content-first-line-font-size.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-text-baseline"
     ]
   }
 ]

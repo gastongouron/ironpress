@@ -1,4 +1,102 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · tables</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>tables — 100.00%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 32 · PARTIAL 0 · FAIL 0 · UNKNOWN 0 · 32 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-border-collapse">border-collapse <span class="sc">100%</span></a> <a href="#feat-border-spacing">border-spacing <span class="sc">100%</span></a> <a href="#feat-caption">caption <span class="sc">100%</span></a> <a href="#feat-cell-padding">cell-padding <span class="sc">100%</span></a> <a href="#feat-colspan">colspan <span class="sc">100%</span></a> <a href="#feat-column-width">column-width <span class="sc">100%</span></a> <a href="#feat-empty-cells">empty-cells <span class="sc">100%</span></a> <a href="#feat-rowspan">rowspan <span class="sc">100%</span></a> <a href="#feat-spanning">spanning <span class="sc">100%</span></a> <a href="#feat-table">table <span class="sc">100%</span></a> <a href="#feat-table-fragmentation">table-fragmentation <span class="sc">100%</span></a> <a href="#feat-table-layout">table-layout <span class="sc">100%</span></a> <a href="#feat-table-sections">table-sections <span class="sc">100%</span></a> <a href="#feat-text-align">text-align <span class="sc">100%</span></a> <a href="#feat-th-cell">th-cell <span class="sc">100%</span></a> <a href="#feat-vertical-align">vertical-align <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="Extra">Extra</option><option value="GeometryShift">GeometryShift</option><option value="Missing">Missing</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-border-collapse">border-collapse — 100.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0195"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.02%</span> <strong>tables-border-collapse</strong> · collapse<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-border-collapse.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-border-collapse.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-border-collapse.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">border-collapse:collapse merges adjacent 4px cell borders into shared single edges.</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>323,0 → 324,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,103 → 1,104</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>323,103 → 324,104</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-border-collapse.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · tables</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>tables — 79.07%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 34 · PARTIAL 0 · FAIL 9 · UNKNOWN 0 · 43 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-display">display <span class="sc">0%</span></a> <a href="#feat-border-collapse">border-collapse <span class="sc">40%</span></a> <a href="#feat-table-layout">table-layout <span class="sc">67%</span></a> <a href="#feat-empty-cells">empty-cells <span class="sc">67%</span></a> <a href="#feat-rowspan">rowspan <span class="sc">67%</span></a> <a href="#feat-vertical-align">vertical-align <span class="sc">75%</span></a> <a href="#feat-border-spacing">border-spacing <span class="sc">100%</span></a> <a href="#feat-caption">caption <span class="sc">100%</span></a> <a href="#feat-cell-padding">cell-padding <span class="sc">100%</span></a> <a href="#feat-colspan">colspan <span class="sc">100%</span></a> <a href="#feat-column-width">column-width <span class="sc">100%</span></a> <a href="#feat-spanning">spanning <span class="sc">100%</span></a> <a href="#feat-table">table <span class="sc">100%</span></a> <a href="#feat-table-fragmentation">table-fragmentation <span class="sc">100%</span></a> <a href="#feat-table-sections">table-sections <span class="sc">100%</span></a> <a href="#feat-text-align">text-align <span class="sc">100%</span></a> <a href="#feat-th-cell">th-cell <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="ColorValue">ColorValue</option><option value="Extra">Extra</option><option value="GeometryShift">GeometryShift</option><option value="Missing">Missing</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-display">display — 0.00% <span class="meta">PASS 0 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="Extra" data-diff="72.8298"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">72.83%</span> <strong>tables-css-display-table</strong> · css-table-roles · <span class="real">REAL</span><span class="chip cls" style="background:#1a9e3c">Extra</span><span class="chip">−30.1px R</span><span class="chip">extra 41.1%</span><span class="chip">ΔE 44.2</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-css-display-table.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-css-display-table.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-css-display-table.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> extra paint where Chrome is blank (41.1%)</div><div class="desc">display:table/table-row/table-cell on divs lays out side-by-side cells with separated spacing; catches tag-only table layout that stacks CSS table boxes.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>0,0 → 180,100</td><td class="num">56.19</td><td>ΔE 41.7 ΔRGB(8,23,36)</td><td>extra paint where Chrome is blank (56.2%)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>80,10 → 140,60</td><td class="num">16.64</td><td>ΔE 44.2 ΔRGB(-8,-123,-109)</td><td>fill recolour ΔRGB(-8,-123,-109) (ΔE 44.2)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-css-display-table.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-css-display-table&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 220px 120px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 20px; }
+<span class="ln">12</span>  .t {
+<span class="ln">13</span>    display: table;
+<span class="ln">14</span>    border-collapse: separate;
+<span class="ln">15</span>    border-spacing: 10px;
+<span class="ln">16</span>    background: #222222;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .r { display: table-row; }
+<span class="ln">19</span>  .c { display: table-cell; width: 60px; height: 50px; }
+<span class="ln">20</span>  .a { background: #e63946; }
+<span class="ln">21</span>  .b { background: #2a9d8f; }
+<span class="ln">22</span>&lt;/style&gt;
+<span class="ln">23</span>&lt;/head&gt;
+<span class="ln">24</span>&lt;body&gt;
+<span class="ln">25</span>  &lt;div class=&quot;t&quot;&gt;
+<span class="ln">26</span>    &lt;div class=&quot;r&quot;&gt;&lt;div class=&quot;c a&quot;&gt;&lt;/div&gt;&lt;div class=&quot;c b&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+<span class="ln">27</span>  &lt;/div&gt;
+<span class="ln">28</span>&lt;/body&gt;
+<span class="ln">29</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-border-collapse">border-collapse — 40.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 3</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="7.4"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">7.40%</span> <strong>tables-border-hidden-conflict</strong> · hidden-conflict · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 61.8</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-border-hidden-conflict.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-border-hidden-conflict.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-border-hidden-conflict.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+103,-155,-118) (ΔE 61.8)</div><div class="desc">Collapsed-border conflict where a hidden right border must suppress the neighboring solid left border; catches engines that parse hidden as none or paint both cell edges.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>74,0 → 86,60</td><td class="num">7.40</td><td>ΔE 61.8 ΔRGB(103,-155,-118)</td><td>fill recolour ΔRGB(+103,-155,-118) (ΔE 61.8)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-border-hidden-conflict.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-border-hidden-conflict&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 240px 120px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 20px; }
+<span class="ln">12</span>  table { border-collapse: collapse; }
+<span class="ln">13</span>  td { width: 80px; height: 60px; padding: 0; border: 0; }
+<span class="ln">14</span>  .a { background: #f8e16c; border-right: 12px hidden #111111; }
+<span class="ln">15</span>  .b { background: #70c1b3; border-left: 12px solid #d7263d; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;table&gt;
+<span class="ln">20</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">21</span>  &lt;/table&gt;
+<span class="ln">22</span>&lt;/body&gt;
+<span class="ln">23</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="7.0476"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">7.05%</span> <strong>tables-border-style-conflict</strong> · style-conflict · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 48.1</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-border-style-conflict.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-border-style-conflict.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-border-style-conflict.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+184,-81,-119) (ΔE 48.1)</div><div class="desc">Collapsed-border conflict where equal-width double beats solid on the shared edge; catches renderers that overpaint the later solid edge.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>78,0 → 90,64</td><td class="num">7.05</td><td>ΔE 48.1 ΔRGB(184,-81,-119)</td><td>fill recolour ΔRGB(+184,-81,-119) (ΔE 48.1)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-border-style-conflict.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-border-style-conflict&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 240px 120px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 18px; }
+<span class="ln">12</span>  table { border-collapse: collapse; }
+<span class="ln">13</span>  td { width: 84px; height: 64px; padding: 0; border: 0; }
+<span class="ln">14</span>  .a { background: #ffe066; border-right: 12px double #1f77b4; }
+<span class="ln">15</span>  .b { background: #8ecae6; border-left: 12px solid #d7263d; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;table&gt;
+<span class="ln">20</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">21</span>  &lt;/table&gt;
+<span class="ln">22</span>&lt;/body&gt;
+<span class="ln">23</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="5.653"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">5.65%</span> <strong>tables-border-width-conflict</strong> · width-conflict · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 45.8</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-border-width-conflict.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-border-width-conflict.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-border-width-conflict.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+210,+131,+58) (ΔE 45.8)</div><div class="desc">Collapsed-border conflict where the wider blue shared border wins over a narrower red neighbor; catches DOM-order overpainting instead of width precedence.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>80,0 → 89,62</td><td class="num">5.65</td><td>ΔE 45.8 ΔRGB(210,131,58)</td><td>fill recolour ΔRGB(+210,+131,+58) (ΔE 45.8)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-border-width-conflict.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-border-width-conflict&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 240px 120px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 20px; }
+<span class="ln">12</span>  table { border-collapse: collapse; }
+<span class="ln">13</span>  td { width: 82px; height: 62px; padding: 0; border: 0; }
+<span class="ln">14</span>  .a { background: #a8dadc; border-right: 14px solid #1f77b4; }
+<span class="ln">15</span>  .b { background: #f1faee; border-left: 4px solid #d7263d; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;table&gt;
+<span class="ln">20</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">21</span>  &lt;/table&gt;
+<span class="ln">22</span>&lt;/body&gt;
+<span class="ln">23</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0195"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.02%</span> <strong>tables-border-collapse</strong> · collapse<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-border-collapse.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-border-collapse.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-border-collapse.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">border-collapse:collapse merges adjacent 4px cell borders into shared single edges.</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>323,0 → 324,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,103 → 1,104</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>323,103 → 324,104</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-border-collapse.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -61,7 +159,593 @@
 <span class="ln">30</span>  &lt;/table&gt;
 <span class="ln">31</span>&lt;/body&gt;
 <span class="ln">32</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-border-spacing">border-spacing — 100.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>tables-border-spacing</strong> · uniform-12px<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-border-spacing.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-border-spacing.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-border-spacing.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">border-collapse:separate with 12px border-spacing exposes the table background between cells.</div><details open class="src"><summary>source · cases/tables/tables-border-spacing.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-table-layout">table-layout — 66.67% <span class="meta">PASS 4 · PARTIAL 0 · FAIL 2</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="51.2052"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">51.21%</span> <strong>tables-auto-colspan-distribution</strong> · auto-colspan-distribution · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−44.2px R</span><span class="chip">missing 10.9%</span><span class="chip">extra 14.2%</span><span class="chip">ΔE 37.0</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-auto-colspan-distribution.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-auto-colspan-distribution.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-auto-colspan-distribution.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-11,-32,-18) (ΔE 37.0)</div><div class="desc">Auto table layout distributes a colspan width contribution over unequal existing column baselines; catches naive even-split spanning-cell sizing.</div><details><summary>regions (3)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>2,2 → 301,77</td><td class="num">36.66</td><td>ΔE 37.0 ΔRGB(-11,-32,-18) shift(-0.2,-0.3)</td><td>fill recolour ΔRGB(-11,-32,-18) (ΔE 37.0)</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>0,0 → 345,69</td><td class="num">13.30</td><td>ΔE 92.1 ΔRGB(224,233,221) shift(-0.2,-0.5)</td><td>extra paint where Chrome is blank (13.3%)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>2,2 → 180,33</td><td class="num">1.24</td><td>shift(-0.1,-0.8)</td><td>box −44.2px on right edge (size/box-model mismatch)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-auto-colspan-distribution.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-auto-colspan-distribution&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 360px 150px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; }
+<span class="ln">12</span>  table { table-layout: auto; border-collapse: separate; border-spacing: 0; background: #ffffff; }
+<span class="ln">13</span>  td { height: 38px; padding: 0; border: 2px solid #111111; }
+<span class="ln">14</span>  .wide { width: 200px; background: #457b9d; }
+<span class="ln">15</span>  .narrow { width: 20px; background: #a8dadc; }
+<span class="ln">16</span>  .third { width: 60px; background: #f1faee; }
+<span class="ln">17</span>  .span { width: 240px; background: #e63946; }
+<span class="ln">18</span>&lt;/style&gt;
+<span class="ln">19</span>&lt;/head&gt;
+<span class="ln">20</span>&lt;body&gt;
+<span class="ln">21</span>  &lt;table&gt;
+<span class="ln">22</span>    &lt;tr&gt;&lt;td class=&quot;wide&quot;&gt;&lt;/td&gt;&lt;td class=&quot;narrow&quot;&gt;&lt;/td&gt;&lt;td class=&quot;third&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">23</span>    &lt;tr&gt;&lt;td class=&quot;span&quot; colspan=&quot;2&quot;&gt;&lt;/td&gt;&lt;td class=&quot;third&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">24</span>  &lt;/table&gt;
+<span class="ln">25</span>&lt;/body&gt;
+<span class="ln">26</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="Extra" data-diff="5.8885"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">5.89%</span> <strong>tables-fixed-overflow-clip</strong> · fixed-overflow-clip · <span class="real">REAL</span><span class="chip cls" style="background:#1a9e3c">Extra</span><span class="chip">−69.4px R</span><span class="chip">extra 6.2%</span><span class="chip">ΔE 8.2</span><span class="chip">shift (0.0,0.6)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-fixed-overflow-clip.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-fixed-overflow-clip.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-fixed-overflow-clip.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> extra paint where Chrome is blank (6.2%)</div><div class="desc">table-layout:fixed clips nowrap overflow:hidden text inside its fixed-width cell; catches width-only fixed layout that lets text spill into the next cell.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>127,16 → 142,32</td><td class="num">0.95</td><td></td><td>extra paint where Chrome is blank (0.9%)</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>143,16 → 158,32</td><td class="num">0.95</td><td></td><td>extra paint where Chrome is blank (0.9%)</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>159,16 → 173,32</td><td class="num">0.95</td><td></td><td>extra paint where Chrome is blank (0.9%)</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>174,16 → 189,32</td><td class="num">0.95</td><td></td><td>extra paint where Chrome is blank (0.9%)</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>120,17 → 126,32</td><td class="num">0.42</td><td></td><td>extra paint where Chrome is blank (0.4%)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>52,18 → 60,29</td><td class="num">0.28</td><td>ΔRGB(27,2,7) shift(0.3,0.2)</td><td>box −69.4px on right edge (size/box-model mismatch)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-fixed-overflow-clip.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-fixed-overflow-clip&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 220px 110px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 20px; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    table-layout: fixed;
+<span class="ln">14</span>    width: 120px;
+<span class="ln">15</span>    border-collapse: separate;
+<span class="ln">16</span>    border-spacing: 0;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  td {
+<span class="ln">19</span>    width: 60px;
+<span class="ln">20</span>    height: 46px;
+<span class="ln">21</span>    padding: 0;
+<span class="ln">22</span>    border: 2px solid #111111;
+<span class="ln">23</span>    font-size: 22px;
+<span class="ln">24</span>    line-height: 46px;
+<span class="ln">25</span>    white-space: nowrap;
+<span class="ln">26</span>    overflow: hidden;
+<span class="ln">27</span>  }
+<span class="ln">28</span>  .a { background: #ffbe0b; color: #d7263d; }
+<span class="ln">29</span>  .b { background: #2a9d8f; color: #111111; }
+<span class="ln">30</span>&lt;/style&gt;
+<span class="ln">31</span>&lt;/head&gt;
+<span class="ln">32</span>&lt;body&gt;
+<span class="ln">33</span>  &lt;table&gt;
+<span class="ln">34</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;AAAAAAAAAAAA&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">35</span>  &lt;/table&gt;
+<span class="ln">36</span>&lt;/body&gt;
+<span class="ln">37</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="3.4721"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">3.47%</span> <strong>tables-layout-auto-overflow</strong> · auto-content-exceeds-width<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 5.3</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-auto-overflow.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-auto-overflow.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-auto-overflow.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width).</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>143,3 → 143,39</td><td class="num">0.10</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>146,3 → 146,39</td><td class="num">0.10</td><td>shift(0.3,0.0)</td><td>content shifted (0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>274,3 → 274,39</td><td class="num">0.10</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>129,14 → 135,19</td><td class="num">0.06</td><td>ΔRGB(17,11,7) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>186,18 → 191,21</td><td class="num">0.06</td><td>ΔRGB(13,17,15) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>226,18 → 231,21</td><td class="num">0.06</td><td>ΔRGB(13,17,15) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-auto-overflow.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-layout-auto-overflow&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 392px 74px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: auto;
+<span class="ln">15</span>    width: 160px;
+<span class="ln">16</span>    font-size: 16px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  td {
+<span class="ln">19</span>    border: 3px solid #3d405b;
+<span class="ln">20</span>    padding: 8px;
+<span class="ln">21</span>    white-space: nowrap;
+<span class="ln">22</span>    line-height: 20px;
+<span class="ln">23</span>  }
+<span class="ln">24</span>  .a { background: #f4a261; }
+<span class="ln">25</span>  .b { background: #81b29a; }
+<span class="ln">26</span>&lt;/style&gt;
+<span class="ln">27</span>&lt;/head&gt;
+<span class="ln">28</span>&lt;body&gt;
+<span class="ln">29</span>  &lt;table&gt;
+<span class="ln">30</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;WideContentXY&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;MoreWideText&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">31</span>  &lt;/table&gt;
+<span class="ln">32</span>&lt;/body&gt;
+<span class="ln">33</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.5016"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.50%</span> <strong>tables-layout-fixed-remainder</strong> · fixed-remainder-distribution<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">shift (-0.5,-0.0)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-fixed-remainder.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-fixed-remainder.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-fixed-remainder.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (-0.5,-0.0)px beyond page-origin calibration</div><div class="desc">table-layout:fixed distributes surplus width proportionally (40/80/120 over 360px -&gt; 60/120/180).</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>62,3 → 63,55</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>181,3 → 182,55</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>62,58 → 63,110</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>181,58 → 182,110</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>60,3 → 60,55</td><td class="num">0.04</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>179,3 → 179,55</td><td class="num">0.04</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-fixed-remainder.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-layout-fixed-remainder&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 469px 145px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: fixed;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  td {
+<span class="ln">18</span>    height: 55px;
+<span class="ln">19</span>    border: 3px solid #283618;
+<span class="ln">20</span>  }
+<span class="ln">21</span>  .a { width: 40px; background: #fefae0; }
+<span class="ln">22</span>  .b { width: 80px; background: #dda15e; }
+<span class="ln">23</span>  .c { width: 120px; background: #606c38; }
+<span class="ln">24</span>&lt;/style&gt;
+<span class="ln">25</span>&lt;/head&gt;
+<span class="ln">26</span>&lt;body&gt;
+<span class="ln">27</span>  &lt;table&gt;
+<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">29</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">30</span>  &lt;/table&gt;
+<span class="ln">31</span>&lt;/body&gt;
+<span class="ln">32</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0114"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-layout-auto</strong> · auto<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-auto.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-auto.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-auto.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>312,0 → 313,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,102 → 1,103</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>312,102 → 313,103</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-auto.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-layout-auto&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 422px 136px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: auto;
+<span class="ln">15</span>  }
+<span class="ln">16</span>  td {
+<span class="ln">17</span>    height: 50px;
+<span class="ln">18</span>    border: 3px solid #1b1b1e;
+<span class="ln">19</span>    background: #c5d86d;
+<span class="ln">20</span>  }
+<span class="ln">21</span>  .w1 { width: 50px; background: #f7567c; }
+<span class="ln">22</span>  .w2 { width: 100px; background: #99e1d9; }
+<span class="ln">23</span>  .w3 { width: 160px; background: #fffae3; }
+<span class="ln">24</span>&lt;/style&gt;
+<span class="ln">25</span>&lt;/head&gt;
+<span class="ln">26</span>&lt;body&gt;
+<span class="ln">27</span>  &lt;table&gt;
+<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;w1&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w2&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w3&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">29</span>    &lt;tr&gt;&lt;td class=&quot;w1&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w2&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w3&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">30</span>  &lt;/table&gt;
+<span class="ln">31</span>&lt;/body&gt;
+<span class="ln">32</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0075"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-layout-fixed</strong> · fixed<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-fixed.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-fixed.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-fixed.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,112 → 1,113</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-fixed.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-layout-fixed&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 472px 145px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: fixed;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  col.a { width: 60px; }
+<span class="ln">18</span>  col.b { width: 120px; }
+<span class="ln">19</span>  col.c { width: 180px; }
+<span class="ln">20</span>  td {
+<span class="ln">21</span>    height: 55px;
+<span class="ln">22</span>    border: 3px solid #2d3142;
+<span class="ln">23</span>    background: #bfc0c0;
+<span class="ln">24</span>  }
+<span class="ln">25</span>  .a { background: #ef8354; }
+<span class="ln">26</span>  .b { background: #4f5d75; }
+<span class="ln">27</span>  .c { background: #ffffff; }
+<span class="ln">28</span>&lt;/style&gt;
+<span class="ln">29</span>&lt;/head&gt;
+<span class="ln">30</span>&lt;body&gt;
+<span class="ln">31</span>  &lt;table&gt;
+<span class="ln">32</span>    &lt;colgroup&gt;
+<span class="ln">33</span>      &lt;col class=&quot;a&quot;&gt;
+<span class="ln">34</span>      &lt;col class=&quot;b&quot;&gt;
+<span class="ln">35</span>      &lt;col class=&quot;c&quot;&gt;
+<span class="ln">36</span>    &lt;/colgroup&gt;
+<span class="ln">37</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">38</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">39</span>  &lt;/table&gt;
+<span class="ln">40</span>&lt;/body&gt;
+<span class="ln">41</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-empty-cells">empty-cells — 66.67% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="31.9558"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">31.96%</span> <strong>tables-empty-cells-hidden-content</strong> · visibility-hidden · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 52.6</span><span class="chip">shift (0.0,0.6)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-empty-cells-hidden-content.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-empty-cells-hidden-content.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-empty-cells-hidden-content.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-26,-212,-177) (ΔE 52.6)</div><div class="desc">empty-cells:hide treats visibility:hidden cell content as no visible content and removes an all-empty row; catches DOM-presence emptiness tests.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>76,54 → 136,92</td><td class="num">15.80</td><td>ΔE 52.6 ΔRGB(-26,-212,-177)</td><td>fill recolour ΔRGB(-26,-212,-177) (ΔE 52.6)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>8,54 → 68,92</td><td class="num">15.72</td><td>ΔE 52.6 ΔRGB(-26,-212,-177)</td><td>fill recolour ΔRGB(-26,-212,-177) (ΔE 52.6)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>12,28 → 20,32</td><td class="num">0.05</td><td>ΔRGB(-2,-10,-9) shift(0.0,0.5)</td><td>content shifted (0.0,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>81,20 → 88,21</td><td class="num">0.05</td><td>ΔRGB(3,14,12) shift(-0.0,0.5)</td><td>content shifted (-0.0,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>81,29 → 89,32</td><td class="num">0.05</td><td>ΔRGB(-2,-14,-12) shift(0.0,0.5)</td><td>content shifted (0.0,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>83,24 → 87,25</td><td class="num">0.03</td><td>ΔRGB(4,24,21) shift(0.0,0.5)</td><td>content shifted (0.0,0.5)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-empty-cells-hidden-content.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-empty-cells-hidden-content&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 240px 170px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: separate;
+<span class="ln">14</span>    border-spacing: 8px;
+<span class="ln">15</span>    empty-cells: hide;
+<span class="ln">16</span>    background: #f1faee;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  td {
+<span class="ln">19</span>    width: 60px;
+<span class="ln">20</span>    height: 38px;
+<span class="ln">21</span>    padding: 0;
+<span class="ln">22</span>    border: 4px solid #111111;
+<span class="ln">23</span>    background: #d7263d;
+<span class="ln">24</span>    color: #111111;
+<span class="ln">25</span>    font-size: 16px;
+<span class="ln">26</span>  }
+<span class="ln">27</span>  .top td { background: #2a9d8f; }
+<span class="ln">28</span>  .hidden td { visibility: hidden; }
+<span class="ln">29</span>&lt;/style&gt;
+<span class="ln">30</span>&lt;/head&gt;
+<span class="ln">31</span>&lt;body&gt;
+<span class="ln">32</span>  &lt;table&gt;
+<span class="ln">33</span>    &lt;tr class=&quot;top&quot;&gt;&lt;td&gt;A&lt;/td&gt;&lt;td&gt;B&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">34</span>    &lt;tr class=&quot;hidden&quot;&gt;&lt;td&gt;H&lt;/td&gt;&lt;td&gt;H&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">35</span>  &lt;/table&gt;
+<span class="ln">36</span>&lt;/body&gt;
+<span class="ln">37</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>tables-empty-cells-hide</strong> · hide<span class="chip cls" style="background:#9a6700">AaOnly</span><span class="chip">+0.3px L</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-empty-cells-hide.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-empty-cells-hide.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-empty-cells-hide.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.</div><details open class="src"><summary>source · cases/tables/tables-empty-cells-hide.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-empty-cells-hide&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 433px 151px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: separate;
+<span class="ln">14</span>    border-spacing: 6px;
+<span class="ln">15</span>    empty-cells: hide;
+<span class="ln">16</span>    table-layout: fixed;
+<span class="ln">17</span>    width: 312px;
+<span class="ln">18</span>    background: #ffffff;
+<span class="ln">19</span>  }
+<span class="ln">20</span>  td {
+<span class="ln">21</span>    width: 100px;
+<span class="ln">22</span>    height: 50px;
+<span class="ln">23</span>    border: 3px solid #390099;
+<span class="ln">24</span>    background: #ff5400;
+<span class="ln">25</span>  }
+<span class="ln">26</span>  .filled {
+<span class="ln">27</span>    background: #ff5400;
+<span class="ln">28</span>  }
+<span class="ln">29</span>  .empty {
+<span class="ln">30</span>    /* no content -&gt; hidden border/background under empty-cells:hide */
+<span class="ln">31</span>  }
+<span class="ln">32</span>&lt;/style&gt;
+<span class="ln">33</span>&lt;/head&gt;
+<span class="ln">34</span>&lt;body&gt;
+<span class="ln">35</span>  &lt;table&gt;
+<span class="ln">36</span>    &lt;tr&gt;&lt;td class=&quot;filled&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;td class=&quot;empty&quot;&gt;&lt;/td&gt;&lt;td class=&quot;filled&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">37</span>    &lt;tr&gt;&lt;td class=&quot;empty&quot;&gt;&lt;/td&gt;&lt;td class=&quot;filled&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;td class=&quot;empty&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">38</span>  &lt;/table&gt;
+<span class="ln">39</span>&lt;/body&gt;
+<span class="ln">40</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>tables-empty-cells-whitespace</strong> · whitespace-and-empty<span class="chip cls" style="background:#9a6700">AaOnly</span><span class="chip">+0.3px L</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-empty-cells-whitespace.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-empty-cells-whitespace.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-empty-cells-whitespace.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">empty-cells:hide treats whitespace-only and fully-empty cells as empty; only the cell with real text paints.</div><details open class="src"><summary>source · cases/tables/tables-empty-cells-whitespace.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-empty-cells-whitespace&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 402px 144px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: separate;
+<span class="ln">14</span>    border-spacing: 6px;
+<span class="ln">15</span>    table-layout: fixed;
+<span class="ln">16</span>    width: 360px;
+<span class="ln">17</span>    empty-cells: hide;
+<span class="ln">18</span>    background: #ffffff;
+<span class="ln">19</span>  }
+<span class="ln">20</span>  td {
+<span class="ln">21</span>    width: 112px;
+<span class="ln">22</span>    height: 100px;
+<span class="ln">23</span>    border: 3px solid #5f0f40;
+<span class="ln">24</span>    background: #f3d9e3;
+<span class="ln">25</span>    vertical-align: middle;
+<span class="ln">26</span>  }
+<span class="ln">27</span>  .mark { width: 40px; height: 40px; margin: 0 auto; background: #9a031e; }
+<span class="ln">28</span>&lt;/style&gt;
+<span class="ln">29</span>&lt;/head&gt;
+<span class="ln">30</span>&lt;body&gt;
+<span class="ln">31</span>  &lt;table&gt;
+<span class="ln">32</span>    &lt;tr&gt;
+<span class="ln">33</span>      &lt;td&gt;&lt;div class=&quot;mark&quot;&gt;&lt;/div&gt;&lt;/td&gt;
+<span class="ln">34</span>      &lt;td&gt;   &lt;/td&gt;
+<span class="ln">35</span>      &lt;td&gt;&lt;/td&gt;
+<span class="ln">36</span>    &lt;/tr&gt;
+<span class="ln">37</span>  &lt;/table&gt;
+<span class="ln">38</span>&lt;/body&gt;
+<span class="ln">39</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-rowspan">rowspan — 66.67% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="Missing" data-diff="63.6128"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">63.61%</span> <strong>tables-rowspan-zero</strong> · rowspan-zero · <span class="real">REAL</span><span class="chip cls" style="background:#e600e6">Missing</span><span class="chip">missing 32.6%</span><span class="chip">ΔE 56.2</span><span class="chip">shift (0.0,-1.1)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-rowspan-zero.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-rowspan-zero.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-rowspan-zero.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (32.6% missing)</div><div class="desc">rowspan=0 spans the remaining rows in the row group; catches implementations that clamp zero to one and shift later rows left.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>57,37 → 112,108</td><td class="num">32.61</td><td></td><td>content clipped/truncated (32.6% missing)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>2,34 → 54,106</td><td class="num">31.00</td><td>ΔE 56.2 ΔRGB(-188,100,73) shift(0.0,-1.1)</td><td>fill recolour ΔRGB(-188,+100,+73) (ΔE 56.2)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-rowspan-zero.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-rowspan-zero&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 230px 180px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 18px; }
+<span class="ln">12</span>  table { border-collapse: separate; border-spacing: 0; }
+<span class="ln">13</span>  td { width: 56px; height: 36px; padding: 0; border: 2px solid #111111; }
+<span class="ln">14</span>  .span { background: #e63946; }
+<span class="ln">15</span>  .a { background: #ffbe0b; }
+<span class="ln">16</span>  .b { background: #2a9d8f; }
+<span class="ln">17</span>  .c { background: #8ecae6; }
+<span class="ln">18</span>&lt;/style&gt;
+<span class="ln">19</span>&lt;/head&gt;
+<span class="ln">20</span>&lt;body&gt;
+<span class="ln">21</span>  &lt;table&gt;
+<span class="ln">22</span>    &lt;tbody&gt;
+<span class="ln">23</span>      &lt;tr&gt;&lt;td class=&quot;span&quot; rowspan=&quot;0&quot;&gt;&lt;/td&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">24</span>      &lt;tr&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">25</span>      &lt;tr&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">26</span>    &lt;/tbody&gt;
+<span class="ln">27</span>  &lt;/table&gt;
+<span class="ln">28</span>&lt;/body&gt;
+<span class="ln">29</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0114"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-rowspan</strong> · rowspan-2<span class="chip cls" style="background:#e600e6">Missing</span><span class="chip">ΔE 72.7</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-rowspan.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-rowspan.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-rowspan.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">A first-column cell with rowspan=2 spans both rows while later columns stay single-row.</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>302,0 → 303,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,112 → 1,113</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>302,112 → 303,113</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-rowspan.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-rowspan&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 412px 145px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: fixed;
+<span class="ln">15</span>    width: 300px;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  td {
+<span class="ln">18</span>    width: 100px;
+<span class="ln">19</span>    height: 55px;
+<span class="ln">20</span>    border: 3px solid #003049;
+<span class="ln">21</span>    background: #d62828;
+<span class="ln">22</span>  }
+<span class="ln">23</span>  .tall { background: #fcbf49; }
+<span class="ln">24</span>&lt;/style&gt;
+<span class="ln">25</span>&lt;/head&gt;
+<span class="ln">26</span>&lt;body&gt;
+<span class="ln">27</span>  &lt;table&gt;
+<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;tall&quot; rowspan=&quot;2&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">29</span>    &lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">30</span>  &lt;/table&gt;
+<span class="ln">31</span>&lt;/body&gt;
+<span class="ln">32</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0059"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-rowspan-stagger</strong> · stagger-shift<span class="chip cls" style="background:#e600e6">Missing</span><span class="chip">ΔE 72.7</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-rowspan-stagger.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-rowspan-stagger.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-rowspan-stagger.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">A rowspan=2 first-column cell shifts later rows&#39; cells into the remaining columns.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,152 → 1,153</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-rowspan-stagger.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-rowspan-stagger&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 472px 185px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: fixed;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  td {
+<span class="ln">18</span>    width: 120px;
+<span class="ln">19</span>    height: 50px;
+<span class="ln">20</span>    border: 3px solid #003049;
+<span class="ln">21</span>    background: #fdf0d5;
+<span class="ln">22</span>  }
+<span class="ln">23</span>  .span { background: #c1121f; }
+<span class="ln">24</span>&lt;/style&gt;
+<span class="ln">25</span>&lt;/head&gt;
+<span class="ln">26</span>&lt;body&gt;
+<span class="ln">27</span>  &lt;table&gt;
+<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;span&quot; rowspan=&quot;2&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">29</span>    &lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">30</span>    &lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">31</span>  &lt;/table&gt;
+<span class="ln">32</span>&lt;/body&gt;
+<span class="ln">33</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-vertical-align">vertical-align — 75.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="2.3374"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">2.34%</span> <strong>tables-vertical-align-text-bottom</strong> · text-bottom-fallback · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 75.3</span><span class="chip">shift (-1.6,0.0)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-vertical-align-text-bottom.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-vertical-align-text-bottom.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-vertical-align-text-bottom.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+8,+10,+0) (ΔE 75.3)</div><div class="desc">vertical-align:text-bottom does not apply to table cells and should use baseline behavior; catches engines that treat it as bottom alignment.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>82,6 → 100,27</td><td class="num">0.98</td><td>ΔE 75.3 ΔRGB(238,173,-6) shift(-1.6,0.0)</td><td>fill recolour ΔRGB(+238,+173,-6) (ΔE 75.3)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>82,61 → 100,81</td><td class="num">0.98</td><td>ΔE 75.3 ΔRGB(-238,-173,6) shift(-0.5,0.1)</td><td>fill recolour ΔRGB(-238,-173,+6) (ΔE 75.3)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>6,21 → 17,25</td><td class="num">0.08</td><td>ΔRGB(-12,-16,-16) shift(-0.0,0.5)</td><td>content shifted (-0.0,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>8,14 → 15,20</td><td class="num">0.07</td><td>ΔRGB(-13,-18,-18) shift(0.0,0.5)</td><td>content shifted (0.0,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,24 → 6,27</td><td class="num">0.03</td><td>ΔRGB(-8,-11,-11) shift(0.0,0.4)</td><td>content shifted (0.0,0.4)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>10,6 → 13,8</td><td class="num">0.02</td><td>ΔRGB(15,19,20) shift(-0.0,0.6)</td><td>content shifted (-0.0,0.6)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-vertical-align-text-bottom.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-vertical-align-text-bottom&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 240px 150px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 18px; }
+<span class="ln">12</span>  table { border-collapse: separate; border-spacing: 0; }
+<span class="ln">13</span>  td {
+<span class="ln">14</span>    width: 80px;
+<span class="ln">15</span>    height: 90px;
+<span class="ln">16</span>    padding: 0;
+<span class="ln">17</span>    border: 2px solid #111111;
+<span class="ln">18</span>    background: #f1faee;
+<span class="ln">19</span>    font-size: 28px;
+<span class="ln">20</span>    line-height: 32px;
+<span class="ln">21</span>    color: #111111;
+<span class="ln">22</span>  }
+<span class="ln">23</span>  .base { vertical-align: baseline; background: #a8dadc; }
+<span class="ln">24</span>  .tb { vertical-align: text-bottom; background: #ffbe0b; }
+<span class="ln">25</span>&lt;/style&gt;
+<span class="ln">26</span>&lt;/head&gt;
+<span class="ln">27</span>&lt;body&gt;
+<span class="ln">28</span>  &lt;table&gt;
+<span class="ln">29</span>    &lt;tr&gt;&lt;td class=&quot;base&quot;&gt;A&lt;/td&gt;&lt;td class=&quot;tb&quot;&gt;A&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">30</span>  &lt;/table&gt;
+<span class="ln">31</span>&lt;/body&gt;
+<span class="ln">32</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.4218"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.42%</span> <strong>tables-vertical-align-baseline</strong> · baseline-uniform<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 5.2</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-vertical-align-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-vertical-align-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-vertical-align-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">vertical-align:baseline aligns same-size cell text on a shared row baseline.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>13,23 → 19,24</td><td class="num">0.01</td><td>ΔRGB(-28,-22,-23) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>133,23 → 139,24</td><td class="num">0.01</td><td>ΔRGB(-20,-24,-23) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>253,23 → 259,24</td><td class="num">0.01</td><td>ΔRGB(-23,-25,-24) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>263,24 → 269,26</td><td class="num">0.01</td><td>ΔRGB(-13,-14,-14) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>263,17 → 269,19</td><td class="num">0.01</td><td>ΔRGB(19,21,20) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>23,24 → 29,26</td><td class="num">0.01</td><td>ΔRGB(-15,-12,-13) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-vertical-align-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-vertical-align-baseline&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 472px 126px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: fixed;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>    font-size: 16px;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  td {
+<span class="ln">19</span>    width: 120px;
+<span class="ln">20</span>    height: 90px;
+<span class="ln">21</span>    border: 3px solid #14213d;
+<span class="ln">22</span>    vertical-align: baseline;
+<span class="ln">23</span>    padding: 8px;
+<span class="ln">24</span>    line-height: 20px;
+<span class="ln">25</span>  }
+<span class="ln">26</span>  .a { background: #ffcad4; }
+<span class="ln">27</span>  .b { background: #b8e0d2; }
+<span class="ln">28</span>  .c { background: #d6eadf; }
+<span class="ln">29</span>&lt;/style&gt;
+<span class="ln">30</span>&lt;/head&gt;
+<span class="ln">31</span>&lt;body&gt;
+<span class="ln">32</span>  &lt;table&gt;
+<span class="ln">33</span>    &lt;tr&gt;
+<span class="ln">34</span>      &lt;td class=&quot;a&quot;&gt;Ag&lt;/td&gt;
+<span class="ln">35</span>      &lt;td class=&quot;b&quot;&gt;Ag&lt;/td&gt;
+<span class="ln">36</span>      &lt;td class=&quot;c&quot;&gt;Ag&lt;/td&gt;
+<span class="ln">37</span>    &lt;/tr&gt;
+<span class="ln">38</span>  &lt;/table&gt;
+<span class="ln">39</span>&lt;/body&gt;
+<span class="ln">40</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.1736"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.17%</span> <strong>tables-vertical-align-baseline-sizes</strong> · baseline-mixed-sizes<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 6.8</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-vertical-align-baseline-sizes.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-vertical-align-baseline-sizes.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-vertical-align-baseline-sizes.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">vertical-align:baseline aligns cells with differing font sizes on one common baseline (taller cells shift shorter text down).</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>252,17 → 260,20</td><td class="num">0.02</td><td>ΔRGB(19,21,20) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>12,16 → 14,20</td><td class="num">0.01</td><td>ΔRGB(-21,-16,-17) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>132,30 → 135,33</td><td class="num">0.01</td><td>ΔRGB(16,20,19) shift(0.1,0.2)</td><td>content shifted (0.1,0.2)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>251,21 → 254,26</td><td class="num">0.01</td><td>ΔRGB(20,22,21) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>254,22 → 256,24</td><td class="num">0.01</td><td>ΔRGB(-15,-17,-16) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>257,24 → 260,26</td><td class="num">0.01</td><td>ΔRGB(-13,-14,-14) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-vertical-align-baseline-sizes.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-vertical-align-baseline-sizes&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 472px 126px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: fixed;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  td {
+<span class="ln">18</span>    width: 120px;
+<span class="ln">19</span>    height: 90px;
+<span class="ln">20</span>    border: 3px solid #14213d;
+<span class="ln">21</span>    vertical-align: baseline;
+<span class="ln">22</span>    padding: 8px;
+<span class="ln">23</span>  }
+<span class="ln">24</span>  .a { background: #ffcad4; font-size: 12px; line-height: 16px; }
+<span class="ln">25</span>  .b { background: #b8e0d2; font-size: 24px; line-height: 28px; }
+<span class="ln">26</span>  .c { background: #d6eadf; font-size: 16px; line-height: 20px; }
+<span class="ln">27</span>&lt;/style&gt;
+<span class="ln">28</span>&lt;/head&gt;
+<span class="ln">29</span>&lt;body&gt;
+<span class="ln">30</span>  &lt;table&gt;
+<span class="ln">31</span>    &lt;tr&gt;
+<span class="ln">32</span>      &lt;td class=&quot;a&quot;&gt;x&lt;/td&gt;
+<span class="ln">33</span>      &lt;td class=&quot;b&quot;&gt;x&lt;/td&gt;
+<span class="ln">34</span>      &lt;td class=&quot;c&quot;&gt;x&lt;/td&gt;
+<span class="ln">35</span>    &lt;/tr&gt;
+<span class="ln">36</span>  &lt;/table&gt;
+<span class="ln">37</span>&lt;/body&gt;
+<span class="ln">38</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.0921"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.09%</span> <strong>tables-cell-vertical-align</strong> · top-middle-bottom<span class="chip cls" style="background:#d2691e">GeometryShift</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-cell-vertical-align.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-cell-vertical-align.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-cell-vertical-align.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">A 24px marker box aligns to top, middle and bottom within tall 120px cells.</div><details><summary>regions (3)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>124,50 → 184,50</td><td class="num">0.04</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>124,74 → 184,74</td><td class="num">0.04</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-cell-vertical-align.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-cell-vertical-align&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 472px 155px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">12</span>  table {
+<span class="ln">13</span>    border-collapse: collapse;
+<span class="ln">14</span>    table-layout: fixed;
+<span class="ln">15</span>    width: 360px;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  td {
+<span class="ln">18</span>    width: 120px;
+<span class="ln">19</span>    height: 120px;
+<span class="ln">20</span>    border: 3px solid #2f3e46;
+<span class="ln">21</span>    background: #cad2c5;
+<span class="ln">22</span>  }
+<span class="ln">23</span>  .marker {
+<span class="ln">24</span>    width: 60px;
+<span class="ln">25</span>    height: 24px;
+<span class="ln">26</span>    background: #52796f;
+<span class="ln">27</span>  }
+<span class="ln">28</span>  .top { vertical-align: top; }
+<span class="ln">29</span>  .middle { vertical-align: middle; }
+<span class="ln">30</span>  .bottom { vertical-align: bottom; }
+<span class="ln">31</span>&lt;/style&gt;
+<span class="ln">32</span>&lt;/head&gt;
+<span class="ln">33</span>&lt;body&gt;
+<span class="ln">34</span>  &lt;table&gt;
+<span class="ln">35</span>    &lt;tr&gt;
+<span class="ln">36</span>      &lt;td class=&quot;top&quot;&gt;&lt;div class=&quot;marker&quot;&gt;&lt;/div&gt;&lt;/td&gt;
+<span class="ln">37</span>      &lt;td class=&quot;middle&quot;&gt;&lt;div class=&quot;marker&quot;&gt;&lt;/div&gt;&lt;/td&gt;
+<span class="ln">38</span>      &lt;td class=&quot;bottom&quot;&gt;&lt;div class=&quot;marker&quot;&gt;&lt;/div&gt;&lt;/td&gt;
+<span class="ln">39</span>    &lt;/tr&gt;
+<span class="ln">40</span>  &lt;/table&gt;
+<span class="ln">41</span>&lt;/body&gt;
+<span class="ln">42</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-border-spacing">border-spacing — 100.00% <span class="meta">PASS 4 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0549"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.05%</span> <strong>tables-collapse-ignores-spacing</strong> · ignored-when-collapsed<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-collapse-ignores-spacing.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-collapse-ignores-spacing.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-collapse-ignores-spacing.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.1% missing)</div><div class="desc">A collapsed-border table ignores a large border-spacing value; catches combined-case engines that apply spacing despite border-collapse:collapse.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,53 → 1,54</td><td class="num">0.03</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>123,53 → 124,54</td><td class="num">0.02</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-collapse-ignores-spacing.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;tables-collapse-ignores-spacing&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 240px 120px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  body { padding: 20px; }
+<span class="ln">12</span>  table { border-collapse: collapse; border-spacing: 30px; background: #111111; }
+<span class="ln">13</span>  td { width: 60px; height: 50px; padding: 0; border: 4px solid #111111; }
+<span class="ln">14</span>  .a { background: #e63946; }
+<span class="ln">15</span>  .b { background: #2a9d8f; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;table&gt;
+<span class="ln">20</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">21</span>  &lt;/table&gt;
+<span class="ln">22</span>&lt;/body&gt;
+<span class="ln">23</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>tables-border-spacing</strong> · uniform-12px<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-border-spacing.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-border-spacing.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-border-spacing.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">border-collapse:separate with 12px border-spacing exposes the table background between cells.</div><details open class="src"><summary>source · cases/tables/tables-border-spacing.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -309,7 +993,7 @@
 <span class="ln">30</span>  &lt;/table&gt;
 <span class="ln">31</span>&lt;/body&gt;
 <span class="ln">32</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-column-width">column-width — 100.00% <span class="meta">PASS 1 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.3041"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.30%</span> <strong>tables-width-percent-columns</strong> · percent<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 67.2</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-width-percent-columns.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-width-percent-columns.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-width-percent-columns.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>99,3 → 99,55</td><td class="num">0.04</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>102,3 → 102,55</td><td class="num">0.04</td><td>shift(0.3,0.0)</td><td>content shifted (0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>298,3 → 298,55</td><td class="num">0.04</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>301,3 → 301,55</td><td class="num">0.04</td><td>shift(-0.3,-0.0)</td><td>content shifted (-0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>99,58 → 99,110</td><td class="num">0.04</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>102,58 → 102,110</td><td class="num">0.04</td><td>shift(0.3,0.0)</td><td>content shifted (0.3,0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-width-percent-columns.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-column-width">column-width — 100.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.3041"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.30%</span> <strong>tables-width-percent-columns</strong> · percent<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 67.2</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-width-percent-columns.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-width-percent-columns.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-width-percent-columns.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">Fixed-layout columns at 25%/50%/25% of a 400px table resolve to proportional widths.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>99,3 → 99,55</td><td class="num">0.04</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>102,3 → 102,55</td><td class="num">0.04</td><td>shift(0.3,0.0)</td><td>content shifted (0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>298,3 → 298,55</td><td class="num">0.04</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>301,3 → 301,55</td><td class="num">0.04</td><td>shift(-0.3,-0.0)</td><td>content shifted (-0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>99,58 → 99,110</td><td class="num">0.04</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>102,58 → 102,110</td><td class="num">0.04</td><td>shift(0.3,0.0)</td><td>content shifted (0.3,0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-width-percent-columns.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -341,147 +1025,36 @@
 <span class="ln">30</span>  &lt;/table&gt;
 <span class="ln">31</span>&lt;/body&gt;
 <span class="ln">32</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-empty-cells">empty-cells — 100.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>tables-empty-cells-hide</strong> · hide<span class="chip cls" style="background:#9a6700">AaOnly</span><span class="chip">+0.3px L</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-empty-cells-hide.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-empty-cells-hide.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-empty-cells-hide.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">empty-cells:hide suppresses borders and backgrounds of cells with no content in a separated table.</div><details open class="src"><summary>source · cases/tables/tables-empty-cells-hide.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>tables-colgroup-span-fixed</strong> · col-span-fixed<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-colgroup-span-fixed.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-colgroup-span-fixed.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-colgroup-span-fixed.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Fixed table layout applies a col span=2 width to two equal columns before a wider third column; catches engines that ignore col span width assignment.</div><details open class="src"><summary>source · cases/tables/tables-colgroup-span-fixed.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-empty-cells-hide&lt;/title&gt;
+<span class="ln">5</span>&lt;title&gt;tables-colgroup-span-fixed&lt;/title&gt;
 <span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 433px 151px; margin: 0; }
+<span class="ln">7</span>  @page { size: 250px 120px; margin: 0; }
 <span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
+<span class="ln">11</span>  body { padding: 20px; }
 <span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: separate;
-<span class="ln">14</span>    border-spacing: 6px;
-<span class="ln">15</span>    empty-cells: hide;
-<span class="ln">16</span>    table-layout: fixed;
-<span class="ln">17</span>    width: 312px;
-<span class="ln">18</span>    background: #ffffff;
-<span class="ln">19</span>  }
-<span class="ln">20</span>  td {
-<span class="ln">21</span>    width: 100px;
-<span class="ln">22</span>    height: 50px;
-<span class="ln">23</span>    border: 3px solid #390099;
-<span class="ln">24</span>    background: #ff5400;
-<span class="ln">25</span>  }
-<span class="ln">26</span>  .filled {
-<span class="ln">27</span>    background: #ff5400;
-<span class="ln">28</span>  }
-<span class="ln">29</span>  .empty {
-<span class="ln">30</span>    /* no content -&gt; hidden border/background under empty-cells:hide */
-<span class="ln">31</span>  }
-<span class="ln">32</span>&lt;/style&gt;
-<span class="ln">33</span>&lt;/head&gt;
-<span class="ln">34</span>&lt;body&gt;
-<span class="ln">35</span>  &lt;table&gt;
-<span class="ln">36</span>    &lt;tr&gt;&lt;td class=&quot;filled&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;td class=&quot;empty&quot;&gt;&lt;/td&gt;&lt;td class=&quot;filled&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">37</span>    &lt;tr&gt;&lt;td class=&quot;empty&quot;&gt;&lt;/td&gt;&lt;td class=&quot;filled&quot;&gt;&amp;nbsp;&lt;/td&gt;&lt;td class=&quot;empty&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">38</span>  &lt;/table&gt;
-<span class="ln">39</span>&lt;/body&gt;
-<span class="ln">40</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>tables-empty-cells-whitespace</strong> · whitespace-and-empty<span class="chip cls" style="background:#9a6700">AaOnly</span><span class="chip">+0.3px L</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-empty-cells-whitespace.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-empty-cells-whitespace.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-empty-cells-whitespace.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">empty-cells:hide treats whitespace-only and fully-empty cells as empty; only the cell with real text paints.</div><details open class="src"><summary>source · cases/tables/tables-empty-cells-whitespace.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-empty-cells-whitespace&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 402px 144px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: separate;
-<span class="ln">14</span>    border-spacing: 6px;
-<span class="ln">15</span>    table-layout: fixed;
-<span class="ln">16</span>    width: 360px;
-<span class="ln">17</span>    empty-cells: hide;
-<span class="ln">18</span>    background: #ffffff;
-<span class="ln">19</span>  }
-<span class="ln">20</span>  td {
-<span class="ln">21</span>    width: 112px;
-<span class="ln">22</span>    height: 100px;
-<span class="ln">23</span>    border: 3px solid #5f0f40;
-<span class="ln">24</span>    background: #f3d9e3;
-<span class="ln">25</span>    vertical-align: middle;
-<span class="ln">26</span>  }
-<span class="ln">27</span>  .mark { width: 40px; height: 40px; margin: 0 auto; background: #9a031e; }
-<span class="ln">28</span>&lt;/style&gt;
-<span class="ln">29</span>&lt;/head&gt;
-<span class="ln">30</span>&lt;body&gt;
-<span class="ln">31</span>  &lt;table&gt;
-<span class="ln">32</span>    &lt;tr&gt;
-<span class="ln">33</span>      &lt;td&gt;&lt;div class=&quot;mark&quot;&gt;&lt;/div&gt;&lt;/td&gt;
-<span class="ln">34</span>      &lt;td&gt;   &lt;/td&gt;
-<span class="ln">35</span>      &lt;td&gt;&lt;/td&gt;
-<span class="ln">36</span>    &lt;/tr&gt;
-<span class="ln">37</span>  &lt;/table&gt;
-<span class="ln">38</span>&lt;/body&gt;
-<span class="ln">39</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-rowspan">rowspan — 100.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0114"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-rowspan</strong> · rowspan-2<span class="chip cls" style="background:#e600e6">Missing</span><span class="chip">ΔE 72.7</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-rowspan.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-rowspan.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-rowspan.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">A first-column cell with rowspan=2 spans both rows while later columns stay single-row.</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>302,0 → 303,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,112 → 1,113</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>302,112 → 303,113</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-rowspan.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-rowspan&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 412px 145px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: fixed;
-<span class="ln">15</span>    width: 300px;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  td {
-<span class="ln">18</span>    width: 100px;
-<span class="ln">19</span>    height: 55px;
-<span class="ln">20</span>    border: 3px solid #003049;
-<span class="ln">21</span>    background: #d62828;
-<span class="ln">22</span>  }
-<span class="ln">23</span>  .tall { background: #fcbf49; }
-<span class="ln">24</span>&lt;/style&gt;
-<span class="ln">25</span>&lt;/head&gt;
-<span class="ln">26</span>&lt;body&gt;
-<span class="ln">27</span>  &lt;table&gt;
-<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;tall&quot; rowspan=&quot;2&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">29</span>    &lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">30</span>  &lt;/table&gt;
-<span class="ln">31</span>&lt;/body&gt;
-<span class="ln">32</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0059"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-rowspan-stagger</strong> · stagger-shift<span class="chip cls" style="background:#e600e6">Missing</span><span class="chip">ΔE 72.7</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-rowspan-stagger.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-rowspan-stagger.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-rowspan-stagger.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">A rowspan=2 first-column cell shifts later rows&#39; cells into the remaining columns.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,152 → 1,153</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-rowspan-stagger.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-rowspan-stagger&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 472px 185px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: fixed;
-<span class="ln">15</span>    width: 360px;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  td {
-<span class="ln">18</span>    width: 120px;
-<span class="ln">19</span>    height: 50px;
-<span class="ln">20</span>    border: 3px solid #003049;
-<span class="ln">21</span>    background: #fdf0d5;
-<span class="ln">22</span>  }
-<span class="ln">23</span>  .span { background: #c1121f; }
-<span class="ln">24</span>&lt;/style&gt;
-<span class="ln">25</span>&lt;/head&gt;
-<span class="ln">26</span>&lt;body&gt;
-<span class="ln">27</span>  &lt;table&gt;
-<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;span&quot; rowspan=&quot;2&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">29</span>    &lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">30</span>    &lt;tr&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;td&gt;&lt;/td&gt;&lt;/tr&gt;
+<span class="ln">13</span>    table-layout: fixed;
+<span class="ln">14</span>    width: 180px;
+<span class="ln">15</span>    border-collapse: separate;
+<span class="ln">16</span>    border-spacing: 0;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  td { height: 52px; padding: 0; border: 2px solid #111111; }
+<span class="ln">19</span>  .a { background: #e63946; }
+<span class="ln">20</span>  .b { background: #ffbe0b; }
+<span class="ln">21</span>  .c { background: #2a9d8f; }
+<span class="ln">22</span>&lt;/style&gt;
+<span class="ln">23</span>&lt;/head&gt;
+<span class="ln">24</span>&lt;body&gt;
+<span class="ln">25</span>  &lt;table&gt;
+<span class="ln">26</span>    &lt;colgroup&gt;
+<span class="ln">27</span>      &lt;col span=&quot;2&quot; style=&quot;width: 40px&quot;&gt;
+<span class="ln">28</span>      &lt;col style=&quot;width: 100px&quot;&gt;
+<span class="ln">29</span>    &lt;/colgroup&gt;
+<span class="ln">30</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
 <span class="ln">31</span>  &lt;/table&gt;
 <span class="ln">32</span>&lt;/body&gt;
 <span class="ln">33</span>&lt;/html&gt;
@@ -778,144 +1351,6 @@
 <span class="ln">48</span>  &lt;/table&gt;
 <span class="ln">49</span>&lt;/body&gt;
 <span class="ln">50</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-table-layout">table-layout — 100.00% <span class="meta">PASS 4 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="3.4721"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">3.47%</span> <strong>tables-layout-auto-overflow</strong> · auto-content-exceeds-width<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 5.3</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-auto-overflow.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-auto-overflow.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-auto-overflow.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">table-layout:auto grows past its declared width when nowrap content needs more (aspirational: ironpress currently clamps to the declared width).</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>143,3 → 143,39</td><td class="num">0.10</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>146,3 → 146,39</td><td class="num">0.10</td><td>shift(0.3,0.0)</td><td>content shifted (0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>274,3 → 274,39</td><td class="num">0.10</td><td>shift(0.3,-0.0)</td><td>content shifted (0.3,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>129,14 → 135,19</td><td class="num">0.06</td><td>ΔRGB(17,11,7) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>186,18 → 191,21</td><td class="num">0.06</td><td>ΔRGB(13,17,15) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>226,18 → 231,21</td><td class="num">0.06</td><td>ΔRGB(13,17,15) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-auto-overflow.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-layout-auto-overflow&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 392px 74px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: auto;
-<span class="ln">15</span>    width: 160px;
-<span class="ln">16</span>    font-size: 16px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  td {
-<span class="ln">19</span>    border: 3px solid #3d405b;
-<span class="ln">20</span>    padding: 8px;
-<span class="ln">21</span>    white-space: nowrap;
-<span class="ln">22</span>    line-height: 20px;
-<span class="ln">23</span>  }
-<span class="ln">24</span>  .a { background: #f4a261; }
-<span class="ln">25</span>  .b { background: #81b29a; }
-<span class="ln">26</span>&lt;/style&gt;
-<span class="ln">27</span>&lt;/head&gt;
-<span class="ln">28</span>&lt;body&gt;
-<span class="ln">29</span>  &lt;table&gt;
-<span class="ln">30</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;WideContentXY&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;MoreWideText&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">31</span>  &lt;/table&gt;
-<span class="ln">32</span>&lt;/body&gt;
-<span class="ln">33</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.5016"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.50%</span> <strong>tables-layout-fixed-remainder</strong> · fixed-remainder-distribution<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">shift (-0.5,-0.0)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-fixed-remainder.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-fixed-remainder.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-fixed-remainder.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (-0.5,-0.0)px beyond page-origin calibration</div><div class="desc">table-layout:fixed distributes surplus width proportionally (40/80/120 over 360px -&gt; 60/120/180).</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>62,3 → 63,55</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>181,3 → 182,55</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>62,58 → 63,110</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>181,58 → 182,110</td><td class="num">0.08</td><td>shift(-0.5,-0.0)</td><td>content shifted (-0.5,-0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>60,3 → 60,55</td><td class="num">0.04</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>179,3 → 179,55</td><td class="num">0.04</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-fixed-remainder.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-layout-fixed-remainder&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 469px 145px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: fixed;
-<span class="ln">15</span>    width: 360px;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  td {
-<span class="ln">18</span>    height: 55px;
-<span class="ln">19</span>    border: 3px solid #283618;
-<span class="ln">20</span>  }
-<span class="ln">21</span>  .a { width: 40px; background: #fefae0; }
-<span class="ln">22</span>  .b { width: 80px; background: #dda15e; }
-<span class="ln">23</span>  .c { width: 120px; background: #606c38; }
-<span class="ln">24</span>&lt;/style&gt;
-<span class="ln">25</span>&lt;/head&gt;
-<span class="ln">26</span>&lt;body&gt;
-<span class="ln">27</span>  &lt;table&gt;
-<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">29</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">30</span>  &lt;/table&gt;
-<span class="ln">31</span>&lt;/body&gt;
-<span class="ln">32</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0114"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-layout-auto</strong> · auto<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-auto.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-auto.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-auto.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">table-layout:auto sizes columns to the widest cell intrinsic width (50/100/160px cells).</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>312,0 → 313,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,102 → 1,103</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>312,102 → 313,103</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-auto.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-layout-auto&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 422px 136px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: auto;
-<span class="ln">15</span>  }
-<span class="ln">16</span>  td {
-<span class="ln">17</span>    height: 50px;
-<span class="ln">18</span>    border: 3px solid #1b1b1e;
-<span class="ln">19</span>    background: #c5d86d;
-<span class="ln">20</span>  }
-<span class="ln">21</span>  .w1 { width: 50px; background: #f7567c; }
-<span class="ln">22</span>  .w2 { width: 100px; background: #99e1d9; }
-<span class="ln">23</span>  .w3 { width: 160px; background: #fffae3; }
-<span class="ln">24</span>&lt;/style&gt;
-<span class="ln">25</span>&lt;/head&gt;
-<span class="ln">26</span>&lt;body&gt;
-<span class="ln">27</span>  &lt;table&gt;
-<span class="ln">28</span>    &lt;tr&gt;&lt;td class=&quot;w1&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w2&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w3&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">29</span>    &lt;tr&gt;&lt;td class=&quot;w1&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w2&quot;&gt;&lt;/td&gt;&lt;td class=&quot;w3&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">30</span>  &lt;/table&gt;
-<span class="ln">31</span>&lt;/body&gt;
-<span class="ln">32</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.0075"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-layout-fixed</strong> · fixed<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-layout-fixed.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-layout-fixed.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-layout-fixed.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">table-layout:fixed honors explicit colgroup col widths (60/120/180px) for column sizing.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,112 → 1,113</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-layout-fixed.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-layout-fixed&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 472px 145px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: fixed;
-<span class="ln">15</span>    width: 360px;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  col.a { width: 60px; }
-<span class="ln">18</span>  col.b { width: 120px; }
-<span class="ln">19</span>  col.c { width: 180px; }
-<span class="ln">20</span>  td {
-<span class="ln">21</span>    height: 55px;
-<span class="ln">22</span>    border: 3px solid #2d3142;
-<span class="ln">23</span>    background: #bfc0c0;
-<span class="ln">24</span>  }
-<span class="ln">25</span>  .a { background: #ef8354; }
-<span class="ln">26</span>  .b { background: #4f5d75; }
-<span class="ln">27</span>  .c { background: #ffffff; }
-<span class="ln">28</span>&lt;/style&gt;
-<span class="ln">29</span>&lt;/head&gt;
-<span class="ln">30</span>&lt;body&gt;
-<span class="ln">31</span>  &lt;table&gt;
-<span class="ln">32</span>    &lt;colgroup&gt;
-<span class="ln">33</span>      &lt;col class=&quot;a&quot;&gt;
-<span class="ln">34</span>      &lt;col class=&quot;b&quot;&gt;
-<span class="ln">35</span>      &lt;col class=&quot;c&quot;&gt;
-<span class="ln">36</span>    &lt;/colgroup&gt;
-<span class="ln">37</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">38</span>    &lt;tr&gt;&lt;td class=&quot;a&quot;&gt;&lt;/td&gt;&lt;td class=&quot;b&quot;&gt;&lt;/td&gt;&lt;td class=&quot;c&quot;&gt;&lt;/td&gt;&lt;/tr&gt;
-<span class="ln">39</span>  &lt;/table&gt;
-<span class="ln">40</span>&lt;/body&gt;
-<span class="ln">41</span>&lt;/html&gt;
 </code></pre></details></div></div></section><section class="feat"><h2 id="feat-table-sections">table-sections — 100.00% <span class="meta">PASS 1 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="Missing" data-diff="0.005"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.01%</span> <strong>tables-thead-tbody-tfoot</strong> · thead-tbody-tfoot<span class="chip cls" style="background:#e600e6">Missing</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-thead-tbody-tfoot.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-thead-tbody-tfoot.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-thead-tbody-tfoot.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content clipped/truncated (0.0% missing)</div><div class="desc">thead, tbody and tfoot row groups render in document order with distinct section backgrounds.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>302,0 → 303,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-thead-tbody-tfoot.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
@@ -1068,124 +1503,4 @@
 <span class="ln">33</span>  &lt;/table&gt;
 <span class="ln">34</span>&lt;/body&gt;
 <span class="ln">35</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-vertical-align">vertical-align — 100.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.4218"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.42%</span> <strong>tables-vertical-align-baseline</strong> · baseline-uniform<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 5.2</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-vertical-align-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-vertical-align-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-vertical-align-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">vertical-align:baseline aligns same-size cell text on a shared row baseline.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>13,23 → 19,24</td><td class="num">0.01</td><td>ΔRGB(-28,-22,-23) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>133,23 → 139,24</td><td class="num">0.01</td><td>ΔRGB(-20,-24,-23) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>253,23 → 259,24</td><td class="num">0.01</td><td>ΔRGB(-23,-25,-24) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>263,24 → 269,26</td><td class="num">0.01</td><td>ΔRGB(-13,-14,-14) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>263,17 → 269,19</td><td class="num">0.01</td><td>ΔRGB(19,21,20) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>23,24 → 29,26</td><td class="num">0.01</td><td>ΔRGB(-15,-12,-13) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-vertical-align-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-vertical-align-baseline&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 472px 126px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: fixed;
-<span class="ln">15</span>    width: 360px;
-<span class="ln">16</span>    font-size: 16px;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  td {
-<span class="ln">19</span>    width: 120px;
-<span class="ln">20</span>    height: 90px;
-<span class="ln">21</span>    border: 3px solid #14213d;
-<span class="ln">22</span>    vertical-align: baseline;
-<span class="ln">23</span>    padding: 8px;
-<span class="ln">24</span>    line-height: 20px;
-<span class="ln">25</span>  }
-<span class="ln">26</span>  .a { background: #ffcad4; }
-<span class="ln">27</span>  .b { background: #b8e0d2; }
-<span class="ln">28</span>  .c { background: #d6eadf; }
-<span class="ln">29</span>&lt;/style&gt;
-<span class="ln">30</span>&lt;/head&gt;
-<span class="ln">31</span>&lt;body&gt;
-<span class="ln">32</span>  &lt;table&gt;
-<span class="ln">33</span>    &lt;tr&gt;
-<span class="ln">34</span>      &lt;td class=&quot;a&quot;&gt;Ag&lt;/td&gt;
-<span class="ln">35</span>      &lt;td class=&quot;b&quot;&gt;Ag&lt;/td&gt;
-<span class="ln">36</span>      &lt;td class=&quot;c&quot;&gt;Ag&lt;/td&gt;
-<span class="ln">37</span>    &lt;/tr&gt;
-<span class="ln">38</span>  &lt;/table&gt;
-<span class="ln">39</span>&lt;/body&gt;
-<span class="ln">40</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.1736"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.17%</span> <strong>tables-vertical-align-baseline-sizes</strong> · baseline-mixed-sizes<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 6.8</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-vertical-align-baseline-sizes.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-vertical-align-baseline-sizes.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-vertical-align-baseline-sizes.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">vertical-align:baseline aligns cells with differing font sizes on one common baseline (taller cells shift shorter text down).</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>252,17 → 260,20</td><td class="num">0.02</td><td>ΔRGB(19,21,20) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>12,16 → 14,20</td><td class="num">0.01</td><td>ΔRGB(-21,-16,-17) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>132,30 → 135,33</td><td class="num">0.01</td><td>ΔRGB(16,20,19) shift(0.1,0.2)</td><td>content shifted (0.1,0.2)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>251,21 → 254,26</td><td class="num">0.01</td><td>ΔRGB(20,22,21) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>254,22 → 256,24</td><td class="num">0.01</td><td>ΔRGB(-15,-17,-16) shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>257,24 → 260,26</td><td class="num">0.01</td><td>ΔRGB(-13,-14,-14) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-vertical-align-baseline-sizes.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-vertical-align-baseline-sizes&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 472px 126px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: fixed;
-<span class="ln">15</span>    width: 360px;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  td {
-<span class="ln">18</span>    width: 120px;
-<span class="ln">19</span>    height: 90px;
-<span class="ln">20</span>    border: 3px solid #14213d;
-<span class="ln">21</span>    vertical-align: baseline;
-<span class="ln">22</span>    padding: 8px;
-<span class="ln">23</span>  }
-<span class="ln">24</span>  .a { background: #ffcad4; font-size: 12px; line-height: 16px; }
-<span class="ln">25</span>  .b { background: #b8e0d2; font-size: 24px; line-height: 28px; }
-<span class="ln">26</span>  .c { background: #d6eadf; font-size: 16px; line-height: 20px; }
-<span class="ln">27</span>&lt;/style&gt;
-<span class="ln">28</span>&lt;/head&gt;
-<span class="ln">29</span>&lt;body&gt;
-<span class="ln">30</span>  &lt;table&gt;
-<span class="ln">31</span>    &lt;tr&gt;
-<span class="ln">32</span>      &lt;td class=&quot;a&quot;&gt;x&lt;/td&gt;
-<span class="ln">33</span>      &lt;td class=&quot;b&quot;&gt;x&lt;/td&gt;
-<span class="ln">34</span>      &lt;td class=&quot;c&quot;&gt;x&lt;/td&gt;
-<span class="ln">35</span>    &lt;/tr&gt;
-<span class="ln">36</span>  &lt;/table&gt;
-<span class="ln">37</span>&lt;/body&gt;
-<span class="ln">38</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.0921"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.09%</span> <strong>tables-cell-vertical-align</strong> · top-middle-bottom<span class="chip cls" style="background:#d2691e">GeometryShift</span></div><div class="quad"><figure><img loading="lazy" src="../refs/tables/tables-cell-vertical-align.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/tables/tables-cell-vertical-align.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="tables/tables-cell-vertical-align.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">A 24px marker box aligns to top, middle and bottom within tall 120px cells.</div><details><summary>regions (3)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>124,50 → 184,50</td><td class="num">0.04</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>124,74 → 184,74</td><td class="num">0.04</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td></td><td>content clipped/truncated (0.0% missing)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/tables/tables-cell-vertical-align.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;tables-cell-vertical-align&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 472px 155px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  body { padding: 16px; font-family: ParitySans; }
-<span class="ln">12</span>  table {
-<span class="ln">13</span>    border-collapse: collapse;
-<span class="ln">14</span>    table-layout: fixed;
-<span class="ln">15</span>    width: 360px;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  td {
-<span class="ln">18</span>    width: 120px;
-<span class="ln">19</span>    height: 120px;
-<span class="ln">20</span>    border: 3px solid #2f3e46;
-<span class="ln">21</span>    background: #cad2c5;
-<span class="ln">22</span>  }
-<span class="ln">23</span>  .marker {
-<span class="ln">24</span>    width: 60px;
-<span class="ln">25</span>    height: 24px;
-<span class="ln">26</span>    background: #52796f;
-<span class="ln">27</span>  }
-<span class="ln">28</span>  .top { vertical-align: top; }
-<span class="ln">29</span>  .middle { vertical-align: middle; }
-<span class="ln">30</span>  .bottom { vertical-align: bottom; }
-<span class="ln">31</span>&lt;/style&gt;
-<span class="ln">32</span>&lt;/head&gt;
-<span class="ln">33</span>&lt;body&gt;
-<span class="ln">34</span>  &lt;table&gt;
-<span class="ln">35</span>    &lt;tr&gt;
-<span class="ln">36</span>      &lt;td class=&quot;top&quot;&gt;&lt;div class=&quot;marker&quot;&gt;&lt;/div&gt;&lt;/td&gt;
-<span class="ln">37</span>      &lt;td class=&quot;middle&quot;&gt;&lt;div class=&quot;marker&quot;&gt;&lt;/div&gt;&lt;/td&gt;
-<span class="ln">38</span>      &lt;td class=&quot;bottom&quot;&gt;&lt;div class=&quot;marker&quot;&gt;&lt;/div&gt;&lt;/td&gt;
-<span class="ln">39</span>    &lt;/tr&gt;
-<span class="ln">40</span>  &lt;/table&gt;
-<span class="ln">41</span>&lt;/body&gt;
-<span class="ln">42</span>&lt;/html&gt;
 </code></pre></details></div></div></section></body></html>

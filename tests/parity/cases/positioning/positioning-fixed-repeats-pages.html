@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 200px 160px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .header {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 200px;
+    height: 24px;
+    background: #0a7f2e;
+    z-index: 10;
+  }
+  .page {
+    width: 200px;
+    height: 160px;
+  }
+  .one { background: #e6e6e6; }
+  .two { background: #c62828; }
+</style>
+</head>
+<body>
+  <div class="header"></div>
+  <div class="page one"></div>
+  <div class="page two"></div>
+</body>
+</html>

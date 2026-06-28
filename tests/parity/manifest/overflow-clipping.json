@@ -24,7 +24,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": ["probe-fill-box", "probe-block-flow"]
   },
   {
@@ -38,7 +38,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": ["probe-fill-box", "probe-block-flow"]
   },
   {
@@ -146,6 +146,34 @@
     "subfeature": "overflow-x-overflow-y",
     "description": "overflow-x:hidden clips horizontally while overflow-y:visible lets the child overflow downward only.",
     "file": "cases/overflow-clipping/overflow-x-y-separate.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-block-flow"]
+  },
+  {
+    "id": "overflow-clip-margin",
+    "category": "overflow-clipping",
+    "feature": "overflow-clip-margin",
+    "subfeature": "clip-edge-extension",
+    "description": "overflow:clip with overflow-clip-margin:18px lets the child bleed past the box edge; catches clipping exactly at the padding box.",
+    "file": "cases/overflow-clipping/overflow-clip-margin.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-block-flow"]
+  },
+  {
+    "id": "overflow-axis-visible-hidden-coercion",
+    "category": "overflow-clipping",
+    "feature": "overflow",
+    "subfeature": "visible-hidden-axis-coercion",
+    "description": "overflow-x:visible plus overflow-y:hidden coerces the x axis to non-visible clipping; catches preserving visible overflow on the x axis.",
+    "file": "cases/overflow-clipping/overflow-axis-visible-hidden-coercion.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,

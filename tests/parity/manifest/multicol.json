@@ -417,5 +417,60 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "multicol-break-before-column",
+    "category": "multicol",
+    "feature": "break-before",
+    "subfeature": "column",
+    "description": "break-before:column inside a column-fill:auto multicol container must move the block to the top of the next column; catches multicol layout that ignores forced column break values.",
+    "file": "cases/multicol/multicol-break-before-column.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "multicol-column-gap-percentage",
+    "category": "multicol",
+    "feature": "column-gap",
+    "subfeature": "percentage",
+    "description": "column-gap:10% must resolve against the multicol container and narrow the three columns accordingly; catches parsers that store percentages but drop them during column layout.",
+    "file": "cases/multicol/multicol-column-gap-percentage.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "multicol-column-rule-empty-suppressed",
+    "category": "multicol",
+    "feature": "column-rule",
+    "subfeature": "empty-adjacent-columns",
+    "description": "Column rules must not paint beside empty columns when only the first column has content; catches renderers that draw rules in every column gap whenever column-count is greater than one.",
+    "file": "cases/multicol/multicol-column-rule-empty-suppressed.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   }
 ]

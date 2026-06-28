@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 260px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body {
+    padding: 12px;
+    counter-reset: item 0;
+  }
+  .row {
+    font-family: ParitySans;
+    font-size: 22px;
+    line-height: 32px;
+    background: #eef2ff;
+    margin-bottom: 4px;
+    color: #111111;
+  }
+  .row::before {
+    content: counter(item) ". ";
+    color: #d7263d;
+    font-weight: bold;
+  }
+  .inc { counter-increment: item; }
+  .set { counter-set: item 7; }
+</style>
+</head>
+<body>
+  <div class="row inc">one</div>
+  <div class="row set">seven</div>
+  <div class="row inc">eight</div>
+</body>
+</html>

@@ -10,7 +10,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",
@@ -29,7 +29,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",
@@ -866,6 +866,44 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-has-nth-of-supports",
+    "category": "selectors-cascade",
+    "feature": "selectors-4",
+    "subfeature": "supports-has-nth-child-of",
+    "description": "@supports selector(), child :has(> .flag), and :nth-child(2 of .flagged) make the intended boxes green; catches sibling-only :has and nth-child without the of-selector clause.",
+    "file": "cases/selectors-cascade/selectors-has-nth-of-supports.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-layers-order",
+    "category": "selectors-cascade",
+    "feature": "cascade-layers",
+    "subfeature": "layer-order-over-source-order",
+    "description": "@layer reset, base, theme gives the later-declared theme layer priority over a later source-order base rule; catches source-order-only cascade or dropped layer at-rules.",
+    "file": "cases/selectors-cascade/selectors-cascade-layers-order.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",

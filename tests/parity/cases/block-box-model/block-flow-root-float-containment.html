@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 20px; }
+  .flow {
+    display: flow-root;
+    width: 180px;
+    background: #d9d9d9;
+  }
+  .float {
+    float: left;
+    width: 80px;
+    height: 60px;
+    background: #0a7f2e;
+  }
+  .after {
+    width: 180px;
+    height: 30px;
+    background: #004b8d;
+  }
+</style>
+</head>
+<body>
+  <div class="flow"><div class="float"></div></div>
+  <div class="after"></div>
+</body>
+</html>

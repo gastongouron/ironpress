@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter chain order contrast blur</title>
+<style>
+  @page { size: 240px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .frame {
+    width: 240px;
+    height: 150px;
+    padding: 20px;
+    background: #f5f5f5;
+  }
+  img {
+    display: block;
+    width: 200px;
+    height: 45px;
+    image-rendering: pixelated;
+  }
+  .a {
+    filter: contrast(5) blur(8px);
+  }
+  .b {
+    margin-top: 20px;
+    filter: blur(8px) contrast(5);
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <img class="a" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAc0lEQVR42u3QMQEAIAwDMORUBGKRMxF4ARk7liMGsip5nXJ6LQECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIGBAQHa9TrfSSoAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBgQ8AFCMfIOlbOSBgAAAABJRU5ErkJggg==">
+    <img class="b" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAc0lEQVR42u3QMQEAIAwDMORUBGKRMxF4ARk7liMGsip5nXJ6LQECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIGBAQHa9TrfSSoAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBgQ8AFCMfIOlbOSBgAAAABJRU5ErkJggg==">
+  </div>
+</body>
+</html>

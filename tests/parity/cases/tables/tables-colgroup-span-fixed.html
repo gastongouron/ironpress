@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-colgroup-span-fixed</title>
+<style>
+  @page { size: 250px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 20px; }
+  table {
+    table-layout: fixed;
+    width: 180px;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  td { height: 52px; padding: 0; border: 2px solid #111111; }
+  .a { background: #e63946; }
+  .b { background: #ffbe0b; }
+  .c { background: #2a9d8f; }
+</style>
+</head>
+<body>
+  <table>
+    <colgroup>
+      <col span="2" style="width: 40px">
+      <col style="width: 100px">
+    </colgroup>
+    <tr><td class="a"></td><td class="b"></td><td class="c"></td></tr>
+  </table>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-border-hidden-conflict</title>
+<style>
+  @page { size: 240px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 20px; }
+  table { border-collapse: collapse; }
+  td { width: 80px; height: 60px; padding: 0; border: 0; }
+  .a { background: #f8e16c; border-right: 12px hidden #111111; }
+  .b { background: #70c1b3; border-left: 12px solid #d7263d; }
+</style>
+</head>
+<body>
+  <table>
+    <tr><td class="a"></td><td class="b"></td></tr>
+  </table>
+</body>
+</html>

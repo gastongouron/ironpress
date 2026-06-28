@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-repeat-auto-fill-count</title>
+<style>
+  @page { size: 560px 180px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 80px);
+    grid-auto-rows: 70px;
+    gap: 10px;
+    width: 500px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .cell { border: 2px solid #003a8c; }
+  .a { background: #d7263d; }
+  .b { background: #1b998b; }
+  .c { background: #f4d35e; }
+  .d { background: #5a3fff; }
+  .e { background: #ff8c42; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a"></div>
+    <div class="cell b"></div>
+    <div class="cell c"></div>
+    <div class="cell d"></div>
+    <div class="cell e"></div>
+  </div>
+</body>
+</html>

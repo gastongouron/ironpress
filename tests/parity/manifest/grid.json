@@ -406,5 +406,211 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-repeat-auto-fill-count",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "repeat-auto-fill",
+    "description": "repeat(auto-fill, 80px) resolves the repetition count from a 500px grid and keeps five cells on one row; catches hard-coded three-repeat expansion.",
+    "file": "cases/grid/grid-repeat-auto-fill-count.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-repeat-auto-fit-collapse",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "repeat-auto-fit-collapse",
+    "description": "repeat(auto-fit, minmax(80px, 1fr)) collapses the unused repeated track and stretches four occupied columns; catches auto-fill or fixed-repeat behavior.",
+    "file": "cases/grid/grid-repeat-auto-fit-collapse.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-fit-content-track",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "fit-content",
+    "description": "fit-content(120px) clamps the first track while a 1fr track takes the remainder; catches implementations that approximate fit-content as auto.",
+    "file": "cases/grid/grid-fit-content-track.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-intrinsic-track-keywords",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "min-content-max-content",
+    "description": "min-content and max-content columns size the same breakable text differently; catches engines that map both intrinsic keywords to auto.",
+    "file": "cases/grid/grid-intrinsic-track-keywords.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-columns-implicit",
+    "category": "grid",
+    "feature": "grid-auto-columns",
+    "subfeature": "implicit-columns",
+    "description": "An item placed in column 3 creates implicit columns sized by grid-auto-columns; catches engines that collapse implicit columns to zero width.",
+    "file": "cases/grid/grid-auto-columns-implicit.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-flow-dense",
+    "category": "grid",
+    "feature": "grid-auto-flow",
+    "subfeature": "row-dense",
+    "description": "grid-auto-flow:row dense backfills a one-column item into an earlier top-row hole; catches sparse-only auto-placement.",
+    "file": "cases/grid/grid-auto-flow-dense.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-order-auto-placement",
+    "category": "grid",
+    "feature": "order",
+    "subfeature": "grid-auto-placement",
+    "description": "Grid auto-placement follows order-modified document order, yielding yellow-green-red instead of source order; catches engines that ignore order on grid items.",
+    "file": "cases/grid/grid-order-auto-placement.html",
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-overlap-z-index",
+    "category": "grid",
+    "feature": "z-index",
+    "subfeature": "static-grid-items",
+    "description": "Overlapping static grid items honor z-index, so an earlier higher-z-index inset item paints above a later lower-z-index item; catches source-order-only stacking.",
+    "file": "cases/grid/grid-overlap-z-index.html",
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-placement-longhands",
+    "category": "grid",
+    "feature": "grid-placement",
+    "subfeature": "longhands",
+    "description": "grid-column-start/end and grid-row-start/end longhands place a two-column two-row item; catches shorthand-only placement support.",
+    "file": "cases/grid/grid-placement-longhands.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-shorthand",
+    "category": "grid",
+    "feature": "grid-template",
+    "subfeature": "areas-and-tracks",
+    "description": "The grid-template shorthand defines area strings plus row and column tracks; catches engines that implement only the longhands.",
+    "file": "cases/grid/grid-template-shorthand.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-subgrid-columns",
+    "category": "grid",
+    "feature": "subgrid",
+    "subfeature": "columns",
+    "description": "grid-template-columns:subgrid makes a nested grid adopt parent column tracks; catches independent one-column nested-grid layout.",
+    "file": "cases/grid/grid-subgrid-columns.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-invalid-template-areas",
+    "category": "grid",
+    "feature": "grid-template-areas",
+    "subfeature": "non-rectangular-invalid",
+    "description": "A non-rectangular named area invalidates grid-template-areas, so named placement falls back to auto; catches bounding-box rendering of invalid areas.",
+    "file": "cases/grid/grid-invalid-template-areas.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

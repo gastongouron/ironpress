@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-placement-longhands</title>
+<style>
+  @page { size: 320px 170px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 60px 60px 60px 60px;
+    grid-template-rows: 50px 50px;
+    width: 240px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .a {
+    background: #d7263d;
+    grid-column-start: 2;
+    grid-column-end: 4;
+    grid-row-start: 1;
+    grid-row-end: 3;
+  }
+  .b { background: #1b998b; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="a"></div>
+    <div class="b"></div>
+  </div>
+</body>
+</html>

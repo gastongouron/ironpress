@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background-clip text gradient</title>
+<style>
+  @page { size: 260px 110px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .word {
+    width: 260px;
+    height: 110px;
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 110px;
+    text-align: center;
+    color: transparent;
+    background-image: linear-gradient(to right, #d50000, #2962ff);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+</style>
+</head>
+<body>
+  <div class="word">TEXT</div>
+</body>
+</html>

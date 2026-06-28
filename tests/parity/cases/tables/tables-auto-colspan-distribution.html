@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-auto-colspan-distribution</title>
+<style>
+  @page { size: 360px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 16px; }
+  table { table-layout: auto; border-collapse: separate; border-spacing: 0; background: #ffffff; }
+  td { height: 38px; padding: 0; border: 2px solid #111111; }
+  .wide { width: 200px; background: #457b9d; }
+  .narrow { width: 20px; background: #a8dadc; }
+  .third { width: 60px; background: #f1faee; }
+  .span { width: 240px; background: #e63946; }
+</style>
+</head>
+<body>
+  <table>
+    <tr><td class="wide"></td><td class="narrow"></td><td class="third"></td></tr>
+    <tr><td class="span" colspan="2"></td><td class="third"></td></tr>
+  </table>
+</body>
+</html>

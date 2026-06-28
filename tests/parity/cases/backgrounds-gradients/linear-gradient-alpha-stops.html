@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>linear-gradient alpha stops</title>
+<style>
+  @page { size: 240px 90px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 240px;
+    height: 90px;
+    background: #1565c0;
+  }
+  .bar {
+    width: 240px;
+    height: 90px;
+    background-image: linear-gradient(
+      to right,
+      rgba(229, 57, 53, 0),
+      rgba(229, 57, 53, 1)
+    );
+  }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="bar"></div></div>
+</body>
+</html>

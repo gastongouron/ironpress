@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-auto-flow-dense</title>
+<style>
+  @page { size: 340px 180px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template-columns: 80px 80px 80px;
+    grid-auto-rows: 60px;
+    grid-auto-flow: row dense;
+    gap: 10px;
+    width: 260px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .cell { border: 2px solid #003a8c; }
+  .a { background: #d7263d; grid-column: span 2; }
+  .b { background: #1b998b; grid-column: span 2; }
+  .c { background: #f4d35e; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="cell a"></div>
+    <div class="cell b"></div>
+    <div class="cell c"></div>
+  </div>
+</body>
+</html>

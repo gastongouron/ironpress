@@ -551,5 +551,194 @@
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "tables-border-hidden-conflict",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "hidden-conflict",
+    "description": "Collapsed-border conflict where a hidden right border must suppress the neighboring solid left border; catches engines that parse hidden as none or paint both cell edges.",
+    "file": "cases/tables/tables-border-hidden-conflict.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-width-conflict",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "width-conflict",
+    "description": "Collapsed-border conflict where the wider blue shared border wins over a narrower red neighbor; catches DOM-order overpainting instead of width precedence.",
+    "file": "cases/tables/tables-border-width-conflict.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-style-conflict",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "style-conflict",
+    "description": "Collapsed-border conflict where equal-width double beats solid on the shared edge; catches renderers that overpaint the later solid edge.",
+    "file": "cases/tables/tables-border-style-conflict.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-css-display-table",
+    "category": "tables",
+    "feature": "display",
+    "subfeature": "css-table-roles",
+    "description": "display:table/table-row/table-cell on divs lays out side-by-side cells with separated spacing; catches tag-only table layout that stacks CSS table boxes.",
+    "file": "cases/tables/tables-css-display-table.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-empty-cells-hidden-content",
+    "category": "tables",
+    "feature": "empty-cells",
+    "subfeature": "visibility-hidden",
+    "description": "empty-cells:hide treats visibility:hidden cell content as no visible content and removes an all-empty row; catches DOM-presence emptiness tests.",
+    "file": "cases/tables/tables-empty-cells-hidden-content.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-fixed-overflow-clip",
+    "category": "tables",
+    "feature": "table-layout",
+    "subfeature": "fixed-overflow-clip",
+    "description": "table-layout:fixed clips nowrap overflow:hidden text inside its fixed-width cell; catches width-only fixed layout that lets text spill into the next cell.",
+    "file": "cases/tables/tables-fixed-overflow-clip.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-auto-colspan-distribution",
+    "category": "tables",
+    "feature": "table-layout",
+    "subfeature": "auto-colspan-distribution",
+    "description": "Auto table layout distributes a colspan width contribution over unequal existing column baselines; catches naive even-split spanning-cell sizing.",
+    "file": "cases/tables/tables-auto-colspan-distribution.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-rowspan-zero",
+    "category": "tables",
+    "feature": "rowspan",
+    "subfeature": "rowspan-zero",
+    "description": "rowspan=0 spans the remaining rows in the row group; catches implementations that clamp zero to one and shift later rows left.",
+    "file": "cases/tables/tables-rowspan-zero.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-vertical-align-text-bottom",
+    "category": "tables",
+    "feature": "vertical-align",
+    "subfeature": "text-bottom-fallback",
+    "description": "vertical-align:text-bottom does not apply to table cells and should use baseline behavior; catches engines that treat it as bottom alignment.",
+    "file": "cases/tables/tables-vertical-align-text-bottom.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-collapse-ignores-spacing",
+    "category": "tables",
+    "feature": "border-spacing",
+    "subfeature": "ignored-when-collapsed",
+    "description": "A collapsed-border table ignores a large border-spacing value; catches combined-case engines that apply spacing despite border-collapse:collapse.",
+    "file": "cases/tables/tables-collapse-ignores-spacing.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-colgroup-span-fixed",
+    "category": "tables",
+    "feature": "column-width",
+    "subfeature": "col-span-fixed",
+    "description": "Fixed table layout applies a col span=2 width to two equal columns before a wider third column; catches engines that ignore col span width assignment.",
+    "file": "cases/tables/tables-colgroup-span-fixed.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

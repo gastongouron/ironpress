@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 220px 160px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body {
+    width: 220px;
+    height: 160px;
+    padding: 20px;
+  }
+  .frame {
+    position: relative;
+    width: 180px;
+    height: 120px;
+    background: #e6e6e6;
+  }
+  .ref {
+    position: absolute;
+    left: 20px;
+    top: 35px;
+    width: 54px;
+    height: 54px;
+    background: #c62828;
+  }
+  .target {
+    position: absolute;
+    left: 20px;
+    top: 35px;
+    width: 54px;
+    height: 54px;
+    padding: 12px;
+    border: 6px solid #004b8d;
+    background: #0a7f2e;
+    transform-box: content-box;
+    transform-origin: 0 0;
+    translate: 90px 0;
+    rotate: 45deg;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="ref"></div>
+    <div class="target"></div>
+  </div>
+</body>
+</html>

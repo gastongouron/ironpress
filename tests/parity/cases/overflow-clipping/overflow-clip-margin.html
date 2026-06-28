@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 180px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 35px; }
+  .clip {
+    position: relative;
+    width: 70px;
+    height: 70px;
+    background: #d9d9d9;
+    overflow: clip;
+    overflow-clip-margin: 18px;
+  }
+  .child {
+    position: absolute;
+    left: -16px;
+    top: 22px;
+    width: 102px;
+    height: 26px;
+    background: #0a7f2e;
+  }
+</style>
+</head>
+<body>
+  <div class="clip"><div class="child"></div></div>
+</body>
+</html>

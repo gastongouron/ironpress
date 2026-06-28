@@ -194,5 +194,65 @@
     "kind": "feature",
     "expected_support": "partial",
     "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box"]
+  },
+  {
+    "id": "filter-grayscale-group-descendants",
+    "category": "filters",
+    "feature": "filter: grayscale()",
+    "subfeature": "group-descendants",
+    "description": "filter: grayscale(1) applies to a parent source graphic including colored text and a child box; catches implementations that recolor only the parent background or ignore descendants.",
+    "file": "cases/filters/filter-grayscale-group-descendants.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-text-baseline"]
+  },
+  {
+    "id": "filter-chain-order-contrast-blur",
+    "category": "filters",
+    "feature": "filter: chained",
+    "subfeature": "ordered-contrast-blur",
+    "description": "contrast(5) blur(8px) and blur(8px) contrast(5) produce different edge softness; catches implementations that reorder filter functions.",
+    "file": "cases/filters/filter-chain-order-contrast-blur.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "interaction_of": [
+      "filter: contrast()",
+      "filter: blur()"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": ["probe-image-render", "probe-fill-box"]
+  },
+  {
+    "id": "filter-drop-shadow-currentcolor",
+    "category": "filters",
+    "feature": "filter: drop-shadow()",
+    "subfeature": "default-currentcolor",
+    "description": "drop-shadow() without a color uses currentColor for the shadow; catches parsers that default the omitted color to black.",
+    "file": "cases/filters/filter-drop-shadow-currentcolor.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-image-render", "probe-color-swatch"]
+  },
+  {
+    "id": "filter-url-svg-gaussian-blur",
+    "category": "filters",
+    "feature": "filter: url()",
+    "subfeature": "svg-fegaussianblur",
+    "description": "filter:url(#id) references an inline SVG feGaussianBlur primitive; catches URL-filter implementations limited to feColorMatrix or no-op filters.",
+    "file": "cases/filters/filter-url-svg-gaussian-blur.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-color-swatch"]
   }
 ]

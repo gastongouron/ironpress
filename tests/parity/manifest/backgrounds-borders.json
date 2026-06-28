@@ -521,5 +521,151 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-image-gradient-slice",
+    "category": "backgrounds-borders",
+    "feature": "border-image",
+    "subfeature": "gradient-slice",
+    "description": "border-image paints a linear-gradient source into a transparent physical border; catches engines that ignore border-image or fall back to a plain/transparent border.",
+    "file": "cases/backgrounds-borders/border-image-gradient-slice.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-style-3d-bevels",
+    "category": "backgrounds-borders",
+    "feature": "border-style",
+    "subfeature": "groove-ridge-inset-outset",
+    "description": "groove, ridge, inset, and outset render with 3D bevel polarity; catches unsupported keywords collapsed to flat solid borders.",
+    "file": "cases/backgrounds-borders/border-style-3d-bevels.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-repeat-space-round",
+    "category": "backgrounds-borders",
+    "feature": "background-repeat",
+    "subfeature": "space-round",
+    "description": "background-repeat: space round distributes columns and rounds row tile height; catches parsers that treat unsupported repeat keywords as ordinary repeat.",
+    "file": "cases/backgrounds-borders/background-repeat-space-round.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-position-edge-offsets",
+    "category": "backgrounds-borders",
+    "feature": "background-position",
+    "subfeature": "four-value-edge-offsets",
+    "description": "background-position: right 20px bottom 15px anchors a tile from named edges; catches one/two-value parsers that fall back to top-left.",
+    "file": "cases/backgrounds-borders/background-position-edge-offsets.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-size-auto-length",
+    "category": "backgrounds-borders",
+    "feature": "background-size",
+    "subfeature": "auto-length-intrinsic-ratio",
+    "description": "background-size: auto 60px preserves the image intrinsic ratio; catches implementations that treat mixed auto/length as plain auto.",
+    "file": "cases/backgrounds-borders/background-size-auto-length.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-clip-text-gradient",
+    "category": "backgrounds-borders",
+    "feature": "background-clip",
+    "subfeature": "text",
+    "description": "background-clip:text clips a gradient background to glyph shapes; catches engines that map text to border-box or leave transparent text invisible.",
+    "file": "cases/backgrounds-borders/background-clip-text-gradient.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-shadow-elliptical-radius",
+    "category": "backgrounds-borders",
+    "feature": "box-shadow",
+    "subfeature": "elliptical-percentage-radius",
+    "description": "A pill-shaped border-radius:50% casts a hard oval shadow; catches scalar rounded-rectangle shadow math on non-square boxes.",
+    "file": "cases/backgrounds-borders/box-shadow-elliptical-radius.html",
+    "kind": "interaction",
+    "interaction_of": [
+      "box-shadow",
+      "border-radius"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-origin-border-box",
+    "category": "backgrounds-borders",
+    "feature": "background-origin",
+    "subfeature": "border-box",
+    "description": "background-origin:border-box positions a tile from the outer border edge; catches implementations that always use padding-box.",
+    "file": "cases/backgrounds-borders/background-origin-border-box.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

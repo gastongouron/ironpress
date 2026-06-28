@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>filter url svg gaussian blur</title>
+<style>
+  @page { size: 220px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg.defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .stage {
+    width: 220px;
+    height: 140px;
+    padding: 30px;
+    background: #ffffff;
+  }
+  .box {
+    width: 120px;
+    height: 70px;
+    background: #d50000;
+    filter: url(#soften);
+  }
+</style>
+</head>
+<body>
+  <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="soften" x="-30%" y="-40%" width="160%" height="180%">
+        <feGaussianBlur stdDeviation="6"/>
+      </filter>
+    </defs>
+  </svg>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

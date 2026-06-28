@@ -296,5 +296,33 @@
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "lists-counters-list-style-image-data-uri",
+    "category": "lists-counters",
+    "feature": "list-style-image",
+    "subfeature": "data-png-marker",
+    "description": "list-style-image:url(data:png) replaces disc bullets with the intrinsic image marker; catches fallback to list-style-type markers.",
+    "file": "cases/lists-counters/lists-counters-list-style-image-data-uri.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-fill-box", "probe-text-baseline", "probe-image-render"],
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "lists-counters-counter-set",
+    "category": "lists-counters",
+    "feature": "counter-set",
+    "subfeature": "assign-existing-counter",
+    "description": "counter-set:item 7 assigns the existing counter so generated labels read 1, 7, 8; catches counter-reset/increment-only support.",
+    "file": "cases/lists-counters/lists-counters-counter-set.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-text-baseline"],
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

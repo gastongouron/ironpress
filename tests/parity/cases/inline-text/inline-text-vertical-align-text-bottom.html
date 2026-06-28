@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 300px 190px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body { padding: 12px; font-size: 24px; }
+  .row {
+    height: 72px;
+    line-height: 72px;
+    background: #eef2ff;
+    margin-bottom: 8px;
+    border-top: 2px solid #222222;
+    color: #111111;
+  }
+  .box {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    background: #1167b1;
+  }
+  .tb { vertical-align: text-bottom; }
+  .bt { vertical-align: bottom; }
+</style>
+</head>
+<body>
+  <div class="row">text<span class="box tb"></span>bottom</div>
+  <div class="row">line<span class="box bt"></span>bottom</div>
+</body>
+</html>

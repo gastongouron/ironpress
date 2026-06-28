@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-template-shorthand</title>
+<style>
+  @page { size: 280px 190px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .grid {
+    display: grid;
+    grid-template:
+      "head head" 50px
+      "side main" 70px
+      / 80px 120px;
+    width: 200px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .head { background: #d7263d; grid-area: head; }
+  .side { background: #1b998b; grid-area: side; }
+  .main { background: #f4d35e; grid-area: main; }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="head"></div>
+    <div class="side"></div>
+    <div class="main"></div>
+  </div>
+</body>
+</html>

@@ -254,12 +254,27 @@ pub(crate) fn enforce_gate(baseline: Option<&Report>, current: &Report) -> Resul
         }
     }
 
-    // 2. Overall-score regression beyond epsilon.
-    let delta = base.overall.score_pct - current.overall.score_pct;
+    // 2. Overall-score regression beyond epsilon — measured over the COMMON
+    // fixture set (ids in BOTH baseline and current). ADDING fixtures (e.g.
+    // tracked-unsupported coverage gaps from the spec audit) legitimately lowers
+    // the whole-corpus score without being a regression, so the delta must ignore
+    // newly-added ids; only a genuine degradation of pre-existing fixtures trips
+    // this. (Named PASS->FAIL above already catches per-fixture breakage.)
+    let base_common: Vec<&FixtureResult> = base_by_id
+        .iter()
+        .filter_map(|(id, fx)| cur_by_id.contains_key(id).then_some(fx))
+        .collect();
+    let cur_common: Vec<&FixtureResult> = cur_by_id
+        .iter()
+        .filter_map(|(id, fx)| base_by_id.contains_key(id).then_some(fx))
+        .collect();
+    let base_score = weighted_score(&base_common);
+    let cur_score = weighted_score(&cur_common);
+    let delta = base_score - cur_score;
     if delta > SCORE_EPSILON {
         problems.push(format!(
-            "overall score regression: {:.2}% -> {:.2}% (drop {:.2}pp > epsilon {:.2})",
-            base.overall.score_pct, current.overall.score_pct, delta, SCORE_EPSILON
+            "overall score regression (common fixtures): {:.2}% -> {:.2}% (drop {:.2}pp > epsilon {:.2})",
+            base_score, cur_score, delta, SCORE_EPSILON
         ));
     }
 

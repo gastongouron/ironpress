@@ -238,5 +238,57 @@
       "probe-fill-box",
       "probe-color-swatch"
     ]
+  },
+  {
+    "id": "clip-path-inset-content-box",
+    "category": "clip-mask",
+    "feature": "clip-path: inset()",
+    "subfeature": "content-box-geometry",
+    "description": "clip-path: inset(0) content-box clips a bordered, padded box to its content-box reference; catches geometry-box keywords ignored as bare border-box inset().",
+    "file": "cases/clip-mask/clip-path-inset-content-box.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "clip-path-polygon-evenodd",
+    "category": "clip-mask",
+    "feature": "clip-path: polygon()",
+    "subfeature": "evenodd-fill-rule",
+    "description": "clip-path: polygon(evenodd, ...) cuts an inner rectangular hole; catches polygon clipping that ignores the fill-rule or always uses nonzero fill.",
+    "file": "cases/clip-mask/clip-path-polygon-evenodd.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "mask-composite-exclude-layers",
+    "category": "clip-mask",
+    "feature": "mask-composite",
+    "subfeature": "exclude-two-layers",
+    "description": "Two mask-image layers with mask-composite:exclude punch a circular hole through a full-box mask; catches single-layer masks or ignored compositing.",
+    "file": "cases/clip-mask/mask-composite-exclude-layers.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   }
 ]

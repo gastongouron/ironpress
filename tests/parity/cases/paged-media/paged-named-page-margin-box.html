@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page {
+      size: 180px 140px;
+      margin: 24px 0 0 0;
+      @top-center {
+        content: "BASE";
+        background: #1d4ed8;
+        color: #ffffff;
+      }
+    }
+    @page chapter {
+      size: 180px 140px;
+      margin: 24px 0 0 0;
+      @top-center {
+        content: "CHAPTER";
+        background: #16a34a;
+        color: #ffffff;
+      }
+    }
+    html { font-family: ParitySans; line-height: 1.5; }
+    * { margin: 0; box-sizing: border-box; }
+    .page { width: 180px; height: 116px; background: #dbeafe; font-size: 14px; }
+    .chapter { page: chapter; background: #bbf7d0; }
+  </style>
+</head>
+<body>
+  <div class="page">one</div>
+  <div class="page chapter">two</div>
+</body>
+</html>

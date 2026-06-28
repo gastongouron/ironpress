@@ -10,7 +10,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box"]
   },
   {
@@ -342,6 +342,34 @@
     "subfeature": "nested-parens",
     "description": "calc(2 * (10% + 20px)) x calc(2 * (10% + 10px)) against a 400x200px parent resolves to 120x60px; verifies parenthesised sub-expressions in calc() (css-values-4 §10.9). The percentage defeats lightningcss folding so the grouping is honoured end-to-end.",
     "file": "cases/units-values/units-calc-nested-parens.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box"]
+  },
+  {
+    "id": "units-ch-layout-width",
+    "category": "units-values",
+    "feature": "font-relative-length",
+    "subfeature": "ch-width",
+    "description": "width:20ch in ParityMono uses the zero glyph advance and is wider than a 10em reference; catches hard-coded 0.5em ch fallback.",
+    "file": "cases/units-values/units-ch-layout-width.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-fill-box", "probe-color-swatch", "probe-border-box"]
+  },
+  {
+    "id": "units-intrinsic-vmin-aspect-ratio",
+    "category": "units-values",
+    "feature": "intrinsic-sizing",
+    "subfeature": "min-max-content-vmin-aspect-ratio",
+    "description": "min-content and max-content text widths plus a 40vmin aspect-ratio box lock intrinsic sizing and viewport-unit resolution; catches auto intrinsic widths, default viewport units, or dropped aspect-ratio.",
+    "file": "cases/units-values/units-intrinsic-vmin-aspect-ratio.html",
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,

@@ -863,5 +863,39 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-display-contents",
+    "category": "block-box-model",
+    "feature": "display",
+    "subfeature": "contents-box-suppression",
+    "description": "display:contents suppresses the wrapper box, paint, and padding while keeping children in flow; catches treating contents as block.",
+    "file": "cases/block-box-model/block-display-contents.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "block-flow-root-float-containment",
+    "category": "block-box-model",
+    "feature": "display",
+    "subfeature": "flow-root-float-containment",
+    "description": "display:flow-root establishes a BFC whose height contains a floated child before the following block; catches normal-block zero-height float collapse.",
+    "file": "cases/block-box-model/block-flow-root-float-containment.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

@@ -581,5 +581,47 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "inline-text-vertical-align-length",
+    "category": "inline-text",
+    "feature": "vertical-align",
+    "subfeature": "length",
+    "description": "vertical-align:18px shifts an inline-block above the surrounding baseline; catches keyword-only implementations that fall back to baseline.",
+    "file": "cases/inline-text/inline-text-vertical-align-length.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-vertical-align-text-bottom",
+    "category": "inline-text",
+    "feature": "vertical-align",
+    "subfeature": "text-bottom",
+    "description": "vertical-align:text-bottom aligns to the parent text bottom inside a tall line box; catches aliasing text-bottom to bottom.",
+    "file": "cases/inline-text/inline-text-vertical-align-text-bottom.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-text-indent-percent",
+    "category": "inline-text",
+    "feature": "text-indent",
+    "subfeature": "percent-containing-block",
+    "description": "text-indent:50% indents only the first formatted line by half the containing block width; catches length-only text-indent parsing.",
+    "file": "cases/inline-text/inline-text-text-indent-percent.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

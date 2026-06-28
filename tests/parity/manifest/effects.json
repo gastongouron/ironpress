@@ -286,5 +286,39 @@
     "pass_threshold_pct": 2.0,
     "subfeature": "inset-spread",
     "weight": 1
+  },
+  {
+    "id": "mix-blend-mode-luminosity",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "luminosity",
+    "description": "mix-blend-mode: luminosity blends a yellow source with a blue backdrop; catches unsupported non-separable blend modes treated as normal.",
+    "file": "cases/effects/mix-blend-mode-luminosity.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "background-blend-mode-overlay",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "overlay",
+    "description": "background-blend-mode: overlay blends black/white gradient halves with a purple background color; catches normal or multiply-only background blending.",
+    "file": "cases/effects/background-blend-mode-overlay.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   }
 ]
