@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box shadow inset elliptical radius</title>
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 170px;
+    height: 95px;
+    margin: 25px;
+    background: #fdd835;
+    border: 6px solid #111111;
+    border-radius: 50% / 28%;
+    box-shadow: inset 0 0 0 18px #e53935;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 180px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg {
+    display: block;
+    width: 140px;
+    height: 90px;
+    background: #c62828;
+  }
+</style>
+</head>
+<body>
+  <svg viewBox="0 0 140 90" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="g" x1="0" x2="1">
+        <stop offset="0" stop-color="#0a7f2e"></stop>
+        <stop offset="1" stop-color="#1565c0"></stop>
+      </linearGradient>
+      <clipPath id="c">
+        <circle cx="70" cy="45" r="38"></circle>
+      </clipPath>
+    </defs>
+    <rect x="10" y="5" width="120" height="80" fill="url(#g)" clip-path="url(#c)"></rect>
+  </svg>
+</body>
+</html>

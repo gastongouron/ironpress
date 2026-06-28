@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 clip path url inline svg circle</title>
+<style>
+  @page { size: 200px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .box { width: 200px; height: 140px; background: #d32f2f; clip-path: url(#r2clip); }
+</style>
+</head>
+<body>
+  <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><clipPath id="r2clip" clipPathUnits="objectBoundingBox"><circle cx="0.5" cy="0.5" r="0.42"/></clipPath></defs></svg>
+  <div class="box"></div>
+</body>
+</html>

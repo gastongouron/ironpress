@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 clip path no layout shrink</title>
+<style>
+  @page { size: 180px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .a { width: 160px; height: 100px; background: #d32f2f; clip-path: inset(70px 0 0 0); }
+  .b { width: 160px; height: 40px; background: #2e7d32; }
+</style>
+</head>
+<body>
+  <div class="a"></div><div class="b"></div>
+</body>
+</html>

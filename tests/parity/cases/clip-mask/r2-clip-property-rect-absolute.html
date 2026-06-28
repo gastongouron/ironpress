@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 clip property rect absolute</title>
+<style>
+  @page { size: 180px 110px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { position: relative; width: 180px; height: 110px; background: #ffffff; }
+  .box { position: absolute; top: 10px; left: 20px; width: 130px; height: 90px; background: #1565c0; clip: rect(15px, 120px, 75px, 35px); }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

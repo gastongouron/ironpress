@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 overflow plus clip path intersection</title>
+<style>
+  @page { size: 180px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .parent { position: relative; width: 125px; height: 92px; margin: 18px; overflow: hidden; background: #eeeeee; }
+  .child { position: absolute; left: 52px; top: -6px; width: 112px; height: 112px; background: #d32f2f; clip-path: circle(54px at 56px 56px); }
+</style>
+</head>
+<body>
+  <div class="parent"><div class="child"></div></div>
+</body>
+</html>

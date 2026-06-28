@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mix blend hard-light</title>
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { position: relative; width: 220px; height: 150px; background: #ffffff; }
+  .base { position: absolute; top: 25px; left: 25px; width: 110px; height: 90px; background: #1565c0; }
+  .blend { position: absolute; top: 45px; left: 85px; width: 110px; height: 90px; background: #d32f2f; mix-blend-mode: hard-light; }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="base"></div><div class="blend"></div></div>
+</body>
+</html>

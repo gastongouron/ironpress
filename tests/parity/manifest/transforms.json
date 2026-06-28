@@ -8,7 +8,10 @@
     "file": "cases/transforms/transforms-translate.html",
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -22,7 +25,10 @@
     "file": "cases/transforms/transforms-translate-x.html",
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -36,7 +42,10 @@
     "file": "cases/transforms/transforms-translate-y.html",
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -50,7 +59,10 @@
     "file": "cases/transforms/transforms-scale.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -64,7 +76,10 @@
     "file": "cases/transforms/transforms-scale-x.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -78,7 +93,10 @@
     "file": "cases/transforms/transforms-scale-y.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -92,7 +110,10 @@
     "file": "cases/transforms/transforms-rotate.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -106,7 +127,10 @@
     "file": "cases/transforms/transforms-skew.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -120,7 +144,10 @@
     "file": "cases/transforms/transforms-matrix.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -134,7 +161,10 @@
     "file": "cases/transforms/transforms-origin-top-left.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -148,7 +178,10 @@
     "file": "cases/transforms/transforms-compound-rotate-translate.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -162,7 +195,10 @@
     "file": "cases/transforms/transforms-translate-percent.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -176,7 +212,10 @@
     "file": "cases/transforms/transforms-translate-x-percent.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -190,7 +229,10 @@
     "file": "cases/transforms/transforms-translate-y-percent.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -204,7 +246,10 @@
     "file": "cases/transforms/transforms-translate-em.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -218,7 +263,10 @@
     "file": "cases/transforms/transforms-scale-negative.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -232,7 +280,10 @@
     "file": "cases/transforms/transforms-scale-omitted.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -246,7 +297,10 @@
     "file": "cases/transforms/transforms-rotate-turn.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -260,7 +314,10 @@
     "file": "cases/transforms/transforms-rotate-rad.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -274,7 +331,10 @@
     "file": "cases/transforms/transforms-rotate-negative.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -288,7 +348,10 @@
     "file": "cases/transforms/transforms-skew-x.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -302,7 +365,10 @@
     "file": "cases/transforms/transforms-skew-y.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -316,7 +382,10 @@
     "file": "cases/transforms/transforms-origin-bottom-right.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -330,7 +399,10 @@
     "file": "cases/transforms/transforms-origin-length.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -344,7 +416,10 @@
     "file": "cases/transforms/transforms-origin-percent.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -358,7 +433,10 @@
     "file": "cases/transforms/transforms-origin-keyword-length.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -372,7 +450,10 @@
     "file": "cases/transforms/transforms-origin-scale-corner.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -386,7 +467,10 @@
     "file": "cases/transforms/transforms-compound-order.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -400,7 +484,10 @@
     "file": "cases/transforms/transforms-compound-scale-translate.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -414,7 +501,10 @@
     "file": "cases/transforms/transforms-none-reset.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -428,7 +518,190 @@
     "file": "cases/transforms/transforms-individual-transform-box-content.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-block-flow"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-scale-percent",
+    "category": "transforms",
+    "feature": "transform",
+    "subfeature": "scale-percent",
+    "description": "transform:scale(150%,50%) accepts percentage scale factors and scales from a top-left origin; catches parsers that accept only numeric scale factors and drop the transform.",
+    "file": "cases/transforms/transforms-scale-percent.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-perspective-rotate-x",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "perspective-rotate-x",
+    "description": "perspective() rotateX() projects the box as a 3D quadrilateral; catches 2D flattening, perspective drops, or treating rotateX as a plain scale.",
+    "file": "cases/transforms/transforms-perspective-rotate-x.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-perspective-translate-z",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "perspective-translate-z",
+    "description": "A parent perspective makes a translateZ child render larger than the red reference; catches ignoring either the perspective property or the Z translation.",
+    "file": "cases/transforms/transforms-perspective-translate-z.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-rotate3d-axis",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "rotate3d-axis",
+    "description": "rotate3d(1,1,0,62deg) rotates around an arbitrary 3D axis under perspective; catches dropping rotate3d or rendering the element as an unprojected rectangle.",
+    "file": "cases/transforms/transforms-rotate3d-axis.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-matrix3d-translate",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "matrix3d-translate",
+    "description": "matrix3d() translation components move the green box down and right from the red reference; catches 2D-only parsers that drop matrix3d.",
+    "file": "cases/transforms/transforms-matrix3d-translate.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-preserve-3d-depth-order",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "preserve-3d-depth-order",
+    "description": "transform-style:preserve-3d lets an earlier translateZ child paint above a later flat sibling; catches flattening or source-order-only painting.",
+    "file": "cases/transforms/transforms-preserve-3d-depth-order.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-perspective-origin",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "perspective-origin",
+    "description": "perspective-origin changes the projection center for otherwise identical rotateY boxes; catches treating both scenes as the same projection.",
+    "file": "cases/transforms/transforms-perspective-origin.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-translate3d-perspective",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "translate3d-perspective",
+    "description": "translate3d(x,y,z) combines planar movement with perspective enlargement; catches dropping translate3d or ignoring its Z component.",
+    "file": "cases/transforms/transforms-translate3d-perspective.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-scale3d-rotate-y",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "scale3d-rotate-y",
+    "description": "scale3d's Z component changes the projected shape of a rotateY plane; catches dropping scale3d or using a flat 2D projection.",
+    "file": "cases/transforms/transforms-scale3d-rotate-y.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "transforms-origin-z-offset",
+    "category": "transforms",
+    "feature": "transform-3d",
+    "subfeature": "transform-origin-z-offset",
+    "description": "A three-value transform-origin with a Z offset changes the rotateY hinge; catches ignoring the third transform-origin component.",
+    "file": "cases/transforms/transforms-origin-z-offset.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0

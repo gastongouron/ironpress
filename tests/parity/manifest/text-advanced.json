@@ -11,7 +11,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-white-space-pre",
@@ -25,7 +28,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-white-space-nowrap",
@@ -39,7 +45,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-white-space-pre-wrap",
@@ -53,7 +62,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-white-space-pre-line",
@@ -67,7 +79,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-text-overflow-ellipsis",
@@ -81,7 +96,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-text-overflow-clip",
@@ -95,7 +113,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-overflow-wrap-break-word",
@@ -109,7 +130,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-word-break-break-all",
@@ -123,7 +147,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-hyphens-auto",
@@ -137,7 +164,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-direction-rtl",
@@ -151,7 +181,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-unicode-bidi-override",
@@ -165,7 +198,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-writing-mode-vertical-rl",
@@ -179,7 +215,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-tab-size",
@@ -193,7 +232,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-text-indent",
@@ -207,7 +249,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-white-space-break-spaces",
@@ -221,7 +266,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-word-break-keep-all",
@@ -235,7 +283,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-overflow-wrap-anywhere",
@@ -249,7 +300,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-direction-ltr",
@@ -263,7 +317,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-text-overflow-string",
@@ -277,7 +334,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-text-align-end-rtl",
@@ -291,7 +351,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-hyphens-manual-soft-hyphen",
@@ -305,7 +368,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
   },
   {
     "id": "text-advanced-tab-size-four",
@@ -319,7 +385,9 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"]
+    "depends_on": [
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "text-advanced-writing-mode-vertical-rl-columns",
@@ -333,6 +401,469 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"]
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ]
+  },
+  {
+    "id": "text-advanced-hyphen-minus-wrap",
+    "category": "text-advanced",
+    "feature": "soft wrap after U+002D hyphen-minus",
+    "subfeature": "hyphen-minus-wrap",
+    "description": "A narrow box wraps pseudo-element after the hyphen and keeps the hyphen at the end of the first line. Catches: A wrapper that only breaks at spaces passes existing normal wrapping tests but overflows or arbitrarily splits hyphenated words.",
+    "file": "cases/text-advanced/text-advanced-hyphen-minus-wrap.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-word-break-keep-all-cjk",
+    "category": "text-advanced",
+    "feature": "word-break:keep-all with CJK text",
+    "subfeature": "word-break-keep-all-cjk",
+    "description": "A narrow CJK phrase with keep-all should avoid ordinary CJK line breaks and overflow/clamp as one unbroken run. Catches: Leaving keep-all as normal passes Latin keep-all smoke tests because spaced Latin text wraps the same either way.",
+    "file": "cases/text-advanced/text-advanced-word-break-keep-all-cjk.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-line-break-anywhere",
+    "category": "text-advanced",
+    "feature": "line-break:anywhere",
+    "subfeature": "line-break-anywhere",
+    "description": "A no-space punctuation-heavy run fits a very narrow column only when line-break:anywhere creates breaks around punctuation. Catches: Ignoring line-break passes overflow-wrap and word-break tests but leaves this string overflowing as a single line.",
+    "file": "cases/text-advanced/text-advanced-line-break-anywhere.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-line-break-strict-cjk-punctuation",
+    "category": "text-advanced",
+    "feature": "line-break:strict",
+    "subfeature": "line-break-strict-cjk-punctuation",
+    "description": "A narrow Japanese phrase uses strict line breaking so closing punctuation stays with the preceding ideograph rather than starting a line. Catches: Treating all line-break values as auto passes Latin wrapping fixtures but misplaces CJK punctuation at line starts/ends.",
+    "file": "cases/text-advanced/text-advanced-line-break-strict-cjk-punctuation.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-hyphens-none-soft-hyphen",
+    "category": "text-advanced",
+    "feature": "hyphens:none with U+00AD",
+    "subfeature": "hyphens-none-soft-hyphen",
+    "description": "A narrow word contains a soft hyphen but hyphens:none forbids breaking at it. Catches: Supporting only manual soft-hyphen breaks passes manual hyphenation tests while violating the none value.",
+    "file": "cases/text-advanced/text-advanced-hyphens-none-soft-hyphen.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-align-start-rtl",
+    "category": "text-advanced",
+    "feature": "text-align:start with direction:rtl",
+    "subfeature": "text-align-start-rtl",
+    "description": "An RTL block with text-align:start places a short Latin run against the physical right edge. Catches: A parser that treats unknown text-align as left passes left/right/center fixtures but flips logical alignment.",
+    "file": "cases/text-advanced/text-advanced-text-align-start-rtl.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-align-match-parent",
+    "category": "text-advanced",
+    "feature": "text-align:match-parent",
+    "subfeature": "text-align-match-parent",
+    "description": "A child inherits a parent's logical end alignment and resolves it against the parent's RTL direction. Catches: Treating match-parent as left passes current physical alignment tests but loses inherited logical resolution.",
+    "file": "cases/text-advanced/text-advanced-text-align-match-parent.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-align-last-center",
+    "category": "text-advanced",
+    "feature": "text-align-last:center",
+    "subfeature": "text-align-last-center",
+    "description": "A justified paragraph has a short final line that should be centered by text-align-last:center. Catches: A justify-only renderer passes multiline justify tests while leaving the last line left-aligned.",
+    "file": "cases/text-advanced/text-advanced-text-align-last-center.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-overflow-wrap-anywhere-min-content",
+    "category": "text-advanced",
+    "feature": "overflow-wrap:anywhere min-content contribution",
+    "subfeature": "overflow-wrap-anywhere-min-content",
+    "description": "Two inline-blocks with the same long word compare anywhere against break-word; anywhere can shrink much narrower. Catches: Mapping anywhere and break-word to the same visual breaker passes simple wrapping tests but misses intrinsic sizing differences.",
+    "file": "cases/text-advanced/text-advanced-overflow-wrap-anywhere-min-content.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-overflow-rtl-ellipsis",
+    "category": "text-advanced",
+    "feature": "text-overflow:ellipsis with direction:rtl",
+    "subfeature": "text-overflow-rtl-ellipsis",
+    "description": "An RTL nowrap overflow box should place the ellipsis at the left inline end when content overflows toward that side. Catches: A left-to-right truncator appends ellipsis to the string and passes LTR ellipsis fixtures while painting it on the wrong physical edge for RTL.",
+    "file": "cases/text-advanced/text-advanced-text-overflow-rtl-ellipsis.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-wrap-balance",
+    "category": "text-advanced",
+    "feature": "text-wrap:balance",
+    "subfeature": "text-wrap-balance",
+    "description": "A heading constrained to two lines should balance line lengths instead of leaving a very short final line. Catches: A normal greedy wrapper passes ordinary wrapping fixtures but produces an obviously ragged title.",
+    "file": "cases/text-advanced/text-advanced-text-wrap-balance.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-wrap-pretty",
+    "category": "text-advanced",
+    "feature": "text-wrap:pretty",
+    "subfeature": "text-wrap-pretty",
+    "description": "A paragraph width that would strand one short word uses pretty wrapping to improve the final line. Catches: A greedy-only wrapper passes normal wrapping but leaves a single-word last line when pretty should rebalance.",
+    "file": "cases/text-advanced/text-advanced-text-wrap-pretty.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-wrap-mode-nowrap",
+    "category": "text-advanced",
+    "feature": "text-wrap-mode:nowrap",
+    "subfeature": "text-wrap-mode-nowrap",
+    "description": "A long phrase with text-wrap-mode:nowrap overflows a narrow box even though white-space is otherwise normal. Catches: Only recognizing white-space:nowrap passes shorthand tests while ignoring the longhand added by CSS Text 4.",
+    "file": "cases/text-advanced/text-advanced-text-wrap-mode-nowrap.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-white-space-collapse-preserve",
+    "category": "text-advanced",
+    "feature": "white-space-collapse:preserve",
+    "subfeature": "white-space-collapse-preserve",
+    "description": "A normal wrapping line uses the longhand white-space-collapse:preserve so three spaces between A and B stay visible. Catches: Only recognizing white-space:pre/pre-wrap passes shorthand fixtures while collapsing spaces when the new longhand is used.",
+    "file": "cases/text-advanced/text-advanced-white-space-collapse-preserve.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-shadow-offset",
+    "category": "text-advanced",
+    "feature": "text-shadow offset color",
+    "subfeature": "text-shadow-offset",
+    "description": "A word has a non-blurred red shadow offset down and right behind black foreground glyphs. Catches: A renderer that ignores text-shadow passes ordinary text color/layout fixtures but lacks the second offset glyph silhouette.",
+    "file": "cases/text-advanced/text-advanced-text-shadow-offset.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-direction-rtl-mixed-bidi",
+    "category": "text-advanced",
+    "feature": "direction:rtl basic inline paragraph",
+    "subfeature": "direction-rtl-mixed-bidi",
+    "description": "An RTL block containing Hebrew followed by Latin starts from the right edge and orders the mixed text by the Unicode bidi algorithm. Catches: A left-to-right-only renderer passes Latin fixtures and even text-align:right tests but paints mixed RTL text in logical order.",
+    "file": "cases/text-advanced/text-advanced-direction-rtl-mixed-bidi.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-dir-auto",
+    "category": "text-advanced",
+    "feature": "dir=auto",
+    "subfeature": "dir-auto",
+    "description": "Two boxes use dir=auto; the Hebrew-first row aligns right while the Latin-first row aligns left. Catches: Supporting only explicit ltr/rtl dir values passes fixed-direction fixtures but treats auto as the inherited/default direction.",
+    "file": "cases/text-advanced/text-advanced-dir-auto.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-unicode-bidi-plaintext",
+    "category": "text-advanced",
+    "feature": "unicode-bidi:plaintext",
+    "subfeature": "unicode-bidi-plaintext",
+    "description": "A pre-line block has one English line and one Hebrew line; plaintext chooses base direction separately for each line. Catches: A paragraph-level bidi implementation passes single-paragraph tests but gives both lines the same base direction.",
+    "file": "cases/text-advanced/text-advanced-unicode-bidi-plaintext.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-mixed-script-bidi",
+    "category": "text-advanced",
+    "feature": "mixed-script Unicode bidi visual order",
+    "subfeature": "mixed-script-bidi",
+    "description": "A left-to-right paragraph contains a Hebrew segment between Latin words and should reorder the RTL segment visually without reversing Latin text. Catches: A run-order-only renderer passes pure LTR and pure RTL tests but leaves mixed scripts in source order.",
+    "file": "cases/text-advanced/text-advanced-mixed-script-bidi.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-writing-mode-vertical-lr",
+    "category": "text-advanced",
+    "feature": "writing-mode:vertical-lr",
+    "subfeature": "writing-mode-vertical-lr",
+    "description": "A vertical-lr block should set text vertically with columns progressing left-to-right. Catches: A vertical-rl-only implementation passes its one vertical fixture but falls back to horizontal for vertical-lr.",
+    "file": "cases/text-advanced/text-advanced-writing-mode-vertical-lr.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-writing-mode-sideways-rl",
+    "category": "text-advanced",
+    "feature": "writing-mode:sideways-rl",
+    "subfeature": "writing-mode-sideways-rl",
+    "description": "A sideways-rl block rotates Latin text as a sideways vertical line instead of horizontal text. Catches: Supporting only horizontal-tb and vertical-rl passes current fixtures while ignoring sideways modes.",
+    "file": "cases/text-advanced/text-advanced-writing-mode-sideways-rl.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-orientation-upright",
+    "category": "text-advanced",
+    "feature": "text-orientation:upright",
+    "subfeature": "text-orientation-upright",
+    "description": "A vertical-rl box with text-orientation:upright stacks upright Latin letters instead of rotating the word sideways. Catches: A hard-coded vertical-rl mixed orientation passes default vertical text tests but cannot honor upright orientation.",
+    "file": "cases/text-advanced/text-advanced-text-orientation-upright.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "text-advanced-text-combine-upright-digits",
+    "category": "text-advanced",
+    "feature": "text-combine-upright:digits 2",
+    "subfeature": "text-combine-upright-digits",
+    "description": "A vertical date combines two-digit numbers horizontally inside a single vertical character slot. Catches: A vertical-writing implementation can pass plain vertical text while rendering each digit as a separate stacked glyph.",
+    "file": "cases/text-advanced/text-advanced-text-combine-upright-digits.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
   }
 ]

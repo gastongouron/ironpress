@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background clip content-box color</title>
+<style>
+  @page { size: 180px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 140px;
+    height: 90px;
+    margin: 20px;
+    padding: 25px;
+    background: #e53935;
+    background-clip: content-box;
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

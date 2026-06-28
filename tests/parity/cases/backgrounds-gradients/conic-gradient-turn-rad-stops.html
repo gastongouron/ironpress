@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>conic gradient turn rad stops</title>
+<style>
+  @page { size: 160px 160px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 120px;
+    height: 120px;
+    margin: 20px;
+    background-image: conic-gradient(#e53935 0turn .25turn, #1e88e5 .25turn 3.14159rad, #fdd835 3.14159rad 1turn);
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

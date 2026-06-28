@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>body background canvas propagation</title>
+<style>
+  @page { size: 180px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html { background: transparent; }
+  body {
+    width: 180px;
+    height: 120px;
+    overflow: hidden;
+    background: #1565c0;
+  }
+  .marker {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    width: 40px;
+    height: 40px;
+    background: #fdd835;
+  }
+</style>
+</head>
+<body>
+  <div class="marker"></div>
+</body>
+</html>

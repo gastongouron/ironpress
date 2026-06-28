@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mask composite intersect</title>
+<style>
+  @page { size: 200px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 200px; height: 140px; background: #1565c0; mask-image: radial-gradient(circle 60px at 90px 70px, #000 0 60px, transparent 61px), linear-gradient(to right, transparent 0 45%, #000 45% 100%); mask-size: 100% 100%, 100% 100%; mask-repeat: no-repeat, no-repeat; mask-composite: intersect; -webkit-mask-image: linear-gradient(to right, transparent 0 45%, #000 45% 100%), radial-gradient(circle 60px at 90px 70px, #000 0 60px, transparent 61px); -webkit-mask-size: 100% 100%, 100% 100%; -webkit-mask-repeat: no-repeat, no-repeat; -webkit-mask-composite: source-in; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

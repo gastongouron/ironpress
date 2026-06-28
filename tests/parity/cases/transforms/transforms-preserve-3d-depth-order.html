@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 240px 180px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .scene {
+    position: absolute;
+    left: 45px;
+    top: 35px;
+    width: 150px;
+    height: 120px;
+    perspective: 220px;
+    transform-style: preserve-3d;
+  }
+  .near,
+  .far {
+    position: absolute;
+    left: 35px;
+    top: 30px;
+    width: 80px;
+    height: 60px;
+  }
+  .near {
+    background: #0a7f2e;
+    transform: translateZ(70px);
+  }
+  .far {
+    left: 55px;
+    top: 45px;
+    background: #c62828;
+  }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="near"></div>
+    <div class="far"></div>
+  </div>
+</body>
+</html>

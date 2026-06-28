@@ -48,7 +48,7 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",
@@ -903,6 +903,166 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-all-initial-reset",
+    "category": "selectors-cascade",
+    "feature": "cascade",
+    "subfeature": "all-initial-reset",
+    "description": "all:initial resets earlier padding before later declarations rebuild the box; catches treating all as a no-op or failing to reset box properties.",
+    "file": "cases/selectors-cascade/selectors-cascade-all-initial-reset.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-supports-boolean-logic",
+    "category": "selectors-cascade",
+    "feature": "supports",
+    "subfeature": "boolean-and-not",
+    "description": "@supports boolean logic with and/not selects the green branch; catches parsers that handle only a single simple feature query.",
+    "file": "cases/selectors-cascade/selectors-cascade-supports-boolean-logic.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-has-descendant",
+    "category": "selectors-cascade",
+    "feature": "selectors-4",
+    "subfeature": "has-descendant",
+    "description": ":has(.flag) matches a descendant witness nested below the card; catches :has implementations limited to sibling or child relative selectors.",
+    "file": "cases/selectors-cascade/selectors-cascade-has-descendant.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-nth-last-of-type",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "nth-last-of-type",
+    "description": ":nth-last-of-type(2) counts from the end among same element names, ignoring the intervening div; catches using nth-last-child or forward nth-of-type semantics.",
+    "file": "cases/selectors-cascade/selectors-cascade-nth-last-of-type.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-lang-inherited",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "lang-inherited",
+    "description": ":lang(en) matches an element inheriting the document language from html lang=en; catches checking only the element's own lang attribute.",
+    "file": "cases/selectors-cascade/selectors-cascade-lang-inherited.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-dir-rtl",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "dir-rtl",
+    "description": ":dir(rtl) matches an element with static dir=rtl; catches missing direction pseudo-class support.",
+    "file": "cases/selectors-cascade/selectors-cascade-dir-rtl.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-scope-root",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "scope-root",
+    "description": ":scope in a stylesheet matches the document scope root so :scope body .box turns the box green; catches unsupported :scope selector matching.",
+    "file": "cases/selectors-cascade/selectors-cascade-scope-root.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-border-box",
+      "probe-block-flow"
+    ]
+  },
+  {
+    "id": "selectors-cascade-defined",
+    "category": "selectors-cascade",
+    "feature": "pseudo-class",
+    "subfeature": "defined",
+    "description": ":defined matches built-in HTML elements, turning the div green; catches missing Selectors Level 4 defined pseudo-class support.",
+    "file": "cases/selectors-cascade/selectors-cascade-defined.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "oracle": "chrome",
     "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",

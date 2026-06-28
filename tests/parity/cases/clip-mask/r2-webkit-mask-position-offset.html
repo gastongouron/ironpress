@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 webkit mask position offset</title>
+<style>
+  @page { size: 220px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 220px; height: 130px; background: #6a1b9a; -webkit-mask-image: radial-gradient(circle 28px at 40px 40px, #000 0 28px, transparent 29px); -webkit-mask-size: 80px 80px; -webkit-mask-repeat: no-repeat; -webkit-mask-position: 108px 26px; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

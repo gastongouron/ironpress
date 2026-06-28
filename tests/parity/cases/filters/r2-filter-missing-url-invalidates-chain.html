@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 missing filter url invalidates chain</title>
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 220px; height: 150px; padding: 35px; background: #ffffff; }
+  .box { width: 120px; height: 80px; background: #1565c0; filter: url(#missing-filter-r2) blur(7px); }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

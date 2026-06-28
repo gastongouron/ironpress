@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background attachment fixed viewport</title>
+<style>
+  @page { size: 240px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 100px;
+    height: 70px;
+    margin: 20px 0 0 100px;
+    background-image: linear-gradient(90deg, #e53935 0 50%, #1e88e5 50% 100%);
+    background-size: 160px 70px;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-attachment: fixed;
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

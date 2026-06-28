@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background position x y longhands</title>
+<style>
+  @page { size: 200px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 160px;
+    height: 90px;
+    margin: 20px;
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR42mN4amkKRwzEcQAyMhUx4RYvKgAAAABJRU5ErkJggg==");
+    background-size: 30px 30px;
+    background-repeat: no-repeat;
+    background-position-x: 80px;
+    background-position-y: 30px;
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

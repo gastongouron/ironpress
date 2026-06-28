@@ -320,5 +320,742 @@
       "probe-fill-box",
       "probe-color-swatch"
     ]
+  },
+  {
+    "id": "r2-box-shadow-spread-blur-radius",
+    "category": "effects",
+    "feature": "box-shadow positive spread with blur and border-radius",
+    "subfeature": "spread-blur-radius",
+    "description": "box-shadow spread plus blur and radius must grow the rounded shadow shape: A deterministic solid-color box isolates the shadow edge/order behavior. Catches wrong implementation: Simplified shadow renderer ignores blur/spread/order/inset clipping details.",
+    "file": "cases/effects/r2-box-shadow-spread-blur-radius.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "r2-box-shadow-inset-blur-radius",
+    "category": "effects",
+    "feature": "box-shadow inset blur with border-radius",
+    "subfeature": "inset-blur-radius",
+    "description": "inset box-shadow blur must fade inward inside rounded corners: A deterministic solid-color box isolates the shadow edge/order behavior. Catches wrong implementation: Simplified shadow renderer ignores blur/spread/order/inset clipping details.",
+    "file": "cases/effects/r2-box-shadow-inset-blur-radius.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "r2-box-shadow-multiple-order-overlap",
+    "category": "effects",
+    "feature": "box-shadow multiple shadow paint order",
+    "subfeature": "multiple-order-overlap",
+    "description": "multiple box-shadows must paint first shadow on top: A deterministic solid-color box isolates the shadow edge/order behavior. Catches wrong implementation: Simplified shadow renderer ignores blur/spread/order/inset clipping details.",
+    "file": "cases/effects/r2-box-shadow-multiple-order-overlap.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "r2-box-shadow-inset-outset-list",
+    "category": "effects",
+    "feature": "box-shadow list with inset and outset layers",
+    "subfeature": "inset-outset-list",
+    "description": "mixed inset and outset shadows must paint on opposite sides of the background: A deterministic solid-color box isolates the shadow edge/order behavior. Catches wrong implementation: Simplified shadow renderer ignores blur/spread/order/inset clipping details.",
+    "file": "cases/effects/r2-box-shadow-inset-outset-list.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "r2-text-shadow-currentcolor-default",
+    "category": "effects",
+    "feature": "text-shadow currentColor default",
+    "subfeature": "currentcolor-default",
+    "description": "text-shadow omitted color resolves to currentColor: A large ParitySans text run isolates text-shadow color, order, blur, overflow, or decoration behavior. Catches wrong implementation: Renderer treats text-shadow as a single hard glyph-only pass or uses the wrong default color/order.",
+    "file": "cases/effects/r2-text-shadow-currentcolor-default.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-text-shadow-multiple-order",
+    "category": "effects",
+    "feature": "text-shadow multiple shadow paint order",
+    "subfeature": "multiple-order",
+    "description": "multiple text-shadows must paint first listed shadow on top: A large ParitySans text run isolates text-shadow color, order, blur, overflow, or decoration behavior. Catches wrong implementation: Renderer treats text-shadow as a single hard glyph-only pass or uses the wrong default color/order.",
+    "file": "cases/effects/r2-text-shadow-multiple-order.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-text-shadow-decoration-line",
+    "category": "effects",
+    "feature": "text-shadow shadows text decorations",
+    "subfeature": "decoration-line",
+    "description": "text-shadow must shadow text decorations too: A large ParitySans text run isolates text-shadow color, order, blur, overflow, or decoration behavior. Catches wrong implementation: Renderer treats text-shadow as a single hard glyph-only pass or uses the wrong default color/order.",
+    "file": "cases/effects/r2-text-shadow-decoration-line.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-text-shadow-visual-overflow-layout",
+    "category": "effects",
+    "feature": "text-shadow visual overflow",
+    "subfeature": "visual-overflow-layout",
+    "description": "text-shadow visual overflow must not affect layout or be clipped to glyph bounds: A large ParitySans text run isolates text-shadow color, order, blur, overflow, or decoration behavior. Catches wrong implementation: Renderer treats text-shadow as a single hard glyph-only pass or uses the wrong default color/order.",
+    "file": "cases/effects/r2-text-shadow-visual-overflow-layout.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-text-shadow-blur-rgba",
+    "category": "effects",
+    "feature": "text-shadow blur with rgba color",
+    "subfeature": "blur-rgba",
+    "description": "text-shadow blur with alpha color must preserve soft transparent edges: A large ParitySans text run isolates text-shadow color, order, blur, overflow, or decoration behavior. Catches wrong implementation: Renderer treats text-shadow as a single hard glyph-only pass or uses the wrong default color/order.",
+    "file": "cases/effects/r2-text-shadow-blur-rgba.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-overlay",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "overlay",
+    "description": "mix-blend-mode:overlay needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:overlay. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-overlay.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-darken",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "darken",
+    "description": "mix-blend-mode:darken needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:darken. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-darken.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-lighten",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "lighten",
+    "description": "mix-blend-mode:lighten needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:lighten. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-lighten.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-color-dodge",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "color-dodge",
+    "description": "mix-blend-mode:color-dodge needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:color-dodge. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-color-dodge.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-color-burn",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "color-burn",
+    "description": "mix-blend-mode:color-burn needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:color-burn. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-color-burn.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-hard-light",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "hard-light",
+    "description": "mix-blend-mode:hard-light needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:hard-light. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-hard-light.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-soft-light",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "soft-light",
+    "description": "mix-blend-mode:soft-light needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:soft-light. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-soft-light.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-difference",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "difference",
+    "description": "mix-blend-mode:difference needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:difference. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-difference.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-exclusion",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "exclusion",
+    "description": "mix-blend-mode:exclusion needs direct parity coverage: A foreground red square overlaps a blue square with mix-blend-mode:exclusion. Catches wrong implementation: Renderer maps only multiply/screen or falls back to normal blend for this mode.",
+    "file": "cases/effects/r2-mix-blend-mode-exclusion.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-hue",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "hue",
+    "description": "Non-separable mix-blend-mode:hue is required: A red square overlaps a blue/gray backdrop using non-separable blend mode hue. Catches wrong implementation: Parser treats non-separable blend keywords as normal.",
+    "file": "cases/effects/r2-mix-blend-mode-hue.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-saturation",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "saturation",
+    "description": "Non-separable mix-blend-mode:saturation is required: A red square overlaps a blue/gray backdrop using non-separable blend mode saturation. Catches wrong implementation: Parser treats non-separable blend keywords as normal.",
+    "file": "cases/effects/r2-mix-blend-mode-saturation.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-color",
+    "category": "effects",
+    "feature": "mix-blend-mode",
+    "subfeature": "color",
+    "description": "Non-separable mix-blend-mode:color is required: A red square overlaps a blue/gray backdrop using non-separable blend mode color. Catches wrong implementation: Parser treats non-separable blend keywords as normal.",
+    "file": "cases/effects/r2-mix-blend-mode-color.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-text-difference",
+    "category": "effects",
+    "feature": "mix-blend-mode on text",
+    "subfeature": "text-difference",
+    "description": "mix-blend-mode must apply to text content: Large white text with mix-blend-mode:difference sits over a blue block and should invert the backdrop under glyphs. Catches wrong implementation: Blend wrapper only covers boxes, not text glyph drawing.",
+    "file": "cases/effects/r2-mix-blend-mode-text-difference.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-inline-svg",
+    "category": "effects",
+    "feature": "mix-blend-mode on inline SVG content",
+    "subfeature": "inline-svg-screen",
+    "description": "mix-blend-mode must apply to inline SVG/replaced content: An inline SVG red circle blends with a blue box using screen. Catches wrong implementation: Blend state is applied to CSS boxes but not SVG/replaced drawing paths.",
+    "file": "cases/effects/r2-mix-blend-mode-inline-svg.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-isolation-isolate-descendant-blend",
+    "category": "effects",
+    "feature": "isolation",
+    "subfeature": "isolate-descendant-blend",
+    "description": "isolation:isolate must constrain descendant blending: Two identical groups contain a red multiply child over blue page stripes; the isolated group blends only within its own white group backdrop. Catches wrong implementation: Renderer ignores isolation so both red children multiply against the external blue backdrop.",
+    "file": "cases/effects/r2-isolation-isolate-descendant-blend.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "isolation",
+      "mix-blend-mode"
+    ]
+  },
+  {
+    "id": "r2-opacity-isolates-descendant-blend",
+    "category": "effects",
+    "feature": "opacity group isolation with mix-blend-mode descendant",
+    "subfeature": "opacity-isolates-blend",
+    "description": "Opacity-created stacking contexts must isolate inner blending: A parent with opacity:.99 contains a multiply child over a blue page; the opacity group is isolated, so child blends with the group backdrop, not the page. Catches wrong implementation: Renderer applies alpha per draw without isolating the group, allowing the child to multiply with page content behind the parent.",
+    "file": "cases/effects/r2-opacity-isolates-descendant-blend.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "opacity",
+      "mix-blend-mode"
+    ]
+  },
+  {
+    "id": "r2-mix-blend-mode-clipped-rounded-overflow",
+    "category": "effects",
+    "feature": "mix-blend-mode with overflow",
+    "subfeature": "rounded-overflow-clip",
+    "description": "mix-blend-mode must respect clipping ancestors: A blended red child overflows a rounded clipped blue parent; blending is only visible inside the rounded clip. Catches wrong implementation: Renderer applies blend outside the clip or clips before selecting the proper backdrop.",
+    "file": "cases/effects/r2-mix-blend-mode-clipped-rounded-overflow.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "mix-blend-mode",
+      "overflow"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-screen",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "screen",
+    "description": "background-blend-mode:screen needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:screen over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-screen.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-darken",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "darken",
+    "description": "background-blend-mode:darken needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:darken over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-darken.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-lighten",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "lighten",
+    "description": "background-blend-mode:lighten needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:lighten over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-lighten.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-color-dodge",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "color-dodge",
+    "description": "background-blend-mode:color-dodge needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:color-dodge over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-color-dodge.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-color-burn",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "color-burn",
+    "description": "background-blend-mode:color-burn needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:color-burn over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-color-burn.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-hard-light",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "hard-light",
+    "description": "background-blend-mode:hard-light needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:hard-light over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-hard-light.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-soft-light",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "soft-light",
+    "description": "background-blend-mode:soft-light needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:soft-light over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-soft-light.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-difference",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "difference",
+    "description": "background-blend-mode:difference needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:difference over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-difference.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-exclusion",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "exclusion",
+    "description": "background-blend-mode:exclusion needs direct coverage: A two-layer solid linear-gradient background uses background-blend-mode:exclusion over a yellow background color. Catches wrong implementation: Renderer supports only multiply or treats all other background blend values as normal.",
+    "file": "cases/effects/r2-background-blend-mode-exclusion.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-hue",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "hue",
+    "description": "Non-separable background-blend-mode:hue is required: A red/blue gradient background blends with a gray/yellow base using hue. Catches wrong implementation: Parser falls back to normal because non-separable blend keywords are not recognized.",
+    "file": "cases/effects/r2-background-blend-mode-hue.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-saturation",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "saturation",
+    "description": "Non-separable background-blend-mode:saturation is required: A red/blue gradient background blends with a gray/yellow base using saturation. Catches wrong implementation: Parser falls back to normal because non-separable blend keywords are not recognized.",
+    "file": "cases/effects/r2-background-blend-mode-saturation.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-color",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "color",
+    "description": "Non-separable background-blend-mode:color is required: A red/blue gradient background blends with a gray/yellow base using color. Catches wrong implementation: Parser falls back to normal because non-separable blend keywords are not recognized.",
+    "file": "cases/effects/r2-background-blend-mode-color.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-luminosity",
+    "category": "effects",
+    "feature": "background-blend-mode",
+    "subfeature": "luminosity",
+    "description": "Non-separable background-blend-mode:luminosity is required: A red/blue gradient background blends with a gray/yellow base using luminosity. Catches wrong implementation: Parser falls back to normal because non-separable blend keywords are not recognized.",
+    "file": "cases/effects/r2-background-blend-mode-luminosity.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-blend-mode-list-matching",
+    "category": "effects",
+    "feature": "background-blend-mode comma-separated list",
+    "subfeature": "list-matching",
+    "description": "background-blend-mode lists must match background layers: Two background image layers use different blend modes: top red stripe multiplies, lower blue stripe screens with the background color. Catches wrong implementation: Computed style keeps one blend mode and applies it to every layer or only the first layer.",
+    "file": "cases/effects/r2-background-blend-mode-list-matching.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "background-blend-mode",
+      "background-image"
+    ]
   }
 ]

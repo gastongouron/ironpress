@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 backdrop filter blur stripes</title>
+<style>
+  @page { size: 240px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 240px; height: 150px; padding: 25px; background: repeating-linear-gradient(to right, #1a237e 0 14px, #ffeb3b 14px 28px); }
+  .panel { width: 150px; height: 90px; background: rgba(255,255,255,0.35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="panel"></div></div>
+</body>
+</html>

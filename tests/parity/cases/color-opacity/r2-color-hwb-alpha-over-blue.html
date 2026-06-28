@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 hwb alpha over blue</title>
+<style>
+  @page { size: 200px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .under { position: relative; width: 200px; height: 120px; background: #1565c0; }
+  .over { position: absolute; top: 20px; left: 30px; width: 120px; height: 80px; background: hwb(30 0% 0% / 50%); }
+</style>
+</head>
+<body>
+  <div class="under"><div class="over"></div></div>
+</body>
+</html>

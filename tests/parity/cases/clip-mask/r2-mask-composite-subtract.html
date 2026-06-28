@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mask composite subtract</title>
+<style>
+  @page { size: 200px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 200px; height: 140px; background: #d32f2f; mask-image: radial-gradient(circle 56px at 70px 70px, #000 0 56px, transparent 57px), linear-gradient(to right, #000 0 55%, transparent 55%); mask-size: 100% 100%, 100% 100%; mask-repeat: no-repeat, no-repeat; mask-composite: subtract; -webkit-mask-image: linear-gradient(to right, #000 0 55%, transparent 55%), radial-gradient(circle 56px at 70px 70px, #000 0 56px, transparent 57px); -webkit-mask-size: 100% 100%, 100% 100%; -webkit-mask-repeat: no-repeat, no-repeat; -webkit-mask-composite: source-out; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

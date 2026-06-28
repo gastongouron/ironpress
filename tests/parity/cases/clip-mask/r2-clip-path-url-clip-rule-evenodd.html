@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 clip path url clip rule evenodd</title>
+<style>
+  @page { size: 200px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .box { width: 200px; height: 140px; background: #1565c0; clip-path: url(#r2ring); }
+</style>
+</head>
+<body>
+  <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><clipPath id="r2ring" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="M0 0H200V140H0Z M60 40H140V100H60Z"/></clipPath></defs></svg>
+  <div class="box"></div>
+</body>
+</html>

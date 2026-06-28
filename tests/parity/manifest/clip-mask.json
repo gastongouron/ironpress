@@ -290,5 +290,650 @@
       "probe-fill-box",
       "probe-color-swatch"
     ]
+  },
+  {
+    "id": "r2-clip-path-inset-percent-four-values",
+    "category": "clip-mask",
+    "feature": "clip-path: inset(<percentage>{4})",
+    "subfeature": "inset-percent-four-values",
+    "description": "clip-path inset percentages with four-value shorthand need coverage: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-inset-percent-four-values.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-inset-round-elliptical-radii",
+    "category": "clip-mask",
+    "feature": "clip-path: inset() round elliptical radii",
+    "subfeature": "inset-round-elliptical-radii",
+    "description": "clip-path inset round must support elliptical and per-corner radii: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-inset-round-elliptical-radii.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-circle-default-closest-side",
+    "category": "clip-mask",
+    "feature": "clip-path: circle()",
+    "subfeature": "circle-default-closest-side",
+    "description": "circle() default radius must resolve closest-side: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-circle-default-closest-side.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-circle-farthest-side",
+    "category": "clip-mask",
+    "feature": "clip-path: circle(farthest-side at ...)",
+    "subfeature": "circle-farthest-side",
+    "description": "circle() keyword radii must parse: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-circle-farthest-side.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-circle-position-keywords",
+    "category": "clip-mask",
+    "feature": "clip-path: circle() with left/top position keywords",
+    "subfeature": "circle-position-keywords",
+    "description": "circle() position keywords must resolve: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-circle-position-keywords.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-ellipse-default-radii",
+    "category": "clip-mask",
+    "feature": "clip-path: ellipse()",
+    "subfeature": "ellipse-default-radii",
+    "description": "ellipse() default radii must resolve: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-ellipse-default-radii.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-ellipse-extent-keywords",
+    "category": "clip-mask",
+    "feature": "clip-path: ellipse(closest-side farthest-side at ...)",
+    "subfeature": "ellipse-extent-keywords",
+    "description": "ellipse() extent keywords must parse: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-ellipse-extent-keywords.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-ellipse-position-keywords",
+    "category": "clip-mask",
+    "feature": "clip-path: ellipse() with right/bottom position keywords",
+    "subfeature": "ellipse-position-keywords",
+    "description": "ellipse() position keywords must resolve: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-ellipse-position-keywords.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-path-triangle",
+    "category": "clip-mask",
+    "feature": "clip-path: path()",
+    "subfeature": "path-triangle",
+    "description": "clip-path path() basic shape must render: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-path-triangle.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-xywh-rounded-rect",
+    "category": "clip-mask",
+    "feature": "clip-path: xywh()",
+    "subfeature": "xywh-rounded-rect",
+    "description": "clip-path xywh() basic shape must render: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-xywh-rounded-rect.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-rect-rounded",
+    "category": "clip-mask",
+    "feature": "clip-path: rect()",
+    "subfeature": "rect-rounded",
+    "description": "clip-path rect() basic shape must render: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-rect-rounded.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-content-box-geometry",
+    "category": "clip-mask",
+    "feature": "clip-path: content-box",
+    "subfeature": "content-box-geometry",
+    "description": "standalone clip-path geometry boxes must clip to that box: A single colored box isolates the clip geometry without text or external assets. Catches wrong implementation: Parser or renderer only handles the simplest existing basic-shape subset.",
+    "file": "cases/clip-mask/r2-clip-path-content-box-geometry.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-url-inline-svg-circle",
+    "category": "clip-mask",
+    "feature": "clip-path: url(#clip)",
+    "subfeature": "url-inline-svg-circle",
+    "description": "clip-path url(#clipPath) must reference inline SVG clip sources: A CSS box references an inline SVG clipPath containing a circle. Catches wrong implementation: Parser handles only CSS basic shapes and ignores url(#clip).",
+    "file": "cases/clip-mask/r2-clip-path-url-inline-svg-circle.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-url-clip-rule-evenodd",
+    "category": "clip-mask",
+    "feature": "clip-rule with clip-path",
+    "subfeature": "url-clip-rule-evenodd",
+    "description": "clip-rule evenodd must cut holes in referenced SVG clipPath: An inline clipPath contains two nested rectangles with clip-rule:evenodd, producing a frame-shaped visible region. Catches wrong implementation: Renderer ignores clip-rule or cannot render URL clip paths, filling the inner hole.",
+    "file": "cases/clip-mask/r2-clip-path-url-clip-rule-evenodd.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-property-rect-absolute",
+    "category": "clip-mask",
+    "feature": "clip",
+    "subfeature": "deprecated-clip-rect",
+    "description": "Deprecated clip:rect() still clips absolutely positioned elements: An absolutely positioned blue rectangle has clip:rect(15px, 120px, 75px, 35px). Catches wrong implementation: Renderer ignores the deprecated but required clip property.",
+    "file": "cases/clip-mask/r2-clip-property-rect-absolute.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-clip-path-no-layout-shrink",
+    "category": "clip-mask",
+    "feature": "clip-path has no effect on layout",
+    "subfeature": "no-layout-shrink",
+    "description": "clip-path must not change layout geometry: A clipped first box keeps its original block size, so the following green bar starts below the unclipped 100px layout height. Catches wrong implementation: Layout engine shrinks the box to the clip bounds and moves the following bar upward.",
+    "file": "cases/clip-mask/r2-clip-path-no-layout-shrink.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "clip-path",
+      "layout"
+    ]
+  },
+  {
+    "id": "r2-overflow-plus-clip-path-intersection",
+    "category": "clip-mask",
+    "feature": "cumulative clipping with overflow and clip-path",
+    "subfeature": "overflow-clip-intersection",
+    "description": "Ancestor overflow and child clip-path must intersect: A clipped child overflows an overflow:hidden parent; visible paint is the intersection of parent rectangle and child circle. Catches wrong implementation: Renderer applies only one clip or fails to nest clipping paths.",
+    "file": "cases/clip-mask/r2-overflow-plus-clip-path-intersection.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "overflow",
+      "clip-path"
+    ]
+  },
+  {
+    "id": "r2-mask-image-repeating-radial-rings",
+    "category": "clip-mask",
+    "feature": "mask-image: repeating-radial-gradient()",
+    "subfeature": "repeating-radial-rings",
+    "description": "repeating-radial-gradient masks need direct coverage: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-image-repeating-radial-rings.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "floor_pct": 1.3
+  },
+  {
+    "id": "r2-mask-image-repeating-conic-spokes",
+    "category": "clip-mask",
+    "feature": "mask-image: repeating-conic-gradient()",
+    "subfeature": "repeating-conic-spokes",
+    "description": "repeating-conic-gradient masks must repeat angular bands: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-image-repeating-conic-spokes.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "floor_pct": 1.3
+  },
+  {
+    "id": "r2-mask-mode-match-source-gradient-alpha",
+    "category": "clip-mask",
+    "feature": "mask-mode: match-source with CSS gradient",
+    "subfeature": "match-source-gradient-alpha",
+    "description": "mask-mode:match-source on CSS gradients uses alpha, not luminance: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-mode-match-source-gradient-alpha.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-position-offset-layer",
+    "category": "clip-mask",
+    "feature": "mask-position",
+    "subfeature": "mask-position-offset",
+    "description": "mask-position must offset mask images: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-position-offset-layer.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-size-independent-layer",
+    "category": "clip-mask",
+    "feature": "mask-size",
+    "subfeature": "mask-size-layer",
+    "description": "mask-size must size the mask layer independently: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-size-independent-layer.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-repeat-tiled-stripes",
+    "category": "clip-mask",
+    "feature": "mask-repeat",
+    "subfeature": "mask-repeat-stripes",
+    "description": "mask-repeat must tile the mask layer: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-repeat-tiled-stripes.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-origin-padding-box",
+    "category": "clip-mask",
+    "feature": "mask-origin",
+    "subfeature": "mask-origin-padding-box",
+    "description": "mask-origin must use the padding box as positioning area: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-origin-padding-box.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-clip-content-box",
+    "category": "clip-mask",
+    "feature": "mask-clip",
+    "subfeature": "mask-clip-content-box",
+    "description": "mask-clip must limit the mask painting area: A single solid box uses a CSS mask longhand or gradient source to isolate mask geometry/coverage behavior. Catches wrong implementation: Renderer supports only a single element-sized alpha/luminance mask source and ignores the longhand.",
+    "file": "cases/clip-mask/r2-mask-clip-content-box.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-svg-image-match-source-luminance",
+    "category": "clip-mask",
+    "feature": "mask-image: url(data:image/svg+xml,...) match-source luminance",
+    "subfeature": "svg-image-match-source-luminance",
+    "description": "SVG image masks in match-source mode use luminance: An SVG mask image has a red half and a white half; match-source should use luminance so red is only partially visible and white is fully visible. Catches wrong implementation: Implementation treats SVG image masks as pure alpha, making both halves equally visible.",
+    "file": "cases/clip-mask/r2-mask-svg-image-match-source-luminance.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-svg-image-alpha-mode",
+    "category": "clip-mask",
+    "feature": "mask-mode: alpha with SVG image mask",
+    "subfeature": "svg-image-alpha-mode",
+    "description": "mask-mode:alpha on SVG images must ignore luminance: The same red/white SVG mask is used with mask-mode:alpha; both opaque halves should be fully visible. Catches wrong implementation: Renderer always uses luminance for SVG masks, making the red half dim.",
+    "file": "cases/clip-mask/r2-mask-svg-image-alpha-mode.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-composite-subtract",
+    "category": "clip-mask",
+    "feature": "mask-composite: subtract",
+    "subfeature": "composite-subtract",
+    "description": "mask-composite:subtract must combine multiple mask layers: Two mask layers, a circle and a rectangle, are combined with subtract to create visible circle minus rectangle. Catches wrong implementation: Renderer keeps only the first mask layer or ignores mask-composite.",
+    "file": "cases/clip-mask/r2-mask-composite-subtract.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-composite-intersect",
+    "category": "clip-mask",
+    "feature": "mask-composite: intersect",
+    "subfeature": "composite-intersect",
+    "description": "mask-composite:intersect must combine multiple mask layers: Two mask layers, a circle and a rectangle, are combined with intersect to create only circle-rectangle overlap. Catches wrong implementation: Renderer keeps only the first mask layer or ignores mask-composite.",
+    "file": "cases/clip-mask/r2-mask-composite-intersect.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-composite-add",
+    "category": "clip-mask",
+    "feature": "mask-composite: add",
+    "subfeature": "composite-add",
+    "description": "mask-composite:add must combine multiple mask layers: Two mask layers, a circle and a rectangle, are combined with add to create union of two masks. Catches wrong implementation: Renderer keeps only the first mask layer or ignores mask-composite.",
+    "file": "cases/clip-mask/r2-mask-composite-add.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-shorthand-position-size-repeat-alpha",
+    "category": "clip-mask",
+    "feature": "mask shorthand full grammar",
+    "subfeature": "shorthand-position-size-repeat-alpha",
+    "description": "mask shorthand must expand position/size/repeat/mode/composite: The mask shorthand sets a linear mask at 20px 10px / 80px 80px no-repeat alpha. Catches wrong implementation: Implementation treats mask as only mask-image and drops geometry/mode components.",
+    "file": "cases/clip-mask/r2-mask-shorthand-position-size-repeat-alpha.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-inline-svg-alpha-type",
+    "category": "clip-mask",
+    "feature": "mask-image: url(#mask) with mask-type: alpha",
+    "subfeature": "inline-svg-mask-alpha",
+    "description": "Inline SVG <mask> references must honor mask-type:alpha: A CSS box references an inline SVG <mask> whose black regions have alpha 1 and mask-type:alpha, while a transparent middle stripe masks out content. Catches wrong implementation: Implementation only loads SVG image URLs, treats black as zero luminance, or ignores transparent mask alpha.",
+    "file": "cases/clip-mask/r2-mask-inline-svg-alpha-type.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-inline-svg-default-luminance",
+    "category": "clip-mask",
+    "feature": "mask-image: url(#mask) default mask-type luminance",
+    "subfeature": "inline-svg-mask-luminance",
+    "description": "Inline SVG <mask> default luminance must hide black regions: A CSS box references an inline SVG <mask> with a black left half and white right half; default luminance hides black and reveals white. Catches wrong implementation: Implementation treats the mask as alpha-only or ignores inline fragment masks.",
+    "file": "cases/clip-mask/r2-mask-inline-svg-default-luminance.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-mask-border-gradient-ring",
+    "category": "clip-mask",
+    "feature": "mask-border-source/slice/width/repeat",
+    "subfeature": "mask-border-gradient-ring",
+    "description": "mask-border must slice and apply a border-box mask: A mask-border gradient should reveal only a border ring around a solid box. Catches wrong implementation: Renderer has no mask-border fields and paints the entire box.",
+    "file": "cases/clip-mask/r2-mask-border-gradient-ring.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "weasyprint",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-webkit-mask-position-offset",
+    "category": "clip-mask",
+    "feature": "-webkit-mask-position",
+    "subfeature": "webkit-mask-position-offset",
+    "description": "-webkit-mask-position alias must behave like mask-position: Only the prefixed mask-position/size/repeat properties are authored, matching common Chromium content. Catches wrong implementation: Implementation aliases -webkit-mask-image but ignores prefixed geometry longhands.",
+    "file": "cases/clip-mask/r2-webkit-mask-position-offset.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
   }
 ]

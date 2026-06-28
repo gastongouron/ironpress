@@ -7,7 +7,7 @@
     "description": "position:static box ignores top/left offsets and stays in normal flow.",
     "file": "cases/positioning/positioning-position-static.html",
     "kind": "feature",
-    "expected_support": "implemented",
+    "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -279,6 +279,96 @@
     "description": "position:fixed header repeats at the top of each printed page; catches treating fixed as a one-page absolute box.",
     "file": "cases/positioning/positioning-fixed-repeats-pages.html",
     "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-inset-shorthand-stretch",
+    "category": "positioning",
+    "feature": "inset",
+    "subfeature": "shorthand-stretch",
+    "description": "The inset shorthand stretches an absolutely positioned box with inset:20px 30px 40px 50px; catches parsers that ignore the shorthand while longhands work.",
+    "file": "cases/positioning/positioning-inset-shorthand-stretch.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-logical-insets-horizontal",
+    "category": "positioning",
+    "feature": "inset",
+    "subfeature": "logical-insets-horizontal",
+    "description": "Logical inset longhands map to physical top/right/bottom/left in horizontal-tb writing mode; catches ignoring logical inset properties or mapping axes incorrectly.",
+    "file": "cases/positioning/positioning-logical-insets-horizontal.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-absolute-percent-insets",
+    "category": "positioning",
+    "feature": "inset",
+    "subfeature": "absolute-percent-insets",
+    "description": "Absolute top/right/bottom/left percentages resolve against the containing block and stretch the child to the centered half-size box; catches pixel interpretation or wrong percentage bases.",
+    "file": "cases/positioning/positioning-absolute-percent-insets.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-z-index-negative-behind-flow",
+    "category": "positioning",
+    "feature": "z-index",
+    "subfeature": "negative-behind-flow",
+    "description": "A positioned z-index:-1 child in a local stacking context stays behind an overlapping in-flow sibling; catches painting all positioned descendants above normal flow.",
+    "file": "cases/positioning/positioning-z-index-negative-behind-flow.html",
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "positioning-relative-percent-offset",
+    "category": "positioning",
+    "feature": "position",
+    "subfeature": "relative-percent-offset",
+    "description": "position:relative percentage top/left offsets resolve against the containing block and cover the red marker; catches own-size percentage bases or ignored relative percentages.",
+    "file": "cases/positioning/positioning-relative-percent-offset.html",
+    "kind": "feature",
+    "oracle": "chrome",
     "expected_support": "unsupported",
     "depends_on": [
       "probe-fill-box",

@@ -667,5 +667,499 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-image-image-set",
+    "category": "backgrounds-borders",
+    "feature": "background-image",
+    "subfeature": "image-set",
+    "description": "background-image:image-set() paints its selected candidate; catches parsers that drop image-set() and leave the box white.",
+    "file": "cases/backgrounds-borders/background-image-image-set.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-attachment-fixed-viewport",
+    "category": "backgrounds-borders",
+    "feature": "background-attachment",
+    "subfeature": "fixed-viewport",
+    "description": "background-attachment:fixed anchors a split gradient to the page viewport; catches element-relative fixed positioning.",
+    "file": "cases/backgrounds-borders/background-attachment-fixed-viewport.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-attachment-local-scroll-canvas",
+    "category": "backgrounds-borders",
+    "feature": "background-attachment",
+    "subfeature": "local-scroll-canvas",
+    "description": "background-attachment:local positions a bottom stripe against the scrollable content canvas; catches aliases to scroll/static attachment.",
+    "file": "cases/backgrounds-borders/background-attachment-local-scroll-canvas.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "body-background-canvas-propagation",
+    "category": "backgrounds-borders",
+    "feature": "body-background-canvas-propagation",
+    "subfeature": "transparent-root",
+    "description": "The body background propagates to the page canvas when the html background is transparent; catches body-only painting that leaves page margins white.",
+    "file": "cases/backgrounds-borders/body-background-canvas-propagation.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "html-background-suppresses-body-canvas",
+    "category": "backgrounds-borders",
+    "feature": "root-body-canvas-background-precedence",
+    "subfeature": "root-suppresses-body-propagation",
+    "description": "An html background paints the canvas and prevents body background propagation; catches engines that fill the whole page with the body color.",
+    "file": "cases/backgrounds-borders/html-background-suppresses-body-canvas.html",
+    "kind": "interaction",
+    "interaction_of": [
+      "background-color",
+      "root-canvas"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-clip-content-box-color",
+    "category": "backgrounds-borders",
+    "feature": "background-clip",
+    "subfeature": "content-box-color",
+    "description": "background-clip:content-box clips a solid background color to the content box; catches border-box clipping that fills padding.",
+    "file": "cases/backgrounds-borders/background-clip-content-box-color.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-clip-padding-box-dashed-gradient",
+    "category": "backgrounds-borders",
+    "feature": "background-clip",
+    "subfeature": "padding-box-dashed-gradient",
+    "description": "background-clip:padding-box clips a gradient before dashed border gaps; catches border-box clipping that leaks red through the border.",
+    "file": "cases/backgrounds-borders/background-clip-padding-box-dashed-gradient.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-clip-padding-box-elliptical-radius",
+    "category": "backgrounds-borders",
+    "feature": "background-clip",
+    "subfeature": "padding-box-elliptical-radius",
+    "description": "background-clip:padding-box follows elliptical rounded corners; catches scalar radius clipping that leaks the background into wrong corner arcs.",
+    "file": "cases/backgrounds-borders/background-clip-padding-box-elliptical-radius.html",
+    "kind": "interaction",
+    "interaction_of": [
+      "background-clip",
+      "border-radius"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-origin-list-matching",
+    "category": "backgrounds-borders",
+    "feature": "background-origin",
+    "subfeature": "layer-list-matching",
+    "description": "Comma-separated background-origin values position two image layers from different boxes; catches implementations with one origin for all layers.",
+    "file": "cases/backgrounds-borders/background-origin-list-matching.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-clip-list-matching",
+    "category": "backgrounds-borders",
+    "feature": "background-clip",
+    "subfeature": "layer-list-matching",
+    "description": "Comma-separated background-clip values clip only the top layer to content-box over a blue border-box layer; catches single-clip implementations.",
+    "file": "cases/backgrounds-borders/background-clip-list-matching.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-repeat-repeat-x-no-repeat-y",
+    "category": "backgrounds-borders",
+    "feature": "background-repeat",
+    "subfeature": "repeat-no-repeat-two-keyword",
+    "description": "background-repeat:repeat no-repeat repeats a tile only horizontally; catches parsers that collapse the two-keyword value to full repeat.",
+    "file": "cases/backgrounds-borders/background-repeat-repeat-x-no-repeat-y.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-position-xy-longhands",
+    "category": "backgrounds-borders",
+    "feature": "background-position",
+    "subfeature": "x-y-longhands",
+    "description": "background-position-x and background-position-y independently place a tile at fixed offsets; catches engines that ignore the longhands.",
+    "file": "cases/backgrounds-borders/background-position-xy-longhands.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-image-none-layer-list",
+    "category": "backgrounds-borders",
+    "feature": "background-image",
+    "subfeature": "none-layer-list-matching",
+    "description": "A none background layer still consumes matching size/repeat/position list entries; catches implementations that drop none before list matching.",
+    "file": "cases/backgrounds-borders/background-image-none-layer-list.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-shorthand-visual-box-single",
+    "category": "backgrounds-borders",
+    "feature": "background-shorthand",
+    "subfeature": "single-visual-box",
+    "description": "The background shorthand with one visual-box sets both origin and clip to content-box; catches shorthands that set only one of them.",
+    "file": "cases/backgrounds-borders/background-shorthand-visual-box-single.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-shorthand-origin-clip-pair",
+    "category": "backgrounds-borders",
+    "feature": "background-shorthand",
+    "subfeature": "origin-clip-visual-box-pair",
+    "description": "The background shorthand with border-box content-box positions from border-box and clips to content-box; catches reversed or collapsed visual-box parsing.",
+    "file": "cases/backgrounds-borders/background-shorthand-origin-clip-pair.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-shorthand-multiple-layers-color",
+    "category": "backgrounds-borders",
+    "feature": "background-shorthand",
+    "subfeature": "multiple-layers-final-color",
+    "description": "The background shorthand accepts multiple image layers plus a final background color; catches one-layer parsers that drop a tile or the color.",
+    "file": "cases/backgrounds-borders/background-shorthand-multiple-layers-color.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-shorthand-reset-longhands",
+    "category": "backgrounds-borders",
+    "feature": "background-shorthand",
+    "subfeature": "reset-longhands",
+    "description": "A later background shorthand resets earlier image, repeat, size, origin, and clip longhands; catches stale red image or stale content-box clipping.",
+    "file": "cases/backgrounds-borders/background-shorthand-reset-longhands.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-blend-mode-multiply-image",
+    "category": "backgrounds-borders",
+    "feature": "background-blend-mode",
+    "subfeature": "multiply-image-color",
+    "description": "background-blend-mode:multiply blends a blue image layer with a yellow background color; catches engines that paint the image normally.",
+    "file": "cases/backgrounds-borders/background-blend-mode-multiply-image.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-blend-mode-list-matching",
+    "category": "backgrounds-borders",
+    "feature": "background-blend-mode",
+    "subfeature": "layer-list-matching",
+    "description": "Comma-separated background-blend-mode values keep the top red tile normal while multiplying the bottom blue layer into the yellow color; catches one global blend mode.",
+    "file": "cases/backgrounds-borders/background-blend-mode-list-matching.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-layer-order-raster-gradient",
+    "category": "backgrounds-borders",
+    "feature": "background-layer-order",
+    "subfeature": "gradient-over-raster",
+    "description": "A top red gradient layer covers a bottom blue raster at the same corner; catches fixed slot painters that put raster over gradient.",
+    "file": "cases/backgrounds-borders/background-layer-order-raster-gradient.html",
+    "kind": "interaction",
+    "interaction_of": [
+      "linear-gradient",
+      "background-image"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-style-four-value-shorthand",
+    "category": "backgrounds-borders",
+    "feature": "border-style",
+    "subfeature": "four-value-shorthand",
+    "description": "border-style four-value shorthand assigns solid, dashed, dotted, and double styles to different sides; catches uniform-style parsing.",
+    "file": "cases/backgrounds-borders/border-style-four-value-shorthand.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-width-four-value-shorthand",
+    "category": "backgrounds-borders",
+    "feature": "border-width",
+    "subfeature": "four-value-shorthand",
+    "description": "border-width four-value shorthand assigns visibly different widths to every side; catches uniform-width shorthand parsing.",
+    "file": "cases/backgrounds-borders/border-width-four-value-shorthand.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "border-color-four-value-shorthand",
+    "category": "backgrounds-borders",
+    "feature": "border-color",
+    "subfeature": "four-value-shorthand",
+    "description": "border-color four-value shorthand assigns a distinct color to each side; catches single-color shorthand parsing.",
+    "file": "cases/backgrounds-borders/border-color-four-value-shorthand.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-shadow-inset-elliptical-radius",
+    "category": "backgrounds-borders",
+    "feature": "box-shadow",
+    "subfeature": "inset-elliptical-radius",
+    "description": "An inset spread shadow follows an elliptical border-radius inner curve; catches rectangular or scalar-radius clipping.",
+    "file": "cases/backgrounds-borders/box-shadow-inset-elliptical-radius.html",
+    "kind": "interaction",
+    "interaction_of": [
+      "box-shadow",
+      "border-radius"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "background-image-nonuniform-radius-clip",
+    "category": "backgrounds-borders",
+    "feature": "background-image",
+    "subfeature": "nonuniform-radius-clipping",
+    "description": "A raster background is clipped by four unequal border radii; catches unclipped or uniform-radius image clipping.",
+    "file": "cases/backgrounds-borders/background-image-nonuniform-radius-clip.html",
+    "kind": "interaction",
+    "interaction_of": [
+      "background-image",
+      "border-radius"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-image-render",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "box-shadow-spread-nonuniform-radius",
+    "category": "backgrounds-borders",
+    "feature": "box-shadow",
+    "subfeature": "spread-nonuniform-radius",
+    "description": "A spread-only outer box-shadow preserves four unequal corner radii; catches scalar-radius shadow inflation.",
+    "file": "cases/backgrounds-borders/box-shadow-spread-nonuniform-radius.html",
+    "kind": "interaction",
+    "interaction_of": [
+      "box-shadow",
+      "border-radius"
+    ],
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

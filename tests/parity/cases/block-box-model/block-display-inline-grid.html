@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 220px 100px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .unit {
+    display: inline grid;
+    grid-template-columns: 35px 35px;
+    width: 74px;
+    height: 40px;
+    margin-right: 6px;
+    background: #c62828;
+  }
+  .unit span {
+    display: block;
+    height: 40px;
+    background: #0a7f2e;
+  }
+  .unit span + span { background: #1565c0; }
+</style>
+</head>
+<body>
+  <div class="unit"><span></span><span></span></div>
+  <div class="unit"><span></span><span></span></div>
+</body>
+</html>

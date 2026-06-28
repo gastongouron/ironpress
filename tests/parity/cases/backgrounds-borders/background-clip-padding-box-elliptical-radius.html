@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background clip padding-box elliptical radius</title>
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 170px;
+    height: 95px;
+    margin: 25px;
+    padding: 10px;
+    border: 16px dashed #111111;
+    border-radius: 50% / 30%;
+    background: #e53935;
+    background-clip: padding-box;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 hue rotate group descendants</title>
+<style>
+  @page { size: 260px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .group {
+    width: 230px;
+    height: 140px;
+    padding: 16px;
+    background: #3949ab;
+    color: #ffffff;
+  }
+  .chip {
+    width: 86px;
+    height: 42px;
+    background: #ffca28;
+  }
+  .label {
+    margin-top: 10px;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 36px;
+  }
+  .group { filter: hue-rotate(120deg); }
+</style>
+</head>
+<body>
+  <div class="group"><div class="chip"></div><div class="label">HUE</div></div>
+</body>
+</html>

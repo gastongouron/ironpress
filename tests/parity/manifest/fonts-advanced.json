@@ -11,7 +11,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-text-transform-lowercase",
@@ -25,7 +28,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-text-transform-capitalize",
@@ -39,7 +45,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-face-custom-src",
@@ -53,7 +62,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-variant-small-caps",
@@ -67,7 +79,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-feature-settings-ligatures",
@@ -81,7 +96,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-stretch-condensed",
@@ -95,7 +113,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-size-em",
@@ -109,7 +130,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-size-rem",
@@ -123,7 +147,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-size-percent",
@@ -137,7 +164,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-size-ex",
@@ -151,7 +181,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-font-size-ch",
@@ -165,7 +198,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "fonts-advanced-small-caps-synthesis",
@@ -179,6 +215,269 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-face-local-src",
+    "category": "fonts-advanced",
+    "feature": "@font-face src:local()",
+    "subfeature": "font-face-local-src",
+    "description": "An @font-face rule aliases local ParitySerif and then uses that alias for a line of text. Catches: A url-only @font-face extractor passes relative URL fixtures but ignores local() sources.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-face-local-src.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-face-weight-descriptor",
+    "category": "fonts-advanced",
+    "feature": "@font-face font-weight descriptor",
+    "subfeature": "font-face-weight-descriptor",
+    "description": "Two @font-face rules share a family name but map normal to ParitySerif and bold to ParitySans; font-weight:bold must select the bold descriptor face. Catches: A parser that ignores descriptors registers one family/source and passes simple custom-font fixtures but chooses the wrong face for bold text.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-face-weight-descriptor.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-face-style-descriptor",
+    "category": "fonts-advanced",
+    "feature": "@font-face font-style descriptor",
+    "subfeature": "font-face-style-descriptor",
+    "description": "A shared @font-face family maps normal to ParitySans and italic to ParitySerif; font-style:italic selects the italic descriptor source. Catches: Ignoring font-style descriptors passes a single-face @font-face test but cannot match style-specific faces.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-face-style-descriptor.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-face-unicode-range",
+    "category": "fonts-advanced",
+    "feature": "@font-face unicode-range",
+    "subfeature": "font-face-unicode-range",
+    "description": "Two @font-face rules share a family; uppercase A comes from ParitySerif and uppercase B from ParitySans via unicode-range. Catches: A font registry that ignores unicode-range passes ordinary fallback tests but renders all glyphs from one face.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-face-unicode-range.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-weight-600",
+    "category": "fonts-advanced",
+    "feature": "font-weight:600",
+    "subfeature": "font-weight-600",
+    "description": "With regular and bold faces available, font-weight:600 should choose/synthesize a visibly heavier weight than 400. Catches: Collapsing only 700+ to bold passes bold/normal tests but renders 600 as regular.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-weight-600.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-weight-relative",
+    "category": "fonts-advanced",
+    "feature": "font-weight:bolder/lighter",
+    "subfeature": "font-weight-relative",
+    "description": "Nested spans use bolder and lighter relative to a 600-weight parent, producing visibly different weights. Catches: A normal/bold-only parser treats bolder/lighter as normal and passes absolute weight fixtures.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-weight-relative.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-style-oblique-angle",
+    "category": "fonts-advanced",
+    "feature": "font-style:oblique 20deg",
+    "subfeature": "font-style-oblique-angle",
+    "description": "A word uses font-style:oblique 20deg and should visibly slant while a normal reference remains upright. Catches: Recognizing only the bare oblique keyword passes simple oblique tests but drops angle syntax.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-style-oblique-angle.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-variant-ligatures-none",
+    "category": "fonts-advanced",
+    "feature": "font-variant-ligatures:no-common-ligatures",
+    "subfeature": "font-variant-ligatures-none",
+    "description": "A serif line disables common ligatures through the high-level font-variant-ligatures property. Catches: Supporting only low-level font-feature-settings passes a liga-off fixture but ignores the high-level variant property.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-variant-ligatures-none.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-kerning-none",
+    "category": "fonts-advanced",
+    "feature": "font-kerning:none",
+    "subfeature": "font-kerning-none",
+    "description": "The AVAV pair is rendered with and without kerning so the no-kerning row is visibly wider/looser. Catches: Always using the shaper defaults passes normal text tests but cannot disable kern feature application.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-kerning-none.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-size-adjust",
+    "category": "fonts-advanced",
+    "feature": "font-size-adjust:0.8",
+    "subfeature": "font-size-adjust",
+    "description": "Two same-size lines compare default font sizing with font-size-adjust:0.8, which changes used font size to match the requested aspect value. Catches: A font-size-only implementation passes px/em/rem fixtures but ignores x-height adjustment.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-size-adjust.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-synthesis-none",
+    "category": "fonts-advanced",
+    "feature": "font-synthesis:none",
+    "subfeature": "font-synthesis-none",
+    "description": "A local @font-face exposes only a regular face; font-weight:bold with font-synthesis:none must remain regular instead of fake-bolding. Catches: A renderer that always synthesizes missing bold/italic passes bold fallback tests but violates explicit synthesis suppression.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-synthesis-none.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-shorthand",
+    "category": "fonts-advanced",
+    "feature": "font shorthand",
+    "subfeature": "font-shorthand",
+    "description": "A single font shorthand declaration sets italic bold 28px/36px ParitySerif in one declaration. Catches: Parsing only longhands passes separate font-size/weight/style/family tests but drops the shorthand entirely.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-shorthand.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "fonts-advanced-font-face-size-adjust",
+    "category": "fonts-advanced",
+    "feature": "@font-face size-adjust descriptor",
+    "subfeature": "font-face-size-adjust",
+    "description": "An @font-face alias applies size-adjust:150% to ParitySans, making it visibly larger than a normal ParitySans row at the same CSS font-size. Catches: An @font-face parser that extracts only family/src passes basic custom-source tests but ignores metric override descriptors.",
+    "file": "cases/fonts-advanced/fonts-advanced-font-face-size-adjust.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
   }
 ]

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 isolation isolate descendant blend</title>
+<style>
+  @page { size: 260px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { display: flex; gap: 32px; width: 260px; height: 130px; padding: 25px; background: #1565c0; }
+  .group { width: 85px; height: 80px; position: relative; }
+  .iso { isolation: isolate; }
+  .child { width: 85px; height: 80px; background: #d32f2f; mix-blend-mode: multiply; }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="group iso"><div class="child"></div></div><div class="group"><div class="child"></div></div></div>
+</body>
+</html>

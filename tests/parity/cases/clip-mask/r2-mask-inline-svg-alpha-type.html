@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mask inline svg alpha type</title>
+<style>
+  @page { size: 180px 100px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .box { width: 180px; height: 100px; background: #2e7d32; mask-image: url(#r2alphamask); -webkit-mask-image: url(#r2alphamask); }
+</style>
+</head>
+<body>
+  <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><mask id="r2alphamask" maskUnits="userSpaceOnUse" x="0" y="0" width="180" height="100" mask-type="alpha"><rect width="70" height="100" fill="#000000"/><rect x="70" width="40" height="100" fill="transparent"/><rect x="110" width="70" height="100" fill="#000000"/></mask></defs></svg>
+  <div class="box"></div>
+</body>
+</html>

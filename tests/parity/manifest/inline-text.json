@@ -269,7 +269,10 @@
     "file": "cases/inline-text/inline-text-vertical-align-sub.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -283,7 +286,10 @@
     "file": "cases/inline-text/inline-text-vertical-align-super.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -297,7 +303,10 @@
     "file": "cases/inline-text/inline-text-vertical-align-bottom.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -311,7 +320,10 @@
     "file": "cases/inline-text/inline-text-inline-block-baseline-multiline.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -325,7 +337,10 @@
     "file": "cases/inline-text/inline-text-inline-block-shrink-to-fit.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -339,7 +354,10 @@
     "file": "cases/inline-text/inline-text-multiple-inline-blocks.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -353,7 +371,9 @@
     "file": "cases/inline-text/inline-text-white-space-normal.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -367,7 +387,9 @@
     "file": "cases/inline-text/inline-text-white-space-pre-line.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -381,7 +403,9 @@
     "file": "cases/inline-text/inline-text-white-space-break-spaces.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -395,7 +419,9 @@
     "file": "cases/inline-text/inline-text-text-indent-length.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -409,7 +435,9 @@
     "file": "cases/inline-text/inline-text-text-transform-uppercase.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -423,7 +451,9 @@
     "file": "cases/inline-text/inline-text-text-transform-capitalize.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -437,7 +467,9 @@
     "file": "cases/inline-text/inline-text-text-transform-lowercase.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -451,7 +483,9 @@
     "file": "cases/inline-text/inline-text-line-height-length.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -465,7 +499,9 @@
     "file": "cases/inline-text/inline-text-line-height-unitless.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -479,7 +515,9 @@
     "file": "cases/inline-text/inline-text-letter-spacing-negative.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -493,7 +531,9 @@
     "file": "cases/inline-text/inline-text-word-spacing-negative.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -507,7 +547,9 @@
     "file": "cases/inline-text/inline-text-overflow-wrap-break-word.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -521,7 +563,9 @@
     "file": "cases/inline-text/inline-text-word-break-break-all.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -535,7 +579,9 @@
     "file": "cases/inline-text/inline-text-text-decoration-line-through.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -549,7 +595,9 @@
     "file": "cases/inline-text/inline-text-text-decoration-overline.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -563,7 +611,9 @@
     "file": "cases/inline-text/inline-text-text-align-justify-multiline.html",
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -577,7 +627,9 @@
     "file": "cases/inline-text/inline-text-text-decoration-color.html",
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-text-baseline"],
+    "depends_on": [
+      "probe-text-baseline"
+    ],
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
@@ -591,7 +643,10 @@
     "file": "cases/inline-text/inline-text-vertical-align-length.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -605,7 +660,10 @@
     "file": "cases/inline-text/inline-text-vertical-align-text-bottom.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
@@ -619,9 +677,152 @@
     "file": "cases/inline-text/inline-text-text-indent-percent.html",
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-text-baseline", "probe-fill-box"],
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "inline-text-break-spaces-trailing-wrap",
+    "category": "inline-text",
+    "feature": "white-space:break-spaces trailing preserved spaces",
+    "subfeature": "break-spaces-trailing-wrap",
+    "description": "A narrow preserved-space line wraps after visible spaces before the next word instead of hanging them outside the line box. Catches: Treating break-spaces like pre-wrap passes basic break-spaces fixtures but lets trailing spaces hang and keeps the next word on the wrong line.",
+    "file": "cases/inline-text/inline-text-break-spaces-trailing-wrap.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "inline-text-word-spacing-percent",
+    "category": "inline-text",
+    "feature": "word-spacing:<percentage>",
+    "subfeature": "word-spacing-percent",
+    "description": "Two identical text rows compare normal spacing with word-spacing:200%, making every word gap visibly wider. Catches: A length-only word-spacing implementation ignores percentages and still passes px positive/negative spacing fixtures.",
+    "file": "cases/inline-text/inline-text-word-spacing-percent.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "inline-text-vertical-align-percent",
+    "category": "inline-text",
+    "feature": "vertical-align:<percentage>",
+    "subfeature": "vertical-align-percent",
+    "description": "An inline-block square uses vertical-align:50% and shifts upward by half its own line-height. Catches: A keyword/length-only implementation ignores percentages while still passing keyword and length baseline tests.",
+    "file": "cases/inline-text/inline-text-vertical-align-percent.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "inline-text-text-decoration-multiple-lines",
+    "category": "inline-text",
+    "feature": "text-decoration-line:underline overline",
+    "subfeature": "text-decoration-multiple-lines",
+    "description": "A span requests underline and overline at the same time. Catches: A single-keyword text-decoration parser passes underline and overline fixtures separately but drops the combined declaration.",
+    "file": "cases/inline-text/inline-text-text-decoration-multiple-lines.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "inline-text-text-decoration-wavy",
+    "category": "inline-text",
+    "feature": "text-decoration-style:wavy",
+    "subfeature": "text-decoration-wavy",
+    "description": "A large underlined word requests a red wavy underline instead of the default solid rule. Catches: Painting every decoration as a straight solid line passes simple underline tests but misses style geometry.",
+    "file": "cases/inline-text/inline-text-text-decoration-wavy.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "inline-text-text-decoration-thickness-length",
+    "category": "inline-text",
+    "feature": "text-decoration-thickness:6px",
+    "subfeature": "text-decoration-thickness-length",
+    "description": "A large underlined word sets a 6px decoration thickness, visibly thicker than the default underline. Catches: A renderer using a fixed font-size-relative stroke passes default underline tests but ignores author thickness.",
+    "file": "cases/inline-text/inline-text-text-decoration-thickness-length.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "inline-text-text-underline-offset-length",
+    "category": "inline-text",
+    "feature": "text-underline-offset:10px",
+    "subfeature": "text-underline-offset-length",
+    "description": "An underlined word requests a 10px underline offset, leaving a large gap below the baseline. Catches: A fixed underline-position renderer passes ordinary underline tests but cannot move the line.",
+    "file": "cases/inline-text/inline-text-text-underline-offset-length.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
   }
 ]

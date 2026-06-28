@@ -603,5 +603,265 @@
       "probe-fill-box",
       "probe-color-swatch"
     ]
+  },
+  {
+    "id": "r2-color-named-papayawhip",
+    "category": "color-opacity",
+    "feature": "CSS named color",
+    "subfeature": "named-papayawhip",
+    "description": "All CSS named colors must be available, not just the small legacy subset: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-named-papayawhip.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-background-color-currentcolor",
+    "category": "color-opacity",
+    "feature": "background-color",
+    "subfeature": "background-currentcolor",
+    "description": "currentColor must resolve in background-color: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-background-color-currentcolor.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-lab",
+    "category": "color-opacity",
+    "feature": "lab()",
+    "subfeature": "lab",
+    "description": "lab() colors must convert to sRGB: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-lab.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-lch",
+    "category": "color-opacity",
+    "feature": "lch()",
+    "subfeature": "lch",
+    "description": "lch() colors must convert to sRGB: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-lch.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-oklab",
+    "category": "color-opacity",
+    "feature": "oklab()",
+    "subfeature": "oklab",
+    "description": "oklab() colors must convert to sRGB: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-oklab.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-function-srgb",
+    "category": "color-opacity",
+    "feature": "color(srgb ...)",
+    "subfeature": "color-srgb",
+    "description": "color(srgb ...) must parse as a predefined RGB color: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-function-srgb.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-function-srgb-linear",
+    "category": "color-opacity",
+    "feature": "color(srgb-linear ...)",
+    "subfeature": "color-srgb-linear",
+    "description": "color(srgb-linear ...) must convert linear-light components: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-function-srgb-linear.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-function-display-p3",
+    "category": "color-opacity",
+    "feature": "color(display-p3 ...)",
+    "subfeature": "color-display-p3",
+    "description": "display-p3 colors must gamut-map to output sRGB: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-function-display-p3.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-function-xyz-d65",
+    "category": "color-opacity",
+    "feature": "color(xyz-d65 ...)",
+    "subfeature": "color-xyz-d65",
+    "description": "XYZ predefined colors must convert to output sRGB: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-function-xyz-d65.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-hsl-none-component",
+    "category": "color-opacity",
+    "feature": "hsl() with none component",
+    "subfeature": "hsl-none",
+    "description": "hsl() missing components beyond rgb() must parse: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-hsl-none-component.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-mix-red-blue",
+    "category": "color-opacity",
+    "feature": "color-mix()",
+    "subfeature": "color-mix",
+    "description": "color-mix() static colors must resolve before painting: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-mix-red-blue.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-color-hwb-alpha-over-blue",
+    "category": "color-opacity",
+    "feature": "hwb() with alpha",
+    "subfeature": "hwb-alpha",
+    "description": "hwb() slash alpha needs coverage: A fixed-size color swatch isolates parsing/conversion/compositing of the color syntax. Catches wrong implementation: Parser accepts only the existing subset or drops the declaration, producing default/transparent paint.",
+    "file": "cases/color-opacity/r2-color-hwb-alpha-over-blue.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-opacity-stacking-context-z-index",
+    "category": "color-opacity",
+    "feature": "opacity stacking context with z-index descendants",
+    "subfeature": "opacity-stacking-context",
+    "description": "opacity-created stacking contexts must contain positioned descendants: An opacity:.99 parent has a high z-index child and is followed by a sibling; the child cannot escape the parent's stacking context to cover the sibling. Catches wrong implementation: Renderer applies opacity per draw and sorts the descendant globally by z-index.",
+    "file": "cases/color-opacity/r2-opacity-stacking-context-z-index.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "opacity",
+      "z-index"
+    ]
+  },
+  {
+    "id": "r2-opacity-group-flatten-alpha-overlap",
+    "category": "color-opacity",
+    "feature": "opacity group flattening with alpha child overlap",
+    "subfeature": "opacity-group-flatten-alpha-overlap",
+    "description": "opacity on a group with alpha children must flatten before compositing: A parent opacity:.5 contains a semitransparent red child over an opaque blue child; the group is flattened before being composited onto white. Catches wrong implementation: Renderer multiplies each child alpha independently against the page, causing a different overlap color.",
+    "file": "cases/color-opacity/r2-opacity-group-flatten-alpha-overlap.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "opacity",
+      "alpha"
+    ]
   }
 ]

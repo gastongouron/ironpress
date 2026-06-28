@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 240px 180px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .scene {
+    position: absolute;
+    top: 35px;
+    width: 90px;
+    height: 110px;
+    background: #f2f2f2;
+    perspective: 180px;
+  }
+  .a {
+    left: 20px;
+    perspective-origin: left top;
+  }
+  .b {
+    left: 130px;
+    perspective-origin: right bottom;
+  }
+  .card {
+    position: absolute;
+    left: 20px;
+    top: 25px;
+    width: 50px;
+    height: 60px;
+    background: #0a7f2e;
+    transform: rotateY(55deg);
+  }
+</style>
+</head>
+<body>
+  <div class="scene a"><div class="card"></div></div>
+  <div class="scene b"><div class="card"></div></div>
+</body>
+</html>

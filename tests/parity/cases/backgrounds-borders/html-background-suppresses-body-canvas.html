@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>html background suppresses body canvas</title>
+<style>
+  @page { size: 220px 140px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+    background: #1565c0;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    width: 140px;
+    height: 80px;
+    background: #fdd835;
+  }
+  .marker {
+    width: 40px;
+    height: 40px;
+    margin: 20px;
+    background: #e53935;
+  }
+</style>
+</head>
+<body>
+  <div class="marker"></div>
+</body>
+</html>

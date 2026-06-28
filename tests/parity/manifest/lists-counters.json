@@ -9,7 +9,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -23,7 +28,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -37,7 +47,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -51,7 +66,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -65,7 +85,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -79,7 +104,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -93,7 +123,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -107,7 +142,13 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline", "probe-image-render"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline",
+      "probe-image-render"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -121,7 +162,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -135,7 +181,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -149,7 +200,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -163,7 +219,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -177,7 +238,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -191,7 +257,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -205,7 +276,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -219,7 +295,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -233,7 +314,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -247,7 +333,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -261,7 +352,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -275,7 +371,12 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-border-box", "probe-block-flow", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -307,7 +408,11 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box", "probe-text-baseline", "probe-image-render"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline",
+      "probe-image-render"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
   },
@@ -321,8 +426,251 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "lists-counters-list-style-type-string",
+    "category": "lists-counters",
+    "feature": "list-style-type:<string>",
+    "subfeature": "list-style-type-string",
+    "description": "A ul sets list-style-type:'-- ' so each marker is a literal two-dash string instead of a disc. Catches: A built-in-only list-style parser falls unknown types back to disc and passes disc/circle/square fixtures.",
+    "file": "cases/lists-counters/lists-counters-list-style-type-string.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-list-style-type-cjk-decimal",
+    "category": "lists-counters",
+    "feature": "list-style-type:cjk-decimal",
+    "subfeature": "list-style-type-cjk-decimal",
+    "description": "An ordered list uses cjk-decimal markers, which render CJK decimal digits rather than western 1/2/3. Catches: An implementation limited to latin/roman built-ins passes existing list-style-type coverage but falls back to disc or decimal for international styles.",
+    "file": "cases/lists-counters/lists-counters-list-style-type-cjk-decimal.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-counter-style-cyclic",
+    "category": "lists-counters",
+    "feature": "@counter-style cyclic symbols",
+    "subfeature": "counter-style-cyclic",
+    "description": "A custom @counter-style named checks cycles through two literal symbols for list markers. Catches: Ignoring @counter-style passes built-in marker tests but falls back to disc for author-defined styles.",
+    "file": "cases/lists-counters/lists-counters-counter-style-cyclic.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-counter-style-pad-prefix-suffix",
+    "category": "lists-counters",
+    "feature": "@counter-style extends decimal pad prefix suffix",
+    "subfeature": "counter-style-pad-prefix-suffix",
+    "description": "A custom counter style extends decimal with pad:2 '0', prefix '[' and suffix '] '. Catches: A decimal-only formatter passes decimal-leading-zero and roman fixtures but ignores custom style descriptors.",
+    "file": "cases/lists-counters/lists-counters-counter-style-pad-prefix-suffix.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-counter-style-negative",
+    "category": "lists-counters",
+    "feature": "@counter-style negative descriptor",
+    "subfeature": "counter-style-negative",
+    "description": "A generated counter starts at -2 and uses a custom negative descriptor to wrap negative values. Catches: A counter implementation that only formats positive decimal/roman cases passes current fixtures but mishandles negative custom styles.",
+    "file": "cases/lists-counters/lists-counters-counter-style-negative.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-marker-side-match-parent",
+    "category": "lists-counters",
+    "feature": "marker-side:match-parent",
+    "subfeature": "marker-side-match-parent",
+    "description": "A vertical list sets marker-side:match-parent so markers use the parent's side rather than each list item's self side. Catches: A list renderer with fixed outside-left markers passes horizontal list fixtures but places markers on the wrong side in vertical writing flows.",
+    "file": "cases/lists-counters/lists-counters-marker-side-match-parent.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-marker-content-counter",
+    "category": "lists-counters",
+    "feature": "::marker{content:...}",
+    "subfeature": "marker-content-counter",
+    "description": "An ordered list replaces default decimal markers with a generated counter wrapped in square brackets through ::marker content. Catches: A ::marker color-only implementation passes marker styling tests but still emits default 1./2. markers.",
+    "file": "cases/lists-counters/lists-counters-marker-content-counter.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-marker-font-size",
+    "category": "lists-counters",
+    "feature": "::marker font-size",
+    "subfeature": "marker-font-size",
+    "description": "A list styles only ::marker with a 36px font-size while item text remains 20px. Catches: A marker renderer that only recolors markers passes marker color tests but misses marker font metrics.",
+    "file": "cases/lists-counters/lists-counters-marker-font-size.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-ol-reversed",
+    "category": "lists-counters",
+    "feature": "<ol reversed>",
+    "subfeature": "ol-reversed",
+    "description": "A three-item ordered list with the reversed attribute should render 3, 2, 1 markers. Catches: An ol implementation that only handles start passes start fixtures but always counts upward.",
+    "file": "cases/lists-counters/lists-counters-ol-reversed.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-li-value",
+    "category": "lists-counters",
+    "feature": "<li value>",
+    "subfeature": "li-value",
+    "description": "The middle li value='7' changes that marker and subsequent items continue from 8. Catches: An ordered-list context that only tracks a running index passes default and start fixtures but ignores per-item value overrides.",
+    "file": "cases/lists-counters/lists-counters-li-value.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-counter-list-item-after",
+    "category": "lists-counters",
+    "feature": "counter(list-item)",
+    "subfeature": "counter-list-item-after",
+    "description": "Each li appends generated text using counter(list-item), matching its ordered-list marker number. Catches: A renderer with an internal list index can paint markers but still resolves counter(list-item) to 0 in content.",
+    "file": "cases/lists-counters/lists-counters-counter-list-item-after.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "lists-counters-list-item-increment-step",
+    "category": "lists-counters",
+    "feature": "counter-increment:list-item 2",
+    "subfeature": "list-item-increment-step",
+    "description": "An ordered list increments list-item by 2 so markers advance 2, 4, 6. Catches: A list renderer with hard-coded +1 indices passes normal lists but ignores author counter-increment on list-item.",
+    "file": "cases/lists-counters/lists-counters-list-item-increment-step.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
   }
 ]

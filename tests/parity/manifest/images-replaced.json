@@ -12,7 +12,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-width-scaled",
@@ -27,7 +30,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-width-height-stretch",
@@ -42,7 +48,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-border",
@@ -57,7 +66,11 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render",
+      "probe-border-box"
+    ]
   },
   {
     "id": "img-object-fit-contain",
@@ -70,9 +83,12 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-fit-cover",
@@ -85,9 +101,12 @@
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-fit-fill",
@@ -102,7 +121,10 @@
     "kind": "feature",
     "expected_support": "unsupported",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-fit-none",
@@ -117,7 +139,10 @@
     "kind": "feature",
     "expected_support": "unsupported",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-position",
@@ -132,7 +157,10 @@
     "kind": "feature",
     "expected_support": "unsupported",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-aspect-ratio-box",
@@ -146,7 +174,10 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-border-box"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-border-box"
+    ]
   },
   {
     "id": "svg-inline-shapes",
@@ -160,7 +191,9 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "implemented",
-    "depends_on": ["probe-fill-box"]
+    "depends_on": [
+      "probe-fill-box"
+    ]
   },
   {
     "id": "svg-inline-linear-gradient",
@@ -174,7 +207,9 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box"]
+    "depends_on": [
+      "probe-fill-box"
+    ]
   },
   {
     "id": "svg-inline-text",
@@ -188,7 +223,10 @@
     "partial_threshold_pct": 18.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box", "probe-text-baseline"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   },
   {
     "id": "svg-inline-clip",
@@ -202,7 +240,9 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "expected_support": "partial",
-    "depends_on": ["probe-fill-box"]
+    "depends_on": [
+      "probe-fill-box"
+    ]
   },
   {
     "id": "svg-as-img",
@@ -217,7 +257,10 @@
     "kind": "feature",
     "expected_support": "partial",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-fit-scale-down-shrink",
@@ -232,7 +275,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-fit-scale-down-none",
@@ -247,7 +293,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-position-percent",
@@ -262,7 +311,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-position-length",
@@ -277,7 +329,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-fit-cover-position",
@@ -292,7 +347,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-object-fit-cover-default-center",
@@ -307,7 +365,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-height-scaled",
@@ -322,7 +383,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-intrinsic-natural",
@@ -337,7 +401,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-percent-width",
@@ -352,7 +419,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-max-width-clamp",
@@ -367,7 +437,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"]
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ]
   },
   {
     "id": "img-monolithic-page-push",
@@ -388,7 +461,7 @@
     "category": "images-replaced",
     "feature": "fragmentation",
     "subfeature": "monolithic-image-slice",
-    "description": "A block image taller than a full page content box is SLICED across 3 pages (css-break-3 §4.1: monolithic content taller than the fragmentainer slices at its edge). Each page embeds only its own vertical band of the source raster, not a full copy. The multi-page harness asserts all three pages.",
+    "description": "A block image taller than a full page content box is SLICED across 3 pages (css-break-3 \u00a74.1: monolithic content taller than the fragmentainer slices at its edge). Each page embeds only its own vertical band of the source raster, not a full copy. The multi-page harness asserts all three pages.",
     "file": "cases/images-replaced/img-taller-than-page-sliced.html",
     "weight": 1,
     "kind": "feature",
@@ -408,7 +481,10 @@
     "kind": "feature",
     "expected_support": "implemented",
     "sanitize": true,
-    "depends_on": ["probe-fill-box", "probe-image-render"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   },
@@ -422,7 +498,103 @@
     "weight": 1,
     "kind": "feature",
     "expected_support": "unsupported",
-    "depends_on": ["probe-fill-box", "probe-image-render"],
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "img-object-position-far-edge-percent",
+    "category": "images-replaced",
+    "feature": "object-position",
+    "subfeature": "far-edge-percent-cover",
+    "description": "object-position:right 25% bottom 25% offsets a cover-fitted image from far edges; catches treating far-edge percentages as plain 25% 25% or default center.",
+    "file": "cases/images-replaced/img-object-position-far-edge-percent.html",
+    "weight": 1,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "sanitize": true,
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "img-image-orientation-rotate",
+    "category": "images-replaced",
+    "feature": "image-orientation",
+    "subfeature": "rotate-90deg-before-fit",
+    "description": "image-orientation:90deg rotates the raster before object-fit:contain sizing; catches ignoring the orientation property.",
+    "file": "cases/images-replaced/img-image-orientation-rotate.html",
+    "weight": 1,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "sanitize": true,
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "img-image-rendering-pixelated",
+    "category": "images-replaced",
+    "feature": "image-rendering",
+    "subfeature": "pixelated",
+    "description": "image-rendering:pixelated scales a 2x2 raster to a hard-edged 120px image; catches smoothing the scaled pixels.",
+    "file": "cases/images-replaced/img-image-rendering-pixelated.html",
+    "weight": 1,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "sanitize": true,
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "svg-inline-gradient-clip-path",
+    "category": "images-replaced",
+    "feature": "inline-svg",
+    "subfeature": "gradient-clip-path",
+    "description": "An inline SVG gradient-filled rect clipped by a clipPath paints only inside the circle; catches supporting gradients or clip paths separately but not together.",
+    "file": "cases/images-replaced/svg-inline-gradient-clip-path.html",
+    "weight": 1,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "svg-img-preserve-aspect-ratio-slice",
+    "category": "images-replaced",
+    "feature": "img",
+    "subfeature": "svg-preserve-aspect-ratio-slice",
+    "description": "An SVG image with preserveAspectRatio xMidYMid slice crops predictably in a square img slot; catches ignoring slice and fitting the whole SVG viewport.",
+    "file": "cases/images-replaced/svg-img-preserve-aspect-ratio-slice.html",
+    "weight": 1,
+    "kind": "feature",
+    "oracle": "chrome",
+    "expected_support": "implemented",
+    "sanitize": true,
+    "depends_on": [
+      "probe-fill-box",
+      "probe-image-render"
+    ],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
   }

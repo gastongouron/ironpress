@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 220px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .clip {
+    width: 160px;
+    overflow: clip;
+    background: #d9d9d9;
+  }
+  .float {
+    float: left;
+    width: 95px;
+    height: 60px;
+    background: #0a7f2e;
+  }
+  .after {
+    width: 160px;
+    height: 35px;
+    background: #c62828;
+  }
+</style>
+</head>
+<body>
+  <div class="clip"><div class="float"></div></div>
+  <div class="after"></div>
+</body>
+</html>

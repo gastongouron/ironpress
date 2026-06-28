@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 200px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 145px;
+    height: 85px;
+    padding: 22px;
+    background: #d9d9d9;
+  }
+  .box.reset {
+    all: initial;
+    display: block;
+    width: 145px;
+    height: 85px;
+    background: #d9d9d9;
+  }
+  .child {
+    display: block;
+    width: 55px;
+    height: 30px;
+    background: #0a7f2e;
+  }
+</style>
+</head>
+<body>
+  <div class="box reset"><span class="child"></span></div>
+</body>
+</html>

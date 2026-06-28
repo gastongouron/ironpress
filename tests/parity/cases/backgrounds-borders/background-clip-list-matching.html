@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background clip list matching</title>
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 180px;
+    height: 110px;
+    margin: 20px;
+    padding: 25px;
+    border: 10px solid #111111;
+    background-image:
+      linear-gradient(#e53935, #e53935),
+      linear-gradient(#1e88e5, #1e88e5);
+    background-origin: border-box, border-box;
+    background-clip: content-box, border-box;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

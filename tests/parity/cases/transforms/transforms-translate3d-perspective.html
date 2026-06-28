@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 240px 180px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .scene {
+    position: absolute;
+    left: 35px;
+    top: 25px;
+    width: 170px;
+    height: 125px;
+    background: #f2f2f2;
+    perspective: 220px;
+  }
+  .ref,
+  .target {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    width: 55px;
+    height: 42px;
+  }
+  .ref { background: #c62828; }
+  .target {
+    background: #0a7f2e;
+    transform: translate3d(70px, 30px, 65px);
+  }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="ref"></div>
+    <div class="target"></div>
+  </div>
+</body>
+</html>

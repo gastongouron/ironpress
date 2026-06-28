@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>radial gradient edge offset position</title>
+<style>
+  @page { size: 190px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 150px;
+    height: 100px;
+    margin: 20px;
+    background-image: radial-gradient(circle at right 20px bottom 15px, #e53935 0%, #e53935 35%, #1e88e5 36%);
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

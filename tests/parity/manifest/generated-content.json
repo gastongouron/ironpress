@@ -456,5 +456,265 @@
       "probe-border-box",
       "probe-text-baseline"
     ]
+  },
+  {
+    "id": "generated-content-first-letter-leading-quote",
+    "category": "generated-content",
+    "feature": "::first-letter punctuation unit",
+    "subfeature": "first-letter-leading-quote",
+    "description": "A paragraph begins with an opening quote; ::first-letter background and color should apply to the quote plus the first letter as one unit. Catches: Styling only the first alphanumeric glyph passes simple first-letter tests but leaves the quote unstyled.",
+    "file": "cases/generated-content/generated-content-first-letter-leading-quote.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-first-letter-leading-digit",
+    "category": "generated-content",
+    "feature": "::first-letter numeric first-letter unit",
+    "subfeature": "first-letter-leading-digit",
+    "description": "A paragraph starts with a digit and ::first-letter should style that digit before the rest of the text. Catches: An implementation limited to alphabetic letters passes prose drop-cap fixtures but ignores numeric initial-letter units.",
+    "file": "cases/generated-content/generated-content-first-letter-leading-digit.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-first-line-text-transform",
+    "category": "generated-content",
+    "feature": "::first-line text-transform",
+    "subfeature": "first-line-text-transform",
+    "description": "A wrapped paragraph uppercases only the first formatted line through ::first-line{text-transform:uppercase}. Catches: A first-line implementation that only copies color/background/font-weight passes existing first-line tests while leaving text case unchanged.",
+    "file": "cases/generated-content/generated-content-first-line-text-transform.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-first-line-letter-spacing",
+    "category": "generated-content",
+    "feature": "::first-line letter-spacing",
+    "subfeature": "first-line-letter-spacing",
+    "description": "Only the first formatted line gets 5px letter spacing, changing where that line wraps relative to later lines. Catches: Restyling after line breaking passes color-only first-line fixtures but misses geometry-affecting first-line properties.",
+    "file": "cases/generated-content/generated-content-first-line-letter-spacing.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-first-line-line-height",
+    "category": "generated-content",
+    "feature": "::first-line line-height",
+    "subfeature": "first-line-line-height",
+    "description": "The first line gets a 54px line-height while later lines keep 24px, creating extra vertical space after line one. Catches: Applying first-line style after wrapping without recomputing line metrics passes color/background tests but keeps uniform line heights.",
+    "file": "cases/generated-content/generated-content-first-line-line-height.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-nested-q-quote-depth",
+    "category": "generated-content",
+    "feature": "open-quote/close-quote quote depth across nested elements",
+    "subfeature": "nested-q-quote-depth",
+    "description": "Nested q elements use generated open-quote/close-quote with two quote pairs; the inner quote must use the second pair. Catches: Resolving quote depth independently inside each content declaration passes single open/close quote fixtures but never reaches nested quote pairs.",
+    "file": "cases/generated-content/generated-content-nested-q-quote-depth.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-no-open-quote-depth",
+    "category": "generated-content",
+    "feature": "no-open-quote/no-close-quote depth effects",
+    "subfeature": "no-open-quote-depth",
+    "description": "A hidden opener increments quote depth before a visible nested quote, so the visible quote uses the second-level pair. Catches: Treating no-open-quote as a no-op passes no-glyph tests but fails depth-dependent nested quote rendering.",
+    "file": "cases/generated-content/generated-content-no-open-quote-depth.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-leader-function",
+    "category": "generated-content",
+    "feature": "content:leader('.')",
+    "subfeature": "leader-function",
+    "description": "A table-of-contents row inserts a dotted leader between a title and a page number. Catches: A generated-content parser without leader() passes string and counter fixtures but leaves a blank gap before page numbers.",
+    "file": "cases/generated-content/generated-content-leader-function.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "weasyprint",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-target-counter-page",
+    "category": "generated-content",
+    "feature": "target-counter(attr(href), page)",
+    "subfeature": "target-counter-page",
+    "description": "A link to a later section appends that target's page number through target-counter(attr(href), page). Catches: Counter() support in normal flow passes local counter tests but cannot resolve target page cross references.",
+    "file": "cases/generated-content/generated-content-target-counter-page.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "weasyprint",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-target-text",
+    "category": "generated-content",
+    "feature": "target-text(attr(href))",
+    "subfeature": "target-text",
+    "description": "A cross-reference link appends the heading text of its target using target-text(attr(href)). Catches: An attr()/counter-only content implementation passes generated string tests but cannot resolve target element text.",
+    "file": "cases/generated-content/generated-content-target-text.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "weasyprint",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-string-set-running-header",
+    "category": "generated-content",
+    "feature": "string-set and string()",
+    "subfeature": "string-set-running-header",
+    "description": "A heading stores its text in a named running string and the page top-center margin prints string(chapter). Catches: @page literal/counter support passes simple page footer tests but cannot collect named strings from document content.",
+    "file": "cases/generated-content/generated-content-string-set-running-header.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "weasyprint",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-running-element-margin",
+    "category": "generated-content",
+    "feature": "position:running() and element()",
+    "subfeature": "running-element-margin",
+    "description": "A small heading is captured with position:running(head) and reused by @page top-left via element(head). Catches: Page margin boxes that only support strings/page counters pass simple margin content tests but cannot render running elements.",
+    "file": "cases/generated-content/generated-content-running-element-margin.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "weasyprint",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "generated-content-before-list-item-marker",
+    "category": "generated-content",
+    "feature": "::before{display:list-item}",
+    "subfeature": "before-list-item-marker",
+    "description": "A block's ::before pseudo is display:list-item with list-style-type:square, producing a marker before the generated label. Catches: Supporting inline/block generated pseudos passes existing ::before fixtures but drops marker generation for list-item pseudos.",
+    "file": "cases/generated-content/generated-content-before-list-item-marker.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
   }
 ]

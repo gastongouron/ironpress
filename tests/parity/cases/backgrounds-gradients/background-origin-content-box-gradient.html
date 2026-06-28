@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background origin content-box gradient</title>
+<style>
+  @page { size: 200px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 160px;
+    height: 100px;
+    margin: 20px;
+    padding: 25px;
+    border: 10px solid #111111;
+    background-image: linear-gradient(#e53935, #e53935);
+    background-size: 30px 30px;
+    background-repeat: no-repeat;
+    background-origin: content-box;
+    background-position: left top;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

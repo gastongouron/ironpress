@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 filter before mask image order</title>
+<style>
+  @page { size: 200px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 200px; height: 130px; padding: 25px; background: #ffffff; }
+  .box { width: 150px; height: 80px; background: #d32f2f; filter: blur(9px); mask-image: linear-gradient(to right, #000 0 50%, transparent 50% 100%); -webkit-mask-image: linear-gradient(to right, #000 0 50%, transparent 50% 100%); }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

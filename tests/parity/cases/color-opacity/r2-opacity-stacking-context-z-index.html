@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 opacity stacking context z index</title>
+<style>
+  @page { size: 260px 160px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 260px; height: 160px; background: #ffffff; }
+  .parent { position: relative; width: 170px; height: 90px; background: #1565c0; opacity: .99; }
+  .child { position: absolute; z-index: 10; top: 25px; left: 95px; width: 120px; height: 70px; background: #ffd600; }
+  .sibling { position: relative; margin-top: -45px; margin-left: 130px; width: 110px; height: 78px; background: #d32f2f; }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="parent"><div class="child"></div></div><div class="sibling"></div></div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 text shadow visual overflow layout</title>
+<style>
+  @page { size: 320px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .text { width: 320px; height: 72px; padding-left: 16px; color: #111111; font-size: 46px; font-weight: 700; line-height: 72px; text-shadow: 180px 0 0 #2e7d32; }
+  .bar { width: 120px; height: 42px; background: #d32f2f; }
+</style>
+</head>
+<body>
+  <div class="text">AB</div><div class="bar"></div>
+</body>
+</html>

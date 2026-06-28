@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap {
+    position: relative;
+    z-index: 0;
+    width: 180px;
+    height: 120px;
+    background: #f2f2f2;
+  }
+  .back {
+    position: absolute;
+    left: 35px;
+    top: 25px;
+    width: 95px;
+    height: 70px;
+    z-index: -1;
+    background: #0a7f2e;
+  }
+  .front {
+    position: relative;
+    left: 55px;
+    top: 45px;
+    width: 95px;
+    height: 60px;
+    background: #c62828;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="back"></div>
+    <div class="front"></div>
+  </div>
+</body>
+</html>

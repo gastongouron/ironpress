@@ -254,5 +254,527 @@
     "kind": "feature",
     "expected_support": "unsupported",
     "depends_on": ["probe-fill-box", "probe-color-swatch"]
+  },
+  {
+    "id": "r2-filter-invalid-function-chain",
+    "category": "filters",
+    "feature": "filter value grammar with an unknown function",
+    "subfeature": "unknown-function-invalidates-list",
+    "description": "Invalid filter functions must invalidate the whole declaration: A red block has filter: blur(8px) bogus(1); the whole declaration is invalid so it remains crisp. Catches wrong implementation: Parser ignores bogus(1) and still applies blur(8px).",
+    "file": "cases/filters/r2-filter-invalid-function-chain.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-missing-url-invalidates-chain",
+    "category": "filters",
+    "feature": "filter: url(#missing) blur()",
+    "subfeature": "missing-url-invalidates-list",
+    "description": "Unresolved filter url() must ignore the entire filter chain: A filter list starts with an unresolved url(#missing) followed by blur(7px); the whole chain is ignored. Catches wrong implementation: Implementation treats the missing url as a no-op and still applies the later blur.",
+    "file": "cases/filters/r2-filter-missing-url-invalidates-chain.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "weasyprint",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-blur-group-descendants",
+    "category": "filters",
+    "feature": "filter: blur() on a container group",
+    "subfeature": "blur-group-descendants",
+    "description": "blur() must apply to the whole element subtree: A container with a blue background, a yellow child, and text is blurred as one source graphic. Catches wrong implementation: Only the container background is blurred, leaving child paint and glyphs crisp.",
+    "file": "cases/filters/r2-filter-blur-group-descendants.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "r2-filter-blur-visual-overflow-layout",
+    "category": "filters",
+    "feature": "filter: blur() visual overflow",
+    "subfeature": "visual-overflow-no-layout",
+    "description": "blur() visual overflow must paint outside the border box without moving layout: A blurred red square sits next to a green square; blur feathers extend left/right but the green square keeps its fixed position. Catches wrong implementation: Renderer clips the blur to the red border box or expands layout and shifts the green square.",
+    "file": "cases/filters/r2-filter-blur-visual-overflow-layout.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-blur-text-glyphs",
+    "category": "filters",
+    "feature": "filter: blur() on text",
+    "subfeature": "text-glyph-blur",
+    "description": "blur() on text glyphs needs raster/filter coverage: Large text with filter: blur(3px) should render as softened glyph shapes. Catches wrong implementation: Text remains vector-crisp while only surrounding box paint changes or no blur is applied.",
+    "file": "cases/filters/r2-filter-blur-text-glyphs.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-brightness-group-descendants",
+    "category": "filters",
+    "feature": "filter: brightness() on a container group",
+    "subfeature": "brightness-group-descendants",
+    "description": "brightness() must filter descendant text and child paint: A container with a solid background, child chip, and glyphs uses filter:brightness(180%); all descendants are part of the filtered source graphic. Catches wrong implementation: Implementation applies the color operation only to the box fill/image path and leaves descendants unfiltered.",
+    "file": "cases/filters/r2-filter-brightness-group-descendants.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "r2-filter-contrast-group-descendants",
+    "category": "filters",
+    "feature": "filter: contrast() on a container group",
+    "subfeature": "contrast-group-descendants",
+    "description": "contrast() must filter descendant text and child paint: A container with a solid background, child chip, and glyphs uses filter:contrast(220%); all descendants are part of the filtered source graphic. Catches wrong implementation: Implementation applies the color operation only to the box fill/image path and leaves descendants unfiltered.",
+    "file": "cases/filters/r2-filter-contrast-group-descendants.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "r2-filter-saturate-group-descendants",
+    "category": "filters",
+    "feature": "filter: saturate() on a container group",
+    "subfeature": "saturate-group-descendants",
+    "description": "saturate() must filter descendant text and child paint: A container with a solid background, child chip, and glyphs uses filter:saturate(300%); all descendants are part of the filtered source graphic. Catches wrong implementation: Implementation applies the color operation only to the box fill/image path and leaves descendants unfiltered.",
+    "file": "cases/filters/r2-filter-saturate-group-descendants.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "r2-filter-hue-rotate-group-descendants",
+    "category": "filters",
+    "feature": "filter: hue-rotate() on a container group",
+    "subfeature": "hue-rotate-group-descendants",
+    "description": "hue-rotate() must filter descendant text and child paint: A container with a solid background, child chip, and glyphs uses filter:hue-rotate(120deg); all descendants are part of the filtered source graphic. Catches wrong implementation: Implementation applies the color operation only to the box fill/image path and leaves descendants unfiltered.",
+    "file": "cases/filters/r2-filter-hue-rotate-group-descendants.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "r2-filter-invert-group-descendants",
+    "category": "filters",
+    "feature": "filter: invert() on a container group",
+    "subfeature": "invert-group-descendants",
+    "description": "invert() must filter descendant text and child paint: A container with a solid background, child chip, and glyphs uses filter:invert(100%); all descendants are part of the filtered source graphic. Catches wrong implementation: Implementation applies the color operation only to the box fill/image path and leaves descendants unfiltered.",
+    "file": "cases/filters/r2-filter-invert-group-descendants.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "r2-filter-drop-shadow-chain-position",
+    "category": "filters",
+    "feature": "filter: drop-shadow() followed by brightness()",
+    "subfeature": "drop-shadow-before-brightness",
+    "description": "drop-shadow() must obey authored chain position: A dark drop shadow is followed by brightness(2); the shadow itself should be brightened because later filter functions consume the prior output. Catches wrong implementation: Renderer always applies color functions to the source before computing drop-shadow, leaving the shadow dark.",
+    "file": "cases/filters/r2-filter-drop-shadow-chain-position.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-drop-shadow-rounded-css-alpha",
+    "category": "filters",
+    "feature": "filter: drop-shadow() on rounded CSS box alpha",
+    "subfeature": "rounded-css-alpha",
+    "description": "drop-shadow() on CSS boxes follows the alpha shape, not a rectangular box-shadow: A circular red element casts a zero-blur drop-shadow; the shadow should be circular because it is based on source alpha. Catches wrong implementation: Implementation treats it like a rectangular box-shadow or only supports drop-shadow on replaced images.",
+    "file": "cases/filters/r2-filter-drop-shadow-rounded-css-alpha.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-drop-shadow-color-first",
+    "category": "filters",
+    "feature": "filter: drop-shadow(<color> <length>{2,3})",
+    "subfeature": "drop-shadow-color-first",
+    "description": "drop-shadow() accepts color before the lengths: The color token appears first in drop-shadow(#00695c 36px 0 0); grammar allows color and lengths in any order. Catches wrong implementation: Parser only accepts color after the lengths and drops the authored teal shadow.",
+    "file": "cases/filters/r2-filter-drop-shadow-color-first.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-fecolormatrix-channel-swap",
+    "category": "filters",
+    "feature": "filter: url(#id) with feColorMatrix type=matrix channel swap",
+    "subfeature": "fecolormatrix-channel-swap",
+    "description": "SVG feColorMatrix arbitrary matrices must be honored: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-fecolormatrix-channel-swap.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-fecolormatrix-luminance-alpha",
+    "category": "filters",
+    "feature": "filter: url(#id) with feColorMatrix luminanceToAlpha",
+    "subfeature": "fecolormatrix-luminance-to-alpha",
+    "description": "SVG feColorMatrix luminanceToAlpha must affect alpha: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-fecolormatrix-luminance-alpha.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-feoffset",
+    "category": "filters",
+    "feature": "filter: url(#id) with feOffset",
+    "subfeature": "feoffset",
+    "description": "SVG feOffset must move filtered output: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-feoffset.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-feblend-multiply",
+    "category": "filters",
+    "feature": "filter: url(#id) with feBlend multiply",
+    "subfeature": "feblend-multiply",
+    "description": "SVG feBlend must composite primitive inputs: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-feblend-multiply.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-fecomposite-in",
+    "category": "filters",
+    "feature": "filter: url(#id) with feComposite operator=in",
+    "subfeature": "fecomposite-in",
+    "description": "SVG feComposite must support Porter-Duff operators: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-fecomposite-in.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-femerge",
+    "category": "filters",
+    "feature": "filter: url(#id) with feMerge",
+    "subfeature": "femerge",
+    "description": "SVG feMerge must paint multiple primitive outputs: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-femerge.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-fecomponenttransfer",
+    "category": "filters",
+    "feature": "filter: url(#id) with feComponentTransfer",
+    "subfeature": "fecomponenttransfer",
+    "description": "SVG feComponentTransfer must apply channel transfer functions: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-fecomponenttransfer.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-femorphology-dilate",
+    "category": "filters",
+    "feature": "filter: url(#id) with feMorphology",
+    "subfeature": "femorphology-dilate",
+    "description": "SVG feMorphology must dilate/erode the source alpha: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-femorphology-dilate.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-fedropshadow",
+    "category": "filters",
+    "feature": "filter: url(#id) with feDropShadow",
+    "subfeature": "fedropshadow",
+    "description": "SVG feDropShadow primitive must render inside filter url(): An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-fedropshadow.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-url-feturbulence-displacement",
+    "category": "filters",
+    "feature": "filter: url(#id) with feTurbulence and feDisplacementMap",
+    "subfeature": "feturbulence-displacement",
+    "description": "Procedural SVG filter primitives must affect static output: An inline SVG filter referenced from CSS contains a non-feColorMatrix primitive or unsupported matrix form. Catches wrong implementation: CSS filter:url() resolver extracts only a narrow feColorMatrix subset and skips the primitive.",
+    "file": "cases/filters/r2-filter-url-feturbulence-displacement.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-color-interpolation-filters-srgb",
+    "category": "filters",
+    "feature": "color-interpolation-filters",
+    "subfeature": "color-interpolation-filters-srgb",
+    "description": "color-interpolation-filters must switch SVG filter color space: Two identical muted boxes use feColorMatrix saturate(0); one filter defaults to linearRGB and one explicitly uses sRGB, producing different grays. Catches wrong implementation: Implementation ignores color-interpolation-filters and produces identical gray boxes.",
+    "file": "cases/filters/r2-filter-color-interpolation-filters-srgb.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-backdrop-filter-blur-stripes",
+    "category": "filters",
+    "feature": "backdrop-filter",
+    "subfeature": "backdrop-blur",
+    "description": "backdrop-filter blur must sample content behind the element: A translucent panel overlays hard vertical stripes; backdrop-filter: blur(8px) should smear the stripes under the panel only. Catches wrong implementation: Renderer treats backdrop-filter as unsupported or applies normal filter to the panel itself.",
+    "file": "cases/filters/r2-backdrop-filter-blur-stripes.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "r2-filter-before-clip-path-order",
+    "category": "filters",
+    "feature": "filter compositing order with clip-path",
+    "subfeature": "filter-before-clip-path",
+    "description": "filter must be applied before clip-path: A blurred red square is clipped to a circle; the blur is first computed then the circular clip removes all outside-circle paint. Catches wrong implementation: Renderer clips first and then blurs, creating a red feather outside the circular clip.",
+    "file": "cases/filters/r2-filter-before-clip-path-order.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "filter",
+      "clip-path"
+    ]
+  },
+  {
+    "id": "r2-filter-before-mask-image-order",
+    "category": "filters",
+    "feature": "filter compositing order with mask-image",
+    "subfeature": "filter-before-mask-image",
+    "description": "filter must be applied before mask-image: A blurred red rectangle is masked by a hard half-plane gradient; blur is computed before the mask clips the right half. Catches wrong implementation: Renderer masks first and then blurs, bleeding red into the transparent half.",
+    "file": "cases/filters/r2-filter-before-mask-image-order.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "filter",
+      "mask-image"
+    ]
+  },
+  {
+    "id": "r2-filter-stacking-context-negative-z",
+    "category": "filters",
+    "feature": "filter establishes stacking context",
+    "subfeature": "filter-stacking-context",
+    "description": "filter-created stacking contexts must contain negative z-index descendants: A filtered parent contains a negative z-index child and sits on a gray page; the child cannot escape behind outside content. Catches wrong implementation: Renderer applies filter paint but does not create a stacking context, letting the child paint behind the page/sibling order incorrectly.",
+    "file": "cases/filters/r2-filter-stacking-context-negative-z.html",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-color-swatch"
+    ],
+    "interaction_of": [
+      "filter",
+      "z-index"
+    ]
   }
 ]

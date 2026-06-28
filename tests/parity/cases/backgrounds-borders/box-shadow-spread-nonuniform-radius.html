@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>box shadow spread nonuniform radius</title>
+<style>
+  @page { size: 240px 160px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 160px;
+    height: 90px;
+    margin: 35px;
+    background: #fdd835;
+    border: 4px solid #111111;
+    border-radius: 42px 6px 30px 12px;
+    box-shadow: 0 0 0 18px #1e88e5;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

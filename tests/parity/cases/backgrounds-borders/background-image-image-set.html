@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background image image-set</title>
+<style>
+  @page { size: 180px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 100px;
+    height: 80px;
+    margin: 20px;
+    background-image: image-set(url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR42mN4amkKRwzEcQAyMhUx4RYvKgAAAABJRU5ErkJggg==") 1x);
+    background-size: 40px 40px;
+    background-repeat: no-repeat;
+    background-position: 20px 20px;
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

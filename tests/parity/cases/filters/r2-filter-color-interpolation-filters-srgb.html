@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 color interpolation filters srgb</title>
+<style>
+  @page { size: 240px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .stage { display: flex; gap: 28px; width: 240px; height: 120px; padding: 30px; background: #ffffff; }
+  .box { width: 76px; height: 60px; background: #b65a21; }
+  .linear { filter: url(#lin); }
+  .srgb { filter: url(#srgb); }
+</style>
+</head>
+<body>
+  <svg class="defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
+    <filter id="lin"><feColorMatrix type="saturate" values="0"/></filter>
+    <filter id="srgb" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/></filter>
+  </defs></svg>
+  <div class="stage"><div class="box linear"></div><div class="box srgb"></div></div>
+</body>
+</html>

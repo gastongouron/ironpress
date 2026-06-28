@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>radial gradient two position percent stops</title>
+<style>
+  @page { size: 180px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 140px;
+    height: 100px;
+    margin: 20px;
+    background-image: radial-gradient(circle, #fdd835 0% 25%, #e53935 25% 55%, #1e88e5 55% 100%);
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

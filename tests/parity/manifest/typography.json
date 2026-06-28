@@ -270,5 +270,85 @@
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "typography-mixed-inline-font-size-linebox",
+    "category": "typography",
+    "feature": "mixed inline font-size line box metrics",
+    "subfeature": "mixed-inline-font-size-linebox",
+    "description": "A paragraph with a 42px span in the middle must produce a taller first line than the following normal line. Catches: A block-level line-height-only engine passes uniform line-height tests while clipping or overlapping large inline runs.",
+    "file": "cases/typography/typography-mixed-inline-font-size-linebox.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "typography-line-height-em-inheritance",
+    "category": "typography",
+    "feature": "line-height:<length em> inheritance",
+    "subfeature": "line-height-em-inheritance",
+    "description": "A parent sets font-size:20px and line-height:2em; a smaller child inherits a 40px computed line-height, not a unitless factor of 2. Catches: Treating line-height:2em as the number 2 passes simple same-element line-height tests but compresses descendants with smaller fonts.",
+    "file": "cases/typography/typography-line-height-em-inheritance.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "typography-text-emphasis-filled-dot",
+    "category": "typography",
+    "feature": "text-emphasis filled dot",
+    "subfeature": "text-emphasis-filled-dot",
+    "description": "Japanese text uses filled red emphasis dots above the characters. Catches: An implementation with only text-decoration lines passes underline/overline tests but renders no emphasis marks.",
+    "file": "cases/typography/typography-text-emphasis-filled-dot.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "typography-initial-letter-two-line",
+    "category": "typography",
+    "feature": "initial-letter:2",
+    "subfeature": "initial-letter-two-line",
+    "description": "A paragraph uses p::first-letter{initial-letter:2} to create a dropped initial spanning two lines without manual float sizing. Catches: A renderer with only custom ::first-letter font-size/float drop caps passes handcrafted drop-cap fixtures but ignores the initial-letter property.",
+    "file": "cases/typography/typography-initial-letter-two-line.html",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box",
+      "probe-border-box",
+      "probe-color-swatch"
+    ]
   }
 ]

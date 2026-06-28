@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 240px 180px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .cb {
+    position: relative;
+    width: 220px;
+    height: 150px;
+    background: #c62828;
+    writing-mode: horizontal-tb;
+  }
+  .target {
+    position: absolute;
+    inset-inline-start: 40px;
+    inset-inline-end: 60px;
+    inset-block-start: 25px;
+    inset-block-end: 35px;
+    background: #0a7f2e;
+  }
+</style>
+</head>
+<body>
+  <div class="cb"><div class="target"></div></div>
+</body>
+</html>

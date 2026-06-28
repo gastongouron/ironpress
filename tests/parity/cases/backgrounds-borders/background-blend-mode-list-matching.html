@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background blend mode list matching</title>
+<style>
+  @page { size: 220px 150px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 180px;
+    height: 110px;
+    margin: 20px;
+    background-color: #fdd835;
+    background-image:
+      url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR42mN4amkKRwzEcQAyMhUx4RYvKgAAAABJRU5ErkJggg=="),
+      url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR42mOQ63gKRwzEcQB1whixaofVswAAAABJRU5ErkJggg==");
+    background-size: 50px 50px, 180px 110px;
+    background-repeat: no-repeat, no-repeat;
+    background-position: left top, left top;
+    background-blend-mode: normal, multiply;
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

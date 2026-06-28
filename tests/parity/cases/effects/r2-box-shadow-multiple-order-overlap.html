@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 box shadow multiple order overlap</title>
+<style>
+  @page { size: 220px 110px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 220px; height: 110px; padding: 25px; background: #ffffff; }
+  .box { width: 70px; height: 60px; background: #eeeeee; box-shadow: 92px 0 0 0 #d32f2f, 92px 0 0 0 #1565c0; }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="box"></div></div>
+</body>
+</html>

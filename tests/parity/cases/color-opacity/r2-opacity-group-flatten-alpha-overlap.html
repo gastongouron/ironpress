@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 opacity group flatten alpha overlap</title>
+<style>
+  @page { size: 220px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { width: 220px; height: 130px; padding: 20px; background: #ffffff; }
+  .group { position: relative; width: 160px; height: 90px; opacity: .5; }
+  .blue { position: absolute; top: 10px; left: 10px; width: 110px; height: 70px; background: #1565c0; }
+  .red { position: absolute; top: 30px; left: 55px; width: 90px; height: 50px; background: rgba(211,47,47,.5); }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="group"><div class="blue"></div><div class="red"></div></div></div>
+</body>
+</html>

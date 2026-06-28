@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 filter blur visual overflow layout</title>
+<style>
+  @page { size: 260px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .row { display: flex; gap: 28px; width: 260px; height: 120px; padding: 30px 24px; background: #ffffff; }
+  .red { width: 70px; height: 60px; background: #d32f2f; filter: blur(7px); }
+  .green { width: 70px; height: 60px; background: #2e7d32; }
+</style>
+</head>
+<body>
+  <div class="row"><div class="red"></div><div class="green"></div></div>
+</body>
+</html>

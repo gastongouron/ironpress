@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mask origin padding box</title>
+<style>
+  @page { size: 180px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 180px; height: 140px; border: 18px solid #263238; padding: 24px; background: #2e7d32; mask-image: radial-gradient(circle 34px at 0 0, #000 0 34px, transparent 35px); mask-size: 80px 80px; mask-repeat: no-repeat; mask-position: 0 0; mask-origin: padding-box; -webkit-mask-image: radial-gradient(circle 34px at 0 0, #000 0 34px, transparent 35px); -webkit-mask-size: 80px 80px; -webkit-mask-repeat: no-repeat; -webkit-mask-position: 0 0; -webkit-mask-origin: padding-box; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mask repeat tiled stripes</title>
+<style>
+  @page { size: 220px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 220px; height: 120px; background: #6a1b9a; mask-image: linear-gradient(to right, #000 0 20px, transparent 20px 40px); mask-size: 40px 120px; mask-repeat: repeat; -webkit-mask-image: linear-gradient(to right, #000 0 20px, transparent 20px 40px); -webkit-mask-size: 40px 120px; -webkit-mask-repeat: repeat; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mask mode match source gradient alpha</title>
+<style>
+  @page { size: 210px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 210px; height: 120px; background: #d32f2f; mask-image: linear-gradient(to right, #000 0 33%, transparent 33% 66%, #fff 66% 100%); mask-mode: match-source; -webkit-mask-image: linear-gradient(to right, #000 0 33%, transparent 33% 66%, #fff 66% 100%); -webkit-mask-mode: alpha; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

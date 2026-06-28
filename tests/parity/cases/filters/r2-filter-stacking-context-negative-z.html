@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 filter stacking context negative z</title>
+<style>
+  @page { size: 220px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage { position: relative; width: 220px; height: 140px; background: #ffffff; }
+  .sibling { position: absolute; top: 22px; left: 22px; width: 150px; height: 86px; background: #455a64; }
+  .filtered { position: absolute; top: 44px; left: 54px; width: 118px; height: 70px; filter: brightness(1); }
+  .neg { position: absolute; z-index: -1; top: -16px; left: -16px; width: 108px; height: 68px; background: #ffd600; }
+  .front { width: 118px; height: 70px; background: rgba(46,125,50,0.85); }
+</style>
+</head>
+<body>
+  <div class="stage"><div class="sibling"></div><div class="filtered"><div class="neg"></div><div class="front"></div></div></div>
+</body>
+</html>

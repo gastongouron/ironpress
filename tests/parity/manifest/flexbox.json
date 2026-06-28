@@ -1346,5 +1346,770 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-overflow-hidden-auto-min",
+    "category": "flexbox",
+    "feature": "automatic-minimum-size",
+    "subfeature": "overflow-hidden",
+    "description": "overflow:hidden alone makes a shrinking row flex item's automatic minimum size zero; catches implementations that always keep the min-content floor and push the following item out.",
+    "file": "cases/flexbox/flexbox-overflow-hidden-auto-min.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-percentage-flex-basis",
+    "category": "flexbox",
+    "feature": "flex-basis",
+    "subfeature": "percentage-column",
+    "description": "Percentage flex-basis values in a definite-height column flex container resolve against the vertical main size; catches column code that treats percentages as auto.",
+    "file": "cases/flexbox/flexbox-column-percentage-flex-basis.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-display-block-flex",
+    "category": "flexbox",
+    "feature": "display",
+    "subfeature": "block-flex",
+    "description": "display:block flex uses modern two-keyword display syntax to create a block-level flex container; catches parsers that only recognize display:flex and stack children.",
+    "file": "cases/flexbox/flexbox-display-block-flex.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-display-inline-flex-two-keyword",
+    "category": "flexbox",
+    "feature": "display",
+    "subfeature": "inline-flex-two-keyword",
+    "description": "display:inline flex creates an inline-level flex container in a text line; catches parsers that ignore the two-keyword form and lose child sizing.",
+    "file": "cases/flexbox/flexbox-display-inline-flex-two-keyword.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-display-contents-items",
+    "category": "flexbox",
+    "feature": "display",
+    "subfeature": "contents-flex-items",
+    "description": "A display:contents child of a flex container is box-suppressed so its element children become flex items; catches wrappers that incorrectly become one flex item.",
+    "file": "cases/flexbox/flexbox-display-contents-items.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-inline-item-blockification",
+    "category": "flexbox",
+    "feature": "flex-item",
+    "subfeature": "blockification",
+    "description": "Inline direct children are blockified as flex items and honor width and height; catches inline-formatting implementations that render tiny inline spans.",
+    "file": "cases/flexbox/flexbox-inline-item-blockification.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-float-clear-ignored",
+    "category": "flexbox",
+    "feature": "flex-item",
+    "subfeature": "float-clear-ignored",
+    "description": "float and clear on a flex item do not affect its source-order flex placement; catches layout that lets float or clear move the item.",
+    "file": "cases/flexbox/flexbox-float-clear-ignored.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-vertical-align-ignored",
+    "category": "flexbox",
+    "feature": "flex-item",
+    "subfeature": "vertical-align-ignored",
+    "description": "vertical-align on a flex item is ignored and must not override align-items:flex-start; catches inline vertical-align being applied to flex items.",
+    "file": "cases/flexbox/flexbox-vertical-align-ignored.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-row-reverse-rtl",
+    "category": "flexbox",
+    "feature": "flex-direction",
+    "subfeature": "row-reverse-rtl",
+    "description": "direction:rtl plus flex-direction:row-reverse reverses the RTL inline axis so visual order runs left-to-right; catches physical row-reverse placement.",
+    "file": "cases/flexbox/flexbox-row-reverse-rtl.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-writing-mode-vertical-rl-row",
+    "category": "flexbox",
+    "feature": "writing-mode",
+    "subfeature": "vertical-rl-row",
+    "description": "In writing-mode:vertical-rl, flex-direction:row follows the vertical inline axis and stacks items top-to-bottom; catches physical horizontal row layout.",
+    "file": "cases/flexbox/flexbox-writing-mode-vertical-rl-row.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-writing-mode-vertical-rl-column",
+    "category": "flexbox",
+    "feature": "writing-mode",
+    "subfeature": "vertical-rl-column",
+    "description": "In writing-mode:vertical-rl, flex-direction:column follows the horizontal block axis right-to-left; catches physical top-to-bottom column layout.",
+    "file": "cases/flexbox/flexbox-writing-mode-vertical-rl-column.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-writing-mode-vertical-lr-row",
+    "category": "flexbox",
+    "feature": "writing-mode",
+    "subfeature": "vertical-lr-row",
+    "description": "writing-mode:vertical-lr with flex-direction:row follows the vertical inline axis; catches parsers that treat vertical-lr as horizontal-tb.",
+    "file": "cases/flexbox/flexbox-writing-mode-vertical-lr-row.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-content-single-line-noop",
+    "category": "flexbox",
+    "feature": "align-content",
+    "subfeature": "single-line-noop",
+    "description": "align-content:flex-end has no effect on a nowrap single-line flex container; catches implementations that move the only line to cross-end.",
+    "file": "cases/flexbox/flexbox-align-content-single-line-noop.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-items-first-baseline",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "first-baseline",
+    "description": "align-items:first baseline parses as baseline alignment for differently sized text flex items; catches fallback to stretch or cross-start.",
+    "file": "cases/flexbox/flexbox-align-items-first-baseline.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-items-last-baseline",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "last-baseline",
+    "description": "align-items:last baseline aligns a one-line item's baseline with the last baseline of a two-line flex item; catches unsupported last-baseline parsing.",
+    "file": "cases/flexbox/flexbox-align-items-last-baseline.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-items-safe-center",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "safe-center",
+    "description": "align-items:safe center is equivalent to center when the item fits; catches parsers that reject the safe overflow-alignment prefix.",
+    "file": "cases/flexbox/flexbox-align-items-safe-center.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-self-safe-center",
+    "category": "flexbox",
+    "feature": "align-self",
+    "subfeature": "safe-center",
+    "description": "align-self:safe center overrides container align-items:flex-start when the item fits; catches parsers that leave align-self:auto.",
+    "file": "cases/flexbox/flexbox-align-self-safe-center.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-align-content-safe-center",
+    "category": "flexbox",
+    "feature": "align-content",
+    "subfeature": "safe-center",
+    "description": "align-content:safe center centers wrapped flex lines when they fit; catches parsers that reject safe center and fall back to stretch.",
+    "file": "cases/flexbox/flexbox-align-content-safe-center.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-place-content-justify",
+    "category": "flexbox",
+    "feature": "place-content",
+    "subfeature": "justify-content",
+    "description": "place-content:center space-between sets flex justify-content:space-between in a row container; catches implementations that ignore place-content.",
+    "file": "cases/flexbox/flexbox-place-content-justify.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-place-items-center",
+    "category": "flexbox",
+    "feature": "place-items",
+    "subfeature": "align-items",
+    "description": "place-items:center sets align-items:center for a flex row container; catches grid-only place-items implementations that leave items at cross-start.",
+    "file": "cases/flexbox/flexbox-place-items-center.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-place-self-end",
+    "category": "flexbox",
+    "feature": "place-self",
+    "subfeature": "align-self",
+    "description": "place-self:end sets flex align-self to the cross-end side; catches grid-only place-self implementations that leave the item at flex-start.",
+    "file": "cases/flexbox/flexbox-place-self-end.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-grid-gap-alias",
+    "category": "flexbox",
+    "feature": "gap",
+    "subfeature": "grid-gap-alias",
+    "description": "legacy grid-gap aliases row-gap and column-gap and creates gaps in flex layout; catches engines that only apply grid-gap to CSS Grid.",
+    "file": "cases/flexbox/flexbox-grid-gap-alias.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-gap-calc",
+    "category": "flexbox",
+    "feature": "gap",
+    "subfeature": "calc",
+    "description": "gap:calc(10px + 10px) computes before flex item placement; catches gap code that ignores calc() values and packs boxes together.",
+    "file": "cases/flexbox/flexbox-gap-calc.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-row-gap-percentage-height",
+    "category": "flexbox",
+    "feature": "gap",
+    "subfeature": "percentage-row-gap",
+    "description": "A percentage row-gap in a definite-height wrapped row flex container resolves against the container content-box height; catches width-based or zero percentage gap resolution.",
+    "file": "cases/flexbox/flexbox-row-gap-percentage-height.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 3.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-basis-min-content",
+    "category": "flexbox",
+    "feature": "flex-basis",
+    "subfeature": "min-content",
+    "description": "flex-basis:min-content uses the min-content contribution as the flex base size; catches parsers that fall back to auto or max-content sizing.",
+    "file": "cases/flexbox/flexbox-flex-basis-min-content.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-basis-fit-content",
+    "category": "flexbox",
+    "feature": "flex-basis",
+    "subfeature": "fit-content",
+    "description": "flex-basis:fit-content shrink-to-fit sizes the flex base rather than using a declared width fallback; catches parsers that ignore fit-content.",
+    "file": "cases/flexbox/flexbox-flex-basis-fit-content.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-basis-calc-percent",
+    "category": "flexbox",
+    "feature": "flex-basis",
+    "subfeature": "calc-percent",
+    "description": "flex-basis:calc(25% - 10px) resolves against the definite row main size; catches implementations that ignore calc() and use auto or equal-share sizing.",
+    "file": "cases/flexbox/flexbox-flex-basis-calc-percent.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-shorthand-basis-only",
+    "category": "flexbox",
+    "feature": "flex-shorthand",
+    "subfeature": "basis-only",
+    "description": "The one-token flex:80px shorthand is a flex-basis form with grow and shrink enabled; catches parsers that only accept numeric grow values.",
+    "file": "cases/flexbox/flexbox-flex-shorthand-basis-only.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-flex-shorthand-grow-basis",
+    "category": "flexbox",
+    "feature": "flex-shorthand",
+    "subfeature": "grow-basis",
+    "description": "The two-token flex:1 80px shorthand means grow factor plus basis, not grow plus shrink; catches parsers that give both items zero basis.",
+    "file": "cases/flexbox/flexbox-flex-shorthand-grow-basis.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-order-decimal-invalid",
+    "category": "flexbox",
+    "feature": "order",
+    "subfeature": "integer-grammar",
+    "description": "order:1.5 is invalid because order accepts integers, so source order is preserved; catches parsers that truncate decimal order values.",
+    "file": "cases/flexbox/flexbox-order-decimal-invalid.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-order-paint-overlap",
+    "category": "flexbox",
+    "feature": "order",
+    "subfeature": "painting",
+    "description": "Overlapping flex items paint in order-modified document order when z-index is equal; catches source-order painting that leaves the lower-order item on top.",
+    "file": "cases/flexbox/flexbox-order-paint-overlap.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 3.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-abspos-order-paint",
+    "category": "flexbox",
+    "feature": "absolute-positioning",
+    "subfeature": "order-painting",
+    "description": "An absolutely positioned flex child paints as order:0 relative to ordered flex items; catches renderers that append all absolute children above flex content.",
+    "file": "cases/flexbox/flexbox-abspos-order-paint.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-flex-grow",
+    "category": "flexbox",
+    "feature": "flex-grow",
+    "subfeature": "column",
+    "description": "In a definite-height column flex container, grow factors distribute vertical free space; catches row-only flex-grow implementations.",
+    "file": "cases/flexbox/flexbox-column-flex-grow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-flex-shrink",
+    "category": "flexbox",
+    "feature": "flex-shrink",
+    "subfeature": "column",
+    "description": "In a definite-height column flex container, negative free space is removed using scaled shrink factors on the vertical main axis; catches row-only or unscaled shrink.",
+    "file": "cases/flexbox/flexbox-column-flex-shrink.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-justify-center",
+    "category": "flexbox",
+    "feature": "justify-content",
+    "subfeature": "column-center",
+    "description": "justify-content:center in flex-direction:column centers the item group on the vertical main axis; catches horizontal-only justify-content.",
+    "file": "cases/flexbox/flexbox-column-justify-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-align-items-center",
+    "category": "flexbox",
+    "feature": "align-items",
+    "subfeature": "column-center",
+    "description": "align-items:center in flex-direction:column centers fixed-width items on the horizontal cross axis; catches row-only cross-axis placement or unwanted stretch.",
+    "file": "cases/flexbox/flexbox-column-align-items-center.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-row-gap-main-axis",
+    "category": "flexbox",
+    "feature": "gap",
+    "subfeature": "column-row-gap-axis",
+    "description": "row-gap, not column-gap, separates adjacent items along the vertical main axis in flex-direction:column; catches physical column-gap-as-main-gap mapping.",
+    "file": "cases/flexbox/flexbox-column-row-gap-main-axis.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-container-width-max-content",
+    "category": "flexbox",
+    "feature": "intrinsic-sizing",
+    "subfeature": "max-content-width",
+    "description": "width:max-content shrink-wraps a flex container to its flex line rather than filling the containing block; catches block-width-only flex container sizing.",
+    "file": "cases/flexbox/flexbox-container-width-max-content.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-container-width-min-content",
+    "category": "flexbox",
+    "feature": "intrinsic-sizing",
+    "subfeature": "min-content-width",
+    "description": "width:min-content gives a flex container an intrinsic width rather than a page-wide block width; catches flex layouts that ignore intrinsic width keywords.",
+    "file": "cases/flexbox/flexbox-container-width-min-content.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-aspect-ratio-height-transfer",
+    "category": "flexbox",
+    "feature": "aspect-ratio",
+    "subfeature": "height-to-basis",
+    "description": "A definite height plus aspect-ratio transfers into an auto main-size flex base in a row; catches code that only derives height from width.",
+    "file": "cases/flexbox/flexbox-aspect-ratio-height-transfer.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-overflow-wrap-anywhere-auto-min",
+    "category": "flexbox",
+    "feature": "automatic-minimum-size",
+    "subfeature": "overflow-wrap-anywhere",
+    "description": "overflow-wrap:anywhere lowers a long-word flex item's automatic minimum size so the row can keep the following item inside; catches unbreakable min-content floors.",
+    "file": "cases/flexbox/flexbox-overflow-wrap-anywhere-auto-min.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-auto-margin-negative-free-space",
+    "category": "flexbox",
+    "feature": "auto-margins",
+    "subfeature": "negative-main-free-space",
+    "description": "Main-axis auto margins are treated as zero when flex items overflow with negative free space; catches auto margins that still absorb space.",
+    "file": "cases/flexbox/flexbox-auto-margin-negative-free-space.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-min-height-auto",
+    "category": "flexbox",
+    "feature": "automatic-minimum-size",
+    "subfeature": "column-min-height-auto",
+    "description": "In flex-direction:column, min-height:auto gives a shrinkable item a content-based main-axis minimum; catches row-only auto-min logic that compresses content.",
+    "file": "cases/flexbox/flexbox-column-min-height-auto.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-break-before-item",
+    "category": "flexbox",
+    "feature": "fragmentation",
+    "subfeature": "break-before-item",
+    "description": "break-before:page on a column flex item creates a forced page break before that item; catches flex layout that ignores child break-before.",
+    "file": "cases/flexbox/flexbox-break-before-item.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-break-after-item",
+    "category": "flexbox",
+    "feature": "fragmentation",
+    "subfeature": "break-after-item",
+    "description": "break-after:page on a column flex item creates a forced page break after that item; catches flex layout that ignores child break-after.",
+    "file": "cases/flexbox/flexbox-break-after-item.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

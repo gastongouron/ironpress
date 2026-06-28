@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 background blend difference</title>
+<style>
+  @page { size: 200px 120px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 200px; height: 120px; background-color: #fdd835; background-image: linear-gradient(to right, #1565c0 0 50%, #d32f2f 50% 100%); background-blend-mode: difference; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

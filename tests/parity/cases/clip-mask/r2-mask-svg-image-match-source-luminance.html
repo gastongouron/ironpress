@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mask svg image match source luminance</title>
+<style>
+  @page { size: 180px 100px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box { width: 180px; height: 100px; background: #2e7d32; mask-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22180%22%20height=%22100%22%3E%3Crect%20width=%2260%22%20height=%22100%22%20fill=%22red%22/%3E%3Crect%20x=%2260%22%20width=%2260%22%20height=%22100%22%20fill=%22transparent%22/%3E%3Crect%20x=%22120%22%20width=%2260%22%20height=%22100%22%20fill=%22white%22/%3E%3C/svg%3E"); mask-mode: match-source; mask-size: 180px 100px; mask-repeat: no-repeat; -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22180%22%20height=%22100%22%3E%3Crect%20width=%2260%22%20height=%22100%22%20fill=%22red%22/%3E%3Crect%20x=%2260%22%20width=%2260%22%20height=%22100%22%20fill=%22transparent%22/%3E%3Crect%20x=%22120%22%20width=%2260%22%20height=%22100%22%20fill=%22white%22/%3E%3C/svg%3E"); -webkit-mask-size: 180px 100px; -webkit-mask-repeat: no-repeat; }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>

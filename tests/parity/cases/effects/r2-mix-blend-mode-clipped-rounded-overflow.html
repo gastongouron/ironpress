@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>r2 mix blend mode clipped rounded overflow</title>
+<style>
+  @page { size: 210px 140px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .parent { position: relative; width: 150px; height: 90px; margin: 25px; overflow: hidden; border-radius: 28px; background: #1565c0; }
+  .child { position: absolute; top: -20px; left: 50px; width: 120px; height: 120px; background: #d32f2f; mix-blend-mode: screen; }
+</style>
+</head>
+<body>
+  <div class="parent"><div class="child"></div></div>
+</body>
+</html>

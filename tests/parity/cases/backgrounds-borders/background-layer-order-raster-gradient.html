@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>background layer order raster gradient</title>
+<style>
+  @page { size: 200px 130px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .box {
+    width: 160px;
+    height: 90px;
+    margin: 20px;
+    background-image:
+      linear-gradient(#e53935, #e53935),
+      url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR42mOQ63gKRwzEcQB1whixaofVswAAAABJRU5ErkJggg==");
+    background-size: 50px 50px, 70px 70px;
+    background-repeat: no-repeat, no-repeat;
+    background-position: left top, left top;
+    border: 4px solid #111111;
+  }
+</style>
+</head>
+<body>
+  <div class="box"></div>
+</body>
+</html>
