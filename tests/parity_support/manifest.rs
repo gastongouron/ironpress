@@ -63,6 +63,14 @@ pub(crate) struct ManifestEntry {
     /// page-origin offset can be measured and audited once per run.
     #[serde(default = "default_geometry")]
     pub(crate) geometry: String,
+    /// Reference ORACLE: which engine generates `refs/<cat>/<id>.png`. "chrome"
+    /// (default) = Chrome `--print-to-pdf` / Paged.js. "weasyprint" = WeasyPrint,
+    /// used for CSS GCPM features (footnotes, running elements) that Chrome's
+    /// print path renders blank, so Chrome+Paged.js are NOT a valid oracle there.
+    /// "none" = no pixel oracle exists; the report shows the ironpress render only
+    /// and the fixture stays UNKNOWN (non-gating).
+    #[serde(default = "default_oracle")]
+    pub(crate) oracle: String,
 }
 
 impl ManifestEntry {
@@ -90,6 +98,9 @@ pub(crate) fn default_expected_support() -> String {
 }
 pub(crate) fn default_geometry() -> String {
     "free".to_string()
+}
+pub(crate) fn default_oracle() -> String {
+    "chrome".to_string()
 }
 
 // NOTE (C6): the legacy `pass_threshold()`/`partial_threshold()` accessors were

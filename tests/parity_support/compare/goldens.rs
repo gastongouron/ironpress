@@ -76,6 +76,7 @@ fn entry() -> ManifestEntry {
         depends_on: Vec::new(),
         expected_support: "implemented".into(),
         geometry: "free".into(),
+        oracle: "chrome".into(),
     }
 }
 

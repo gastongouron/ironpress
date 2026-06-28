@@ -177,6 +177,25 @@ render_one() {
 
   mkdir -p "$REFS/$category"
 
+  # Per-fixture reference ORACLE (manifest `oracle`, default "chrome"). CSS GCPM
+  # features (footnotes, running elements) use WeasyPrint because Chrome's print
+  # path renders them blank — Chrome+Paged.js are not a valid oracle there.
+  # "none" = no oracle exists; skip (the fixture stays UNKNOWN, the report shows
+  # only the ironpress render).
+  local oracle
+  oracle="$(python3 -c "import json
+try:
+    d=json.load(open('$ROOT/tests/parity/manifest/$category.json'))
+    items=d if isinstance(d,list) else d.get('fixtures',[])
+    print(next((e.get('oracle','chrome') for e in items if e.get('id')=='$base'),'chrome'))
+except Exception:
+    print('chrome')" 2>/dev/null || echo chrome)"
+  if [ "$oracle" = "none" ]; then
+    echo "  no pixel oracle (skipped, UNKNOWN): $category/$base" >&2
+    echo "S"
+    return 0
+  fi
+
   # Unique scratch per job: a private Chromium profile dir (mandatory for
   # concurrency — a shared profile lock serializes/aborts parallel runs) and a
   # unique intermediate PDF path. Both are cleaned up on every exit path.
@@ -186,7 +205,17 @@ render_one() {
   trap 'rm -rf "$udd" "$pdf" "$inj"' RETURN
 
   local ok=""
-  if [ "$PAGEDJS" = "1" ]; then
+  if [ "$oracle" = "weasyprint" ]; then
+    # CSS GCPM oracle. WeasyPrint honours float:footnote + position:running()/
+    # element(), which Chrome's print path drops. It reads the fixture's own @page
+    # geometry, the same box ironpress lays out against, so the rasters align.
+    local attempt
+    for attempt in 1 2 3; do
+      timeout -k 5s 120s python3 -m weasyprint "$html" "$pdf" >/dev/null 2>&1 || true
+      if [ -s "$pdf" ]; then ok=1; break; fi
+      sleep 0.5
+    done
+  elif [ "$PAGEDJS" = "1" ]; then
     # Spec-compliant paged-media render via pagedjs-cli (Puppeteer driving the
     # system Chromium). pagedjs-cli WAITS for Paged.js's `rendered` event before
     # printing, so — unlike `chromium --print-to-pdf` + `--virtual-time-budget`,
