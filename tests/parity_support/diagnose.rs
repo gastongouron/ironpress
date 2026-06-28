@@ -1145,6 +1145,7 @@ mod tests {
             kind: "feature".into(),
             depends_on: vec!["probe-x".into()],
             expected_support: "implemented".into(),
+            oracle: "chrome".into(),
             attribution: String::new(),
             html_sha256: String::new(),
             diagnosis: Some(Diagnosis {
@@ -1170,6 +1171,7 @@ mod tests {
             kind: "probe".into(),
             depends_on: Vec::new(),
             expected_support: "implemented".into(),
+            oracle: "chrome".into(),
             attribution: String::new(),
             html_sha256: String::new(),
             diagnosis: None,

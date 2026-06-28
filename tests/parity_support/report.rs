@@ -73,6 +73,12 @@ pub(crate) struct FixtureResult {
     pub(crate) depends_on: Vec<String>,
     #[serde(default = "super::manifest::default_expected_support")]
     pub(crate) expected_support: String,
+    /// Reference ORACLE that produced `refs/<cat>/<id>.png` ("chrome" default,
+    /// "weasyprint" for CSS GCPM features Chrome's print path renders blank,
+    /// "none" = no oracle). Surfaced in the report so a non-Chrome comparison is
+    /// clearly labelled (Chrome+Paged.js marked unsupported for that fixture).
+    #[serde(default = "super::manifest::default_oracle")]
+    pub(crate) oracle: String,
     /// Root-cause attribution for non-PASS fixtures. "" for PASS / not computed.
     /// "REAL" -> the named feature is itself wrong; "CONFOUNDED: <probe feature>"
     /// -> a depended substrate probe is non-PASS so the failure is likely there.
@@ -312,6 +318,7 @@ pub(crate) fn fixture_base(
         kind: entry.kind.clone(),
         depends_on: entry.depends_on.clone(),
         expected_support: entry.expected_support.clone(),
+        oracle: entry.oracle.clone(),
         attribution: String::new(),
         html_sha256: String::new(),
         diagnosis: None,
@@ -1209,6 +1216,23 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                 let ref_src = format!("../refs/{}/{}.png", c.category, fx.id);
                 let out_src = format!("../out/{}/{}.png", c.category, fx.id);
                 let diff_src = format!("{}/{}.diff.png", c.category, fx.id);
+                // Reference oracle label: Chrome by default; WeasyPrint for CSS GCPM
+                // features (footnotes, running elements) Chrome's print path renders
+                // blank. Surfacing it makes a non-Chrome comparison explicit and
+                // marks Chrome+Paged.js unsupported for that fixture.
+                let ref_label = match fx.oracle.as_str() {
+                    "weasyprint" => "WeasyPrint ref",
+                    "none" => "ironpress only",
+                    _ => "Chrome ref",
+                };
+                let oracle_chip = if fx.oracle == "chrome" {
+                    String::new()
+                } else {
+                    format!(
+                        " · <span class=\"confound\">oracle: {} (Chrome/Paged.js unsupported)</span>",
+                        html_escape(&fx.oracle)
+                    )
+                };
 
                 // Multi-page fixtures: render page 2.. so a real page break is
                 // VISIBLE (not just asserted). The extra pages live in the committed
@@ -1230,7 +1254,7 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                         let d2 = html_escape(&format!("{}/{}.p{}.diff.png", c.category, fx.id, n));
                         pages_extra.push_str(&format!(
                             "<div class=\"pglabel\">page {n}</div><div class=\"quad\">\
-<figure><img loading=\"lazy\" src=\"{r2}\" alt=\"Chrome ref p{n}\"><figcaption>Chrome ref</figcaption></figure>\
+<figure><img loading=\"lazy\" src=\"{r2}\" alt=\"{ref_label} p{n}\"><figcaption>{ref_label}</figcaption></figure>\
 <figure><img loading=\"lazy\" src=\"{o2}\" alt=\"ironpress p{n}\"><figcaption>ironpress</figcaption></figure>\
 <figure><img loading=\"lazy\" src=\"{d2}\" alt=\"classed diff p{n}\"><figcaption>classed diff</figcaption></figure>\
 </div>"
@@ -1266,9 +1290,9 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                 o.push_str(&format!(
                     "<div class=\"card fxrow\" data-status=\"{st}\" data-class=\"{cls}\" data-diff=\"{diffk}\">\
 <div class=\"chead\">{badge} <span class=\"num\">{diff:.2}%</span> \
-<strong>{id}</strong>{sub_html}{attr}{chips}</div>\
+<strong>{id}</strong>{sub_html}{attr}{oc}{chips}</div>\
 {p1label}<div class=\"quad\">\
-<figure><img loading=\"lazy\" src=\"{r}\" alt=\"Chrome ref\"><figcaption>Chrome ref</figcaption></figure>\
+<figure><img loading=\"lazy\" src=\"{r}\" alt=\"{rl}\"><figcaption>{rl}</figcaption></figure>\
 <figure><img loading=\"lazy\" src=\"{ot}\" alt=\"ironpress\"><figcaption>ironpress</figcaption></figure>\
 <figure><img loading=\"lazy\" src=\"{d}\" alt=\"classed diff\"><figcaption>classed diff</figcaption></figure>\
 </div>{pages_extra}{legend}{reason}{desc}{regions}{source}</div>",
@@ -1280,6 +1304,8 @@ value=\"0\" style=\"width:6ch\" oninput=\"filterCards()\"></label>\
                     id = html_escape(&fx.id),
                     sub_html = sub_html,
                     attr = attr_html,
+                    oc = oracle_chip,
+                    rl = ref_label,
                     chips = chips_html,
                     r = html_escape(&ref_src),
                     ot = html_escape(&out_src),
