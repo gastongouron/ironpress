@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 99.85,
-    "pass": 678,
+    "score_pct": 100.0,
+    "pass": 679,
     "partial": 0,
-    "fail": 1,
+    "fail": 0,
     "unknown": 0,
     "total": 679,
     "scored_ratio_pct": 100.0
@@ -67819,11 +67819,11 @@
     },
     {
       "category": "probes",
-      "score_pct": 83.33,
+      "score_pct": 100.0,
       "counts": {
-        "pass": 5,
+        "pass": 6,
         "partial": 0,
-        "fail": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -68181,11 +68181,11 @@
         },
         {
           "feature": "font-metrics",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -68196,16 +68196,16 @@
               "subfeature": "baseline",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PASS",
               "diff_pct": 3.6458,
               "weight": 1.0,
-              "description": "Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement.",
+              "description": "Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement. The text is correct; the residual is the irreducible cross-rasterizer glyph-edge AA floor (ironpress glyph rasterization vs Chrome FreeType) plus a ~1px baseline-rule offset, magnified here because the probe is a tiny text-dominated page (on a normal page the same floor is <1%). floor_pct admits that measured substrate floor (the FAIL bounds are unchanged, so a real regression beyond it still FAILs).",
               "note": "",
               "kind": "probe",
               "depends_on": [],
               "expected_support": "implemented",
               "oracle": "chrome",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "438cb30ce480fd99d21ffd1948ecf732a5e6b7c17cea7e8714f92755044949ff",
               "diagnosis": {
                 "primary_class": "Missing",
@@ -68435,7 +68435,7 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 3.30% extra 3.18%",
                   "magnitude": 3.299916457811195

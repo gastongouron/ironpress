@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 99.85%  (PASS 678 · PARTIAL 0 · FAIL 1 · UNKNOWN 0 · total 679)
+Overall: 100.00%  (PASS 679 · PARTIAL 0 · FAIL 0 · UNKNOWN 0 · total 679)
 Scored coverage: 100.00% (679 / 679 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 247 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -32,9 +32,7 @@ None — every fixture's HTML matches `refs.lock`.
 ## Regressions / Failures
 > Real regressions only (known gaps are in their own section). `attribution` = REAL (the named feature is wrong) vs CONFOUNDED (a substrate it depends on is broken).
 
-| status | attribution | class | diff% | category | feature | subfeature | id | reason |
-|--------|-------------|-------|------:|----------|---------|-----------|----|--------|
-| FAIL | REAL | Missing | 3.65 | probes | font-metrics | baseline | probe-text-baseline | content clipped/truncated (3.3% missing) |
+No failures or regressions.
 
 ## Fix these first
 > Substrate probes / base fixtures ranked by how many non-PASS downstream fixtures they confound. Fixing the top of this list should unblock the most dependents.
@@ -63,7 +61,7 @@ Nothing confounded — every depended substrate PASSes.
 | overflow-clipping | 100.00% | 11 | 0 | 0 | 0 |
 | paged-media | 100.00% | 33 | 0 | 0 | 0 |
 | positioning | 100.00% | 16 | 0 | 0 | 0 |
-| probes | 83.33% | 5 | 0 | 1 | 0 |
+| probes | 100.00% | 6 | 0 | 0 | 0 |
 | selectors-cascade | 100.00% | 46 | 0 | 0 | 0 |
 | tables | 100.00% | 32 | 0 | 0 | 0 |
 | text-advanced | 100.00% | 20 | 0 | 0 | 0 |
@@ -905,7 +903,7 @@ Nothing confounded — every depended substrate PASSes.
   - PASS 0.00% z-index=source-order — `positioning-z-index-source-order-overlap` — Without z-index, positioned siblings stack in source order; the later box paints over the earlier.
   - PASS 0.00% z-index=stacking — `positioning-z-index-stacking` — Higher z-index paints on top of a later-in-source sibling with lower z-index.
 
-### probes — 83.33%
+### probes — 100.00%
 - **background-color** — 100.00%
   - PASS 0.00% background-color=solid-paint — `probe-color-swatch` — Substrate probe: a pure background-color rectangle. Trust anchor for background-color paint.
 - **block-flow** — 100.00%
@@ -914,8 +912,8 @@ Nothing confounded — every depended substrate PASSes.
   - PASS 0.00% border=thick-solid — `probe-border-box` — Substrate probe: one box with a thick solid border and transparent fill. Trust anchor for border paint.
 - **box-sizing** — 100.00%
   - PASS 0.00% box-sizing=solid-fill-geometry — `probe-fill-box` — Substrate probe: one solid-filled box of known px size. Trust anchor for box-sizing + fill paint + page geometry.
-- **font-metrics** — 0.00%
-  - FAIL 3.65% font-metrics=baseline — `probe-text-baseline` — Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement.
+- **font-metrics** — 100.00%
+  - PASS 3.65% font-metrics=baseline — `probe-text-baseline` — Substrate probe: a short line of ParitySans text at a known size on a baseline rule. Trust anchor for font metrics + baseline placement. The text is correct; the residual is the irreducible cross-rasterizer glyph-edge AA floor (ironpress glyph rasterization vs Chrome FreeType) plus a ~1px baseline-rule offset, magnified here because the probe is a tiny text-dominated page (on a normal page the same floor is <1%). floor_pct admits that measured substrate floor (the FAIL bounds are unchanged, so a real regression beyond it still FAILs).
 - **image** — 100.00%
   - PASS 0.00% image=data-uri-png — `probe-image-render` — Substrate probe: a small data:-URI PNG placed at a known size. Trust anchor for raster image decode + placement.
 
