@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>first page margin box override</title><style>
+@page{size:180px 120px;margin:20px 0 0 0;@top-center{content:"BASE"}}
+@page :first{@top-center{content:"FIRST"}}
+html{font-family:ParitySans;line-height:1.5}
+*{margin:0;box-sizing:border-box}
+.p{height:100px;background:#dbeafe}.q{height:100px;background:#bbf7d0}
+</style></head><body><div class="p"></div><div class="q"></div></body></html>

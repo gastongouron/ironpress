@@ -472,5 +472,200 @@
       "probe-color-swatch",
       "probe-border-box"
     ]
+  },
+  {
+    "id": "multicol-break-after-column",
+    "category": "multicol",
+    "feature": "break-after",
+    "subfeature": "column",
+    "description": "break-after:column inside a fixed-height multicol container starts the following block at the top of the next column; catches multicol layout that only supports automatic fill or break-before:column.",
+    "file": "cases/multicol/multicol-break-after-column.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "multicol-break-before-avoid-column",
+    "category": "multicol",
+    "feature": "break-before",
+    "subfeature": "avoid-column",
+    "description": "break-before:avoid-column keeps a heading with the following paragraph in the same column when possible; catches parsers that ignore avoid-column and split adjacent blocks across columns.",
+    "file": "cases/multicol/multicol-break-before-avoid-column.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "multicol-break-inside-avoid-column",
+    "category": "multicol",
+    "feature": "break-inside",
+    "subfeature": "avoid-column",
+    "description": "break-inside:avoid-column pushes a straddling card whole to the next column; catches column fragmenters that geometrically slice every crossing block.",
+    "file": "cases/multicol/multicol-break-inside-avoid-column.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-forced-overflow-columns",
+    "category": "multicol",
+    "feature": "column-fragmentation",
+    "subfeature": "forced-overflow-columns",
+    "description": "Forced break-after:column values can create an actual third overflow column beyond the two used columns; catches layouts that cap physical columns or ignore forced column breaks.",
+    "file": "cases/multicol/multicol-forced-overflow-columns.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "multicol-break-column-outside-noop",
+    "category": "multicol",
+    "feature": "break-after",
+    "subfeature": "column-outside-multicol-noop",
+    "description": "break-after:column outside a column fragmentation context must not force a page break; catches implementations that alias all forced break values to page breaks.",
+    "file": "cases/multicol/multicol-break-column-outside-noop.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "multicol-overflow-columns-auto",
+    "category": "multicol",
+    "feature": "column-fragmentation",
+    "subfeature": "overflow-columns-auto-fill",
+    "description": "A fixed-height two-column container with column-fill:auto creates additional overflow columns inline instead of vertical overflow; catches layouts that let the last used column absorb all remaining content.",
+    "file": "cases/multicol/multicol-overflow-columns-auto.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
+  },
+  {
+    "id": "multicol-column-fill-balance-all",
+    "category": "multicol",
+    "feature": "column-fill",
+    "subfeature": "balance-all",
+    "description": "column-fill:balance-all balances every page fragment of a multicol flow, not only the final fragment; catches parsers that collapse balance-all to balance or auto.",
+    "file": "cases/multicol/multicol-column-fill-balance-all.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "multicol-direction-rtl-columns",
+    "category": "multicol",
+    "feature": "column-progression",
+    "subfeature": "direction-rtl",
+    "description": "direction:rtl places the first multicol column on the right side of the container; catches physical left-to-right column offset code.",
+    "file": "cases/multicol/multicol-direction-rtl-columns.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ]
+  },
+  {
+    "id": "multicol-writing-mode-vertical-rl",
+    "category": "multicol",
+    "feature": "column-progression",
+    "subfeature": "writing-mode-vertical-rl",
+    "description": "writing-mode:vertical-rl changes multicol line boxes and column progression instead of rendering ordinary horizontal left-to-right columns; catches multicol layout that ignores writing mode.",
+    "file": "cases/multicol/multicol-writing-mode-vertical-rl.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "multicol-column-rule-wider-than-gap",
+    "category": "multicol",
+    "feature": "column-rule",
+    "subfeature": "wider-than-gap",
+    "description": "A column rule wider than the gap is centered in the gap and overlaps columns without widening the gutter; catches layouts that add rule width to column placement.",
+    "file": "cases/multicol/multicol-column-rule-wider-than-gap.html",
+    "oracle": "chrome",
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0,
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch",
+      "probe-border-box"
+    ]
   }
 ]

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>auto-rows-use-wrapped-content-height</title>
+<style>
+  @page { size: 220px 210px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 120px;
+    grid-template-rows: auto auto;
+    width: 120px;
+    margin: 20px;
+    border: 2px solid #000000;
+    font-size: 18px;
+  }
+  .a {
+    background: #d7263d;
+    color: #fff;
+  }
+  .b {
+    background: #1b998b;
+    height: 30px;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a">one two three four five six</div><div class="b"></div></div>
+</body>
+</html>

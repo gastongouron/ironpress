@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>absolute-grid-child-positions-against-its-specified-grid-area</title>
+<style>
+  @page { size: 250px 190px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    position: relative;
+    grid-template-columns: 80px 80px;
+    grid-template-rows: 60px 60px;
+    width: 160px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .bg {
+    background: #eeeeee;
+  }
+  .abs {
+    position: absolute;
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+    left: 10px;
+    top: 10px;
+    width: 50px;
+    height: 30px;
+    background: #d7263d;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="bg"></div><div class="bg"></div><div class="bg"></div><div class="bg"></div><div class="abs"></div></div>
+</body>
+</html>

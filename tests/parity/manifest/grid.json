@@ -612,5 +612,967 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-inline-grid-participates-in-inline-flow",
+    "category": "grid",
+    "feature": "display",
+    "subfeature": "inline-grid",
+    "description": "An inline-grid between two inline labels should remain on the same text line and occupy only its grid width; catches treating inline-grid as block or ignoring it still passes block-level display:grid fixtures.",
+    "file": "cases/grid/grid-inline-grid-participates-in-inline-flow.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-direct-text-creates-anonymous-grid-items",
+    "category": "grid",
+    "feature": "grid-items",
+    "subfeature": "anonymous-text",
+    "description": "Direct text between element children in a grid container should occupy its own anonymous grid item and shift later cells; catches a grid implementation that filters out text nodes passes element-only grid fixtures.",
+    "file": "cases/grid/grid-direct-text-creates-anonymous-grid-items.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-display-contents-flattens-children-into-grid",
+    "category": "grid",
+    "feature": "display",
+    "subfeature": "contents-grid-items",
+    "description": "A display:contents wrapper should not consume a grid cell; its two children should become separate grid items; catches treating the wrapper as a normal grid item passes direct-child grid fixtures but stacks both grandchildren inside one cell.",
+    "file": "cases/grid/grid-display-contents-flattens-children-into-grid.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-inline-child-grid-item-is-blockified",
+    "category": "grid",
+    "feature": "grid-items",
+    "subfeature": "blockification",
+    "description": "An inline span grid child with width and height should be blockified as a grid item and honor its box size/alignment inside the cell; catches an implementation that leaves inline grid items shrink-wrapped to text can pass fixtures using only div children.",
+    "file": "cases/grid/grid-inline-child-grid-item-is-blockified.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-item-margins-inset-the-item-box",
+    "category": "grid",
+    "feature": "grid-items",
+    "subfeature": "margins",
+    "description": "A grid item with margins should paint inset from its grid area and leave white space around the item background; catches ignoring grid item margins passes current padding/border/alignment fixtures.",
+    "file": "cases/grid/grid-item-margins-inset-the-item-box.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-item-percentage-margins-use-grid-area-inline-size",
+    "category": "grid",
+    "feature": "grid-items",
+    "subfeature": "percentage-margins",
+    "description": "A 10% left/right margin on a 200px grid area should create 20px side insets, independent of page width; catches resolving percentages against the page or ignoring margins can pass fixed-margin tests.",
+    "file": "cases/grid/grid-item-percentage-margins-use-grid-area-inline-size.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-fr-rows-divide-definite-grid-height",
+    "category": "grid",
+    "feature": "grid-template-rows",
+    "subfeature": "fr",
+    "description": "Two 1fr rows in a 160px-tall grid with a 10px gap should each be 75px high; catches a row resolver that treats fr rows as auto/content still passes fixed-row fixtures.",
+    "file": "cases/grid/grid-fr-rows-divide-definite-grid-height.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-percentage-rows-resolve-against-grid-height",
+    "category": "grid",
+    "feature": "grid-template-rows",
+    "subfeature": "percentage",
+    "description": "Percentage row tracks in a definite-height grid should resolve from the grid content-box height; catches a row resolver that only handles fixed lengths passes column percentage tests.",
+    "file": "cases/grid/grid-percentage-rows-resolve-against-grid-height.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-rows-use-wrapped-content-height",
+    "category": "grid",
+    "feature": "grid-template-rows",
+    "subfeature": "auto-intrinsic",
+    "description": "An auto row containing wrapping text should grow to the full multi-line content height before the next row starts; catches measuring only one line of text passes empty or single-line auto row fixtures.",
+    "file": "cases/grid/grid-auto-rows-use-wrapped-content-height.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-spanning-item-contributes-to-auto-columns",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "auto-spanning-items",
+    "description": "A wide item spanning two auto columns should contribute to both tracks instead of leaving them at zero or only measuring single-span items; catches measuring only items with col_span == 1 passes simple auto-column fixtures.",
+    "file": "cases/grid/grid-spanning-item-contributes-to-auto-columns.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-minmax-fixed-max-caps-the-track",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "minmax-fixed-max",
+    "description": "A minmax(60px, 100px) track next to 1fr in a 300px grid should cap at 100px, not flex wider; catches treating every minmax as a 1fr flexible track passes minmax(min,1fr) tests.",
+    "file": "cases/grid/grid-minmax-fixed-max-caps-the-track.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-minmax-auto-minimum-honors-content",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "minmax-auto-min",
+    "description": "A minmax(auto,1fr) column with a long unbreakable word should not shrink below the word's min-content contribution; catches coercing auto minimum to zero passes simple flexible minmax tests.",
+    "file": "cases/grid/grid-minmax-auto-minimum-honors-content.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-minmax-intrinsic-endpoints-are-distinct",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "minmax-intrinsic",
+    "description": "A minmax(min-content,max-content) track should size from intrinsic text constraints, not as a generic auto track; catches mapping intrinsic keywords to auto passes round-1 min-content/max-content tests only when not nested in minmax.",
+    "file": "cases/grid/grid-minmax-intrinsic-endpoints-are-distinct.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-calc-track-sizes-are-parsed-in-grid-templates",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "calc",
+    "description": "calc(50px + 30px) should resolve to an 80px first column before the 1fr track; catches a parser that drops calc() tracks passes px/fr fixtures but changes the number and width of columns.",
+    "file": "cases/grid/grid-calc-track-sizes-are-parsed-in-grid-templates.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-repeat-expands-multi-track-patterns",
+    "category": "grid",
+    "feature": "grid-template-columns",
+    "subfeature": "repeat-multi-track",
+    "description": "repeat(2, 40px 80px) should expand to four tracks alternating narrow and wide; catches a repeat parser that only handles one repeated track passes repeat(3,80px) fixtures.",
+    "file": "cases/grid/grid-repeat-expands-multi-track-patterns.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-repeated-named-lines-resolve-nth-occurrence",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "repeated-named-lines",
+    "description": "grid-column: 2 col / 3 col should select later occurrences of the repeated line name; catches resolving every named line to its first occurrence passes basic named-line fixtures.",
+    "file": "cases/grid/grid-repeated-named-lines-resolve-nth-occurrence.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-area-names-generate-start-and-end-lines",
+    "category": "grid",
+    "feature": "grid-template-areas",
+    "subfeature": "implicit-lines",
+    "description": "grid-template-areas should create hero-start and hero-end lines usable by grid-column/grid-row; catches implementing named areas without generated lines passes grid-area:<name> fixtures.",
+    "file": "cases/grid/grid-area-names-generate-start-and-end-lines.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-explicit-start-end-lines-create-an-implicit-named-area",
+    "category": "grid",
+    "feature": "grid-area",
+    "subfeature": "implicit-named-area",
+    "description": "A grid-area name should resolve through explicit matching foo-start/foo-end column and row line names even without grid-template-areas; catches engines that only resolve grid-area names from grid-template-areas pass area-string fixtures.",
+    "file": "cases/grid/grid-explicit-start-end-lines-create-an-implicit-named-area.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-shorthand-defines-auto-flow-rows",
+    "category": "grid",
+    "feature": "grid",
+    "subfeature": "auto-flow-shorthand",
+    "description": "The grid shorthand should set explicit columns and grid-auto-flow/auto rows in one declaration; catches supporting only grid-template longhands and shorthand area form misses common grid:auto-flow syntax.",
+    "file": "cases/grid/grid-shorthand-defines-auto-flow-rows.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-shorthand-resets-omitted-implicit-grid-properties",
+    "category": "grid",
+    "feature": "grid",
+    "subfeature": "shorthand-reset",
+    "description": "A later grid shorthand should reset a previous grid-auto-flow:column to row flow when omitted; catches a cascade implementation that treats grid as unrelated leaves stale auto-flow values and still passes isolated shorthand tests.",
+    "file": "cases/grid/grid-shorthand-resets-omitted-implicit-grid-properties.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-rows-repeats-a-track-size-pattern",
+    "category": "grid",
+    "feature": "grid-auto-rows",
+    "subfeature": "pattern",
+    "description": "Implicit rows should cycle through the grid-auto-rows list: 30px, 70px, 30px, ; catches storing only one grid-auto-rows length passes single-size implicit-row fixtures.",
+    "file": "cases/grid/grid-auto-rows-repeats-a-track-size-pattern.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-columns-repeats-a-track-size-pattern",
+    "category": "grid",
+    "feature": "grid-auto-columns",
+    "subfeature": "pattern",
+    "description": "Implicit columns created by explicit placement should cycle through grid-auto-columns values; catches having no grid-auto-columns model or only a single value passes simple explicit-column fixtures.",
+    "file": "cases/grid/grid-auto-columns-repeats-a-track-size-pattern.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-template-areas-create-implicit-tracks-when-track-lists-are-omitted",
+    "category": "grid",
+    "feature": "grid-template-areas",
+    "subfeature": "implicit-tracks",
+    "description": "grid-template-areas alone should define a two-column/two-row explicit grid whose unsized tracks use auto implicit sizing; catches deriving placement from areas but not deriving track widths passes fixtures that also set template columns.",
+    "file": "cases/grid/grid-template-areas-create-implicit-tracks-when-track-lists-are-omitted.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-placement-handles-definite-row-only",
+    "category": "grid",
+    "feature": "grid-auto-placement",
+    "subfeature": "definite-row",
+    "description": "Items pinned to row 2 but with auto columns should fill row 2 columns in order without consuming row 1; catches a simplistic auto-placement implementation can pass fully-auto and fully-definite fixtures while ignoring one-axis definite placement.",
+    "file": "cases/grid/grid-auto-placement-handles-definite-row-only.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-placement-handles-definite-column-only",
+    "category": "grid",
+    "feature": "grid-auto-placement",
+    "subfeature": "definite-column",
+    "description": "Items pinned to column 3 but with auto rows should stack down column 3 without occupying earlier columns; catches a row-major-only auto placer can pass default placement while mishandling one-axis definite column placement.",
+    "file": "cases/grid/grid-auto-placement-handles-definite-column-only.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-column-dense-auto-placement-backfills-holes",
+    "category": "grid",
+    "feature": "grid-auto-flow",
+    "subfeature": "column-dense",
+    "description": "In column flow, dense packing should backfill a later one-row item into an earlier hole in the first column; catches testing only row dense or sparse column flow misses column-major dense search.",
+    "file": "cases/grid/grid-column-dense-auto-placement-backfills-holes.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-order-modified-placement-also-applies-to-dense-packing",
+    "category": "grid",
+    "feature": "order",
+    "subfeature": "dense-grid-auto-placement",
+    "description": "Dense auto-placement must process items in order-modified document order before deciding which holes to backfill; catches a simple order test can fail, but an implementation might sort painting only and still pack dense holes in source order.",
+    "file": "cases/grid/grid-order-modified-placement-also-applies-to-dense-packing.html",
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-negative-grid-line-numbers-count-from-the-end",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "negative-lines",
+    "description": "grid-column: -3 / -1 should span the last two columns of a four-column explicit grid; catches positive-only line fixtures cannot catch engines that parse negative lines as auto or zero.",
+    "file": "cases/grid/grid-negative-grid-line-numbers-count-from-the-end.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-span-named-line-searches-to-matching-line",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "span-named-line",
+    "description": "grid-column: left / span right should span from the left named line to the next right named line, covering two tracks; catches approximating every named span as span 1 passes numeric span fixtures.",
+    "file": "cases/grid/grid-span-named-line-searches-to-matching-line.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-span-integer-named-line-syntax-is-honored",
+    "category": "grid",
+    "feature": "grid-column",
+    "subfeature": "span-integer-named-line",
+    "description": "grid-column: span 2 target / target 3 should count named lines as well as a numeric span; catches a parser accepting only span N or span name passes simpler span fixtures but treats the combined syntax as span 1 or auto.",
+    "file": "cases/grid/grid-span-integer-named-line-syntax-is-honored.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-area-omitted-end-sides-default-correctly",
+    "category": "grid",
+    "feature": "grid-area",
+    "subfeature": "two-value",
+    "description": "grid-area: 2 / 2 should place an item at row 2 column 2 with auto end sides resolving to a one-cell span; catches only testing the four-value grid-area form misses omitted-value shorthand behavior.",
+    "file": "cases/grid/grid-area-omitted-end-sides-default-correctly.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-absolute-grid-child-does-not-consume-an-auto-placement-cell",
+    "category": "grid",
+    "feature": "absolute-positioning",
+    "subfeature": "excluded-from-grid-flow",
+    "description": "An absolutely positioned child should overlay the grid container and not take the first grid cell from in-flow items; catches element-only grid placement can accidentally include abspos children as grid items and still pass non-positioned fixtures.",
+    "file": "cases/grid/grid-absolute-grid-child-does-not-consume-an-auto-placement-cell.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-absolute-grid-child-positions-against-its-specified-grid-area",
+    "category": "grid",
+    "feature": "absolute-positioning",
+    "subfeature": "grid-area-containing-block",
+    "description": "An abspos child with grid-column:2 / 3 and grid-row:2 / 3 should use that grid area as its containing block; catches laying every absolute child against the grid padding box passes out-of-flow tests that do not set grid placement.",
+    "file": "cases/grid/grid-absolute-grid-child-positions-against-its-specified-grid-area.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-legacy-grid-row-and-column-gap-aliases-apply-separately",
+    "category": "grid",
+    "feature": "gap",
+    "subfeature": "legacy-grid-gap-aliases",
+    "description": "grid-row-gap and grid-column-gap should map to row-gap and column-gap with independent values; catches supporting only gap or grid-gap passes the current generic gap fixture.",
+    "file": "cases/grid/grid-legacy-grid-row-and-column-gap-aliases-apply-separately.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-percentage-grid-gaps-resolve-from-container-size",
+    "category": "grid",
+    "feature": "gap",
+    "subfeature": "percentage",
+    "description": "A 10% column gap in a 200px grid should create a 20px gutter between two 90px columns; catches parsing percentage gaps but never resolving them in grid layout passes length gap fixtures.",
+    "file": "cases/grid/grid-percentage-grid-gaps-resolve-from-container-size.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-place-self-overrides-both-item-alignment-axes",
+    "category": "grid",
+    "feature": "place-self",
+    "subfeature": "end-center",
+    "description": "A single item with place-self:end center should override container stretch and paint at block-end/inline-center within its cell; catches container-only alignment fixtures do not prove item-level place-self parsing and application.",
+    "file": "cases/grid/grid-place-self-overrides-both-item-alignment-axes.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-items-baseline-align-across-a-row",
+    "category": "grid",
+    "feature": "align-items",
+    "subfeature": "baseline",
+    "description": "align-items:baseline should align text baselines of differently sized grid items rather than stretching or top-aligning them; catches mapping baseline to stretch passes start/end/center/stretch alignment fixtures.",
+    "file": "cases/grid/grid-items-baseline-align-across-a-row.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-justify-content-centers-the-grid-tracks",
+    "category": "grid",
+    "feature": "justify-content",
+    "subfeature": "center",
+    "description": "A grid narrower than its container should be centered along the inline axis by justify-content:center; catches ignoring grid content distribution passes item-level justify-items fixtures.",
+    "file": "cases/grid/grid-justify-content-centers-the-grid-tracks.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-justify-content-distributes-free-space-between-tracks",
+    "category": "grid",
+    "feature": "justify-content",
+    "subfeature": "space-between",
+    "description": "space-between should put the first track at the left edge and the second at the right edge of a wider grid container; catches implementing only start/center or item alignment passes simpler alignment fixtures.",
+    "file": "cases/grid/grid-justify-content-distributes-free-space-between-tracks.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-align-content-positions-grid-rows-in-a-tall-container",
+    "category": "grid",
+    "feature": "align-content",
+    "subfeature": "end",
+    "description": "align-content:end should pack fixed-height rows at the block-end of a taller grid container; catches only stretching auto rows for normal alignment misses explicit align-content values.",
+    "file": "cases/grid/grid-align-content-positions-grid-rows-in-a-tall-container.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-place-content-sets-block-and-inline-grid-distribution",
+    "category": "grid",
+    "feature": "place-content",
+    "subfeature": "end-center",
+    "description": "place-content:end center should set align-content:end and justify-content:center for the grid tracks; catches engines with place-items but no place-content pass item-alignment shorthand fixtures.",
+    "file": "cases/grid/grid-place-content-sets-block-and-inline-grid-distribution.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-auto-margins-align-grid-items-before-self-alignment",
+    "category": "grid",
+    "feature": "grid-items",
+    "subfeature": "auto-margins",
+    "description": "A grid item with margin-left:auto should absorb free inline space and move to the right edge of its grid area; catches ignoring grid item margins and relying only on justify-self passes explicit justify-self tests.",
+    "file": "cases/grid/grid-auto-margins-align-grid-items-before-self-alignment.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-rtl-direction-reverses-grid-column-line-start",
+    "category": "grid",
+    "feature": "direction",
+    "subfeature": "rtl-grid-line-numbering",
+    "description": "With direction:rtl, grid-column:1 / 2 should address the rightmost column line interval; catches physical left-to-right line numbering passes all LTR placement fixtures.",
+    "file": "cases/grid/grid-rtl-direction-reverses-grid-column-line-start.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-vertical-writing-mode-changes-grid-physical-axes",
+    "category": "grid",
+    "feature": "writing-mode",
+    "subfeature": "vertical-rl-grid",
+    "description": "In vertical-rl writing mode, the inline axis is vertical, so grid rows and columns map to different physical directions than horizontal-tb; catches a horizontal-only grid algorithm passes all default writing-mode fixtures.",
+    "file": "cases/grid/grid-vertical-writing-mode-changes-grid-physical-axes.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-unequal-grid-template-areas-row-lengths-invalidate-declaration",
+    "category": "grid",
+    "feature": "grid-template-areas",
+    "subfeature": "unequal-row-invalid",
+    "description": "Rows with different numbers of cell tokens make grid-template-areas invalid, so grid-area names should not resolve; catches padding shorter rows to a rectangle passes valid-area and non-rectangular invalid tests but accepts a distinct invalid syntax.",
+    "file": "cases/grid/grid-unequal-grid-template-areas-row-lengths-invalidate-declaration.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-subgrid-adopts-parent-row-tracks",
+    "category": "grid",
+    "feature": "subgrid",
+    "subfeature": "rows",
+    "description": "A nested grid spanning two parent rows should use the parent row sizes for its own children when rows are subgridded; catches round 1 covered subgrid columns only; an implementation could special-case columns and still fail rows.",
+    "file": "cases/grid/grid-subgrid-adopts-parent-row-tracks.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-subgrid-augments-and-exposes-line-names",
+    "category": "grid",
+    "feature": "subgrid",
+    "subfeature": "line-name-augmentation",
+    "description": "Line names declared after subgrid should be usable by grandchildren placed inside the subgrid; catches basic subgrid track adoption does not prove line-name augmentation or name-repeat behavior.",
+    "file": "cases/grid/grid-subgrid-augments-and-exposes-line-names.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-subgrid-inherits-parent-gutters-on-subgridded-axis",
+    "category": "grid",
+    "feature": "subgrid",
+    "subfeature": "inherited-gutters",
+    "description": "Children of a column subgrid should align to parent columns including the parent's column-gap; catches treating a subgrid as an independent grid with no inherited gap can still pass a no-gap subgrid fixture.",
+    "file": "cases/grid/grid-subgrid-inherits-parent-gutters-on-subgridded-axis.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-rows-fragment-between-pages",
+    "category": "grid",
+    "feature": "fragmentation",
+    "subfeature": "grid-rows",
+    "description": "A grid with fixed-height rows taller than the page should break between rows rather than clipping or overlapping rows on one page; catches single-page grid fixtures cannot detect whether grid row boxes participate in pagination.",
+    "file": "cases/grid/grid-rows-fragment-between-pages.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-tall-grid-item-fragments-inside-its-grid-area",
+    "category": "grid",
+    "feature": "fragmentation",
+    "subfeature": "grid-item",
+    "description": "A tall block child inside one grid item should fragment across pages without escaping the grid item's containing area geometry; catches paginating between grid rows only passes row-break fixtures while clipping tall cell contents.",
+    "file": "cases/grid/grid-tall-grid-item-fragments-inside-its-grid-area.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-row-spanning-grid-item-fragments-across-spanned-rows",
+    "category": "grid",
+    "feature": "fragmentation",
+    "subfeature": "spanned-grid-area",
+    "description": "A grid item spanning multiple rows should keep its area geometry and fragment content consistently across page breaks; catches approximating spanning items as a single starting-row cell passes simple row-span layout but fails paged output.",
+    "file": "cases/grid/grid-row-spanning-grid-item-fragments-across-spanned-rows.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-container-pseudo-elements-are-grid-items",
+    "category": "grid",
+    "feature": "generated-content",
+    "subfeature": "pseudo-grid-items",
+    "description": "A grid container's ::before generated box should participate as the first grid item before DOM children; catches ignoring generated grid items passes DOM-child-only auto-placement fixtures.",
+    "file": "cases/grid/grid-container-pseudo-elements-are-grid-items.html",
+    "kind": "interaction",
+    "expected_support": "unsupported",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "grid-safe-alignment-falls-back-to-start-on-grid-overflow",
+    "category": "grid",
+    "feature": "justify-content",
+    "subfeature": "safe-center-overflow",
+    "description": "justify-content:safe center should behave as start when the grid tracks overflow the container; catches stripping safe and always centering passes fit-content safe-center tests but clips both sides on overflow.",
+    "file": "cases/grid/grid-safe-alignment-falls-back-to-start-on-grid-overflow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "oracle": "chrome",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

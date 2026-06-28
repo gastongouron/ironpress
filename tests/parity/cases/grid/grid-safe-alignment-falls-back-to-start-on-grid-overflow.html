@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>safe-alignment-falls-back-to-start-on-grid-overflow</title>
+<style>
+  @page { size: 240px 130px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 100px 100px;
+    width: 140px;
+    grid-template-rows: 60px;
+    justify-content: safe center;
+    margin: 20px;
+    border: 2px solid #000000;
+    overflow: visible;
+  }
+  .a {
+    background: #d7263d;
+  }
+  .b {
+    background: #1b998b;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a"></div><div class="b"></div></div>
+</body>
+</html>

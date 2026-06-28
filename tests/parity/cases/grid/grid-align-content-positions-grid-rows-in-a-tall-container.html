@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>align-content-positions-grid-rows-in-a-tall-container</title>
+<style>
+  @page { size: 190px 230px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 100px;
+    grid-template-rows: 40px 40px;
+    width: 100px;
+    height: 160px;
+    align-content: end;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .a {
+    background: #d7263d;
+  }
+  .b {
+    background: #1b998b;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a"></div><div class="b"></div></div>
+</body>
+</html>

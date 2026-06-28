@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>inline-grid-participates-in-inline-flow</title>
+<style>
+  @page { size: 260px 120px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .line {
+    font-size: 20px;
+    margin: 20px;
+  }
+  .g {
+    display: inline-grid;
+    grid-template-columns: 40px 40px;
+    grid-template-rows: 40px;
+    vertical-align: top;
+  }
+  .a {
+    background: #d7263d;
+  }
+  .b {
+    background: #1b998b;
+  }
+</style>
+</head>
+<body>
+<p class="line">L <span class="g"><span class="a"></span><span class="b"></span></span> R</p>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tall-grid-item-fragments-inside-its-grid-area</title>
+<style>
+  @page { size: 220px 140px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 180px;
+    grid-template-rows: auto;
+    width: 180px;
+    margin: 10px;
+    border: 2px solid #000000;
+  }
+  .item {
+    background: #d7263d;
+    color: #fff;
+    font-size: 18px;
+  }
+  .tall {
+    height: 220px;
+    background: #1b998b;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="item">top<div class="tall"></div>bottom</div></div>
+</body>
+</html>

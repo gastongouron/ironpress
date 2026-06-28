@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>running element named page margin box</title><style>
+@page{size:180px 120px;margin:0}
+@page chapter{size:180px 120px;margin:22px 0 0 0;@top-center{content:element(ch)}}
+html{font-family:ParitySans;line-height:1.5}
+*{margin:0;box-sizing:border-box}
+.cover{height:120px;background:#1d4ed8}h2{position:running(ch);height:18px;font-size:12px;background:#ffd166}.body{page:chapter;height:100px;background:#16a34a}
+</style></head><body><div class="cover"></div><section class="body"><h2>CHAPTER HEAD</h2></section></body></html>

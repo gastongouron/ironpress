@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>display-contents-flattens-children-into-grid</title>
+<style>
+  @page { size: 300px 130px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 70px 70px 70px;
+    grid-template-rows: 60px;
+    width: 210px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .wrap {
+    display: contents;
+  }
+  .a {
+    background: #d7263d;
+  }
+  .b {
+    background: #1b998b;
+  }
+  .c {
+    background: #f4d35e;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="wrap"><div class="a"></div><div class="b"></div></div><div class="c"></div></div>
+</body>
+</html>

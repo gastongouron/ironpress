@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>explicit-start-end-lines-create-an-implicit-named-area</title>
+<style>
+  @page { size: 240px 170px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: [panel-start] 80px 80px [panel-end];
+    grid-template-rows: [panel-start] 50px 50px [panel-end];
+    width: 160px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .a {
+    background: #d7263d;
+    grid-area: panel;
+  }
+  .b {
+    background: #1b998b;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a"></div><div class="b"></div></div>
+</body>
+</html>

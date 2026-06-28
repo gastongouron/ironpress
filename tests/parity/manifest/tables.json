@@ -740,5 +740,685 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-inline-table-inline-flow",
+    "category": "tables",
+    "feature": "display",
+    "subfeature": "inline-table-inline-flow",
+    "description": "Text before and after an inline-table should remain on the same line while the inline-table internally lays out two cells side by side. Catches wrong implementations where a renderer that treats inline-table as inline text or block flow will either drop the table grid or force the trailing text to a new line.",
+    "file": "cases/tables/tables-inline-table-inline-flow.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-css-row-groups-reorder",
+    "category": "tables",
+    "feature": "display",
+    "subfeature": "css-row-group-reorder",
+    "description": "A div-based CSS table declares footer before body and header last; table display semantics put the header first and footer last. Catches wrong implementations where a renderer that only supports table-row/table-cell or follows DOM block order will show red footer first or stack all divs.",
+    "file": "cases/tables/tables-css-row-groups-reorder.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-css-table-columns-fixed",
+    "category": "tables",
+    "feature": "display",
+    "subfeature": "css-table-column-widths",
+    "description": "A CSS display table uses non-col elements as table-column boxes to make a narrow red column and wide green column. Catches wrong implementations where a renderer without CSS table-column support sizes both cells equally or treats the column divs as visible blocks.",
+    "file": "cases/tables/tables-css-table-columns-fixed.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-css-table-caption",
+    "category": "tables",
+    "feature": "display",
+    "subfeature": "css-table-caption",
+    "description": "A non-caption div inside a CSS table is made display:table-caption and should become a full-width caption above the row grid. Catches wrong implementations where a renderer that only recognizes the HTML caption tag ignores the div caption or lays it as a normal block inside the table.",
+    "file": "cases/tables/tables-css-table-caption.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-multiple-captions",
+    "category": "tables",
+    "feature": "caption",
+    "subfeature": "multiple-caption-boxes",
+    "description": "Two CSS table-caption boxes on the same CSS table use distinct colors and should both participate in the table wrapper before the rows. Catches wrong implementations where an implementation that stores only the first caption passes single-caption fixtures but drops the second caption entirely.",
+    "file": "cases/tables/tables-multiple-captions.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-caption-side-on-caption",
+    "category": "tables",
+    "feature": "caption",
+    "subfeature": "caption-side-on-caption",
+    "description": "The table has no caption-side declaration, but the caption element itself sets caption-side:bottom. Catches wrong implementations where a renderer that only reads caption-side from the table style will place this caption above, while table-level bottom fixtures still pass.",
+    "file": "cases/tables/tables-caption-side-on-caption.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-caption-min-width",
+    "category": "tables",
+    "feature": "caption",
+    "subfeature": "caption-min-width-auto-layout",
+    "description": "A shrink-to-fit auto table has tiny cells but a wide nowrap caption that should expand the table wrapper to the caption minimum width. Catches wrong implementations where a renderer that sizes the table only from cell columns wraps or overflows the caption above a too-narrow two-cell table.",
+    "file": "cases/tables/tables-caption-min-width.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-row-group-background",
+    "category": "tables",
+    "feature": "background-layering",
+    "subfeature": "row-group-background",
+    "description": "A tbody has a blue background, cells are transparent, and the table background is yellow. Catches wrong implementations where a renderer that only falls back to direct row backgrounds shows yellow table background through the cells instead of the tbody layer.",
+    "file": "cases/tables/tables-row-group-background.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-column-background",
+    "category": "tables",
+    "feature": "background-layering",
+    "subfeature": "column-background",
+    "description": "Two col elements provide red and green backgrounds while all cells are transparent. Catches wrong implementations where a width-only col implementation passes col sizing tests but leaves transparent cells showing the table background.",
+    "file": "cases/tables/tables-column-background.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-colgroup-background",
+    "category": "tables",
+    "feature": "background-layering",
+    "subfeature": "column-group-background",
+    "description": "A colgroup with span=2 has a blue background under two transparent columns and a third column remains yellow table background. Catches wrong implementations where a renderer that ignores colgroup backgrounds shows all three columns as yellow or only applies widths.",
+    "file": "cases/tables/tables-colgroup-background.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-row-over-column-background",
+    "category": "tables",
+    "feature": "background-layering",
+    "subfeature": "row-over-column",
+    "description": "A red column background and a green row background overlap under transparent cells; row layer should paint above column layer. Catches wrong implementations where a renderer that implements only columns or paints layers in the wrong order shows red where the row should be green.",
+    "file": "cases/tables/tables-row-over-column-background.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-empty-cells-collapse-ignored",
+    "category": "tables",
+    "feature": "empty-cells",
+    "subfeature": "ignored-in-collapse",
+    "description": "A collapsed-border table sets empty-cells:hide on an empty red cell next to a filled green cell. Catches wrong implementations where a renderer that applies empty-cells in collapsed mode suppresses the empty cell background/border, even though existing separated-mode hide tests pass.",
+    "file": "cases/tables/tables-empty-cells-collapse-ignored.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-visibility-collapse-row",
+    "category": "tables",
+    "feature": "visibility-collapse",
+    "subfeature": "row",
+    "description": "The middle row is visibility:collapse in a separated table with vertical border-spacing. Catches wrong implementations where a renderer that hides content but leaves the row height or both adjacent spacings would still pass ordinary visibility:hidden tests.",
+    "file": "cases/tables/tables-visibility-collapse-row.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-visibility-collapse-row-group",
+    "category": "tables",
+    "feature": "visibility-collapse",
+    "subfeature": "row-group",
+    "description": "The tbody is visibility:collapse and should remove all body rows while leaving the footer row directly below the header. Catches wrong implementations where a row-only collapse implementation ignores section visibility and still renders the red tbody rows.",
+    "file": "cases/tables/tables-visibility-collapse-row-group.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-visibility-collapse-column",
+    "category": "tables",
+    "feature": "visibility-collapse",
+    "subfeature": "column",
+    "description": "The middle col is visibility:collapse in a three-column fixed table. Catches wrong implementations where a renderer without column collapse leaves the red middle column visible and keeps the full three-column width.",
+    "file": "cases/tables/tables-visibility-collapse-column.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-visibility-collapse-colgroup",
+    "category": "tables",
+    "feature": "visibility-collapse",
+    "subfeature": "column-group",
+    "description": "A two-column colgroup is collapsed, leaving only the trailing green column visible. Catches wrong implementations where a renderer that ignores colgroup collapse renders the blue and red grouped columns as normal.",
+    "file": "cases/tables/tables-visibility-collapse-colgroup.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-visibility-collapse-cell",
+    "category": "tables",
+    "feature": "visibility-collapse",
+    "subfeature": "cell",
+    "description": "One cell in a two-cell row is visibility:collapse; its grid slot remains but its red paint and text disappear. Catches wrong implementations where a renderer that ignores cell visibility paints the red cell, while a renderer that removes the slot shifts the green cell left.",
+    "file": "cases/tables/tables-visibility-collapse-cell.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-rowspan-thead-clipped",
+    "category": "tables",
+    "feature": "rowspan",
+    "subfeature": "row-group-boundary-clip",
+    "description": "A thead cell has rowspan=3 but the thead has one row; it must not occupy the first tbody column. Catches wrong implementations where a global rowspan occupancy implementation makes the first tbody row start in column two, even though positive-rowspan tests inside a group pass.",
+    "file": "cases/tables/tables-rowspan-thead-clipped.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-rowspan-extra-columns",
+    "category": "tables",
+    "feature": "rowspan",
+    "subfeature": "extra-columns-from-occupancy",
+    "description": "The first row has a rowspan in column one plus one normal cell; the second row has two new cells, so the grid needs three columns. Catches wrong implementations where a renderer that determines column count from authored cells per row caps the table at two columns and drops or overlays the second-row trailing cell.",
+    "file": "cases/tables/tables-rowspan-extra-columns.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-fixed-colspan-width-split",
+    "category": "tables",
+    "feature": "table-layout",
+    "subfeature": "fixed-first-row-colspan-width",
+    "description": "A fixed table has no colgroup; the first row's colspan=2 cell has width:120px and the third cell has width:60px. Catches wrong implementations where a renderer that ignores first-row colspan widths can pass colgroup-based fixed layout but produce equal or content-based columns here.",
+    "file": "cases/tables/tables-fixed-colspan-width-split.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-colgroup-span-width",
+    "category": "tables",
+    "feature": "column-width",
+    "subfeature": "colgroup-span-width",
+    "description": "A childless colgroup span=2 with width:50px should create two 50px columns followed by a 100px column. Catches wrong implementations where a renderer that supports only col child widths passes existing colgroup tests but ignores bare colgroup spans.",
+    "file": "cases/tables/tables-colgroup-span-width.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-collapse-none-loses",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "none-loses-to-solid",
+    "description": "The left cell's right border is none and the right cell's left border is a thick red solid border on the same collapsed edge. Catches wrong implementations where a renderer that treats none as an instruction to erase the shared edge or paints only the first cell edge will omit the red border.",
+    "file": "cases/tables/tables-collapse-none-loses.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-collapse-cell-over-row",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "cell-over-row-origin",
+    "description": "A row and its cells declare equal-width collapsed top borders with different colors, so cell-origin precedence should choose the blue cell border. Catches wrong implementations where a renderer without origin precedence paints the red row border or paints both.",
+    "file": "cases/tables/tables-collapse-cell-over-row.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-collapse-outer-table-border",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "outer-table-border-conflict",
+    "description": "The table has a thick red collapsed border while the outer cells have thinner blue borders on the same outer grid edges. Catches wrong implementations where an implementation that paints the table border box independently or samples only cell borders shows the wrong outer color/thickness.",
+    "file": "cases/tables/tables-collapse-outer-table-border.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-collapse-directional-tie",
+    "category": "tables",
+    "feature": "border-collapse",
+    "subfeature": "directional-tie-break",
+    "description": "Equal-width equal-style borders of different colors meet at a collapsed shared vertical edge; the directional tie-break determines the winner. Catches wrong implementations where a renderer that uses DOM paint order can pass width/style conflict tests but choose the opposite color in exact ties.",
+    "file": "cases/tables/tables-collapse-directional-tie.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-row-height-minimum",
+    "category": "tables",
+    "feature": "row-height",
+    "subfeature": "row-min-height",
+    "description": "A tr declares height:80px while its cells contain only a 20px marker. Catches wrong implementations where a renderer that derives row height only from cell content paints a short row, while ordinary cell-height tests still pass.",
+    "file": "cases/tables/tables-row-height-minimum.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-table-height-minimum",
+    "category": "tables",
+    "feature": "table-height",
+    "subfeature": "table-min-height",
+    "description": "A table declares height:120px but contains a single short row and has a visible table background. Catches wrong implementations where a renderer that ignores table height paints the table background only around the short row.",
+    "file": "cases/tables/tables-table-height-minimum.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-rowspan-height-distribution",
+    "category": "tables",
+    "feature": "rowspan",
+    "subfeature": "height-distribution",
+    "description": "A cell with rowspan=2 and height:100px spans two otherwise short rows. Catches wrong implementations where a renderer that computes each row height from only non-spanning cells lets the tall spanning cell overflow beyond the two-row table area.",
+    "file": "cases/tables/tables-rowspan-height-distribution.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-direction-rtl-columns",
+    "category": "tables",
+    "feature": "direction",
+    "subfeature": "rtl-column-order",
+    "description": "A direction:rtl table has red first cell and green second cell; the first column should be visually on the right. Catches wrong implementations where a left-to-right cell placer shows red on the left even though text bidi support may work elsewhere.",
+    "file": "cases/tables/tables-direction-rtl-columns.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-break-before-row",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "break-before-row",
+    "description": "The second table row declares break-before:page on a short page and should begin page two. Catches wrong implementations where a paginator that only honors breaks on block elements inside cells keeps both rows on page one.",
+    "file": "cases/tables/tables-break-before-row.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-break-inside-avoid-tbody",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "tbody-break-inside-avoid",
+    "description": "A tbody with two rows has break-inside:avoid and fits on a fresh page but not in the remaining space after a header row. Catches wrong implementations where a row-only paginator splits the tbody after its first row even though moving the group would preserve it.",
+    "file": "cases/tables/tables-break-inside-avoid-tbody.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-second-header-group-not-repeat",
+    "category": "tables",
+    "feature": "table-fragmentation",
+    "subfeature": "second-header-group-normal",
+    "description": "A CSS display table owns two table-header-group boxes; only the first is a header, the second is a normal row group. Catches wrong implementations where a renderer that repeats every header-group or cannot model display header groups passes single thead repetition but repeats the blue subheader incorrectly.",
+    "file": "cases/tables/tables-second-header-group-not-repeat.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-anonymous-cell-in-row",
+    "category": "tables",
+    "feature": "anonymous-table-fixup",
+    "subfeature": "non-cell-row-child",
+    "description": "A CSS table-row contains one explicit table-cell and one plain div; the div should be wrapped in an anonymous table-cell and appear as the second cell. Catches wrong implementations where a renderer filters row children to explicit table-cell boxes and silently drops the green div.",
+    "file": "cases/tables/tables-anonymous-cell-in-row.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-anonymous-table-cell-siblings",
+    "category": "tables",
+    "feature": "anonymous-table-fixup",
+    "subfeature": "orphan-table-cell-siblings",
+    "description": "Two inline siblings are display:table-cell without an explicit table or row; fixup creates an anonymous table and row. Catches wrong implementations where a renderer without fixup treats them as normal inline/block boxes and never applies table-cell equal-row layout.",
+    "file": "cases/tables/tables-anonymous-table-cell-siblings.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-anonymous-row-group-child",
+    "category": "tables",
+    "feature": "anonymous-table-fixup",
+    "subfeature": "non-row-row-group-child",
+    "description": "A CSS table-row-group contains a plain div before a real table-row; the div should become an anonymous row with one cell. Catches wrong implementations where a renderer that only collects explicit table-row children from row groups drops the blue anonymous row.",
+    "file": "cases/tables/tables-anonymous-row-group-child.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-whitespace-row-fixup",
+    "category": "tables",
+    "feature": "anonymous-table-fixup",
+    "subfeature": "whitespace-between-rows",
+    "description": "Whitespace text appears between two display:table-row boxes inside a CSS display table. Catches wrong implementations where a naive fixup implementation wraps whitespace into an anonymous row/cell and creates an extra blank band.",
+    "file": "cases/tables/tables-whitespace-row-fixup.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-cellpadding-attribute",
+    "category": "tables",
+    "feature": "html-table-attributes",
+    "subfeature": "cellpadding",
+    "description": "A legacy table uses cellpadding=16 with no CSS padding; an inner marker should be inset from the cell border. Catches wrong implementations where a CSS-only implementation ignores cellpadding and places the marker against the border.",
+    "file": "cases/tables/tables-cellpadding-attribute.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-cellspacing-attribute",
+    "category": "tables",
+    "feature": "html-table-attributes",
+    "subfeature": "cellspacing",
+    "description": "A legacy table uses cellspacing=14 with no CSS border-spacing and a dark table background. Catches wrong implementations where a CSS-only implementation renders adjacent cells without the dark spacing gutters.",
+    "file": "cases/tables/tables-cellspacing-attribute.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-border-attribute",
+    "category": "tables",
+    "feature": "html-table-attributes",
+    "subfeature": "border",
+    "description": "A table uses border=4 without CSS borders, so browser presentational hints draw visible table/cell borders. Catches wrong implementations where a CSS-only renderer ignores the attribute and paints only the cell backgrounds.",
+    "file": "cases/tables/tables-border-attribute.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "tables-colspan-max-clamp",
+    "category": "tables",
+    "feature": "html-table-attributes",
+    "subfeature": "colspan-max-clamp",
+    "description": "A cell declares colspan=1001 before a normal cell; browsers clamp overly large colspan values to the HTML maximum rather than creating an unbounded grid. Catches wrong implementations where a renderer that accepts the raw integer creates a huge table width or drops later cells, while ordinary small colspan tests pass.",
+    "file": "cases/tables/tables-colspan-max-clamp.html",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

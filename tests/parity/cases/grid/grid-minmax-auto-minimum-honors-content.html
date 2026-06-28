@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>minmax-auto-minimum-honors-content</title>
+<style>
+  @page { size: 300px 130px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(auto,1fr) 40px;
+    width: 220px;
+    grid-template-rows: 70px;
+    margin: 20px;
+    border: 2px solid #000000;
+    font-size: 18px;
+  }
+  .a {
+    background: #d7263d;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .b {
+    background: #1b998b;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a">LONGWORDLONGWORD</div><div class="b"></div></div>
+</body>
+</html>

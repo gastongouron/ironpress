@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>subgrid-adopts-parent-row-tracks</title>
+<style>
+  @page { size: 210px 190px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .outer {
+    display: grid;
+    grid-template-columns: 120px;
+    grid-template-rows: 40px 90px;
+    width: 120px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .sub {
+    display: grid;
+    grid-row: 1 / 3;
+    grid-template-rows: subgrid;
+  }
+  .a {
+    background: #d7263d;
+  }
+  .b {
+    background: #1b998b;
+  }
+</style>
+</head>
+<body>
+<div class="outer"><div class="sub"><div class="a"></div><div class="b"></div></div></div>
+</body>
+</html>

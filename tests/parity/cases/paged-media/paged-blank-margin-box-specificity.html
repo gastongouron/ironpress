@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>blank margin box specificity</title><style>
+@page{size:160px 120px;margin:20px 0 0 0}
+@page :right{@top-center{content:"RIGHT"}}
+@page :blank{@top-center{content:"BLANK"}}
+html{font-family:ParitySans;line-height:1.5}
+*{margin:0;box-sizing:border-box}
+.block{height:100px;background:#1d4ed8}.full{height:120px;background:#16a34a;break-after:left}.tail{height:100px;background:#f97316}
+</style></head><body><div class="block"></div><div class="full"></div><div class="tail"></div></body></html>

@@ -717,5 +717,716 @@
     "weight": 1,
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-break-after-left-from-left",
+    "category": "paged-media",
+    "feature": "break-after",
+    "subfeature": "left-from-left-page",
+    "description": "break-after:left on page 2, a left page, must insert a blank right page so following content starts on page 4; catches implementations that alias left to an ordinary page break.",
+    "file": "cases/paged-media/paged-break-after-left-from-left.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-before-verso-left",
+    "category": "paged-media",
+    "feature": "break-before",
+    "subfeature": "verso-left-page",
+    "description": "break-before:verso after two full pages must skip the natural right page and land on the next left page; catches parsers that treat verso as page or only recognize left/right.",
+    "file": "cases/paged-media/paged-break-before-verso-left.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-before-recto-leading",
+    "category": "paged-media",
+    "feature": "break-before",
+    "subfeature": "recto-leading-noop",
+    "description": "break-before:recto on the first in-flow block must not create a leading blank page; catches implementations that insert parity pages before suppressing leading breaks.",
+    "file": "cases/paged-media/paged-break-before-recto-leading.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-precedence-before-left-wins",
+    "category": "paged-media",
+    "feature": "break-precedence",
+    "subfeature": "break-before-left-over-break-after-right",
+    "description": "At a shared class-A break point, break-before:left on the following block must override break-after:right on the preceding block; catches independent-break implementations that insert a blank page for the earlier value.",
+    "file": "cases/paged-media/paged-break-precedence-before-left-wins.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-after-avoid-keep-next",
+    "category": "paged-media",
+    "feature": "break-after",
+    "subfeature": "avoid-keep-with-next",
+    "description": "break-after:avoid keeps a bottom-of-page heading with the following paragraph; catches implementations that parse avoid but treat it as a no-op for automatic page breaks.",
+    "file": "cases/paged-media/paged-break-after-avoid-keep-next.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-break-before-avoid-page-keep-prev",
+    "category": "paged-media",
+    "feature": "break-before",
+    "subfeature": "avoid-page-keep-with-previous",
+    "description": "break-before:avoid-page keeps a heading and following paragraph together across a page boundary; catches paginators that ignore break-before avoidance during automatic breaks.",
+    "file": "cases/paged-media/paged-break-before-avoid-page-keep-prev.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-child-break-before-propagates",
+    "category": "paged-media",
+    "feature": "break-propagation",
+    "subfeature": "first-child-break-before",
+    "description": "break-before:page on a wrapper's first in-flow child propagates to before the wrapper; catches layouts that break inside the wrapper and leave wrapper decoration on the previous page.",
+    "file": "cases/paged-media/paged-child-break-before-propagates.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-child-break-after-propagates",
+    "category": "paged-media",
+    "feature": "break-propagation",
+    "subfeature": "last-child-break-after",
+    "description": "break-after:page on a wrapper's last in-flow child propagates after the wrapper; catches layouts that fragment the wrapper decoration onto the following page.",
+    "file": "cases/paged-media/paged-child-break-after-propagates.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-break-inside-avoid-page-card",
+    "category": "paged-media",
+    "feature": "break-inside",
+    "subfeature": "avoid-page-card",
+    "description": "break-inside:avoid-page keeps a page-fitting card intact when it would straddle a page boundary; catches parsers that support avoid but not avoid-page.",
+    "file": "cases/paged-media/paged-break-inside-avoid-page-card.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-grid-fragmentation-rows",
+    "category": "paged-media",
+    "feature": "grid-fragmentation",
+    "subfeature": "rows-across-pages",
+    "description": "Rows in a one-column grid continue across page fragments instead of clipping as one atomic grid; catches paginators that lose lower grid rows while block/table fragmentation works.",
+    "file": "cases/paged-media/paged-grid-fragmentation-rows.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow",
+      "probe-color-swatch"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-tall-image-object-fit-fill-fragment",
+    "category": "paged-media",
+    "feature": "replaced-fragmentation",
+    "subfeature": "tall-object-fit-fill-image",
+    "description": "A tall object-fit:fill image must show continued colored bands across later pages; catches renderers that treat replaced content as monolithic and clip it after page one.",
+    "file": "cases/paged-media/paged-tall-image-object-fit-fill-fragment.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-image-render",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-bordered-tall-image-fragment",
+    "category": "paged-media",
+    "feature": "replaced-fragmentation",
+    "subfeature": "bordered-tall-image",
+    "description": "A bordered tall replaced image must continue its image content and border decoration across pages; catches splitters that only handle undecorated images.",
+    "file": "cases/paged-media/paged-bordered-tall-image-fragment.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-image-render",
+      "probe-border-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-named-page-continuation",
+    "category": "paged-media",
+    "feature": "named-page",
+    "subfeature": "continuation-geometry",
+    "description": "A tall element assigned page:chapter keeps the chapter page size and margin on continuation pages; catches named-page implementations that apply geometry only to the first fragment.",
+    "file": "cases/paged-media/paged-named-page-continuation.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-size-ledger-keyword",
+    "category": "paged-media",
+    "feature": "page-size",
+    "subfeature": "ledger-keyword",
+    "description": "@page size:ledger selects the 11in by 17in page box; catches page-size parsers that fall back after supporting only common sizes.",
+    "file": "cases/paged-media/paged-size-ledger-keyword.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-size-jis-b4-landscape",
+    "category": "paged-media",
+    "feature": "page-size",
+    "subfeature": "jis-b4-landscape",
+    "description": "@page size:jis-b4 landscape selects the named JIS B4 sheet and swaps axes; catches parsers missing the JIS keyword or orientation combination.",
+    "file": "cases/paged-media/paged-size-jis-b4-landscape.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-page-margin-three-values",
+    "category": "paged-media",
+    "feature": "page-margin",
+    "subfeature": "three-value-shorthand",
+    "description": "@page margin with three values resolves top, horizontal, and bottom margins; catches parsers that ignore this shorthand arity.",
+    "file": "cases/paged-media/paged-page-margin-three-values.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-page-margin-percentage",
+    "category": "paged-media",
+    "feature": "page-margin",
+    "subfeature": "percentage",
+    "description": "@page margin:10% creates a visible inset from the page box; catches page margin parsers that accept only absolute lengths.",
+    "file": "cases/paged-media/paged-page-margin-percentage.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-page-orientation-rotate-left",
+    "category": "paged-media",
+    "feature": "page-orientation",
+    "subfeature": "rotate-left",
+    "description": "@page page-orientation:rotate-left rotates the rendered page after layout; catches size-only implementations that leave portrait output upright.",
+    "file": "cases/paged-media/paged-page-orientation-rotate-left.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-marks-crop-cross",
+    "category": "paged-media",
+    "feature": "marks",
+    "subfeature": "crop-cross",
+    "description": "@page marks:crop cross emits printer crop and registration marks around the page; catches renderers that implement only page size, margin, and background.",
+    "file": "cases/paged-media/paged-marks-crop-cross.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-bleed-crop-background",
+    "category": "paged-media",
+    "feature": "bleed",
+    "subfeature": "background-into-bleed",
+    "description": "@page bleed with crop marks paints the page background into the bleed area; catches renderers that clip backgrounds to the trim page box.",
+    "file": "cases/paged-media/paged-bleed-crop-background.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-page-selector-list-named",
+    "category": "paged-media",
+    "feature": "page-selector",
+    "subfeature": "named-selector-list",
+    "description": "A comma-separated @page selector list applies one margin rule to title and chapter named pages; catches selector classifiers that store the whole list as one page name.",
+    "file": "cases/paged-media/paged-page-selector-list-named.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-named-page-left-right",
+    "category": "paged-media",
+    "feature": "page-selector",
+    "subfeature": "named-left-right",
+    "description": "Named page selectors combined with :left and :right apply spread-specific margins only to matching chapter pages; catches named-only matching that drops pseudo-page selectors.",
+    "file": "cases/paged-media/paged-named-page-left-right.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-first-right-cascade",
+    "category": "paged-media",
+    "feature": "page-selector",
+    "subfeature": "first-plus-right-cascade",
+    "description": "The first page also matches :right, so declarations from @page :first and @page :right both apply; catches resolvers that pick only one pseudo-page rule.",
+    "file": "cases/paged-media/paged-first-right-cascade.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "paged-blank-margin-box-specificity",
+    "category": "paged-media",
+    "feature": "page-margin-box",
+    "subfeature": "blank-over-right-specificity",
+    "description": "On a blank page inserted by break-after:left, @page :blank top-center content overrides @page :right; catches engines that ignore blank-page margin boxes or page selector specificity.",
+    "file": "cases/paged-media/paged-blank-margin-box-specificity.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-top-bottom-margin-boxes",
+    "category": "paged-media",
+    "feature": "page-margin-box",
+    "subfeature": "top-bottom-literal-content",
+    "description": "Default @top-left, @top-center, @top-right, and @bottom-center page margin boxes render literal strings; catches visual parity gaps that only cover PDF-text margin box assertions.",
+    "file": "cases/paged-media/paged-top-bottom-margin-boxes.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-margin-box-styling",
+    "category": "paged-media",
+    "feature": "page-margin-box",
+    "subfeature": "styling",
+    "description": "A top-center page margin box applies its own color, background, and font size; catches content-only margin box renderers with hard-coded text styling.",
+    "file": "cases/paged-media/paged-margin-box-styling.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-corner-margin-box-position",
+    "category": "paged-media",
+    "feature": "page-margin-box",
+    "subfeature": "top-left-corner-position",
+    "description": "@top-left-corner occupies the page corner while @top-left starts at the content edge; catches simplified top-band renderers that overlap or drop corner margin boxes.",
+    "file": "cases/paged-media/paged-corner-margin-box-position.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-first-margin-box-override",
+    "category": "paged-media",
+    "feature": "page-margin-box",
+    "subfeature": "first-page-override",
+    "description": "@page :first replaces the default top-center header on page one only; catches engines that collect margin boxes only from unselected @page rules.",
+    "file": "cases/paged-media/paged-first-margin-box-override.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-page-counter-increment-two",
+    "category": "paged-media",
+    "feature": "page-counter",
+    "subfeature": "counter-increment-page-two",
+    "description": "@page counter-increment:page 2 changes counter(page) in margin boxes; catches renderers that substitute the physical one-based page index.",
+    "file": "cases/paged-media/paged-page-counter-increment-two.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-page-counter-reset-seven",
+    "category": "paged-media",
+    "feature": "page-counter",
+    "subfeature": "counter-reset-page-seven",
+    "description": "@page counter-reset:page 7 changes the origin of counter(page) in margin boxes; catches renderers that ignore page-context counter reset.",
+    "file": "cases/paged-media/paged-page-counter-reset-seven.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-pages-counter-immutable",
+    "category": "paged-media",
+    "feature": "page-counter",
+    "subfeature": "pages-counter-immutable",
+    "description": "counter-reset:pages in the page context must not alter counter(pages), which remains the total page count; catches over-eager page counter implementations.",
+    "file": "cases/paged-media/paged-pages-counter-immutable.html",
+    "oracle": "chrome",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-running-first-margin-box",
+    "category": "paged-media",
+    "feature": "running-element",
+    "subfeature": "first-page-margin-box",
+    "description": "position:running() referenced from @page :first appears in the first-page header only; catches running-element support that ignores selected page margin boxes.",
+    "file": "cases/paged-media/paged-running-first-margin-box.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-running-named-page-margin-box",
+    "category": "paged-media",
+    "feature": "running-element",
+    "subfeature": "named-page-margin-box",
+    "description": "position:running() referenced from a named @page chapter margin box appears only on chapter pages; catches named-page geometry support that discards named margin boxes.",
+    "file": "cases/paged-media/paged-running-named-page-margin-box.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-footnote-styling-pseudos",
+    "category": "paged-media",
+    "feature": "footnote",
+    "subfeature": "styling-and-pseudo-elements",
+    "description": "@footnote styling plus ::footnote-call and ::footnote-marker custom content affect footnote calls and markers; catches basic footnote extractors that keep default markers and no separator styling.",
+    "file": "cases/paged-media/paged-footnote-styling-pseudos.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-footnote-counter-reset",
+    "category": "paged-media",
+    "feature": "footnote",
+    "subfeature": "counter-reset",
+    "description": "counter-reset:footnote changes generated footnote call and marker numbers; catches hard-coded sequential footnote markers starting at 1.",
+    "file": "cases/paged-media/paged-footnote-counter-reset.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-footnote-display-compact",
+    "category": "paged-media",
+    "feature": "footnote",
+    "subfeature": "display-compact",
+    "description": "footnote-display:compact places fitting short footnotes inline in the footnote area; catches footnote implementations that always stack notes as blocks.",
+    "file": "cases/paged-media/paged-footnote-display-compact.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-footnote-max-height",
+    "category": "paged-media",
+    "feature": "footnote",
+    "subfeature": "area-max-height",
+    "description": "@footnote max-height constrains note placement; catches footnote extractors that ignore @footnote sizing and let notes consume arbitrary page height.",
+    "file": "cases/paged-media/paged-footnote-max-height.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-footnote-policy-block",
+    "category": "paged-media",
+    "feature": "footnote",
+    "subfeature": "policy-block",
+    "description": "footnote-policy:block moves the whole owning paragraph with its footnote when the note cannot fit; catches auto-policy-only footnote placement.",
+    "file": "cases/paged-media/paged-footnote-policy-block.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-element-first-except",
+    "category": "paged-media",
+    "feature": "running-element",
+    "subfeature": "element-first-except",
+    "description": "element(head, first-except) suppresses the running element on the page where it first appears but allows it later; catches parsers that only support element(name).",
+    "file": "cases/paged-media/paged-element-first-except.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline",
+      "probe-fill-box"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
+  },
+  {
+    "id": "paged-string-set-attr-start",
+    "category": "paged-media",
+    "feature": "running-header",
+    "subfeature": "string-set-attr-start",
+    "description": "string-set with attr() feeds string(section,start) in the page header; catches margin header renderers without named strings or attr() support.",
+    "file": "cases/paged-media/paged-string-set-attr-start.html",
+    "oracle": "weasyprint",
+    "kind": "feature",
+    "expected_support": "unsupported",
+    "depends_on": [
+      "probe-text-baseline"
+    ],
+    "weight": 1,
+    "pass_threshold_pct": 6.0,
+    "partial_threshold_pct": 18.0
   }
 ]

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>order-modified-placement-also-applies-to-dense-packing</title>
+<style>
+  @page { size: 300px 170px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 60px 60px 60px;
+    grid-auto-rows: 50px;
+    grid-auto-flow: row dense;
+    gap: 10px;
+    width: 200px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .a {
+    background: #d7263d;
+    grid-column: span 2;
+    order: 2;
+  }
+  .b {
+    background: #1b998b;
+    grid-column: span 2;
+    order: 1;
+  }
+  .c {
+    background: #f4d35e;
+    order: 0;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+</body>
+</html>

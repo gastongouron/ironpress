@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>column-dense-auto-placement-backfills-holes</title>
+<style>
+  @page { size: 260px 240px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-rows: 50px 50px 50px;
+    grid-auto-flow: column dense;
+    grid-auto-columns: 70px;
+    gap: 10px;
+    height: 170px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .a {
+    background: #d7263d;
+    grid-row: span 2;
+  }
+  .b {
+    background: #1b998b;
+    grid-row: span 2;
+  }
+  .c {
+    background: #f4d35e;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+</body>
+</html>

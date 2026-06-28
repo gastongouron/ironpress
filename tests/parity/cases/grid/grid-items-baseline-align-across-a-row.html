@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-items-baseline-align-across-a-row</title>
+<style>
+  @page { size: 260px 160px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 90px 90px;
+    grid-template-rows: 90px;
+    width: 180px;
+    margin: 20px;
+    border: 2px solid #000000;
+    align-items: baseline;
+  }
+  .big {
+    font-size: 36px;
+    background: #d7263d;
+    color: #fff;
+  }
+  .small {
+    font-size: 16px;
+    background: #1b998b;
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="big">A</div><div class="small">A</div></div>
+</body>
+</html>

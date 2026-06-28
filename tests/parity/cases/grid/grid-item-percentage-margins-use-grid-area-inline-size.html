@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>grid-item-percentage-margins-use-grid-area-inline-size</title>
+<style>
+  @page { size: 280px 130px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 200px;
+    grid-template-rows: 70px;
+    width: 200px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .item {
+    background: #1b998b;
+    margin-left: 10%;
+    margin-right: 10%;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="item"></div></div>
+</body>
+</html>

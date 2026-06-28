@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>row-spanning-grid-item-fragments-across-spanned-rows</title>
+<style>
+  @page { size: 220px 140px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 180px;
+    grid-template-rows: 80px 80px 80px;
+    width: 180px;
+    margin: 10px;
+    border: 2px solid #000000;
+  }
+  .span {
+    grid-row: 1 / 4;
+    background: #d7263d;
+    color: #fff;
+  }
+  .inner {
+    height: 210px;
+    background: #1b998b;
+    margin: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="span"><div class="inner"></div></div></div>
+</body>
+</html>

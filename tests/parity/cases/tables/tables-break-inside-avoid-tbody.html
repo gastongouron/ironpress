@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tables-break-inside-avoid-tbody</title>
+<style>
+@page{size:180px 120px;margin:0}
+html{font-family:ParitySans;line-height:1.5}
+*{margin:0;box-sizing:border-box}
+html,body{background:#ffffff}
+body{padding:0}table{border-collapse:separate;border-spacing:0}td{width:160px;height:44px;border:2px solid #111;background:#f1faee}thead td{background:#1d3557}tbody{break-inside:avoid}tbody td{background:#e63946}
+</style>
+</head>
+<body>
+<table><thead><tr><td></td></tr></thead><tbody><tr><td></td></tr><tr><td></td></tr></tbody></table>
+</body>
+</html>

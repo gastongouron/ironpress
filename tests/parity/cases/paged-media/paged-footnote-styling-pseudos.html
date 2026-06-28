@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>footnote styling pseudos</title><style>
+@page{size:200px 140px;margin:10px}
+@footnote{border-top:4px solid #111;padding-top:4px}
+html{font-family:ParitySans;line-height:1.5;font-size:12px}
+*{margin:0;box-sizing:border-box}
+p{background:#fef3c7}.fn{float:footnote}::footnote-call{content:"[" counter(footnote) "]";color:#ef476f}::footnote-marker{content:"N" counter(footnote) ": ";color:#1d4ed8}
+</style></head><body><p>Body text<span class="fn">styled footnote body</span> continues.</p></body></html>

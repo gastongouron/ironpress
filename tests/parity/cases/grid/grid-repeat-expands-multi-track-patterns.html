@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>repeat-expands-multi-track-patterns</title>
+<style>
+  @page { size: 320px 120px; margin: 0; }
+  html {
+    font-family: ParitySans;
+    line-height: 1.5;
+  }
+  * {
+    margin: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    background: #ffffff;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2,40px 80px);
+    grid-template-rows: 50px;
+    width: 240px;
+    margin: 20px;
+    border: 2px solid #000000;
+  }
+  .a {
+    background: #d7263d;
+  }
+  .b {
+    background: #1b998b;
+  }
+  .c {
+    background: #f4d35e;
+  }
+  .d {
+    background: #5a3fff;
+  }
+</style>
+</head>
+<body>
+<div class="grid"><div class="a"></div><div class="b"></div><div class="c"></div><div class="d"></div></div>
+</body>
+</html>
