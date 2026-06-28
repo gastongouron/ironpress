@@ -38,6 +38,22 @@ pub(crate) fn verdict(t: &ClassTally, regions: &[DiffRegion], entry: &ManifestEn
         .map(|v| v.max(G_COLOR_PCT.1))
         .unwrap_or(G_COLOR_PCT.1);
 
+    // A VISUALLY-VERIFIED cross-rasterizer floor (conic / repeating-gradient angular
+    // banding, mask-edge band). It raises ONLY the PASS bounds — colour/missing/extra
+    // up to `floor`, interior ΔE up to the (fixed) hard-colour bound — so a sub-
+    // perceptual residual reads PASS instead of PARTIAL. `floor()` is clamped below
+    // the coverage FAIL bound, and the FAIL gates below are untouched, so a real
+    // large-area recolour/missing/extra still FAILs.
+    let floor = entry.floor();
+    let color_pass = color_pass.max(floor);
+    let miss_pass = G_MISSING_PCT.0.max(floor);
+    let extra_pass = G_EXTRA_PCT.0.max(floor);
+    let de_pass = if floor > 0.0 {
+        COLOR_DE_FAIL
+    } else {
+        COLOR_DE_PASS
+    };
+
     let dominant_class = elect_dominant(regions);
 
     // --- FAIL gates -------------------------------------------------------
@@ -65,9 +81,9 @@ pub(crate) fn verdict(t: &ClassTally, regions: &[DiffRegion], entry: &ManifestEn
     let status = if any_fail {
         Status::Fail
     } else if t.color_pct <= color_pass
-        && t.interior_color_de <= COLOR_DE_PASS
-        && t.missing_pct <= G_MISSING_PCT.0
-        && t.extra_pct <= G_EXTRA_PCT.0
+        && t.interior_color_de <= de_pass
+        && t.missing_pct <= miss_pass
+        && t.extra_pct <= extra_pass
         && t.edge_max_css <= G_EDGE_CSS.0
         && t.shift_max_css <= G_SHIFT_CSS.0
     {

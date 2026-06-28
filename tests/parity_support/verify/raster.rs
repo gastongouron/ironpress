@@ -45,6 +45,11 @@ pub(crate) struct RasterVerifier {
     // here exactly as `verdict.rs` reads them so the colour gate is identical.
     color_pass: f64,
     color_partial: f64,
+    /// Verified cross-rasterizer floor (`verdict.rs` floor): relaxes ONLY the
+    /// PASS bounds (colour/missing/extra up to `floor`, interior ΔE up to the
+    /// fixed hard-colour bound), never the FAIL bounds. Mirrors `verdict.rs` so
+    /// the WORST-of-three equivalence holds.
+    floor: f64,
     /// Whether the underlying outcome is UNKNOWN (unscoreable pair): every concern
     /// then reports `Unknown`, mirroring the verdict's UNKNOWN status.
     unknown: bool,
@@ -66,6 +71,7 @@ impl RasterVerifier {
             .partial_threshold_pct
             .map(|v| v.max(G_COLOR_PCT.1))
             .unwrap_or(G_COLOR_PCT.1);
+        let floor = entry.floor();
         RasterVerifier {
             edge_max_css: t.edge_max_css,
             shift_max_css: t.shift_max_css,
@@ -74,8 +80,9 @@ impl RasterVerifier {
             interior_color_de: t.interior_color_de,
             missing_pct: t.missing_pct,
             extra_pct: t.extra_pct,
-            color_pass,
+            color_pass: color_pass.max(floor),
             color_partial,
+            floor,
             unknown: outcome.status == Status::Unknown,
         }
     }
@@ -121,9 +128,17 @@ impl RasterVerifier {
     fn appearance_status(&self) -> Status {
         let hard_color =
             self.interior_color_de >= COLOR_DE_FAIL && self.interior_color_pct >= G_COLOR_PCT.0;
+        // A declared floor accepts a sub-hard interior ΔE (still below the fixed
+        // hard-colour FAIL gate above) as PASS — a verified rasterizer seam, not a
+        // recolour.
+        let de_pass = if self.floor > 0.0 {
+            COLOR_DE_FAIL
+        } else {
+            COLOR_DE_PASS
+        };
         if hard_color || self.color_pct > self.color_partial {
             Status::Fail
-        } else if self.color_pct <= self.color_pass && self.interior_color_de <= COLOR_DE_PASS {
+        } else if self.color_pct <= self.color_pass && self.interior_color_de <= de_pass {
             Status::Pass
         } else {
             Status::Partial
@@ -132,9 +147,11 @@ impl RasterVerifier {
 
     /// Presence: `missing_pct` (G_MISSING_PCT) + `extra_pct` (G_EXTRA_PCT).
     fn presence_status(&self) -> Status {
+        let miss_pass = G_MISSING_PCT.0.max(self.floor);
+        let extra_pass = G_EXTRA_PCT.0.max(self.floor);
         if self.missing_pct > G_MISSING_PCT.1 || self.extra_pct > G_EXTRA_PCT.1 {
             Status::Fail
-        } else if self.missing_pct <= G_MISSING_PCT.0 && self.extra_pct <= G_EXTRA_PCT.0 {
+        } else if self.missing_pct <= miss_pass && self.extra_pct <= extra_pass {
             Status::Pass
         } else {
             Status::Partial

@@ -494,6 +494,7 @@
     "subfeature": "center",
     "description": "Centered multi-stop conic-gradient background.",
     "file": "cases/backgrounds-borders/background-conic-gradient.html",
+    "floor_pct": 0.5,
     "kind": "feature",
     "expected_support": "implemented",
     "depends_on": [

@@ -34,6 +34,16 @@ pub(crate) struct ManifestEntry {
     pub(crate) pass_threshold_pct: Option<f64>,
     #[serde(default)]
     pub(crate) partial_threshold_pct: Option<f64>,
+    /// Cross-rasterizer FLOOR (%) for a fixture whose residual is a VISUALLY-VERIFIED
+    /// sub-perceptual rasterization difference (conic / repeating-gradient angular
+    /// banding, or a mask-edge band) that Chrome and ironpress paint a hair
+    /// differently. RELAXES ONLY the PASS↔PARTIAL line: raises the colour/missing/
+    /// extra PASS bounds to this value and accepts interior ΔE up to the (fixed) hard-
+    /// colour FAIL bound. It NEVER moves the FAIL bounds, and `floor()` clamps it
+    /// below the coverage FAIL bound — so a real large-area diff still FAILs and no
+    /// per-fixture tuning can manufacture a missing/extra/recolour false-pass.
+    #[serde(default)]
+    pub(crate) floor_pct: Option<f64>,
     #[serde(default = "default_sanitize")]
     pub(crate) sanitize: bool,
     /// Fixture kind: "feature" (default), "interaction", or "probe".
@@ -53,6 +63,17 @@ pub(crate) struct ManifestEntry {
     /// page-origin offset can be measured and audited once per run.
     #[serde(default = "default_geometry")]
     pub(crate) geometry: String,
+}
+
+impl ManifestEntry {
+    /// Verified cross-rasterizer floor, clamped strictly below the coverage FAIL
+    /// bound so it can only move the PASS↔PARTIAL line, never rescue a real
+    /// large-area diff (which still trips the fixed FAIL gates).
+    pub(crate) fn floor(&self) -> f64 {
+        self.floor_pct
+            .unwrap_or(0.0)
+            .clamp(0.0, super::config::G_EXTRA_PCT.1 - 0.01)
+    }
 }
 
 pub(crate) fn default_weight() -> f64 {

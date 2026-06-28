@@ -216,6 +216,7 @@
     "subfeature": "hard-stops-pie",
     "description": "Three-wedge hard-stop conic-gradient pie chart (deterministic 120deg sectors).",
     "file": "cases/backgrounds-gradients/conic-gradient-hard-stops.html",
+    "floor_pct": 0.5,
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,

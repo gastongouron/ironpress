@@ -70,6 +70,7 @@ fn entry() -> ManifestEntry {
         weight: 1.0,
         pass_threshold_pct: None,
         partial_threshold_pct: None,
+        floor_pct: None,
         sanitize: true,
         kind: "feature".into(),
         depends_on: Vec::new(),

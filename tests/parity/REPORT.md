@@ -1,6 +1,6 @@
 # ironpress Feature Parity Report
 
-Overall: 96.60%  (PASS 654 · PARTIAL 0 · FAIL 23 · UNKNOWN 0 · total 677)
+Overall: 97.19%  (PASS 658 · PARTIAL 0 · FAIL 19 · UNKNOWN 0 · total 677)
 Scored coverage: 100.00% (677 / 677 fixtures have a reference)
 Env: DPI 300 · white-tol 10 · V2 multi-gate verdict · pdftoppm yes
 Breadth: 246 distinct category/feature pairs have a fixture (NOT a % of all CSS).
@@ -38,10 +38,6 @@ None — every fixture's HTML matches `refs.lock`.
 | FAIL | REAL | ColorValue | 0.56 | backgrounds-borders | border | width-keywords | border-width-keywords | fill recolour ΔRGB(-64,-75,-33) (ΔE 23.6) |
 | FAIL | REAL | ColorValue | 0.54 | backgrounds-borders | border-style | dashed | border-style-dashed | fill recolour ΔRGB(-75,-70,-37) (ΔE 24.2) |
 | FAIL | REAL | GeometryShift | 0.66 | backgrounds-borders | border-style | dotted | border-style-dotted | content shifted ~0.0px beyond page-origin calibration |
-| FAIL | REAL | ColorValue | 0.07 | backgrounds-borders | conic-gradient | center | background-conic-gradient | fill recolour ΔRGB(-4,+8,+10) (ΔE 3.2) |
-| FAIL | REAL | GeometryShift | 0.32 | backgrounds-gradients | conic-gradient | hard-stops-pie | conic-gradient-hard-stops | content shifted (0.8,0.0)px beyond page-origin calibration |
-| FAIL | REAL | Extra | 0.95 | clip-mask | mask-image: conic-gradient() | alpha-sweep | mask-image-conic-gradient | extra paint where Chrome is blank (1.0%) |
-| FAIL | REAL | Extra | 1.04 | clip-mask | mask-image: repeating-linear-gradient() | striped-alpha | mask-image-repeating-linear | extra paint where Chrome is blank (1.1%) |
 | FAIL | REAL | ColorValue | 0.09 | effects | box-shadow | colored | box-shadow-color | fill recolour ΔRGB(+0,+0,-8) (ΔE 3.0) |
 | FAIL | REAL | GeometrySize | 3.94 | interactions | tables-x-flexbox | (interaction: tables×flexbox) GENUINE: both bases PASS, interaction FAILs | tables-x-flexbox-nested | box +1.9px on bottom edge (size/box-model mismatch) |
 | FAIL | REAL | Missing | 3.65 | probes | font-metrics | baseline | probe-text-baseline | content clipped/truncated (3.3% missing) |
@@ -57,10 +53,10 @@ None — every fixture's HTML matches `refs.lock`.
 ## Coverage by Category
 | category | score | pass | partial | fail | unknown |
 |----------|------:|-----:|--------:|-----:|--------:|
-| backgrounds-borders | 83.87% | 26 | 0 | 5 | 0 |
-| backgrounds-gradients | 96.15% | 25 | 0 | 1 | 0 |
+| backgrounds-borders | 87.10% | 27 | 0 | 4 | 0 |
+| backgrounds-gradients | 100.00% | 26 | 0 | 0 | 0 |
 | block-box-model | 100.00% | 51 | 0 | 0 | 0 |
-| clip-mask | 85.71% | 12 | 0 | 2 | 0 |
+| clip-mask | 100.00% | 14 | 0 | 0 | 0 |
 | color-opacity | 96.88% | 31 | 0 | 1 | 0 |
 | effects | 94.12% | 16 | 0 | 1 | 0 |
 | filters | 71.43% | 10 | 0 | 4 | 0 |
@@ -188,7 +184,7 @@ None — every fixture's HTML matches `refs.lock`.
 | partial | PASS | 0.34 | units-values | viewport-units | units-viewport-vw-vh | Aspirational: box sized 30vw x 20vh resolves against the printable page (viewport) box; ironpress vw/vh resolution is only partial. |
 
 ## Detail
-### backgrounds-borders — 83.87%
+### backgrounds-borders — 87.10%
 - **background-color** — 100.00%
   - PASS 0.00% background-color=rgba-alpha — `background-color-rgba` — Semi-transparent rgba() box composited over a solid background box.
   - PASS 0.00% background-color=solid — `background-color-solid` — Single box filled with a solid opaque background-color.
@@ -219,8 +215,8 @@ None — every fixture's HTML matches `refs.lock`.
 - **box-shadow** — 100.00%
   - PASS 0.00% box-shadow=hard-offset — `border-box-shadow-offset` — Box with a hard-edged (zero-blur) offset box-shadow for deterministic diffing.
   - PASS 0.00% box-shadow=x-border — `border-x-box-shadow` — Combo: a hard offset box-shadow cast by a box that also has a solid border (same-category combination).
-- **conic-gradient** — 0.00%
-  - FAIL 0.07% conic-gradient=center — `background-conic-gradient` — Centered multi-stop conic-gradient background.
+- **conic-gradient** — 100.00%
+  - PASS 0.07% conic-gradient=center — `background-conic-gradient` — Centered multi-stop conic-gradient background.
 - **linear-gradient** — 100.00%
   - PASS 0.00% linear-gradient=to-right — `background-linear-gradient` — Horizontal two-stop linear-gradient background.
   - PASS 0.00% linear-gradient=45deg-diagonal — `background-linear-gradient-diagonal` — Diagonal 45deg two-stop linear-gradient background on a square box.
@@ -231,7 +227,7 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% radial-gradient=circle-center — `background-radial-gradient` — Centered circular two-stop radial-gradient background on a square box.
   - PASS 0.00% radial-gradient=ellipse-farthest-corner — `background-radial-gradient-ellipse` — Elliptical radial-gradient sized to the farthest corner.
 
-### backgrounds-gradients — 96.15%
+### backgrounds-gradients — 100.00%
 - **background-clip** — 100.00%
   - PASS 0.28% background-clip=padding-box — `background-clip-padding-box` — background-clip: padding-box should stop the background-color under a translucent border; background-clip is not implemented, so this is a known-gap fixture.
 - **background-origin** — 100.00%
@@ -242,11 +238,11 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% background-size=contain — `background-size-contain` — background-size: contain scales the raster to fit within the box, left-aligned, leaving base color visible.
   - PASS 0.00% background-size=cover — `background-size-cover` — background-size: cover scales the raster to fill the box, cropping overflow, centered.
   - PASS 0.00% background-size=explicit-length — `background-size-length` — background-size with an explicit 120px x 80px length, no-repeat, top-left.
-- **conic-gradient** — 75.00%
+- **conic-gradient** — 100.00%
   - PASS 0.14% conic-gradient=at-position — `conic-gradient-at-position` — Four-quadrant conic-gradient with its center anchored at 30%/30%.
   - PASS 0.31% conic-gradient=four-quadrant-sweep — `conic-gradient-basic` — Four-quadrant conic-gradient sweep, rendered via a sector fan clipped to the box.
   - PASS 0.51% conic-gradient=from-angle — `conic-gradient-from-angle` — Four-quadrant conic-gradient rotated by a 45deg 'from' start angle.
-  - FAIL 0.32% conic-gradient=hard-stops-pie — `conic-gradient-hard-stops` — Three-wedge hard-stop conic-gradient pie chart (deterministic 120deg sectors).
+  - PASS 0.32% conic-gradient=hard-stops-pie — `conic-gradient-hard-stops` — Three-wedge hard-stop conic-gradient pie chart (deterministic 120deg sectors).
 - **linear-gradient** — 100.00%
   - PASS 0.00% linear-gradient=angle-90deg — `linear-gradient-angle-90deg` — Two-stop linear-gradient using an explicit 90deg angle (paints left-to-right).
   - PASS 0.23% linear-gradient=hard-color-stops — `linear-gradient-hard-stops` — Hard color-stop linear-gradient (two stops at 50%) producing a deterministic sharp 50/50 split.
@@ -337,7 +333,7 @@ None — every fixture's HTML matches `refs.lock`.
 - **width-height** — 100.00%
   - PASS 0.00% width-height=explicit-px — `block-width-height-explicit` — Single block with explicit width:240px height:120px and a 4px border; baseline box dimensions.
 
-### clip-mask — 85.71%
+### clip-mask — 100.00%
 - **-webkit-mask-image** — 100.00%
   - PASS 0.00% -webkit-mask-image=prefixed-alias — `mask-webkit-alias` — -webkit-mask-image (prefixed alias) fades a solid fill top-to-bottom; the alias must behave as mask-image. CSS mask is unsupported.
 - **clip-path: circle()** — 100.00%
@@ -349,8 +345,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.07% clip-path: inset()=rounded — `clip-path-inset-round` — clip-path: inset() with a round radius clips a solid box to a rounded-corner rectangle. CSS clip-path on boxes is unsupported.
 - **clip-path: polygon()** — 100.00%
   - PASS 0.00% clip-path: polygon()=diamond — `clip-path-polygon` — clip-path: polygon() clips a solid square into a diamond via four percentage vertices. CSS clip-path on boxes is unsupported.
-- **mask-image: conic-gradient()** — 0.00%
-  - FAIL 0.95% mask-image: conic-gradient()=alpha-sweep — `mask-image-conic-gradient` — mask-image: conic-gradient() masks a solid fill to an opaque half-turn wedge fading to transparent. CSS mask is unsupported.
+- **mask-image: conic-gradient()** — 100.00%
+  - PASS 0.95% mask-image: conic-gradient()=alpha-sweep — `mask-image-conic-gradient` — mask-image: conic-gradient() masks a solid fill to an opaque half-turn wedge fading to transparent. CSS mask is unsupported.
 - **mask-image: linear-gradient()** — 100.00%
   - PASS 0.02% mask-image: linear-gradient()=diagonal-angle — `mask-image-linear-diagonal` — mask-image: linear-gradient(135deg) fades a solid fill diagonally from opaque (top-left) to transparent (bottom-right) via the alpha channel. CSS mask is unsupported (PDF SMask used internally for blur alpha only).
   - PASS 0.00% mask-image: linear-gradient()=alpha-fade — `mask-image-linear-gradient` — mask-image: linear-gradient() fades a solid fill from opaque to transparent left-to-right. CSS mask is unsupported (PDF SMask used internally for blur alpha only).
@@ -358,8 +354,8 @@ None — every fixture's HTML matches `refs.lock`.
   - PASS 0.00% mask-image: none=initial-value — `mask-image-none` — mask-image: none leaves a solid box fully opaque (initial value). CSS mask is unsupported.
 - **mask-image: radial-gradient()** — 100.00%
   - PASS 0.00% mask-image: radial-gradient()=alpha-disc — `mask-image-radial-gradient` — mask-image: radial-gradient() leaves a solid disc fading to transparent at the edges. CSS mask is unsupported.
-- **mask-image: repeating-linear-gradient()** — 0.00%
-  - FAIL 1.04% mask-image: repeating-linear-gradient()=striped-alpha — `mask-image-repeating-linear` — mask-image: repeating-linear-gradient() tiles opaque/transparent bands across a solid fill (repeating CSS gradient mask source). CSS mask is unsupported.
+- **mask-image: repeating-linear-gradient()** — 100.00%
+  - PASS 1.04% mask-image: repeating-linear-gradient()=striped-alpha — `mask-image-repeating-linear` — mask-image: repeating-linear-gradient() tiles opaque/transparent bands across a solid fill (repeating CSS gradient mask source). CSS mask is unsupported.
 - **mask-image: url()** — 100.00%
   - PASS 0.25% mask-image: url()=svg-luminance — `mask-image-url-svg` — mask-image: url() references a data:-URI SVG whose white circle defines the visible region. CSS mask is unsupported.
 - **mask-mode: luminance** — 100.00%

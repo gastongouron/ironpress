@@ -7,10 +7,10 @@
     "pdftoppm_available": true
   },
   "overall": {
-    "score_pct": 96.6,
-    "pass": 654,
+    "score_pct": 97.19,
+    "pass": 658,
     "partial": 0,
-    "fail": 23,
+    "fail": 19,
     "unknown": 0,
     "total": 677,
     "scored_ratio_pct": 100.0
@@ -18,11 +18,11 @@
   "categories": [
     {
       "category": "backgrounds-borders",
-      "score_pct": 83.87,
+      "score_pct": 87.1,
       "counts": {
-        "pass": 26,
+        "pass": 27,
         "partial": 0,
-        "fail": 5,
+        "fail": 4,
         "unknown": 0
       },
       "features": [
@@ -2470,11 +2470,11 @@
         },
         {
           "feature": "conic-gradient",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -2485,7 +2485,7 @@
               "subfeature": "center",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PASS",
               "diff_pct": 0.0709,
               "weight": 1.0,
               "description": "Centered multi-stop conic-gradient background.",
@@ -2496,7 +2496,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "7b1207e3c5e03e887cbd5549b2db874c2ac0fdf35a26c56c0c1f0e814e0a9383",
               "diagnosis": {
                 "primary_class": "ColorValue",
@@ -2629,7 +2629,7 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.07% interiorΔE 3.24",
                   "magnitude": 0.0704
@@ -3154,11 +3154,11 @@
     },
     {
       "category": "backgrounds-gradients",
-      "score_pct": 96.15,
+      "score_pct": 100.0,
       "counts": {
-        "pass": 25,
+        "pass": 26,
         "partial": 0,
-        "fail": 1,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -3808,11 +3808,11 @@
         },
         {
           "feature": "conic-gradient",
-          "score_pct": 75.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 3,
+            "pass": 4,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -4443,7 +4443,7 @@
               "subfeature": "hard-stops-pie",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PASS",
               "diff_pct": 0.3182,
               "weight": 1.0,
               "description": "Three-wedge hard-stop conic-gradient pie chart (deterministic 120deg sectors).",
@@ -4454,7 +4454,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "9267bb6cd9222c5951fa2efea1a5e4b84a71cafd7f287c0dd0cf8c219b940c38",
               "diagnosis": {
                 "primary_class": "GeometryShift",
@@ -4560,7 +4560,7 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Appearance",
                   "headline": "raster appearance: color 0.14% interiorΔE 3.62",
                   "magnitude": 0.139776
@@ -11000,11 +11000,11 @@
     },
     {
       "category": "clip-mask",
-      "score_pct": 85.71,
+      "score_pct": 100.0,
       "counts": {
-        "pass": 12,
+        "pass": 14,
         "partial": 0,
-        "fail": 2,
+        "fail": 0,
         "unknown": 0
       },
       "features": [
@@ -11538,11 +11538,11 @@
         },
         {
           "feature": "mask-image: conic-gradient()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -11553,7 +11553,7 @@
               "subfeature": "alpha-sweep",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PASS",
               "diff_pct": 0.9524,
               "weight": 1.0,
               "description": "mask-image: conic-gradient() masks a solid fill to an opaque half-turn wedge fading to transparent. CSS mask is unsupported.",
@@ -11564,7 +11564,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "9e1f80d71e5def2ea5ff785b0dff5a76a6d18344ab016813d50cdb858e0319c0",
               "diagnosis": {
                 "primary_class": "Extra",
@@ -11646,7 +11646,7 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 0.95%",
                   "magnitude": 0.9523809523809523
@@ -12065,11 +12065,11 @@
         },
         {
           "feature": "mask-image: repeating-linear-gradient()",
-          "score_pct": 0.0,
+          "score_pct": 100.0,
           "counts": {
-            "pass": 0,
+            "pass": 1,
             "partial": 0,
-            "fail": 1,
+            "fail": 0,
             "unknown": 0
           },
           "fixtures": [
@@ -12080,7 +12080,7 @@
               "subfeature": "striped-alpha",
               "interaction_of": [],
               "base_ids": [],
-              "status": "FAIL",
+              "status": "PASS",
               "diff_pct": 1.0355,
               "weight": 1.0,
               "description": "mask-image: repeating-linear-gradient() tiles opaque/transparent bands across a solid fill (repeating CSS gradient mask source). CSS mask is unsupported.",
@@ -12091,7 +12091,7 @@
                 "probe-color-swatch"
               ],
               "expected_support": "implemented",
-              "attribution": "REAL",
+              "attribution": "",
               "html_sha256": "2281cbecba3edfcea6b5819811b58a54e9b10063b23f9b10761e2fa828ad72ec",
               "diagnosis": {
                 "primary_class": "Extra",
@@ -12320,7 +12320,7 @@
                 },
                 {
                   "verifier": "RasterDiff",
-                  "status": "PARTIAL",
+                  "status": "PASS",
                   "concern": "Presence",
                   "headline": "raster presence: missing 0.00% extra 1.05%",
                   "magnitude": 1.0526315789473684
