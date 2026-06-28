@@ -70,11 +70,25 @@ fn flex_text_min_content(
             total += inline.outer_width();
             continue;
         }
-        let space_w = estimate_word_width(" ", run.font_size, &run.font_family, run.bold, run.italic, fonts);
+        let space_w = estimate_word_width(
+            " ",
+            run.font_size,
+            &run.font_family,
+            run.bold,
+            run.italic,
+            fonts,
+        );
         let mut whole = 0.0f32;
         let mut longest = 0.0f32;
         for (i, word) in run.text.split_whitespace().enumerate() {
-            let ww = estimate_word_width(word, run.font_size, &run.font_family, run.bold, run.italic, fonts);
+            let ww = estimate_word_width(
+                word,
+                run.font_size,
+                &run.font_family,
+                run.bold,
+                run.italic,
+                fonts,
+            );
             if i > 0 {
                 whole += space_w;
             }
@@ -517,6 +531,7 @@ pub(crate) fn layout_flex_container(
         rel_left: f32,
         rel_top: f32,
         is_relative: bool,
+        z_index: i32,
     }
 
     // Resolve an item's outer (border-box) main-axis min/max clamps from its
@@ -951,7 +966,7 @@ pub(crate) fn layout_flex_container(
                 }
                 _ => None,
             };
-            let child_h = self_bg_natural.unwrap_or_else(|| {
+            let mut child_h = self_bg_natural.unwrap_or_else(|| {
                 child_elements_buf
                     .iter()
                     .map(|el| match el {
@@ -990,6 +1005,14 @@ pub(crate) fn layout_flex_container(
                     })
                     .sum::<f32>()
             });
+            if hugged_item_width.is_some() {
+                child_h += child_style.border.bottom.width;
+                if let Some(LayoutElement::Container { block_height, .. }) =
+                    child_elements_buf.first_mut()
+                {
+                    *block_height = Some(child_h);
+                }
+            }
 
             items.push(FlexItem {
                 elements: child_elements_buf,
@@ -1017,6 +1040,7 @@ pub(crate) fn layout_flex_container(
                 rel_left: item_rel_left,
                 rel_top: item_rel_top,
                 is_relative: item_is_relative,
+                z_index: child_style.z_index,
             });
             continue;
         }
@@ -1243,14 +1267,15 @@ pub(crate) fn layout_flex_container(
             // For a column container the main size is the container's content
             // height; fall back to the length basis / content size when the
             // height is indefinite.
-            let container_main_content: Option<f32> = style.height.map(|h| match style.box_sizing {
-                BoxSizing::ContentBox => h,
-                BoxSizing::BorderBox => (h
-                    - style.padding.top
-                    - style.padding.bottom
-                    - style.border.vertical_width())
-                .max(0.0),
-            });
+            let container_main_content: Option<f32> =
+                style.height.map(|h| match style.box_sizing {
+                    BoxSizing::ContentBox => h,
+                    BoxSizing::BorderBox => (h
+                        - style.padding.top
+                        - style.padding.bottom
+                        - style.border.vertical_width())
+                    .max(0.0),
+                });
             let basis_len = child_style.flex_basis.or_else(|| {
                 child_style
                     .flex_basis_pct
@@ -1295,6 +1320,7 @@ pub(crate) fn layout_flex_container(
             rel_left: item_rel_left,
             rel_top: item_rel_top,
             is_relative: item_is_relative,
+            z_index: child_style.z_index,
         });
     }
 
@@ -1327,10 +1353,11 @@ pub(crate) fn layout_flex_container(
             let content_h = match style.height {
                 Some(h) => match style.box_sizing {
                     BoxSizing::ContentBox => h,
-                    BoxSizing::BorderBox => {
-                        (h - style.padding.top - style.padding.bottom - style.border.vertical_width())
-                            .max(0.0)
-                    }
+                    BoxSizing::BorderBox => (h
+                        - style.padding.top
+                        - style.padding.bottom
+                        - style.border.vertical_width())
+                    .max(0.0),
                 },
                 // Indefinite block size => percentage row-gap resolves to 0.
                 None => 0.0,
@@ -1350,6 +1377,17 @@ pub(crate) fn layout_flex_container(
     };
     // `gap` is the main-axis gap used throughout the per-line packing math.
     let gap = main_gap;
+    let column_wrap_limit = if direction.is_row() {
+        None
+    } else {
+        style.height.map(|h| match style.box_sizing {
+            BoxSizing::ContentBox => h,
+            BoxSizing::BorderBox => {
+                (h - style.padding.top - style.padding.bottom - style.border.vertical_width())
+                    .max(0.0)
+            }
+        })
+    };
 
     // Group items into lines (for flex-wrap)
     struct FlexLine {
@@ -1401,14 +1439,33 @@ pub(crate) fn layout_flex_container(
             }
         }
         FlexDirection::Column | FlexDirection::ColumnReverse => {
-            // In column direction, each item is on its own "line" conceptually,
-            // but we group them all into one line for simplicity (no column wrap needed yet)
+            // In column direction the main axis is vertical. With `flex-wrap:
+            // wrap` and a definite container height, items that overflow that
+            // height start a new column (a new flex line on the horizontal
+            // cross axis).
             let mut line = FlexLine {
                 item_indices: Vec::new(),
                 main_size: 0.0,
                 cross_size: 0.0,
             };
             for (i, item) in items.iter().enumerate() {
+                let gap_extra = if line.item_indices.is_empty() {
+                    0.0
+                } else {
+                    gap
+                };
+                if wrap.wraps()
+                    && !line.item_indices.is_empty()
+                    && column_wrap_limit
+                        .is_some_and(|max_main| line.main_size + gap_extra + item.height > max_main)
+                {
+                    lines.push(line);
+                    line = FlexLine {
+                        item_indices: Vec::new(),
+                        main_size: 0.0,
+                        cross_size: 0.0,
+                    };
+                }
                 if !line.item_indices.is_empty() {
                     line.main_size += gap;
                 }
@@ -1430,12 +1487,16 @@ pub(crate) fn layout_flex_container(
             } else {
                 0.0
             }
+    } else if lines.len() > 1 {
+        lines.iter().map(|l| l.cross_size).sum::<f32>() + (lines.len() - 1) as f32 * line_gap
     } else {
         lines.iter().map(|l| l.cross_size).fold(0.0f32, f32::max)
     };
 
     let total_main: f32 = if direction.is_row() {
         inner_width
+    } else if lines.len() > 1 {
+        lines.iter().map(|l| l.main_size).fold(0.0f32, f32::max)
     } else {
         lines.iter().map(|l| l.main_size).sum::<f32>()
     };
@@ -1608,7 +1669,11 @@ pub(crate) fn layout_flex_container(
                 // box-sizing. With a now-definite block size, `height:50%`
                 // descendants resolve against it.
                 let mut forced_el = child_el.clone();
-                let mut style_decl = forced_el.attributes.get("style").cloned().unwrap_or_default();
+                let mut style_decl = forced_el
+                    .attributes
+                    .get("style")
+                    .cloned()
+                    .unwrap_or_default();
                 if !style_decl.trim_end().is_empty() && !style_decl.trim_end().ends_with(';') {
                     style_decl.push(';');
                 }
@@ -1658,22 +1723,27 @@ pub(crate) fn layout_flex_container(
             } else {
                 0.0
             }
+    } else if lines.len() > 1 {
+        lines.iter().map(|l| l.cross_size).sum::<f32>() + (lines.len() - 1) as f32 * line_gap
     } else {
         lines.iter().map(|l| l.cross_size).fold(0.0f32, f32::max)
     };
 
-    // align-content distributes the wrapped flex LINES along the cross axis
-    // when the container has more than one line and spare cross space. Compute
-    // a per-line leading offset and an inter-line spacing. For wrap-reverse the
-    // line cross order is reversed (cross-end toward cross-start). Only applies
-    // to row direction (multi-line) — column wrapping is not yet supported.
+    // align-content distributes wrapped flex LINES along the cross axis when the
+    // container has more than one line and spare cross space. For rows the cross
+    // axis is vertical; for column-wrap it is horizontal.
     let line_count = lines.len();
-    let (ac_lead, ac_between, ac_line_stretch) = if direction.is_row() && line_count > 1 {
+    let cross_axis_extent = if direction.is_row() {
+        inner_cross_size
+    } else {
+        inner_width
+    };
+    let (ac_lead, ac_between, ac_line_stretch) = if line_count > 1 {
         let lines_cross: f32 = lines.iter().map(|l| l.cross_size).sum::<f32>();
         let base_gaps = (line_count - 1) as f32 * line_gap;
         // Signed cross free space — kept negative on overflow so center/flex-end
         // honor alignment past the edge (css-flexbox-1 §8.4 + css-align-3 §9).
-        let ac_free = inner_cross_size - lines_cross - base_gaps;
+        let ac_free = cross_axis_extent - lines_cross - base_gaps;
         let neg = ac_free < 0.0;
         // flex-wrap:wrap-reverse swaps the cross-start/cross-end edges
         // (css-flexbox-1 §5.3), so flex-start/flex-end exchange leads. The line
@@ -1739,8 +1809,13 @@ pub(crate) fn layout_flex_container(
         .background_color
         .map(|color: crate::types::Color| color.to_f32_rgba());
 
-    // For column direction, emit container background separately
+    let column_wrap_lines = !direction.is_row() && lines.len() > 1;
+
+    // For single-line column direction, emit container background separately.
+    // Multi-line column-wrap uses a FlexRow wrapper below so the items can be
+    // positioned in additional columns while the container remains one flow box.
     let emitted_column_bg = !direction.is_row()
+        && !column_wrap_lines
         && (has_background_paint(style) || style.border.has_any() || !style.box_shadow.is_empty());
     if emitted_column_bg {
         // Emit the container background/border as a visual element.
@@ -2119,11 +2194,9 @@ pub(crate) fn layout_flex_container(
                                 && inner_cross_size > 0.0
                             {
                                 let mut fstyle = relayout_child_style.clone();
-                                let stretches = matches!(
-                                    items[i].align_self,
-                                    AlignSelf::Stretch
-                                ) || (matches!(items[i].align_self, AlignSelf::Auto)
-                                    && align == AlignItems::Stretch);
+                                let stretches = matches!(items[i].align_self, AlignSelf::Stretch)
+                                    || (matches!(items[i].align_self, AlignSelf::Auto)
+                                        && align == AlignItems::Stretch);
                                 if stretches && fstyle.height.is_none() {
                                     fstyle.height = Some(match fstyle.box_sizing {
                                         BoxSizing::BorderBox => inner_cross_size,
@@ -2168,11 +2241,7 @@ pub(crate) fn layout_flex_container(
                                     items[i].height = if stretches {
                                         inner_cross_size
                                     } else {
-                                        items[i]
-                                            .elements
-                                            .iter()
-                                            .map(estimate_element_height)
-                                            .sum()
+                                        items[i].elements.iter().map(estimate_element_height).sum()
                                     };
                                 }
                                 continue;
@@ -2240,7 +2309,8 @@ pub(crate) fn layout_flex_container(
                 let auto_main_count: u32 = line_items
                     .iter()
                     .map(|&i| {
-                        items[i].margin_main_start_auto as u32 + items[i].margin_main_end_auto as u32
+                        items[i].margin_main_start_auto as u32
+                            + items[i].margin_main_end_auto as u32
                     })
                     .sum();
                 let use_auto_margins = auto_main_count > 0 && free_space > 0.0;
@@ -2249,7 +2319,11 @@ pub(crate) fn layout_flex_container(
                 } else {
                     0.0
                 };
-                let justify_free = if use_auto_margins { 0.0 } else { free_space.max(0.0) };
+                let justify_free = if use_auto_margins {
+                    0.0
+                } else {
+                    free_space.max(0.0)
+                };
 
                 // Calculate starting x and spacing based on justify-content. On
                 // overflow (negative free space, half-pixel epsilon to ignore
@@ -2354,6 +2428,7 @@ pub(crate) fn layout_flex_container(
                             y_offset: 0.0,
                             line_cross_size: 0.0,
                             is_positioned: false,
+                            z_index: item.z_index,
                         });
                         // Match the x-advance of the pre-existing nested_elements
                         // branch this guard supersedes (no `extra_gap`), so the
@@ -2418,6 +2493,7 @@ pub(crate) fn layout_flex_container(
                                 y_offset: 0.0,
                                 line_cross_size: 0.0,
                                 is_positioned: false,
+                                z_index: item.z_index,
                             });
                             x += item.width + gap + item.margin_main_end;
                             continue;
@@ -2492,6 +2568,7 @@ pub(crate) fn layout_flex_container(
                             y_offset: 0.0,
                             line_cross_size: 0.0,
                             is_positioned: false,
+                            z_index: item.z_index,
                         });
                         x += item.width + gap + item.margin_main_end;
                         continue;
@@ -2575,6 +2652,7 @@ pub(crate) fn layout_flex_container(
                             y_offset: 0.0,
                             line_cross_size: 0.0,
                             is_positioned: false,
+                            z_index: item.z_index,
                         });
                     } else {
                         // Single non-TextBlock element (e.g. Container): store
@@ -2613,6 +2691,7 @@ pub(crate) fn layout_flex_container(
                             y_offset: 0.0,
                             line_cross_size: 0.0,
                             is_positioned: false,
+                            z_index: item.z_index,
                         });
                     }
 
@@ -2673,8 +2752,8 @@ pub(crate) fn layout_flex_container(
                     if it.is_relative {
                         cell.x_offset += it.rel_left;
                         cell.y_offset += it.rel_top;
-                        cell.is_positioned = true;
                     }
+                    cell.is_positioned = it.is_relative || it.z_index > 0;
                 }
                 all_flex_cells.extend(flex_cells);
             }
@@ -2876,87 +2955,50 @@ pub(crate) fn layout_flex_container(
                     line_items.clone()
                 };
 
-                for (item_pos, &item_idx) in column_order.iter().enumerate() {
-                    let item = &items[item_idx];
+                if column_wrap_lines {
+                    let mut y = leading;
+                    for (item_pos, &item_idx) in column_order.iter().enumerate() {
+                        let item = &items[item_idx];
+                        if item_pos > 0 {
+                            y += gap + extra_gap;
+                        }
 
-                    // `align-self` overrides the container's `align-items` on the
-                    // cross axis (horizontal, for a column container).
-                    let effective_align = match item.align_self {
-                        AlignSelf::Auto => align,
-                        AlignSelf::FlexStart => AlignItems::FlexStart,
-                        AlignSelf::FlexEnd => AlignItems::FlexEnd,
-                        AlignSelf::Center => AlignItems::Center,
-                        // Baseline has no first-baseline notion on the cross axis
-                        // of a column container; fall back to flex-start (the
-                        // cross-start edge), matching browser behaviour for
-                        // baseline alignment of empty boxes.
-                        AlignSelf::Baseline => AlignItems::FlexStart,
-                        AlignSelf::Stretch => AlignItems::Stretch,
-                    };
-
-                    // Calculate cross-axis (horizontal) alignment
-                    let x_offset = match effective_align {
-                        AlignItems::FlexStart | AlignItems::Baseline => 0.0,
-                        AlignItems::FlexEnd => inner_width - item.width,
-                        AlignItems::Center => (inner_width - item.width) / 2.0,
-                        AlignItems::Stretch => 0.0,
-                    };
-
-                    // align-items: stretch only stretches items whose cross size
-                    // (width, for a column container) is auto. An item with an
-                    // explicit width keeps it.
-                    let effective_width =
-                        if effective_align == AlignItems::Stretch && !item.has_explicit_width {
-                            Some(inner_width)
-                        } else {
-                            Some(item.width)
+                        let effective_align = match item.align_self {
+                            AlignSelf::Auto => align,
+                            AlignSelf::FlexStart => AlignItems::FlexStart,
+                            AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                            AlignSelf::Center => AlignItems::Center,
+                            AlignSelf::Baseline => AlignItems::FlexStart,
+                            AlignSelf::Stretch => AlignItems::Stretch,
                         };
+                        let used_width =
+                            if effective_align == AlignItems::Stretch && !item.has_explicit_width {
+                                line.cross_size
+                            } else {
+                                item.width
+                            };
+                        let mut x_offset = cross_offset
+                            + match effective_align {
+                                AlignItems::FlexStart | AlignItems::Baseline => 0.0,
+                                AlignItems::FlexEnd => line.cross_size - used_width,
+                                AlignItems::Center => (line.cross_size - used_width) / 2.0,
+                                AlignItems::Stretch => 0.0,
+                            };
+                        let mut y_offset = y + item.margin_main_start;
+                        if item.is_relative {
+                            x_offset += item.rel_left;
+                            y_offset += item.rel_top;
+                        }
 
-                    // Extra main-axis spacing this item contributes from
-                    // `justify-content`: the leading for the first item, an
-                    // even slice between items otherwise. Applied only to the
-                    // item's first emitted element so multi-element items aren't
-                    // over-spaced.
-                    let item_justify_lead = if item_pos == 0 {
-                        std::mem::take(&mut pending_leading)
-                    } else {
-                        extra_gap
-                    };
-                    let mut item_first_elem = true;
-                    // The bottom margin of this item's last emitted element,
-                    // folded into the next item's leading (flex margins don't
-                    // collapse). Reset per item.
-                    let mut item_last_margin_bottom = 0.0_f32;
-
-                    for elem in &item.elements {
-                        if let LayoutElement::TextBlock {
+                        if let Some(LayoutElement::TextBlock {
                             lines: tb_lines,
-                            margin_top: tb_mt,
-                            margin_bottom: tb_mb,
                             text_align: tb_ta,
                             background_color: tb_bg,
                             padding_top: tb_pt,
                             padding_bottom: tb_pb,
                             padding_left: tb_pl,
                             padding_right: tb_pr,
-                            border: tb_border,
-                            block_height: tb_bh,
-                            opacity: tb_op,
-                            mix_blend_mode: tb_mix_blend,
-                            background_blend_mode: tb_bg_blend,
-                            position: tb_pos,
-                            box_shadow: tb_bs,
-                            visible: tb_vis,
-                            clip_rect: tb_clip,
-                            transform: tb_transform,
-                            transform_origin: tb_transform_origin,
                             border_radius: tb_br,
-                            outline_width: tb_ow,
-                            outline_color: tb_oc,
-                            text_indent: tb_ti,
-                            letter_spacing: tb_ls,
-                            word_spacing: tb_ws,
-                            vertical_align: tb_va,
                             background_gradient: tb_grad,
                             background_radial_gradient: tb_rgrad,
                             background_conic_gradient: tb_cgrad,
@@ -2967,114 +3009,32 @@ pub(crate) fn layout_flex_container(
                             background_repeat: tb_bg_repeat,
                             background_origin: tb_bg_origin,
                             background_clip: tb_bg_clip,
+                            box_shadow: tb_bs,
+                            border,
+                            block_height: tb_bh,
+                            transform: tb_transform,
+                            transform_origin: tb_transform_origin,
                             ..
-                        } = elem
+                        }) = item.elements.first()
                         {
-                            // `justify-content` leading/spacing applies once per
-                            // item, to its first emitted element.
-                            let justify_lead = if item_first_elem {
-                                item_first_elem = false;
-                                item_justify_lead
-                            } else {
-                                0.0
-                            };
-                            // Carry this element's bottom margin to the next
-                            // item's leading (flex margins don't collapse).
-                            item_last_margin_bottom = *tb_mb;
-                            // When the column flex resolution changed the item's
-                            // main (block) size (grow/shrink against the
-                            // container height, or a `flex-basis` height on an
-                            // empty box), paint the box at that resolved height.
-                            // `block_height` is a padding-box height (TextBlock
-                            // convention), so subtract the element's border. Only
-                            // applies to single-element items.
-                            let resolved_bh = if item.elements.len() == 1 {
-                                // item.height is the border-box main size + item
-                                // margins; block_height is a padding-box height,
-                                // so strip the element's own margins and border.
-                                let pad_box =
-                                    (item.height - *tb_mt - *tb_mb - tb_border.vertical_width())
-                                        .max(0.0);
-                                Some(pad_box)
-                            } else {
-                                *tb_bh
-                            };
-                            output.push(LayoutElement::TextBlock {
-                                box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
-                                orphans: 2,
-                                widows: 2,
+                            let text_h: f32 = tb_lines.iter().map(|l| l.height).sum();
+                            let content_natural =
+                                *tb_pt + text_h + *tb_pb + border.vertical_width();
+                            let natural_h = tb_bh
+                                .map(|h| h + border.vertical_width())
+                                .unwrap_or(content_natural);
+                            all_flex_cells.push(FlexCell {
                                 lines: tb_lines.clone(),
-                                margin_top: if y == 0.0 && !emitted_column_bg {
-                                    style.margin.top
-                                        + style.border.top.width
-                                        + style.padding.top
-                                        + justify_lead
-                                        + *tb_mt
-                                } else if y == 0.0 {
-                                    // Background element already accounts for margin;
-                                    // add the container's top border + padding so the
-                                    // first item flows inside the container's border box.
-                                    style.border.top.width
-                                        + style.padding.top
-                                        + justify_lead
-                                        + *tb_mt
-                                } else {
-                                    // Apply gap between column-direction flex
-                                    // items, plus the previous item's bottom
-                                    // margin (flex margins don't collapse, so we
-                                    // sum rather than let the flow collapse them).
-                                    gap + justify_lead + prev_item_margin_bottom + *tb_mt
-                                },
-                                // Flex-item margins never collapse; the prior
-                                // item's bottom margin is folded into this item's
-                                // leading above, so emit 0 here to avoid the
-                                // downstream block flow collapsing them.
-                                margin_bottom: 0.0,
+                                x_offset,
+                                width: used_width,
                                 text_align: *tb_ta,
-                                writing_mode: crate::style::computed::WritingMode::HorizontalTb,
                                 background_color: *tb_bg,
                                 padding_top: *tb_pt,
+                                padding_right: *tb_pr,
                                 padding_bottom: *tb_pb,
                                 padding_left: *tb_pl,
-                                padding_right: *tb_pr,
-                                border: *tb_border,
-                                block_width: effective_width,
-                                block_height: resolved_bh,
-                                opacity: *tb_op,
-                                mix_blend_mode: *tb_mix_blend,
-                                background_blend_mode: *tb_bg_blend,
-                                float: Float::None,
-                                clear: Clear::None,
-                                position: if x_offset > 0.0
-                                    || style.padding.left > 0.0
-                                    || style.border.left.width > 0.0
-                                {
-                                    Position::Relative
-                                } else {
-                                    *tb_pos
-                                },
-                                offset_top: 0.0,
-                                offset_left: x_offset
-                                    + style.padding.left
-                                    + style.border.left.width,
-                                offset_bottom: 0.0,
-                                offset_right: 0.0,
-                                containing_block: None,
-                                box_shadow: tb_bs.clone(),
-                                visible: *tb_vis,
-                                clip_rect: *tb_clip,
-                                transform: *tb_transform,
-                                transform_origin: *tb_transform_origin,
+                                border: *border,
                                 border_radius: *tb_br,
-                                border_radii: [*tb_br; 4],
-                                border_radii_y: [*tb_br; 4],
-                                outline_offset: 0.0,
-                                outline_width: *tb_ow,
-                                outline_color: *tb_oc,
-                                text_indent: *tb_ti,
-                                letter_spacing: *tb_ls,
-                                word_spacing: *tb_ws,
-                                vertical_align: *tb_va,
                                 background_gradient: tb_grad.clone(),
                                 background_radial_gradient: tb_rgrad.clone(),
                                 background_conic_gradient: tb_cgrad.clone(),
@@ -3085,79 +3045,38 @@ pub(crate) fn layout_flex_container(
                                 background_repeat: *tb_bg_repeat,
                                 background_origin: *tb_bg_origin,
                                 background_clip: *tb_bg_clip,
-                                z_index: 0,
-                                repeat_on_each_page: false,
-                                positioned_depth: 0,
-                                heading_level: None,
-                                clip_children_count: 0,
+                                transform: *tb_transform,
+                                transform_origin: *tb_transform_origin,
+                                box_shadow: tb_bs.clone(),
+                                nested_elements: Vec::new(),
+                                natural_height: natural_h,
+                                has_explicit_height: true,
+                                cross_min: 0.0,
+                                cross_max: f32::INFINITY,
+                                align_self: AlignSelf::FlexStart,
+                                y_offset,
+                                line_cross_size: natural_h,
+                                is_positioned: item.is_relative || item.z_index > 0,
+                                z_index: item.z_index,
                             });
                         } else {
-                            // Non-TextBlock flex item (e.g. a Container emitted
-                            // for a padded child). Wrap it so the column's
-                            // main-axis (vertical) leading and cross-axis
-                            // (horizontal) alignment are applied; otherwise the
-                            // element would be silently dropped by this loop.
-                            let justify_lead = if item_first_elem {
-                                item_first_elem = false;
-                                item_justify_lead
-                            } else {
-                                0.0
-                            };
-                            let leading = if y == 0.0 && !emitted_column_bg {
-                                style.margin.top
-                                    + style.border.top.width
-                                    + style.padding.top
-                                    + justify_lead
-                            } else if y == 0.0 {
-                                style.border.top.width + style.padding.top + justify_lead
-                            } else {
-                                gap + justify_lead + prev_item_margin_bottom
-                            };
-                            output.push(LayoutElement::Container {
-                                box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
-                                children: vec![elem.clone()],
+                            all_flex_cells.push(FlexCell {
+                                lines: Vec::new(),
+                                x_offset,
+                                width: used_width,
+                                natural_height: item.height,
+                                has_explicit_height: true,
+                                cross_min: 0.0,
+                                cross_max: f32::INFINITY,
+                                align_self: AlignSelf::FlexStart,
+                                text_align: TextAlign::Left,
                                 background_color: None,
-                                border: LayoutBorder::default(),
-                                border_radius: 0.0,
-                                border_radii: [0.0; 4],
-                                border_radii_y: [0.0; 4],
-                                outline_offset: 0.0,
                                 padding_top: 0.0,
+                                padding_right: 0.0,
                                 padding_bottom: 0.0,
                                 padding_left: 0.0,
-                                padding_right: 0.0,
-                                margin_top: leading,
-                                margin_bottom: 0.0,
-                                block_width: effective_width,
-                                block_height: None,
-                                opacity: 1.0,
-                                mix_blend_mode: crate::style::computed::BlendMode::Normal,
-                                background_blend_mode: crate::style::computed::BlendMode::Normal,
-                                visible: true,
-                                float: Float::None,
-                                clear: Clear::None,
-                                position: if x_offset > 0.0
-                                    || style.padding.left > 0.0
-                                    || style.border.left.width > 0.0
-                                {
-                                    Position::Relative
-                                } else {
-                                    Position::Static
-                                },
-                                offset_top: 0.0,
-                                offset_left: x_offset
-                                    + style.padding.left
-                                    + style.border.left.width,
-                                overflow: Overflow::Visible,
-                                overflow_x: Overflow::Visible,
-                                overflow_y: Overflow::Visible,
-                                transform: None,
-                                transform_origin: crate::style::computed::TransformOrigin::default(
-                                ),
-                                clip_path: None,
-                                mask_image: None,
-                                mask_mode: crate::style::computed::MaskMode::default(),
-                                box_shadow: Vec::new(),
+                                border: LayoutBorder::default(),
+                                border_radius: 0.0,
                                 background_gradient: None,
                                 background_radial_gradient: None,
                                 background_conic_gradient: None,
@@ -3168,17 +3087,329 @@ pub(crate) fn layout_flex_container(
                                 background_repeat: BackgroundRepeat::Repeat,
                                 background_origin: BackgroundOrigin::Padding,
                                 background_clip: BackgroundClip::Border,
-                                outline_width: 0.0,
-                                outline_color: None,
-                                z_index: 0,
-                                positioned_depth: 0,
-                                containing_block: None,
+                                transform: None,
+                                transform_origin: crate::style::computed::TransformOrigin::default(
+                                ),
+                                box_shadow: Vec::new(),
+                                nested_elements: item.elements.clone(),
+                                y_offset,
+                                line_cross_size: item.height,
+                                is_positioned: item.is_relative || item.z_index > 0,
+                                z_index: item.z_index,
                             });
                         }
+                        y += item.height;
                     }
+                } else {
+                    for (item_pos, &item_idx) in column_order.iter().enumerate() {
+                        let item = &items[item_idx];
 
-                    y += item.height + gap;
-                    prev_item_margin_bottom = item_last_margin_bottom;
+                        // `align-self` overrides the container's `align-items` on the
+                        // cross axis (horizontal, for a column container).
+                        let effective_align = match item.align_self {
+                            AlignSelf::Auto => align,
+                            AlignSelf::FlexStart => AlignItems::FlexStart,
+                            AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                            AlignSelf::Center => AlignItems::Center,
+                            // Baseline has no first-baseline notion on the cross axis
+                            // of a column container; fall back to flex-start (the
+                            // cross-start edge), matching browser behaviour for
+                            // baseline alignment of empty boxes.
+                            AlignSelf::Baseline => AlignItems::FlexStart,
+                            AlignSelf::Stretch => AlignItems::Stretch,
+                        };
+
+                        // Calculate cross-axis (horizontal) alignment
+                        let x_offset = match effective_align {
+                            AlignItems::FlexStart | AlignItems::Baseline => 0.0,
+                            AlignItems::FlexEnd => inner_width - item.width,
+                            AlignItems::Center => (inner_width - item.width) / 2.0,
+                            AlignItems::Stretch => 0.0,
+                        };
+
+                        // align-items: stretch only stretches items whose cross size
+                        // (width, for a column container) is auto. An item with an
+                        // explicit width keeps it.
+                        let effective_width =
+                            if effective_align == AlignItems::Stretch && !item.has_explicit_width {
+                                Some(inner_width)
+                            } else {
+                                Some(item.width)
+                            };
+
+                        // Extra main-axis spacing this item contributes from
+                        // `justify-content`: the leading for the first item, an
+                        // even slice between items otherwise. Applied only to the
+                        // item's first emitted element so multi-element items aren't
+                        // over-spaced.
+                        let item_justify_lead = if item_pos == 0 {
+                            std::mem::take(&mut pending_leading)
+                        } else {
+                            extra_gap
+                        };
+                        let mut item_first_elem = true;
+                        // The bottom margin of this item's last emitted element,
+                        // folded into the next item's leading (flex margins don't
+                        // collapse). Reset per item.
+                        let mut item_last_margin_bottom = 0.0_f32;
+
+                        for elem in &item.elements {
+                            if let LayoutElement::TextBlock {
+                                lines: tb_lines,
+                                margin_top: tb_mt,
+                                margin_bottom: tb_mb,
+                                text_align: tb_ta,
+                                background_color: tb_bg,
+                                padding_top: tb_pt,
+                                padding_bottom: tb_pb,
+                                padding_left: tb_pl,
+                                padding_right: tb_pr,
+                                border: tb_border,
+                                block_height: tb_bh,
+                                opacity: tb_op,
+                                mix_blend_mode: tb_mix_blend,
+                                background_blend_mode: tb_bg_blend,
+                                position: tb_pos,
+                                box_shadow: tb_bs,
+                                visible: tb_vis,
+                                clip_rect: tb_clip,
+                                transform: tb_transform,
+                                transform_origin: tb_transform_origin,
+                                border_radius: tb_br,
+                                outline_width: tb_ow,
+                                outline_color: tb_oc,
+                                text_indent: tb_ti,
+                                letter_spacing: tb_ls,
+                                word_spacing: tb_ws,
+                                vertical_align: tb_va,
+                                background_gradient: tb_grad,
+                                background_radial_gradient: tb_rgrad,
+                                background_conic_gradient: tb_cgrad,
+                                background_svg: tb_bg_svg,
+                                background_blur_radius: tb_bg_blur,
+                                background_size: tb_bg_size,
+                                background_position: tb_bg_pos,
+                                background_repeat: tb_bg_repeat,
+                                background_origin: tb_bg_origin,
+                                background_clip: tb_bg_clip,
+                                ..
+                            } = elem
+                            {
+                                // `justify-content` leading/spacing applies once per
+                                // item, to its first emitted element.
+                                let justify_lead = if item_first_elem {
+                                    item_first_elem = false;
+                                    item_justify_lead
+                                } else {
+                                    0.0
+                                };
+                                // Carry this element's bottom margin to the next
+                                // item's leading (flex margins don't collapse).
+                                item_last_margin_bottom = *tb_mb;
+                                // When the column flex resolution changed the item's
+                                // main (block) size (grow/shrink against the
+                                // container height, or a `flex-basis` height on an
+                                // empty box), paint the box at that resolved height.
+                                // `block_height` is a padding-box height (TextBlock
+                                // convention), so subtract the element's border. Only
+                                // applies to single-element items.
+                                let resolved_bh = if item.elements.len() == 1 {
+                                    // item.height is the border-box main size + item
+                                    // margins; block_height is a padding-box height,
+                                    // so strip the element's own margins and border.
+                                    let pad_box = (item.height
+                                        - *tb_mt
+                                        - *tb_mb
+                                        - tb_border.vertical_width())
+                                    .max(0.0);
+                                    Some(pad_box)
+                                } else {
+                                    *tb_bh
+                                };
+                                output.push(LayoutElement::TextBlock {
+                                    box_decoration_break:
+                                        crate::style::computed::BoxDecorationBreak::Slice,
+                                    orphans: 2,
+                                    widows: 2,
+                                    lines: tb_lines.clone(),
+                                    margin_top: if y == 0.0 && !emitted_column_bg {
+                                        style.margin.top
+                                            + style.border.top.width
+                                            + style.padding.top
+                                            + justify_lead
+                                            + *tb_mt
+                                    } else if y == 0.0 {
+                                        // Background element already accounts for margin;
+                                        // add the container's top border + padding so the
+                                        // first item flows inside the container's border box.
+                                        style.border.top.width
+                                            + style.padding.top
+                                            + justify_lead
+                                            + *tb_mt
+                                    } else {
+                                        // Apply gap between column-direction flex
+                                        // items, plus the previous item's bottom
+                                        // margin (flex margins don't collapse, so we
+                                        // sum rather than let the flow collapse them).
+                                        gap + justify_lead + prev_item_margin_bottom + *tb_mt
+                                    },
+                                    // Flex-item margins never collapse; the prior
+                                    // item's bottom margin is folded into this item's
+                                    // leading above, so emit 0 here to avoid the
+                                    // downstream block flow collapsing them.
+                                    margin_bottom: 0.0,
+                                    text_align: *tb_ta,
+                                    writing_mode: crate::style::computed::WritingMode::HorizontalTb,
+                                    background_color: *tb_bg,
+                                    padding_top: *tb_pt,
+                                    padding_bottom: *tb_pb,
+                                    padding_left: *tb_pl,
+                                    padding_right: *tb_pr,
+                                    border: *tb_border,
+                                    block_width: effective_width,
+                                    block_height: resolved_bh,
+                                    opacity: *tb_op,
+                                    mix_blend_mode: *tb_mix_blend,
+                                    background_blend_mode: *tb_bg_blend,
+                                    float: Float::None,
+                                    clear: Clear::None,
+                                    position: if x_offset > 0.0
+                                        || style.padding.left > 0.0
+                                        || style.border.left.width > 0.0
+                                    {
+                                        Position::Relative
+                                    } else {
+                                        *tb_pos
+                                    },
+                                    offset_top: 0.0,
+                                    offset_left: x_offset
+                                        + style.padding.left
+                                        + style.border.left.width,
+                                    offset_bottom: 0.0,
+                                    offset_right: 0.0,
+                                    containing_block: None,
+                                    box_shadow: tb_bs.clone(),
+                                    visible: *tb_vis,
+                                    clip_rect: *tb_clip,
+                                    transform: *tb_transform,
+                                    transform_origin: *tb_transform_origin,
+                                    border_radius: *tb_br,
+                                    border_radii: [*tb_br; 4],
+                                    border_radii_y: [*tb_br; 4],
+                                    outline_offset: 0.0,
+                                    outline_width: *tb_ow,
+                                    outline_color: *tb_oc,
+                                    text_indent: *tb_ti,
+                                    letter_spacing: *tb_ls,
+                                    word_spacing: *tb_ws,
+                                    vertical_align: *tb_va,
+                                    background_gradient: tb_grad.clone(),
+                                    background_radial_gradient: tb_rgrad.clone(),
+                                    background_conic_gradient: tb_cgrad.clone(),
+                                    background_svg: tb_bg_svg.clone(),
+                                    background_blur_radius: *tb_bg_blur,
+                                    background_size: *tb_bg_size,
+                                    background_position: *tb_bg_pos,
+                                    background_repeat: *tb_bg_repeat,
+                                    background_origin: *tb_bg_origin,
+                                    background_clip: *tb_bg_clip,
+                                    z_index: 0,
+                                    repeat_on_each_page: false,
+                                    positioned_depth: 0,
+                                    heading_level: None,
+                                    clip_children_count: 0,
+                                });
+                            } else {
+                                // Non-TextBlock flex item (e.g. a Container emitted
+                                // for a padded child). Wrap it so the column's
+                                // main-axis (vertical) leading and cross-axis
+                                // (horizontal) alignment are applied; otherwise the
+                                // element would be silently dropped by this loop.
+                                let justify_lead = if item_first_elem {
+                                    item_first_elem = false;
+                                    item_justify_lead
+                                } else {
+                                    0.0
+                                };
+                                let leading = if y == 0.0 && !emitted_column_bg {
+                                    style.margin.top
+                                        + style.border.top.width
+                                        + style.padding.top
+                                        + justify_lead
+                                } else if y == 0.0 {
+                                    style.border.top.width + style.padding.top + justify_lead
+                                } else {
+                                    gap + justify_lead + prev_item_margin_bottom
+                                };
+                                output.push(LayoutElement::Container {
+                                    box_decoration_break:
+                                        crate::style::computed::BoxDecorationBreak::Slice,
+                                    children: vec![elem.clone()],
+                                    background_color: None,
+                                    border: LayoutBorder::default(),
+                                    border_radius: 0.0,
+                                    border_radii: [0.0; 4],
+                                    border_radii_y: [0.0; 4],
+                                    outline_offset: 0.0,
+                                    padding_top: 0.0,
+                                    padding_bottom: 0.0,
+                                    padding_left: 0.0,
+                                    padding_right: 0.0,
+                                    margin_top: leading,
+                                    margin_bottom: 0.0,
+                                    block_width: effective_width,
+                                    block_height: None,
+                                    opacity: 1.0,
+                                    mix_blend_mode: crate::style::computed::BlendMode::Normal,
+                                    background_blend_mode:
+                                        crate::style::computed::BlendMode::Normal,
+                                    visible: true,
+                                    float: Float::None,
+                                    clear: Clear::None,
+                                    position: if x_offset > 0.0
+                                        || style.padding.left > 0.0
+                                        || style.border.left.width > 0.0
+                                    {
+                                        Position::Relative
+                                    } else {
+                                        Position::Static
+                                    },
+                                    offset_top: 0.0,
+                                    offset_left: x_offset
+                                        + style.padding.left
+                                        + style.border.left.width,
+                                    overflow: Overflow::Visible,
+                                    overflow_x: Overflow::Visible,
+                                    overflow_y: Overflow::Visible,
+                                    transform: None,
+                                    transform_origin:
+                                        crate::style::computed::TransformOrigin::default(),
+                                    clip_path: None,
+                                    mask_image: None,
+                                    mask_mode: crate::style::computed::MaskMode::default(),
+                                    box_shadow: Vec::new(),
+                                    background_gradient: None,
+                                    background_radial_gradient: None,
+                                    background_conic_gradient: None,
+                                    background_svg: None,
+                                    background_blur_radius: 0.0,
+                                    background_size: BackgroundSize::Auto,
+                                    background_position: BackgroundPosition::default(),
+                                    background_repeat: BackgroundRepeat::Repeat,
+                                    background_origin: BackgroundOrigin::Padding,
+                                    background_clip: BackgroundClip::Border,
+                                    outline_width: 0.0,
+                                    outline_color: None,
+                                    z_index: 0,
+                                    positioned_depth: 0,
+                                    containing_block: None,
+                                });
+                            }
+                        }
+
+                        y += item.height + gap;
+                        prev_item_margin_bottom = item_last_margin_bottom;
+                    }
                 }
             }
         }
@@ -3190,8 +3421,13 @@ pub(crate) fn layout_flex_container(
     // The row's height is the container's inner cross size so pagination and
     // the visual border both include every wrapped line. Each cell's own
     // y_offset and line_cross_size handle per-line alignment internally.
-    if direction.is_row() && !all_flex_cells.is_empty() {
-        let row_height = total_cross.max(inner_cross_size);
+    if (direction.is_row() || column_wrap_lines) && !all_flex_cells.is_empty() {
+        all_flex_cells.sort_by_key(|cell| cell.z_index);
+        let row_height = if column_wrap_lines {
+            inner_cross_size
+        } else {
+            total_cross.max(inner_cross_size)
+        };
         output.push(LayoutElement::FlexRow {
             cells: all_flex_cells,
             row_height,
@@ -3217,7 +3453,11 @@ pub(crate) fn layout_flex_container(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             background_clip: style.background_clip,
-            align_items: align,
+            align_items: if column_wrap_lines {
+                AlignItems::FlexStart
+            } else {
+                align
+            },
             positioned_depth: abs_cb_depth,
         });
     }

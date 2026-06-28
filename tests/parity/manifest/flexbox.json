@@ -1114,5 +1114,33 @@
     "depends_on": [],
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-column-wrap",
+    "category": "flexbox",
+    "feature": "flex-wrap",
+    "subfeature": "column-wrap",
+    "description": "flex-direction:column with flex-wrap:wrap starts additional columns when items exceed the container height.",
+    "file": "cases/flexbox/flexbox-column-wrap.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
+  },
+  {
+    "id": "flexbox-z-index-static",
+    "category": "flexbox",
+    "feature": "painting",
+    "subfeature": "static-flex-item-z-index",
+    "description": "Static flex items paint in z-index order; overlapping items expose incorrect source-order painting.",
+    "file": "cases/flexbox/flexbox-z-index-static.html",
+    "weight": 1,
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [],
+    "pass_threshold_pct": 2.0,
+    "partial_threshold_pct": 10.0
   }
 ]

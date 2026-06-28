@@ -257,6 +257,9 @@ pub struct FlexCell {
     /// sibling it overlaps. The FlexRow render pass keeps stable source order
     /// but paints non-positioned cells first, then positioned cells.
     pub is_positioned: bool,
+    /// CSS `z-index` carried by flex items. Flexbox §5.4 says `z-index` affects
+    /// flex item paint order even when the item is not positioned.
+    pub z_index: i32,
 }
 
 /// A styled text run (a piece of text with uniform style).
@@ -1840,10 +1843,9 @@ pub(crate) fn flatten_element(
                 _ => (svg_width, svg_height),
             }
         };
-        if let Some(mut tree) = crate::parser::svg::parse_svg_from_element_with_viewport(
-            el,
-            Some(child_viewport),
-        ) {
+        if let Some(mut tree) =
+            crate::parser::svg::parse_svg_from_element_with_viewport(el, Some(child_viewport))
+        {
             sync_svg_tree_to_layout_box(&mut tree, svg_width, svg_height);
             inject_inherited_svg_color(&mut tree, style.color.to_f32_rgb());
             output.push(LayoutElement::Svg {

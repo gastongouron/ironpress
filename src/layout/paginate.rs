@@ -708,7 +708,93 @@ fn split_element(
 ) -> Option<(LayoutElement, LayoutElement)> {
     split_text_block(element, avail_below_box_top)
         .or_else(|| split_image_block(element, avail_below_box_top))
+        .or_else(|| split_table_row(element, avail_below_box_top))
         .or_else(|| split_container(element, avail_below_box_top))
+}
+
+/// Split a table row that is taller than the current fragmentainer. CSS Tables
+/// fragments row boxes by slicing each cell box at the page edge; under the
+/// default `box-decoration-break: slice` the first fragment keeps the top
+/// border/padding and the continuation keeps the bottom edge.
+fn split_table_row(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::TableRow { cells, .. } = element else {
+        return None;
+    };
+    let row_h = cells
+        .iter()
+        .map(table_cell_content_height)
+        .fold(0.0f32, f32::max);
+    if row_h <= 1.0 || avail_below_box_top <= 1.0 || row_h <= avail_below_box_top + 0.5 {
+        return None;
+    }
+
+    let consumed_h = avail_below_box_top.min(row_h - 1.0).max(1.0);
+    let rest_h = (row_h - consumed_h).max(0.0);
+    if rest_h <= 0.5 {
+        return None;
+    }
+    let top_edge_bleed = cells
+        .iter()
+        .map(|cell| cell.border.top.width)
+        .fold(0.0f32, f32::max)
+        / 2.0;
+    let first_painted_h = (consumed_h - top_edge_bleed).max(1.0);
+
+    let mut line_cut_by_cell: Vec<usize> = Vec::with_capacity(cells.len());
+    for cell in cells {
+        let available_lines = (first_painted_h - cell.padding_top).max(0.0);
+        let mut acc = 0.0f32;
+        let mut cut = 0usize;
+        for (idx, line) in cell.lines.iter().enumerate() {
+            let next = acc + line.height;
+            if idx > 0 && next > available_lines + 0.01 {
+                break;
+            }
+            acc = next;
+            cut = idx + 1;
+        }
+        line_cut_by_cell.push(cut);
+    }
+
+    let mut first = element.clone();
+    if let LayoutElement::TableRow {
+        cells: first_cells,
+        margin_bottom,
+        ..
+    } = &mut first
+    {
+        *margin_bottom = 0.0;
+        for (cell, &cut) in first_cells.iter_mut().zip(&line_cut_by_cell) {
+            cell.lines = cell.lines[..cut.min(cell.lines.len())].to_vec();
+            cell.nested_rows.clear();
+            cell.border.bottom.width = 0.0;
+            cell.padding_bottom = 0.0;
+            cell.min_content_height = first_painted_h;
+        }
+    }
+
+    let mut rest = element.clone();
+    if let LayoutElement::TableRow {
+        cells: rest_cells,
+        margin_top,
+        ..
+    } = &mut rest
+    {
+        *margin_top = 0.0;
+        for (cell, &cut) in rest_cells.iter_mut().zip(&line_cut_by_cell) {
+            let cut = cut.min(cell.lines.len());
+            cell.lines = cell.lines[cut..].to_vec();
+            cell.nested_rows.clear();
+            cell.border.top.width = 0.0;
+            cell.padding_top = 0.0;
+            cell.min_content_height = rest_h;
+        }
+    }
+
+    Some((first, rest))
 }
 
 /// Split a too-tall in-flow `Container` between its children (CSS Fragmentation 3
@@ -1181,7 +1267,13 @@ pub(crate) fn paginate_with_first_page(
         // reorder put it after every body row): place it directly after the last
         // body row on the current page. Its height was reserved while the body
         // rows were placed, so it always fits — skip the generic fit/break path.
-        if matches!(&element, LayoutElement::TableRow { is_footer: true, .. }) {
+        if matches!(
+            &element,
+            LayoutElement::TableRow {
+                is_footer: true,
+                ..
+            }
+        ) {
             let fh = row_content_height(&element);
             current_elements.push((y, element));
             y += fh;
@@ -1361,8 +1453,7 @@ pub(crate) fn paginate_with_first_page(
                         | PageBreakSide::Verso
                 ) {
                     let next_page_no = pages.len() + 1; // 1-based content page
-                    let wants_right =
-                        matches!(side, PageBreakSide::Right | PageBreakSide::Recto);
+                    let wants_right = matches!(side, PageBreakSide::Right | PageBreakSide::Recto);
                     let next_is_right = next_page_no % 2 == 1;
                     if wants_right != next_is_right {
                         let mut blank: Vec<(f32, LayoutElement)> = Vec::new();
@@ -1577,8 +1668,10 @@ pub(crate) fn paginate_with_first_page(
             Some(total) => (total, 0.0),
             None => (element_height, footer_reserve),
         };
-        let page_broke_mid_loop =
-            y + break_decision_height + break_footer_reserve > content_height && y > 0.0;
+        const PAGE_BREAK_EPSILON: f32 = 1.0;
+        let page_broke_mid_loop = y + break_decision_height + break_footer_reserve
+            > content_height + PAGE_BREAK_EPSILON
+            && y > 0.0;
         if page_broke_mid_loop {
             // Repeat the running footer at the bottom of the page being closed,
             // directly after the last body row (matching Chrome: the footer is
@@ -1673,9 +1766,7 @@ pub(crate) fn paginate_with_first_page(
         // The small epsilon absorbs sub-point text-measurement rounding so a box
         // that merely grazes the page bottom is not spuriously fragmented.
         const FRAG_EPSILON: f32 = 0.5;
-        if elem_position == Position::Static
-            && y + element_height > content_height + FRAG_EPSILON
-        {
+        if elem_position == Position::Static && y + element_height > content_height + FRAG_EPSILON {
             let avail_below_box_top = content_height - (y + effective_margin_top);
             // A too-tall text block splits at a line boundary; a too-tall raster
             // image slices at the page edge (each page embeds only its slice); a
@@ -1765,8 +1856,7 @@ pub(crate) fn paginate_with_first_page(
     if !current_elements.is_empty() && (has_real_content || pages.is_empty()) {
         // The last page keeps the active named margin (a `page: <name>` block at
         // the document end, the common cover-page case).
-        let margin_override =
-            pending_named_margin.or_else(|| page_margin_override(pages.len()));
+        let margin_override = pending_named_margin.or_else(|| page_margin_override(pages.len()));
         pages.push(Page {
             elements: current_elements,
             margin_override,
@@ -1812,7 +1902,11 @@ mod break_tests {
     #[test]
     fn forced_break_page_paginates() {
         // Two blocks split by a plain forced break => two pages, one block each.
-        let pages = paginate(vec![block(100.0), brk(PageBreakSide::Any), block(100.0)], 1000.0, 0.0);
+        let pages = paginate(
+            vec![block(100.0), brk(PageBreakSide::Any), block(100.0)],
+            1000.0,
+            0.0,
+        );
         assert_eq!(pages.len(), 2);
         assert_eq!(pages[0].elements.len(), 1);
         assert_eq!(pages[1].elements.len(), 1);
@@ -1853,7 +1947,10 @@ mod break_tests {
             named,
         );
         assert_eq!(pages.len(), 2);
-        assert_eq!(pages[0].margin_override, None, "page 1 keeps default margin");
+        assert_eq!(
+            pages[0].margin_override, None,
+            "page 1 keeps default margin"
+        );
         assert_eq!(
             pages[1].margin_override,
             Some(named_margin),

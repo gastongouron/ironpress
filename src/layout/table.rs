@@ -694,9 +694,8 @@ pub(crate) fn flatten_table(
     }) {
         let mut order: Vec<usize> = (0..rows.len()).collect();
         order.sort_by_key(|&i| section_rank(&row_section_elements[i]));
-        let apply = |v: &[usize], src: &Vec<usize>| -> Vec<usize> {
-            v.iter().map(|&i| src[i]).collect()
-        };
+        let apply =
+            |v: &[usize], src: &Vec<usize>| -> Vec<usize> { v.iter().map(|&i| src[i]).collect() };
         rows = order.iter().map(|&i| rows[i]).collect();
         row_section_indices = apply(&order, &row_section_indices);
         row_section_sizes = apply(&order, &row_section_sizes);
@@ -1223,10 +1222,109 @@ pub(crate) fn flatten_table(
             &row.attributes,
             &row_selector_ctx,
         );
-        // `display: none` and `visibility: collapse` rows are removed from the
-        // table entirely: emit no row and reserve no height. The row's cells do
-        // not participate in rowspan, so leave `occupied` untouched.
-        if row_style.display == Display::None || row_style.visibility == Visibility::Collapse {
+        // `display: none` rows are removed from the table entirely.
+        if row_style.display == Display::None {
+            continue;
+        }
+        if row_style.visibility == Visibility::Collapse {
+            // CSS Tables collapses the row's content and height, but in the
+            // collapsed-border model the row's own cell borders still
+            // participate in border conflict resolution. Represent that as a
+            // contentless row whose height is only the top+bottom collapsed
+            // border thickness, so adjacent visible rows keep the same border
+            // geometry as browsers without resurrecting the collapsed content.
+            if style.border_collapse == BorderCollapse::Collapse {
+                row_style.width = Some(inner_width);
+                let mut cells = Vec::new();
+                let mut col_pos = 0usize;
+                for child in &row.children {
+                    let DomNode::Element(cell_el) = child else {
+                        continue;
+                    };
+                    if cell_el.tag != HtmlTag::Td && cell_el.tag != HtmlTag::Th {
+                        continue;
+                    }
+                    if col_pos >= num_cols {
+                        break;
+                    }
+                    let colspan = cell_el
+                        .attributes
+                        .get("colspan")
+                        .and_then(|v| v.parse::<usize>().ok())
+                        .unwrap_or(1)
+                        .max(1);
+                    let span = colspan.min(num_cols - col_pos);
+
+                    let cell_classes = cell_el.class_list();
+                    let mut cell_ancestors = row_selector_ctx.ancestors.clone();
+                    cell_ancestors.push(AncestorInfo {
+                        element: row,
+                        child_index: section_idx,
+                        sibling_count: section_size,
+                        preceding_siblings: Vec::new(),
+                        following_siblings: Vec::new(),
+                        is_empty: false,
+                    });
+                    let cell_selector_ctx = SelectorContext {
+                        ancestors: cell_ancestors,
+                        child_index: col_pos,
+                        sibling_count: num_cols,
+                        preceding_siblings: Vec::new(),
+                        following_siblings: Vec::new(),
+                        is_empty: false,
+                    };
+                    let cell_style = compute_style_with_context(
+                        cell_el.tag,
+                        cell_el.style_attr(),
+                        &row_style,
+                        rules,
+                        cell_el.tag_name(),
+                        &cell_classes,
+                        cell_el.id(),
+                        &cell_el.attributes,
+                        &cell_selector_ctx,
+                    );
+                    let cell_border = LayoutBorder::from_computed(&cell_style.border);
+                    cells.push(TableCell {
+                        lines: Vec::new(),
+                        nested_rows: Vec::new(),
+                        bold: false,
+                        background_color: None,
+                        padding_top: 0.0,
+                        padding_right: 0.0,
+                        padding_bottom: 0.0,
+                        padding_left: 0.0,
+                        colspan: span,
+                        rowspan: 1,
+                        border: cell_border,
+                        text_align: cell_style.text_align,
+                        vertical_align: VerticalAlign::Top,
+                        min_content_height: cell_border.top.width + cell_border.bottom.width,
+                        hide_if_empty: false,
+                        grid_inset: None,
+                        clips: false,
+                        background_gradient: None,
+                        background_radial_gradient: None,
+                        background_conic_gradient: None,
+                    });
+                    col_pos += span;
+                }
+
+                if !cells.is_empty() {
+                    output.push(LayoutElement::TableRow {
+                        cells,
+                        col_widths: col_widths.clone(),
+                        margin_top: 0.0,
+                        margin_bottom: 0.0,
+                        border_collapse: style.border_collapse,
+                        border_spacing: style.border_spacing,
+                        is_header: false,
+                        is_footer: false,
+                        offset_left: style.margin.left.max(0.0),
+                        break_inside_avoid: style.break_inside_avoid,
+                    });
+                }
+            }
             continue;
         }
         row_style.width = Some(inner_width);
@@ -1463,7 +1561,11 @@ pub(crate) fn flatten_table(
                 rowspan,
                 border: cell_border,
                 text_align: cell_style.text_align,
-                vertical_align: cell_style.vertical_align,
+                vertical_align: if cell_style.vertical_align == VerticalAlign::Baseline {
+                    VerticalAlign::Top
+                } else {
+                    cell_style.vertical_align
+                },
                 min_content_height,
                 hide_if_empty,
                 grid_inset: None,

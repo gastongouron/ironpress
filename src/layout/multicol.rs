@@ -257,8 +257,7 @@ pub(crate) fn layout_multicol_container(
     // produces a single page-row and falls through to the byte-for-byte
     // single-page layout below.
     let page_content_h = ctx.available_height();
-    let wrapper_v_extra =
-        style.border.vertical_width() + style.padding.top + style.padding.bottom;
+    let wrapper_v_extra = style.border.vertical_width() + style.padding.top + style.padding.bottom;
     let col_fill_h = (page_content_h - wrapper_v_extra).max(0.0);
     let in_flow = matches!(style.position, Position::Static | Position::Relative)
         && style.float == crate::style::computed::Float::None;
@@ -289,6 +288,44 @@ pub(crate) fn layout_multicol_container(
                 };
                 // Only the first fragment carries the top margin and only the last
                 // carries the bottom margin (the box is a single flow element).
+                let mt = if i == 0 { style.margin.top } else { 0.0 };
+                let mb = if is_last { style.margin.bottom } else { 0.0 };
+                output.push(emit_multicol_wrapper(
+                    style,
+                    row_children,
+                    border_box_w,
+                    Some(block_h),
+                    h_offset,
+                    mt,
+                    mb,
+                ));
+            }
+            return;
+        }
+    }
+    if explicit_border_box_h.is_none() && in_flow && !no_span && num_cols >= 1 && col_fill_h > 1.0 {
+        let rows = build_paginated_column_rows_with_spans(
+            &items,
+            num_cols,
+            col_width,
+            gap,
+            pad_left,
+            bl,
+            pad_top,
+            bt,
+            col_fill_h,
+            inner_width,
+            style,
+        );
+        if rows.len() > 1 {
+            let last = rows.len() - 1;
+            for (i, (row_children, row_max)) in rows.into_iter().enumerate() {
+                let is_last = i == last;
+                let block_h = if is_last {
+                    pad_top + row_max + style.padding.bottom + style.border.bottom.width
+                } else {
+                    page_content_h
+                };
                 let mt = if i == 0 { style.margin.top } else { 0.0 };
                 let mb = if is_last { style.margin.bottom } else { 0.0 };
                 output.push(emit_multicol_wrapper(
@@ -675,8 +712,7 @@ fn build_paginated_column_rows(
             let rule_w = style.column_rule.width;
             let rule_color = style.column_rule.color.unwrap_or(style.color).to_f32_rgba();
             for c in 0..num_cols - 1 {
-                let gap_center =
-                    pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
+                let gap_center = pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
                 let rule_x = gap_center - rule_w / 2.0;
                 row_children.push(make_rule_container(
                     rule_x - bl,
@@ -690,6 +726,195 @@ fn build_paginated_column_rows(
         }
         rows.push((row_children, row_max));
     }
+    rows
+}
+
+/// Page-aware multicol fragmentation for flows that include `column-span: all`.
+/// Consecutive non-span items are balanced into the remaining column space on the
+/// current page row; a span-all item is placed as a full-width band at the current
+/// block cursor. When the next segment would overflow, a new page row starts.
+#[allow(clippy::too_many_arguments)]
+fn build_paginated_column_rows_with_spans(
+    items: &[MultiColItem],
+    num_cols: usize,
+    col_width: f32,
+    gap: f32,
+    pad_left: f32,
+    bl: f32,
+    pad_top: f32,
+    bt: f32,
+    col_fill_h: f32,
+    inner_width: f32,
+    style: &ComputedStyle,
+) -> Vec<(Vec<LayoutElement>, f32)> {
+    let mut rows: Vec<(Vec<LayoutElement>, f32)> = Vec::new();
+    let mut row_children: Vec<LayoutElement> = Vec::new();
+    let mut cursor = 0.0f32;
+    // Page-row fragments start at a fresh fragmentainer edge. Nudge absolutely
+    // positioned column/band children onto that same sliced edge so PDF stroke
+    // rasterization does not accumulate a half-point downward drift per fragment.
+    let fragment_snap = 0.5f32;
+
+    let finish_row = |rows: &mut Vec<(Vec<LayoutElement>, f32)>,
+                      row_children: &mut Vec<LayoutElement>,
+                      cursor: &mut f32| {
+        if row_children.is_empty() {
+            *cursor = 0.0;
+            return;
+        }
+        rows.push((std::mem::take(row_children), (*cursor).max(0.0)));
+        *cursor = 0.0;
+    };
+
+    let add_rules = |row_children: &mut Vec<LayoutElement>, run_top: f32, run_h: f32| {
+        if style.column_rule.width <= 0.0
+            || style.column_rule.style == BorderStyle::None
+            || num_cols <= 1
+            || run_h <= 0.0
+        {
+            return;
+        }
+        let rule_w = style.column_rule.width;
+        let rule_color = style.column_rule.color.unwrap_or(style.color).to_f32_rgba();
+        for c in 0..num_cols - 1 {
+            let gap_center = pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
+            let rule_x = gap_center - rule_w / 2.0;
+            row_children.push(make_rule_container(
+                rule_x - bl,
+                pad_top + run_top - bt - fragment_snap,
+                rule_w,
+                run_h,
+                rule_color,
+                style.column_rule.style,
+            ));
+        }
+    };
+
+    let place_balanced_run = |row_children: &mut Vec<LayoutElement>,
+                              run: &[MultiColItem],
+                              top: f32,
+                              truncate_all_trailing: bool|
+     -> f32 {
+        let heights: Vec<f32> = run.iter().map(|it| it.height).collect();
+        let buckets = balance_columns(&heights, num_cols);
+        let last_nonempty_col = buckets
+            .iter()
+            .rposition(|b| !b.is_empty())
+            .unwrap_or(usize::MAX);
+        let mut run_max_h = 0.0f32;
+        for (c, bucket) in buckets.iter().enumerate() {
+            if bucket.is_empty() {
+                continue;
+            }
+            let col_x = pad_left + c as f32 * (col_width + gap);
+            let mut col_kids: Vec<LayoutElement> = Vec::new();
+            let mut col_height = 0.0f32;
+            for &idx in bucket {
+                col_height += run[idx].height;
+                col_kids.extend(run[idx].elements.clone());
+            }
+            let used_col_height = if truncate_all_trailing || c != last_nonempty_col {
+                let last_idx = *bucket.last().unwrap();
+                (col_height - run[last_idx].margin_bottom).max(0.0)
+            } else {
+                col_height
+            };
+            run_max_h = run_max_h.max(used_col_height);
+            row_children.push(make_column_container(
+                col_kids,
+                col_x - bl,
+                pad_top + top - bt - fragment_snap,
+                col_width,
+                col_height,
+            ));
+        }
+        run_max_h
+    };
+
+    let mut i = 0usize;
+    while i < items.len() {
+        if items[i].span_all {
+            let band_h = items[i].height;
+            if cursor > 0.0 && cursor + band_h > col_fill_h + 0.01 {
+                finish_row(&mut rows, &mut row_children, &mut cursor);
+            }
+            row_children.push(make_band_container(
+                items[i].elements.clone(),
+                pad_left - bl,
+                pad_top + cursor - bt - fragment_snap,
+                inner_width,
+                band_h,
+            ));
+            cursor += band_h;
+            i += 1;
+            continue;
+        }
+
+        let run_start = i;
+        while i < items.len() && !items[i].span_all {
+            i += 1;
+        }
+        let run_end = i;
+        let mut start = run_start;
+        while start < run_end {
+            if cursor >= col_fill_h - 0.01 {
+                finish_row(&mut rows, &mut row_children, &mut cursor);
+            }
+            let remaining = (col_fill_h - cursor).max(0.0);
+            let mut best_end = start;
+            let mut best_h = 0.0f32;
+            for end in start + 1..=run_end {
+                let heights: Vec<f32> = items[start..end].iter().map(|it| it.height).collect();
+                let buckets = balance_columns(&heights, num_cols);
+                let mut max_h = 0.0f32;
+                let truncates_at_page_break = end < run_end;
+                let last_nonempty_col = buckets
+                    .iter()
+                    .rposition(|b| !b.is_empty())
+                    .unwrap_or(usize::MAX);
+                for (c, bucket) in buckets.iter().enumerate() {
+                    let mut col_h = 0.0f32;
+                    for &idx in bucket {
+                        col_h += items[start + idx].height;
+                    }
+                    if truncates_at_page_break || c != last_nonempty_col {
+                        if let Some(&last_idx) = bucket.last() {
+                            col_h = (col_h - items[start + last_idx].margin_bottom).max(0.0);
+                        }
+                    }
+                    max_h = max_h.max(col_h);
+                }
+                if max_h <= remaining + 1.0 || best_end == start {
+                    best_end = end;
+                    best_h = max_h;
+                } else {
+                    break;
+                }
+            }
+            if best_end == start {
+                if cursor > 0.0 {
+                    finish_row(&mut rows, &mut row_children, &mut cursor);
+                    continue;
+                }
+                best_end = start + 1;
+            }
+            let top = cursor;
+            let placed_h = place_balanced_run(
+                &mut row_children,
+                &items[start..best_end],
+                top,
+                best_end < run_end,
+            );
+            let used_h = placed_h.max(best_h);
+            add_rules(&mut row_children, top, used_h);
+            cursor += used_h;
+            start = best_end;
+            if start < run_end {
+                finish_row(&mut rows, &mut row_children, &mut cursor);
+            }
+        }
+    }
+    finish_row(&mut rows, &mut row_children, &mut cursor);
     rows
 }
 

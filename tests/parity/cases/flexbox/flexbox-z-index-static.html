@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>flexbox static item z-index paint order</title>
+<style>
+  @page { size: 280px 160px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .wrap { padding: 24px; }
+  .flex {
+    display: flex;
+    align-items: flex-start;
+    width: 220px;
+    height: 110px;
+    padding: 10px;
+    border: 2px solid #222222;
+    background: #eeeeee;
+  }
+  .item {
+    flex: 0 0 auto;
+    width: 86px;
+    height: 86px;
+    border: 2px solid #111111;
+  }
+  .blue { background: #2d6cdf; z-index: 1; }
+  .red { background: #e53935; margin-left: -44px; z-index: 3; }
+  .green { background: #43a047; margin-left: -44px; z-index: 2; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex">
+      <div class="item blue"></div>
+      <div class="item red"></div>
+      <div class="item green"></div>
+    </div>
+  </div>
+</body>
+</html>

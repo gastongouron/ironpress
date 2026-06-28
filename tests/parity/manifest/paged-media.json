@@ -527,11 +527,11 @@
     "id": "table-row-taller-than-page",
     "category": "paged-media",
     "feature": "fragmentation",
-    "subfeature": "table-row-slice-unsupported",
-    "description": "A single table row whose cell is taller than the page content box should slice its cell content across the page boundary (Chrome --print-to-pdf carries the remainder onto page 2). ironpress does not implement row cell-slicing — a too-tall row currently clips at the page edge (one page) — so the page COUNT and the lower portion of the cell diverge from Chrome. Tracked-unsupported: row cell-slicing unimplemented.",
+    "subfeature": "table-row-slice",
+    "description": "A single table row whose cell is taller than the page content box slices its cell content across page fragments.",
     "file": "cases/paged-media/table-row-taller-than-page.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box"
@@ -544,11 +544,11 @@
     "id": "multicol-span-all-page-break",
     "category": "paged-media",
     "feature": "fragmentation",
-    "subfeature": "multicol-span-all-page-break-unsupported",
-    "description": "A column-span: all heading inside a multi-column block taller than the page: the spanning element interrupts the columns and the column flow must resume AND fragment across the page boundary. ironpress's multicol fragmentation does not yet handle a column-span:all element combined with a page break, so the column geometry across pages diverges from Chrome --print-to-pdf. Tracked-unsupported: multicol span-all page fragmentation unimplemented.",
+    "subfeature": "multicol-span-all-page-break",
+    "description": "A column-span: all heading inside a multi-column block interrupts the columns; column flow resumes and fragments across page boundaries.",
     "file": "cases/paged-media/multicol-span-all-page-break.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

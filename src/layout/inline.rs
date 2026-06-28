@@ -426,6 +426,7 @@ pub(crate) fn layout_inline_block_group(
             y_offset: 0.0,
             line_cross_size: 0.0,
             is_positioned: item.is_positioned,
+            z_index: 0,
         });
         x += item.width + item.margin_right;
         max_item_height = max_item_height.max(item.height);
