@@ -94,6 +94,7 @@
     "weight": 1,
     "pass_threshold_pct": 2.0,
     "partial_threshold_pct": 10.0,
+    "floor_pct": 0.5,
     "kind": "feature",
     "expected_support": "implemented",
     "depends_on": [

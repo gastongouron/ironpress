@@ -19,6 +19,7 @@ use crate::layout::engine::{ImageFormat, LayoutBorder, RasterImageAsset};
 
 /// Points per CSS pixel (1px = 0.75pt). `blur_radius` is stored in points.
 const PT_PER_PX: f32 = 0.75;
+const IMAGE_BLUR_SIGMA_SCALE: f32 = 0.95;
 
 fn filter_dpi_scale(filter_dpi: f32) -> f32 {
     filter_dpi.max(1.0) / 96.0
@@ -532,7 +533,7 @@ pub(crate) fn blur_image_buffer(
     let upscaled =
         image::imageops::resize(source, dev_w, dev_h, image::imageops::FilterType::Nearest);
 
-    let sigma = (blur_radius_pt / PT_PER_PX) * s;
+    let sigma = (blur_radius_pt / PT_PER_PX) * s * IMAGE_BLUR_SIGMA_SCALE;
     let pad = pad_pixels(sigma);
     let mut padded = image::RgbaImage::new(dev_w + 2 * pad, dev_h + 2 * pad);
     image::imageops::replace(&mut padded, &upscaled, pad as i64, pad as i64);
@@ -567,24 +568,29 @@ pub(crate) fn drop_shadow_image(
     if display_w_pt <= 0.0 || display_h_pt <= 0.0 {
         return None;
     }
-    // Work at the source resolution; map offsets/sigma from points into source
-    // pixels using the display scale (source px per displayed point).
     let (sw, sh) = (source.width(), source.height());
     if sw == 0 || sh == 0 {
         return None;
     }
-    let px_per_pt = sw as f32 / display_w_pt;
-    let sigma = (blur_radius_pt / PT_PER_PX) * (sw as f32 / (display_w_pt / PT_PER_PX));
-    let dx = dx_pt * px_per_pt;
-    let dy = dy_pt * (sh as f32 / display_h_pt);
+    // CSS filters operate on the painted element. Build the shadow surface at
+    // the displayed image resolution so a scaled image's alpha silhouette has
+    // the same pixel grid Chrome filters.
+    let s = filter_dpi_scale(300.0);
+    let dev_w = (display_w_pt / PT_PER_PX * s).round().max(1.0) as u32;
+    let dev_h = (display_h_pt / PT_PER_PX * s).round().max(1.0) as u32;
+    let painted =
+        image::imageops::resize(source, dev_w, dev_h, image::imageops::FilterType::Nearest);
+    let sigma = (blur_radius_pt / PT_PER_PX) * s;
+    let dx = dx_pt / PT_PER_PX * s;
+    let dy = dy_pt / PT_PER_PX * s;
 
     // Padding must cover the blur feather AND the shadow offset so nothing clips.
     let pad = pad_pixels(sigma)
         .max(dx.abs().ceil() as u32)
         .max(dy.abs().ceil() as u32)
         + 1;
-    let buf_w = sw + 2 * pad;
-    let buf_h = sh + 2 * pad;
+    let buf_w = dev_w + 2 * pad;
+    let buf_h = dev_h + 2 * pad;
 
     // Shadow layer: source alpha, tinted, offset, then blurred.
     let mut shadow = image::RgbaImage::new(buf_w, buf_h);
@@ -594,9 +600,9 @@ pub(crate) fn drop_shadow_image(
         (sg * 255.0).round() as u8,
         (sb * 255.0).round() as u8,
     );
-    for y in 0..sh {
-        for x in 0..sw {
-            let a = source.get_pixel(x, y)[3];
+    for y in 0..dev_h {
+        for x in 0..dev_w {
+            let a = painted.get_pixel(x, y)[3];
             if a == 0 {
                 continue;
             }
@@ -616,9 +622,9 @@ pub(crate) fn drop_shadow_image(
     };
 
     // Composite the original image over the shadow (source-over).
-    for y in 0..sh {
-        for x in 0..sw {
-            let src = *source.get_pixel(x, y);
+    for y in 0..dev_h {
+        for x in 0..dev_w {
+            let src = *painted.get_pixel(x, y);
             if src[3] == 0 {
                 continue;
             }
@@ -629,7 +635,7 @@ pub(crate) fn drop_shadow_image(
         }
     }
 
-    let overflow_pt = pad as f32 / px_per_pt;
+    let overflow_pt = pad as f32 / s * PT_PER_PX;
     let asset = rgba_to_png_alpha_asset(composed)?;
     Some(BlurredRaster { asset, overflow_pt })
 }

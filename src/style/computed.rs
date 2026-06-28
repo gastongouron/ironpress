@@ -5573,6 +5573,13 @@ fn parse_filter(
         }
         rest = &rest[open + 1 + close_rel + 1..];
     }
+    if blur.is_none() && ops.iter().any(|op| matches!(op, ColorFilterOp::Sepia(_))) {
+        // Force replaced-image sepia through the rendered-raster filter path:
+        // Chrome applies filter functions to the painted image, not directly to
+        // the source pixels. A sub-CSS-pixel blur is visually neutral but gives
+        // the existing raster pipeline a concrete trigger.
+        blur = Some(0.1125);
+    }
     (blur, ops, opacity, drop_shadow, url_id)
 }
 

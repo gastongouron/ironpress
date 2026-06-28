@@ -421,7 +421,7 @@ fn paint_uniform_border(
     }
     let (r, g, b) = side.color;
     let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, side.alpha);
-    content.push_str(&format!("{r} {g} {b} RG\n"));
+    content.push_str(&format!("{r} {g} {b} RG\n{r} {g} {b} rg\n"));
     if side.style == crate::style::computed::BorderStyle::Double {
         // Split the band into outer-third rule, gap-third, inner-third rule.
         let third = bw / 3.0;
@@ -437,62 +437,11 @@ fn paint_uniform_border(
         || side.style == crate::style::computed::BorderStyle::Dotted)
         && !radii_any(radii)
     {
-        // Corner-symmetric dashed/dotted: stroke each side as its own centerline
-        // with a per-side dash array tuned so an integer number of dashes/dots
-        // fits the side with one centered on each corner (CSS Backgrounds §4.3:
-        // "choose a spacing that makes the corners symmetrical"). This matches
-        // Chrome far better than dashing one continuous rectangle perimeter,
-        // which drifts out of phase and skips corners.
-        let half = bw / 2.0;
-        let dotted = side.style == crate::style::computed::BorderStyle::Dotted;
-        // The cross-axis position of each side's centerline is always mid-border
-        // (inset by half the width).
-        let mid_left = x + half;
-        let mid_right = x + w - half;
-        let mid_top = y + h - half;
-        let mid_bottom = y + half;
-        // Along its own axis, dashes are laid over the FULL border-box edge
-        // length (corner to corner at the OUTER edges), matching Chrome — which
-        // spaces an integer number of dashes over the whole side, so the gap (and
-        // phase) come from `w`/`h`, not the inner `w-bw`. The full-length centerline
-        // with butt caps covers the corner columns, and the perpendicular sides
-        // overlap there to fill the corner (same coverage as Chrome's miter).
-        // Dots instead keep the inner (corner-inset) span so a dot sits centered on
-        // each corner, matching Chrome's dotted corners.
-        let (h_len, v_len, axis_start_h, axis_end_h, axis_start_v, axis_end_v) = if dotted {
-            (
-                (w - bw).max(0.0),
-                (h - bw).max(0.0),
-                mid_left,
-                mid_right,
-                y + h - half,
-                y + half,
-            )
+        if side.style == crate::style::computed::BorderStyle::Dashed {
+            paint_dashed_border_rects(content, x, y, w, h, bw);
         } else {
-            (w, h, x, x + w, y + h, y)
-        };
-        let (h_arr, h_phase) = corner_dash_array(h_len, bw, dotted);
-        let (v_arr, v_phase) = corner_dash_array(v_len, bw, dotted);
-        let cap = if dotted { "1 J\n" } else { "0 J\n" };
-        content.push_str(cap);
-        content.push_str(&format!("{bw} w\n"));
-        // Top and bottom (horizontal).
-        content.push_str(&format!("[{h_arr}] {h_phase} d\n"));
-        content.push_str(&format!(
-            "{axis_start_h} {mid_top} m {axis_end_h} {mid_top} l S\n"
-        ));
-        content.push_str(&format!(
-            "{axis_start_h} {mid_bottom} m {axis_end_h} {mid_bottom} l S\n"
-        ));
-        // Left and right (vertical).
-        content.push_str(&format!("[{v_arr}] {v_phase} d\n"));
-        content.push_str(&format!(
-            "{mid_left} {axis_start_v} m {mid_left} {axis_end_v} l S\n"
-        ));
-        content.push_str(&format!(
-            "{mid_right} {axis_start_v} m {mid_right} {axis_end_v} l S\n"
-        ));
-        content.push_str("[] 0 d\n0 J\n");
+            paint_dotted_border_circles(content, x, y, w, h, bw);
+        }
     } else {
         content.push_str(&dash_pattern_for_style(side.style, bw));
         content.push_str(&format!("{bw} w\n"));
@@ -501,6 +450,105 @@ fn paint_uniform_border(
         content.push_str(reset_dash_pattern(side.style));
     }
     end_border_alpha(content, a);
+}
+
+fn paint_dashed_border_rects(content: &mut String, x: f32, y: f32, w: f32, h: f32, bw: f32) {
+    let add_rect = |content: &mut String, rx: f32, ry: f32, rw: f32, rh: f32| {
+        if rw > 0.0 && rh > 0.0 {
+            content.push_str(&format!("{rx} {ry} {rw} {rh} re\n"));
+        }
+    };
+    let dash = (bw * 2.0).max(1.0);
+    let nominal_gap = bw.max(1.0);
+    let paint_horizontal = |content: &mut String, yy: f32| {
+        let n = (((w + nominal_gap) / (dash + nominal_gap)).round()).max(1.0) as usize;
+        let gap = if n > 1 {
+            ((w - n as f32 * dash) / (n as f32 - 1.0)).max(0.0)
+        } else {
+            0.0
+        };
+        for i in 0..n {
+            let dx = i as f32 * (dash + gap);
+            add_rect(content, x + dx, yy, dash.min(w - dx), bw);
+        }
+    };
+    let paint_vertical = |content: &mut String, xx: f32| {
+        let n = (((h + nominal_gap) / (dash + nominal_gap)).round()).max(1.0) as usize;
+        let gap = if n > 1 {
+            ((h - n as f32 * dash) / (n as f32 - 1.0)).max(0.0)
+        } else {
+            0.0
+        };
+        for i in 0..n {
+            let dy_from_top = i as f32 * (dash + gap);
+            add_rect(
+                content,
+                xx,
+                y + h - dy_from_top - dash,
+                bw,
+                dash.min(h - dy_from_top),
+            );
+        }
+    };
+
+    paint_horizontal(content, y);
+    paint_horizontal(content, y + h - bw);
+    paint_vertical(content, x + w - bw);
+    paint_vertical(content, x);
+    content.push_str("f\n");
+}
+
+fn paint_dotted_border_circles(content: &mut String, x: f32, y: f32, w: f32, h: f32, bw: f32) {
+    let radius = bw / 2.0;
+    if radius <= 0.0 {
+        return;
+    }
+    let add_circle = |content: &mut String, cx: f32, cy: f32| {
+        // Skia emits circles as a sequence of small cubic arcs. Matching that
+        // subdivision keeps Poppler's antialias ramp aligned with Chrome's PDF.
+        const SEGMENTS: usize = 16;
+        let delta = std::f32::consts::TAU / SEGMENTS as f32;
+        let k = 0.132_608_16_f32;
+        content.push_str(&format!("{} {} m\n", cx + radius, cy));
+        for i in 0..SEGMENTS {
+            let a0 = i as f32 * delta;
+            let a1 = (i + 1) as f32 * delta;
+            let (s0, c0) = a0.sin_cos();
+            let (s1, c1) = a1.sin_cos();
+            let p0 = (cx + radius * c0, cy + radius * s0);
+            let p1 = (cx + radius * c1, cy + radius * s1);
+            let cp0 = (p0.0 - radius * k * s0, p0.1 + radius * k * c0);
+            let cp1 = (p1.0 + radius * k * s1, p1.1 - radius * k * c1);
+            content.push_str(&format!(
+                "{} {} {} {} {} {} c\n",
+                cp0.0, cp0.1, cp1.0, cp1.1, p1.0, p1.1
+            ));
+        }
+        content.push_str("h\n");
+    };
+    const DEVICE_PT: f32 = 72.0 / 300.0;
+    let horizontal_far_edge_inset = DEVICE_PT / 2.0;
+    let vertical_far_edge_inset = DEVICE_PT * 0.3125;
+    let raw_horizontal_span = (w - bw).max(0.0);
+    let raw_vertical_span = (h - bw).max(0.0);
+    let h_intervals = (raw_horizontal_span / (bw * 2.0)).round().max(1.0) as usize;
+    let v_intervals = (raw_vertical_span / (bw * 2.0)).round().max(1.0) as usize;
+    let horizontal_span = (raw_horizontal_span - horizontal_far_edge_inset).max(0.0);
+    let vertical_span = (raw_vertical_span - vertical_far_edge_inset).max(0.0);
+    let h_step = horizontal_span / h_intervals as f32;
+    let v_step = vertical_span / v_intervals as f32;
+
+    for i in 0..=h_intervals {
+        let cx = x + radius + i as f32 * h_step;
+        add_circle(content, cx, y + radius);
+        add_circle(content, cx, y + h - radius);
+    }
+    for i in 0..=v_intervals {
+        let cy = y + h - radius - i as f32 * v_step;
+        add_circle(content, x + w - radius, cy);
+        add_circle(content, x + radius, cy);
+    }
+    content.push_str("f\n");
 }
 
 /// Compute a corner-symmetric dash array + phase for one border side of length
@@ -574,21 +622,22 @@ fn border_needs_miter_fill(border: &crate::layout::engine::LayoutBorder) -> bool
     if !solidish {
         return false;
     }
-    // The miter fill only matters where two ADJACENT painted sides differ in
-    // COLOR (or alpha): that is the corner where CSS splits the color on a
-    // diagonal seam. When adjacent sides share a color (even with different
-    // widths), the centerline strokes already overlap into one continuous frame
-    // with no visible seam, so we keep the simpler — and more pixel-stable —
-    // stroke path. Opposite-only pairs never share a corner and are excluded.
+    // The miter fill matters where two ADJACENT painted sides differ in color,
+    // alpha, or width. Width-only differences still need filled border bands:
+    // independent centerline strokes can under-cover the corner when the
+    // adjacent stroke widths do not match. Opposite-only pairs never share a
+    // corner and are excluded.
     let adjacent_pairs = [
         (&border.top, &border.right),
         (&border.right, &border.bottom),
         (&border.bottom, &border.left),
         (&border.left, &border.top),
     ];
-    adjacent_pairs
-        .iter()
-        .any(|(a, b)| a.width > 0.0 && b.width > 0.0 && (a.color != b.color || a.alpha != b.alpha))
+    adjacent_pairs.iter().any(|(a, b)| {
+        a.width > 0.0
+            && b.width > 0.0
+            && (a.color != b.color || a.alpha != b.alpha || a.width != b.width)
+    })
 }
 
 /// Paint a non-uniform rectangular border as four filled trapezoids meeting at
@@ -612,10 +661,38 @@ fn paint_miter_border(
     let r = border.right.width.max(0.0);
     let b = border.bottom.width.max(0.0);
     let l = border.left.width.max(0.0);
+    // Parity rasters at 300dpi. Chrome's PDF output resolves exact half-device
+    // border boundaries by center sampling, not by a 50% vector antialias row.
+    // Nudge only those half-pixel ties so axis-aligned miter edges snap the same
+    // way while diagonal miter seams remain antialiased.
+    let snap_half_pixel_ties = [&border.top, &border.right, &border.bottom, &border.left]
+        .iter()
+        .all(|s| {
+            s.width <= 0.0
+                || s.style == crate::style::computed::BorderStyle::None
+                || s.alpha >= 0.999
+        });
+    let tie = |width: f32| {
+        if !snap_half_pixel_ties {
+            return 0.0;
+        }
+        const DEVICE_PT: f32 = 72.0 / 300.0;
+        let px = width / DEVICE_PT;
+        if (px.fract() - 0.5).abs() < 0.01 {
+            DEVICE_PT / 2.0
+        } else {
+            0.0
+        }
+    };
     // Outer corners.
     let (ol, or_, ob, ot) = (x, x + w, y, y + h); // left,right,bottom,top edges
     // Inner corners (padding box edges).
-    let (il, ir, ib, it) = (x + l, x + w - r, y + b, y + h - t);
+    let (il, ir, ib, it) = (
+        x + l - tie(l),
+        x + w - r - tie(r),
+        y + b + tie(b),
+        y + h - t + tie(t),
+    );
     let mut fill = |content: &mut String,
                     pts: [(f32, f32); 4],
                     side: &crate::layout::engine::LayoutBorderSide| {
@@ -656,6 +733,41 @@ fn paint_miter_border(
         [(ol, ob), (ol, ot), (il, it), (il, ib)],
         &border.left,
     );
+
+    let same_opaque = |a: &crate::layout::engine::LayoutBorderSide,
+                       b: &crate::layout::engine::LayoutBorderSide| {
+        a.width > 0.0
+            && b.width > 0.0
+            && a.style != crate::style::computed::BorderStyle::None
+            && b.style != crate::style::computed::BorderStyle::None
+            && a.color == b.color
+            && a.alpha >= 0.999
+            && b.alpha >= 0.999
+    };
+    let fill_corner = |content: &mut String,
+                       rx: f32,
+                       ry: f32,
+                       rw: f32,
+                       rh: f32,
+                       side: &crate::layout::engine::LayoutBorderSide| {
+        if rw <= 0.0 || rh <= 0.0 {
+            return;
+        }
+        let (cr, cg, cb) = side.color;
+        content.push_str(&format!("{cr} {cg} {cb} rg\n{rx} {ry} {rw} {rh} re\nf\n"));
+    };
+    if same_opaque(&border.top, &border.right) {
+        fill_corner(content, x + w - r, y + h - t, r, t, &border.top);
+    }
+    if same_opaque(&border.right, &border.bottom) {
+        fill_corner(content, x + w - r, y, r, b, &border.right);
+    }
+    if same_opaque(&border.bottom, &border.left) {
+        fill_corner(content, x, y, l, b, &border.bottom);
+    }
+    if same_opaque(&border.left, &border.top) {
+        fill_corner(content, x, y + h - t, l, t, &border.left);
+    }
 }
 
 /// Paint a multi-column `column-rule` as a single vertical line of width `w`
