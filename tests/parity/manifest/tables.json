@@ -645,7 +645,7 @@
     "description": "table-layout:fixed clips nowrap overflow:hidden text inside its fixed-width cell; catches width-only fixed layout that lets text spill into the next cell.",
     "file": "cases/tables/tables-fixed-overflow-clip.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -663,7 +663,7 @@
     "description": "Auto table layout distributes a colspan width contribution over unequal existing column baselines; catches naive even-split spanning-cell sizing.",
     "file": "cases/tables/tables-auto-colspan-distribution.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -680,7 +680,7 @@
     "description": "rowspan=0 spans the remaining rows in the row group; catches implementations that clamp zero to one and shift later rows left.",
     "file": "cases/tables/tables-rowspan-zero.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -697,7 +697,7 @@
     "description": "vertical-align:text-bottom does not apply to table cells and should use baseline behavior; catches engines that treat it as bottom alignment.",
     "file": "cases/tables/tables-vertical-align-text-bottom.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -834,7 +834,7 @@
     "description": "The table has no caption-side declaration, but the caption element itself sets caption-side:bottom. Catches wrong implementations where a renderer that only reads caption-side from the table style will place this caption above, while table-level bottom fixtures still pass.",
     "file": "cases/tables/tables-caption-side-on-caption.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -851,7 +851,7 @@
     "description": "A shrink-to-fit auto table has tiny cells but a wide nowrap caption that should expand the table wrapper to the caption minimum width. Catches wrong implementations where a renderer that sizes the table only from cell columns wraps or overflows the caption above a too-narrow two-cell table.",
     "file": "cases/tables/tables-caption-min-width.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1038,7 +1038,7 @@
     "description": "A thead cell has rowspan=3 but the thead has one row; it must not occupy the first tbody column. Catches wrong implementations where a global rowspan occupancy implementation makes the first tbody row start in column two, even though positive-rowspan tests inside a group pass.",
     "file": "cases/tables/tables-rowspan-thead-clipped.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1055,7 +1055,7 @@
     "description": "The first row has a rowspan in column one plus one normal cell; the second row has two new cells, so the grid needs three columns. Catches wrong implementations where a renderer that determines column count from authored cells per row caps the table at two columns and drops or overlays the second-row trailing cell.",
     "file": "cases/tables/tables-rowspan-extra-columns.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1174,7 +1174,7 @@
     "description": "A tr declares height:80px while its cells contain only a 20px marker. Catches wrong implementations where a renderer that derives row height only from cell content paints a short row, while ordinary cell-height tests still pass.",
     "file": "cases/tables/tables-row-height-minimum.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1191,7 +1191,7 @@
     "description": "A table declares height:120px but contains a single short row and has a visible table background. Catches wrong implementations where a renderer that ignores table height paints the table background only around the short row.",
     "file": "cases/tables/tables-table-height-minimum.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1208,7 +1208,7 @@
     "description": "A cell with rowspan=2 and height:100px spans two otherwise short rows. Catches wrong implementations where a renderer that computes each row height from only non-spanning cells lets the tall spanning cell overflow beyond the two-row table area.",
     "file": "cases/tables/tables-rowspan-height-distribution.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1225,7 +1225,7 @@
     "description": "A direction:rtl table has red first cell and green second cell; the first column should be visually on the right. Catches wrong implementations where a left-to-right cell placer shows red on the left even though text bidi support may work elsewhere.",
     "file": "cases/tables/tables-direction-rtl-columns.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1361,7 +1361,7 @@
     "description": "A legacy table uses cellpadding=16 with no CSS padding; an inner marker should be inset from the cell border. Catches wrong implementations where a CSS-only implementation ignores cellpadding and places the marker against the border.",
     "file": "cases/tables/tables-cellpadding-attribute.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1378,7 +1378,7 @@
     "description": "A legacy table uses cellspacing=14 with no CSS border-spacing and a dark table background. Catches wrong implementations where a CSS-only implementation renders adjacent cells without the dark spacing gutters.",
     "file": "cases/tables/tables-cellspacing-attribute.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

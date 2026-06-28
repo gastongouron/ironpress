@@ -553,7 +553,7 @@
     "description": "grid-column-start/end and grid-row-start/end longhands place a two-column two-row item; catches shorthand-only placement support.",
     "file": "cases/grid/grid-placement-longhands.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -570,7 +570,7 @@
     "description": "The grid-template shorthand defines area strings plus row and column tracks; catches engines that implement only the longhands.",
     "file": "cases/grid/grid-template-shorthand.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -952,7 +952,7 @@
     "description": "The grid shorthand should set explicit columns and grid-auto-flow/auto rows in one declaration; catches supporting only grid-template longhands and shorthand area form misses common grid:auto-flow syntax.",
     "file": "cases/grid/grid-shorthand-defines-auto-flow-rows.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -970,7 +970,7 @@
     "description": "A later grid shorthand should reset a previous grid-auto-flow:column to row flow when omitted; catches a cascade implementation that treats grid as unrelated leaves stale auto-flow values and still passes isolated shorthand tests.",
     "file": "cases/grid/grid-shorthand-resets-omitted-implicit-grid-properties.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1024,7 +1024,7 @@
     "description": "grid-template-areas alone should define a two-column/two-row explicit grid whose unsized tracks use auto implicit sizing; catches deriving placement from areas but not deriving track widths passes fixtures that also set template columns.",
     "file": "cases/grid/grid-template-areas-create-implicit-tracks-when-track-lists-are-omitted.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1150,7 +1150,7 @@
     "description": "grid-column: span 2 target / target 3 should count named lines as well as a numeric span; catches a parser accepting only span N or span name passes simpler span fixtures but treats the combined syntax as span 1 or auto.",
     "file": "cases/grid/grid-span-integer-named-line-syntax-is-honored.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1222,7 +1222,7 @@
     "description": "grid-row-gap and grid-column-gap should map to row-gap and column-gap with independent values; catches supporting only gap or grid-gap passes the current generic gap fixture.",
     "file": "cases/grid/grid-legacy-grid-row-and-column-gap-aliases-apply-separately.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1240,7 +1240,7 @@
     "description": "A 10% column gap in a 200px grid should create a 20px gutter between two 90px columns; catches parsing percentage gaps but never resolving them in grid layout passes length gap fixtures.",
     "file": "cases/grid/grid-percentage-grid-gaps-resolve-from-container-size.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",

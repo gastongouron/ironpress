@@ -3205,15 +3205,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     sync_line_height_from_absolute(style);
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "display") {
-        style.display = match k.as_str() {
-            "none" => Display::None,
-            "inline" => Display::Inline,
-            "inline-block" => Display::InlineBlock,
-            "block" => Display::Block,
-            "flex" => Display::Flex,
-            "grid" => Display::Grid,
-            _ => style.display,
-        };
+        if let Some(display) = parse_display_value(k) {
+            style.display = display;
+        }
     }
 
     // `flex-flow` shorthand sets flex-direction and/or flex-wrap (order-free).
@@ -3236,71 +3230,43 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-content") {
         // css-align-3 §9: an optional `safe`/`unsafe` overflow-alignment prefix
         // may precede the positional keyword (`justify-content: safe center`).
-        // Strip it — the flex layout implements the default (`unsafe`) honor-
-        // alignment-on-overflow behavior; `safe`'s overflow→start fallback is not
-        // separately tracked (acceptable: it only differs when content overflows).
-        let raw = k.trim();
-        let kw = raw
-            .strip_prefix("safe ")
-            .or_else(|| raw.strip_prefix("unsafe "))
-            .unwrap_or(raw)
-            .trim();
+        // Strip it here; the layout enum does not yet track the overflow-safe
+        // fallback bit separately.
+        let kw = strip_overflow_position(k).0;
         // css-align-3 §6.2: `left`/`right` resolve against the INLINE axis. For a
         // row container that is the main axis (right→end, left→start); for a
         // column container the main axis is the block axis, so they behave as
         // `start`.
-        let is_row = style.flex_direction.is_row();
-        style.justify_content = match kw {
-            "flex-end" | "end" => JustifyContent::FlexEnd,
-            "right" if is_row => JustifyContent::FlexEnd,
-            "left" | "right" => JustifyContent::FlexStart,
-            "center" => JustifyContent::Center,
-            "space-between" => JustifyContent::SpaceBetween,
-            "space-around" => JustifyContent::SpaceAround,
-            "space-evenly" => JustifyContent::SpaceEvenly,
-            _ => JustifyContent::FlexStart,
-        };
+        style.justify_content = parse_justify_content(kw, style.flex_direction.is_row());
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-items") {
-        style.align_items = match k.as_str() {
-            "flex-start" | "start" => AlignItems::FlexStart,
-            "flex-end" | "end" => AlignItems::FlexEnd,
-            "center" => AlignItems::Center,
-            "baseline" => AlignItems::Baseline,
-            _ => AlignItems::Stretch,
-        };
+        style.align_items = parse_align_items(k);
         // Grid uses the same property with start/end/center/stretch keywords.
         style.grid_align_items = parse_grid_align(k);
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-content") {
-        style.align_content = match k.as_str() {
-            "flex-start" | "start" => AlignContent::FlexStart,
-            "flex-end" | "end" => AlignContent::FlexEnd,
-            "center" => AlignContent::Center,
-            "space-between" => AlignContent::SpaceBetween,
-            "space-around" => AlignContent::SpaceAround,
-            "space-evenly" => AlignContent::SpaceEvenly,
-            _ => AlignContent::Stretch,
-        };
+        style.align_content = parse_align_content(k);
+    }
+
+    // `place-content: <align-content> [<justify-content>]`.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "place-content") {
+        let parts = split_alignment_components(k);
+        if let Some(align) = parts.first() {
+            style.align_content = parse_align_content(align);
+            let justify = parts.get(1).unwrap_or(align);
+            style.justify_content = parse_justify_content(justify, style.flex_direction.is_row());
+        }
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-self") {
-        style.align_self = match k.as_str() {
-            "auto" => AlignSelf::Auto,
-            "flex-start" | "start" => AlignSelf::FlexStart,
-            "flex-end" | "end" => AlignSelf::FlexEnd,
-            "center" => AlignSelf::Center,
-            "baseline" => AlignSelf::Baseline,
-            "stretch" => AlignSelf::Stretch,
-            _ => AlignSelf::Auto,
-        };
+        style.align_self = parse_align_self(k);
     }
 
     // `order` (integer). May arrive as a Length (numeric) or Keyword.
     match get_non_special(map, "order") {
-        Some(CssValue::Length(v)) => style.order = *v as i32,
+        Some(CssValue::Number(v)) => style.order = *v as i32,
         Some(CssValue::Keyword(k)) => {
             if let Ok(n) = k.trim().parse::<i32>() {
                 style.order = n;
@@ -3321,97 +3287,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Length(v)) = get_non_special(map, "flex-shrink") {
         style.flex_shrink = v.max(0.0);
     }
-    match get_non_special(map, "flex-basis") {
-        Some(CssValue::Length(v)) => {
-            style.flex_basis = Some(*v);
-            style.flex_basis_pct = None;
-            style.flex_basis_content = false;
-        }
-        Some(CssValue::Percentage(p)) => {
-            style.flex_basis_pct = Some(*p / 100.0);
-            style.flex_basis = None;
-            style.flex_basis_content = false;
-        }
-        Some(CssValue::Keyword(k)) => match k.as_str() {
-            "auto" | "content" => {
-                style.flex_basis = None;
-                style.flex_basis_pct = None;
-                // `content` sizes to content; `auto` falls back to `width`.
-                style.flex_basis_content = k == "content";
-            }
-            other => match parse_length(other) {
-                Some(CssValue::Percentage(p)) => {
-                    style.flex_basis_pct = Some(p / 100.0);
-                    style.flex_basis = None;
-                    style.flex_basis_content = false;
-                }
-                Some(CssValue::Length(v)) => {
-                    style.flex_basis = Some(v);
-                    style.flex_basis_pct = None;
-                    style.flex_basis_content = false;
-                }
-                _ => {}
-            },
-        },
-        _ => {}
+    if let Some(value) = get_non_special(map, "flex-basis") {
+        apply_flex_basis_value(style, value, length_context);
     }
 
     // flex shorthand: "flex: <grow>" or "flex: <grow> <shrink>" or "flex: <grow> <shrink> <basis>"
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "flex") {
-        let parts: Vec<&str> = k.split_whitespace().collect();
-        if let Some(first) = parts.first() {
-            if *first == "none" {
-                // flex: none == 0 0 auto
-                style.flex_grow = 0.0;
-                style.flex_shrink = 0.0;
-                style.flex_basis = None;
-                style.flex_basis_pct = None;
-                style.flex_basis_content = false;
-            } else if *first == "auto" {
-                // flex: auto == 1 1 auto
-                style.flex_grow = 1.0;
-                style.flex_shrink = 1.0;
-                style.flex_basis = None;
-                style.flex_basis_pct = None;
-                style.flex_basis_content = false;
-            } else if *first == "initial" {
-                // flex: initial == 0 1 auto
-                style.flex_grow = 0.0;
-                style.flex_shrink = 1.0;
-                style.flex_basis = None;
-                style.flex_basis_pct = None;
-                style.flex_basis_content = false;
-            } else if let Ok(grow) = first.parse::<f32>() {
-                // flex: <grow> == <grow> 1 0%
-                style.flex_grow = grow.max(0.0);
-                style.flex_shrink = 1.0;
-                style.flex_basis = Some(0.0);
-                style.flex_basis_pct = None;
-                style.flex_basis_content = false;
-                if let Some(second) = parts.get(1) {
-                    if let Ok(shrink) = second.parse::<f32>() {
-                        style.flex_shrink = shrink.max(0.0);
-                    }
-                }
-                if let Some(third) = parts.get(2) {
-                    if *third == "auto" || *third == "content" {
-                        style.flex_basis = None;
-                        style.flex_basis_pct = None;
-                        style.flex_basis_content = *third == "content";
-                    } else if let Some(CssValue::Percentage(p)) =
-                        crate::parser::css::parse_length(third)
-                    {
-                        style.flex_basis_pct = Some(p / 100.0);
-                        style.flex_basis = None;
-                    } else if let Some(CssValue::Length(v)) =
-                        crate::parser::css::parse_length(third)
-                    {
-                        style.flex_basis = Some(v);
-                        style.flex_basis_pct = None;
-                    }
-                }
-            }
-        }
+        apply_flex_shorthand(style, k, length_context);
     }
 
     // `gap: <row-gap> [<column-gap>]`. A single value sets both axes; the
@@ -3436,6 +3318,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             let frac = *p / 100.0;
             style.column_gap_pct = Some(frac);
             style.row_gap_pct = Some(frac);
+            if let Some(width) = style.width {
+                style.column_gap = width * frac;
+                style.grid_gap = style.column_gap;
+            }
+            if let Some(height) = style.height {
+                style.row_gap = height * frac;
+            }
             style.column_gap_is_normal = false;
         }
         Some(CssValue::Keyword(k)) => {
@@ -3477,7 +3366,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // is an empty cell. Implicit `<name>-start`/`-end` line names are derived
     // in layout from the resulting area rectangles.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template-areas") {
-        style.grid_template_areas = parse_grid_template_areas(k);
+        let areas = parse_grid_template_areas(k);
+        if !areas.is_empty() || k.trim() == "none" {
+            apply_grid_template_areas(style, areas);
+        }
     }
     // `grid-auto-rows` may arrive as a Length (single px/pt value) or Keyword.
     match get_non_special(map, "grid-auto-rows") {
@@ -3489,19 +3381,56 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
         _ => {}
     }
+    let explicit_columns_declared = get_non_special(map, "grid-template-columns").is_some()
+        || get_non_special(map, "grid-template").is_some()
+        || get_non_special(map, "grid").is_some();
+    if !explicit_columns_declared
+        && !style.grid_template_areas.is_empty()
+        && let Some(auto_col) = match get_non_special(map, "grid-auto-columns") {
+            Some(CssValue::Length(v)) => Some(GridTrack::Fixed(*v)),
+            Some(CssValue::Keyword(k)) => parse_single_track(k),
+            _ => None,
+        }
+    {
+        let area_cols = style
+            .grid_template_areas
+            .iter()
+            .map(Vec::len)
+            .max()
+            .unwrap_or(0);
+        let looks_synthesized = style.grid_template_columns.len() == area_cols
+            && style
+                .grid_template_columns
+                .iter()
+                .all(|track| matches!(track, GridTrack::Auto))
+            && style
+                .grid_template_column_line_names
+                .iter()
+                .all(Vec::is_empty);
+        if area_cols > 0 && looks_synthesized {
+            style.grid_template_columns = vec![auto_col; area_cols];
+        }
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-auto-flow") {
         style.grid_auto_flow_column = k.contains("column");
         style.grid_auto_flow_dense = k.contains("dense");
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-template") {
+        apply_grid_template_shorthand(style, k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid") {
+        apply_grid_shorthand(style, k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-items") {
         style.justify_items = parse_grid_align(k);
     }
     // `place-items: <align> [<justify>]` shorthand sets both axes.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "place-items") {
-        let mut parts = k.split_whitespace();
-        if let Some(a) = parts.next() {
+        let parts = split_alignment_components(k);
+        if let Some(a) = parts.first() {
             let align = parse_grid_align(a);
-            let justify = parts.next().map(parse_grid_align).unwrap_or(align);
+            let justify = parts.get(1).map(|s| parse_grid_align(s)).unwrap_or(align);
+            style.align_items = parse_align_items(a);
             style.grid_align_items = align;
             style.justify_items = justify;
         }
@@ -3521,12 +3450,13 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     // `place-self: <align> [<justify>]` shorthand sets both grid self axes.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "place-self") {
-        let mut parts = k.split_whitespace();
-        if let Some(a) = parts.next() {
+        let parts = split_alignment_components(k);
+        if let Some(a) = parts.first() {
+            style.align_self = parse_align_self(a);
             if a != "auto" {
                 style.grid_align_self = Some(parse_grid_align(a));
             }
-            if let Some(j) = parts.next() {
+            if let Some(j) = parts.get(1) {
                 if j != "auto" {
                     style.grid_justify_self = Some(parse_grid_align(j));
                 }
@@ -3534,6 +3464,18 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 style.grid_justify_self = Some(parse_grid_align(a));
             }
         }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-column-start") {
+        style.grid_column_start = parse_grid_line(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-column-end") {
+        style.grid_column_end = parse_grid_line(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-row-start") {
+        style.grid_row_start = parse_grid_line(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-row-end") {
+        style.grid_row_end = parse_grid_line(k);
     }
     // Item-level placement: grid-column / grid-row resolve a start/end line
     // pair (CSS Grid §8). Each side is a line number, `span N`, named line, or
@@ -4142,7 +4084,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => {}
         }
     }
-    if let Some(val) = get_non_special(map, "column-gap") {
+    if let Some(val) =
+        get_non_special(map, "column-gap").or_else(|| get_non_special(map, "grid-column-gap"))
+    {
         match val {
             CssValue::Length(v) => {
                 style.column_gap = *v;
@@ -4153,12 +4097,18 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             // content-box width (CSS Box Alignment §8.3); defer it as a fraction.
             CssValue::Percentage(p) => {
                 style.column_gap_pct = Some(*p / 100.0);
+                if let Some(width) = style.width {
+                    style.column_gap = width * *p / 100.0;
+                }
                 style.column_gap_is_normal = false;
             }
             CssValue::Keyword(k) if k != "normal" => {
                 if let Some(stripped) = k.trim().strip_suffix('%') {
                     if let Ok(p) = stripped.parse::<f32>() {
                         style.column_gap_pct = Some(p / 100.0);
+                        if let Some(width) = style.width {
+                            style.column_gap = width * p / 100.0;
+                        }
                         style.column_gap_is_normal = false;
                     }
                 } else if let Some(CssValue::Length(v)) = parse_length(k) {
@@ -4221,7 +4171,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         // `auto` fills columns sequentially; `balance` (default) equalises them.
         style.column_fill_auto = k.eq_ignore_ascii_case("auto");
     }
-    match get_non_special(map, "row-gap") {
+    match get_non_special(map, "row-gap").or_else(|| get_non_special(map, "grid-row-gap")) {
         Some(CssValue::Length(v)) => {
             style.row_gap = *v;
             style.row_gap_pct = None;
@@ -4230,11 +4180,17 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         // block size (height); defer it as a fraction for the flex layout.
         Some(CssValue::Percentage(p)) => {
             style.row_gap_pct = Some(*p / 100.0);
+            if let Some(height) = style.height {
+                style.row_gap = height * *p / 100.0;
+            }
         }
         Some(CssValue::Keyword(k)) if k != "normal" => {
             if let Some(stripped) = k.trim().strip_suffix('%') {
                 if let Ok(p) = stripped.parse::<f32>() {
                     style.row_gap_pct = Some(p / 100.0);
+                    if let Some(height) = style.height {
+                        style.row_gap = height * p / 100.0;
+                    }
                 }
             } else if let Some(CssValue::Length(v)) = parse_length(k) {
                 style.row_gap = v;
@@ -5148,15 +5104,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         if let Some(kw) =
             crate::style::resolve::try_resolve_var_to_keyword(val, &style.custom_properties)
         {
-            style.display = match kw.as_str() {
-                "none" => Display::None,
-                "inline" => Display::Inline,
-                "inline-block" => Display::InlineBlock,
-                "block" => Display::Block,
-                "flex" => Display::Flex,
-                "grid" => Display::Grid,
-                _ => style.display,
-            };
+            if let Some(display) = parse_display_value(&kw) {
+                style.display = display;
+            }
         }
     }
     if let Some(val @ CssValue::Var(_, _)) = get_non_special(map, "position") {
@@ -6819,12 +6769,320 @@ fn parse_mask_url_svg(val: &str) -> Option<std::sync::Arc<Vec<u8>>> {
 
 /// Parse a CSS Grid box-alignment keyword (`start`/`end`/`center`/`stretch`).
 /// Also accepts the flex aliases `flex-start`/`flex-end` for robustness.
+fn parse_display_value(k: &str) -> Option<Display> {
+    let lower = k.trim().to_ascii_lowercase();
+    match lower.as_str() {
+        "none" => return Some(Display::None),
+        "inline" => return Some(Display::Inline),
+        "inline-block" => return Some(Display::InlineBlock),
+        "block" => return Some(Display::Block),
+        "flex" => return Some(Display::Flex),
+        "grid" => return Some(Display::Grid),
+        _ => {}
+    }
+
+    let parts: Vec<&str> = lower.split_whitespace().collect();
+    if parts.contains(&"none") {
+        Some(Display::None)
+    } else if parts.contains(&"flex") {
+        Some(Display::Flex)
+    } else if parts.contains(&"grid") {
+        Some(Display::Grid)
+    } else if parts.contains(&"inline")
+        && (parts.contains(&"block") || parts.contains(&"flow-root"))
+    {
+        Some(Display::InlineBlock)
+    } else if parts.contains(&"inline") {
+        Some(Display::Inline)
+    } else if parts.contains(&"block") || parts.contains(&"flow") || parts.contains(&"list-item") {
+        Some(Display::Block)
+    } else {
+        None
+    }
+}
+
+fn strip_overflow_position(k: &str) -> (&str, bool) {
+    let raw = k.trim();
+    if let Some(rest) = raw.strip_prefix("safe ") {
+        (rest.trim(), true)
+    } else if let Some(rest) = raw.strip_prefix("unsafe ") {
+        (rest.trim(), false)
+    } else {
+        (raw, false)
+    }
+}
+
+fn split_alignment_components(k: &str) -> Vec<String> {
+    let tokens: Vec<&str> = k.split_whitespace().collect();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < tokens.len() {
+        if matches!(tokens[i], "safe" | "unsafe") && i + 1 < tokens.len() {
+            out.push(format!("{} {}", tokens[i], tokens[i + 1]));
+            i += 2;
+        } else {
+            out.push(tokens[i].to_string());
+            i += 1;
+        }
+    }
+    out
+}
+
+fn parse_justify_content(k: &str, is_row: bool) -> JustifyContent {
+    let kw = strip_overflow_position(k).0;
+    match kw {
+        "flex-end" | "end" => JustifyContent::FlexEnd,
+        "right" if is_row => JustifyContent::FlexEnd,
+        "left" | "right" => JustifyContent::FlexStart,
+        "center" => JustifyContent::Center,
+        "space-between" => JustifyContent::SpaceBetween,
+        "space-around" => JustifyContent::SpaceAround,
+        "space-evenly" => JustifyContent::SpaceEvenly,
+        _ => JustifyContent::FlexStart,
+    }
+}
+
+fn parse_align_items(k: &str) -> AlignItems {
+    match strip_overflow_position(k).0 {
+        "flex-start" | "start" | "self-start" => AlignItems::FlexStart,
+        "flex-end" | "end" | "self-end" => AlignItems::FlexEnd,
+        "center" => AlignItems::Center,
+        "baseline" | "first baseline" | "last baseline" => AlignItems::Baseline,
+        _ => AlignItems::Stretch,
+    }
+}
+
+fn parse_align_self(k: &str) -> AlignSelf {
+    match strip_overflow_position(k).0 {
+        "auto" => AlignSelf::Auto,
+        "flex-start" | "start" | "self-start" => AlignSelf::FlexStart,
+        "flex-end" | "end" | "self-end" => AlignSelf::FlexEnd,
+        "center" => AlignSelf::Center,
+        "baseline" | "first baseline" | "last baseline" => AlignSelf::Baseline,
+        "stretch" => AlignSelf::Stretch,
+        _ => AlignSelf::Auto,
+    }
+}
+
+fn parse_align_content(k: &str) -> AlignContent {
+    match strip_overflow_position(k).0 {
+        "flex-start" | "start" => AlignContent::FlexStart,
+        "flex-end" | "end" => AlignContent::FlexEnd,
+        "center" => AlignContent::Center,
+        "space-between" => AlignContent::SpaceBetween,
+        "space-around" => AlignContent::SpaceAround,
+        "space-evenly" => AlignContent::SpaceEvenly,
+        _ => AlignContent::Stretch,
+    }
+}
+
 fn parse_grid_align(k: &str) -> GridAlign {
-    match k.trim() {
+    match strip_overflow_position(k).0 {
         "start" | "flex-start" | "left" | "self-start" => GridAlign::Start,
         "end" | "flex-end" | "right" | "self-end" => GridAlign::End,
         "center" => GridAlign::Center,
         _ => GridAlign::Stretch,
+    }
+}
+
+fn split_css_components(val: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut paren_depth = 0usize;
+    let mut bracket_depth = 0usize;
+    let mut quote: Option<char> = None;
+
+    for ch in val.chars() {
+        if let Some(q) = quote {
+            current.push(ch);
+            if ch == q {
+                quote = None;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' | '\'' => {
+                quote = Some(ch);
+                current.push(ch);
+            }
+            '(' => {
+                paren_depth += 1;
+                current.push(ch);
+            }
+            ')' => {
+                paren_depth = paren_depth.saturating_sub(1);
+                current.push(ch);
+            }
+            '[' => {
+                bracket_depth += 1;
+                current.push(ch);
+            }
+            ']' => {
+                bracket_depth = bracket_depth.saturating_sub(1);
+                current.push(ch);
+            }
+            c if c.is_whitespace() && paren_depth == 0 && bracket_depth == 0 => {
+                if !current.trim().is_empty() {
+                    parts.push(current.trim().to_string());
+                    current.clear();
+                }
+            }
+            _ => current.push(ch),
+        }
+    }
+
+    if !current.trim().is_empty() {
+        parts.push(current.trim().to_string());
+    }
+
+    parts
+}
+
+fn set_flex_basis_auto(style: &mut ComputedStyle, content_sized: bool) {
+    style.flex_basis = None;
+    style.flex_basis_pct = None;
+    style.flex_basis_content = content_sized;
+}
+
+fn set_flex_basis_length(style: &mut ComputedStyle, value: f32) {
+    style.flex_basis = Some(value.max(0.0));
+    style.flex_basis_pct = None;
+    style.flex_basis_content = false;
+}
+
+fn set_flex_basis_percentage(style: &mut ComputedStyle, pct: f32) {
+    style.flex_basis_pct = Some((pct / 100.0).max(0.0));
+    style.flex_basis = None;
+    style.flex_basis_content = false;
+}
+
+fn apply_flex_basis_value(
+    style: &mut ComputedStyle,
+    value: &CssValue,
+    length_context: crate::style::resolve::LengthResolutionContext,
+) -> bool {
+    match value {
+        CssValue::Length(v) => {
+            set_flex_basis_length(style, *v);
+            true
+        }
+        CssValue::Percentage(p) => {
+            set_flex_basis_percentage(style, *p);
+            true
+        }
+        CssValue::Keyword(k) => apply_flex_basis_token(style, k, length_context),
+        CssValue::Calc(_)
+        | CssValue::Clamp(_, _, _)
+        | CssValue::Var(_, _)
+        | CssValue::Rem(_)
+        | CssValue::Vw(_)
+        | CssValue::Vh(_)
+        | CssValue::Vmin(_)
+        | CssValue::Vmax(_)
+        | CssValue::Ex(_)
+        | CssValue::Ch(_)
+        | CssValue::Number(_) => {
+            if let Some(v) = resolve_css_length_for_style(value, style, length_context) {
+                set_flex_basis_length(style, v);
+                true
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+fn apply_flex_basis_token(
+    style: &mut ComputedStyle,
+    token: &str,
+    length_context: crate::style::resolve::LengthResolutionContext,
+) -> bool {
+    let lower = token.trim().to_ascii_lowercase();
+    match lower.as_str() {
+        "auto" => {
+            set_flex_basis_auto(style, false);
+            true
+        }
+        "content" | "max-content" | "fit-content" | "min-content" => {
+            // Existing layout storage has a single intrinsic-content bit. It
+            // maps exactly to max-content/content; min-content still needs a
+            // layout-side intrinsic minimum implementation.
+            set_flex_basis_auto(style, true);
+            true
+        }
+        _ => match parse_length(&lower) {
+            Some(CssValue::Percentage(p)) => {
+                set_flex_basis_percentage(style, p);
+                true
+            }
+            Some(parsed) => apply_flex_basis_value(style, &parsed, length_context),
+            None => false,
+        },
+    }
+}
+
+fn set_flex_basis_zero(style: &mut ComputedStyle) {
+    style.flex_basis = Some(0.0);
+    style.flex_basis_pct = None;
+    style.flex_basis_content = false;
+}
+
+fn apply_flex_shorthand(
+    style: &mut ComputedStyle,
+    value: &str,
+    length_context: crate::style::resolve::LengthResolutionContext,
+) {
+    let lower = value.trim().to_ascii_lowercase();
+    match lower.as_str() {
+        "none" => {
+            style.flex_grow = 0.0;
+            style.flex_shrink = 0.0;
+            set_flex_basis_auto(style, false);
+            return;
+        }
+        "auto" => {
+            style.flex_grow = 1.0;
+            style.flex_shrink = 1.0;
+            set_flex_basis_auto(style, false);
+            return;
+        }
+        "initial" => {
+            style.flex_grow = 0.0;
+            style.flex_shrink = 1.0;
+            set_flex_basis_auto(style, false);
+            return;
+        }
+        _ => {}
+    }
+
+    let parts = split_css_components(&lower);
+    let Some(first) = parts.first() else {
+        return;
+    };
+
+    if let Ok(grow) = first.parse::<f32>() {
+        style.flex_grow = grow.max(0.0);
+        style.flex_shrink = 1.0;
+        set_flex_basis_zero(style);
+
+        if let Some(second) = parts.get(1) {
+            if let Ok(shrink) = second.parse::<f32>() {
+                style.flex_shrink = shrink.max(0.0);
+                if let Some(third) = parts.get(2) {
+                    apply_flex_basis_token(style, third, length_context);
+                }
+            } else {
+                apply_flex_basis_token(style, second, length_context);
+            }
+        }
+        return;
+    }
+
+    if parts.len() == 1 && apply_flex_basis_token(style, first, length_context) {
+        style.flex_grow = 1.0;
+        style.flex_shrink = 1.0;
     }
 }
 
@@ -6888,6 +7146,15 @@ fn parse_grid_line(token: &str) -> GridLine {
         if let Ok(n) = rest.parse::<usize>() {
             return GridLine::Span(n.max(1));
         }
+        let parts = split_css_components(rest);
+        if parts.len() == 2 {
+            if let Ok(n) = parts[0].parse::<usize>() {
+                return GridLine::Span(n.max(1));
+            }
+            if let Ok(n) = parts[1].parse::<usize>() {
+                return GridLine::Span(n.max(1));
+            }
+        }
         if !rest.is_empty() {
             return GridLine::SpanNamed(rest.to_string());
         }
@@ -6935,13 +7202,14 @@ fn apply_grid_area(style: &mut ComputedStyle, val: &str) {
 /// Parse `grid-template-areas` row strings into a row-major grid of optional
 /// area names (§7.3). Each quoted string is a row; whitespace-separated tokens
 /// are cells; a token of all dots (`.`/`...`) is a null (empty) cell → `None`.
-/// Rows are padded to the widest row so the result is rectangular.
+/// CSS requires equal row lengths and rectangular named areas; invalid
+/// declarations are ignored by returning an empty area matrix.
 fn parse_grid_template_areas(val: &str) -> Vec<Vec<Option<String>>> {
     let val = val.trim();
     if val == "none" || val.is_empty() {
         return Vec::new();
     }
-    let mut rows: Vec<Vec<Option<String>>> = Vec::new();
+    let mut row_strings: Vec<String> = Vec::new();
     // Each row is delimited by a quoted string. Split on the quote characters
     // and keep the segments between matched quotes.
     let mut in_quote = false;
@@ -6951,18 +7219,8 @@ fn parse_grid_template_areas(val: &str) -> Vec<Vec<Option<String>>> {
             '"' | '\'' => {
                 if in_quote {
                     // End of a row string.
-                    let cells: Vec<Option<String>> = current
-                        .split_whitespace()
-                        .map(|tok| {
-                            if tok.chars().all(|c| c == '.') {
-                                None
-                            } else {
-                                Some(tok.to_string())
-                            }
-                        })
-                        .collect();
-                    if !cells.is_empty() {
-                        rows.push(cells);
+                    if !current.trim().is_empty() {
+                        row_strings.push(current.clone());
                     }
                     current.clear();
                     in_quote = false;
@@ -6974,14 +7232,274 @@ fn parse_grid_template_areas(val: &str) -> Vec<Vec<Option<String>>> {
             _ => {}
         }
     }
-    // Pad rows to a uniform width (CSS requires equal counts; be lenient).
-    let width = rows.iter().map(|r| r.len()).max().unwrap_or(0);
-    for r in &mut rows {
-        while r.len() < width {
-            r.push(None);
+    parse_grid_template_area_rows(&row_strings).unwrap_or_default()
+}
+
+fn parse_grid_template_area_rows(row_strings: &[String]) -> Option<Vec<Vec<Option<String>>>> {
+    let mut rows = Vec::new();
+    for row in row_strings {
+        let cells: Vec<Option<String>> = row
+            .split_whitespace()
+            .map(|tok| {
+                if tok.chars().all(|c| c == '.') {
+                    None
+                } else {
+                    Some(tok.to_string())
+                }
+            })
+            .collect();
+        if cells.is_empty() {
+            return None;
+        }
+        rows.push(cells);
+    }
+
+    if rows.is_empty() || !grid_template_areas_are_valid(&rows) {
+        None
+    } else {
+        Some(rows)
+    }
+}
+
+fn grid_template_areas_are_valid(rows: &[Vec<Option<String>>]) -> bool {
+    let Some(width) = rows.first().map(Vec::len) else {
+        return false;
+    };
+    if width == 0 || rows.iter().any(|row| row.len() != width) {
+        return false;
+    }
+
+    let mut bounds: HashMap<&str, (usize, usize, usize, usize)> = HashMap::new();
+    for (r, row) in rows.iter().enumerate() {
+        for (c, cell) in row.iter().enumerate() {
+            if let Some(name) = cell {
+                let entry = bounds.entry(name.as_str()).or_insert((r, r, c, c));
+                entry.0 = entry.0.min(r);
+                entry.1 = entry.1.max(r);
+                entry.2 = entry.2.min(c);
+                entry.3 = entry.3.max(c);
+            }
         }
     }
-    rows
+
+    for (name, (r0, r1, c0, c1)) in bounds {
+        for row in rows.iter().take(r1 + 1).skip(r0) {
+            for cell in row.iter().take(c1 + 1).skip(c0) {
+                if cell.as_deref() != Some(name) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
+fn apply_grid_template_areas(style: &mut ComputedStyle, areas: Vec<Vec<Option<String>>>) {
+    style.grid_template_areas = areas;
+    synthesize_grid_area_tracks(style);
+}
+
+fn synthesize_grid_area_tracks(style: &mut ComputedStyle) {
+    if style.grid_template_areas.is_empty() {
+        return;
+    }
+    let rows = style.grid_template_areas.len();
+    let cols = style
+        .grid_template_areas
+        .iter()
+        .map(Vec::len)
+        .max()
+        .unwrap_or(0);
+
+    if cols > 0 && style.grid_template_columns.is_empty() {
+        style.grid_template_columns = vec![GridTrack::Auto; cols];
+        style.grid_template_column_line_names = vec![Vec::new(); cols + 1];
+    }
+    if rows > 0 && style.grid_template_rows.is_empty() {
+        style.grid_template_rows = vec![GridTrack::Auto; rows];
+        style.grid_template_row_line_names = vec![Vec::new(); rows + 1];
+    }
+}
+
+fn split_top_level_once(value: &str, delimiter: char) -> Option<(&str, &str)> {
+    let mut paren_depth = 0usize;
+    let mut bracket_depth = 0usize;
+    let mut quote: Option<char> = None;
+
+    for (idx, ch) in value.char_indices() {
+        if let Some(q) = quote {
+            if ch == q {
+                quote = None;
+            }
+            continue;
+        }
+
+        match ch {
+            '"' | '\'' => quote = Some(ch),
+            '(' => paren_depth += 1,
+            ')' => paren_depth = paren_depth.saturating_sub(1),
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth = bracket_depth.saturating_sub(1),
+            c if c == delimiter && paren_depth == 0 && bracket_depth == 0 => {
+                let after = idx + ch.len_utf8();
+                return Some((&value[..idx], &value[after..]));
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn reset_grid_template(style: &mut ComputedStyle) {
+    style.grid_template_columns.clear();
+    style.grid_template_rows.clear();
+    style.grid_template_areas.clear();
+    style.grid_template_column_line_names.clear();
+    style.grid_template_row_line_names.clear();
+}
+
+fn apply_grid_track_list_to_rows(style: &mut ComputedStyle, value: &str) {
+    let (tracks, names) = parse_grid_track_list(value);
+    style.grid_template_rows = tracks;
+    style.grid_template_row_line_names = names;
+}
+
+fn apply_grid_track_list_to_columns(style: &mut ComputedStyle, value: &str) {
+    let (tracks, names) = parse_grid_track_list(value);
+    style.grid_template_columns = tracks;
+    style.grid_template_column_line_names = names;
+}
+
+type GridTemplateAreaRows = (Vec<Vec<Option<String>>>, Vec<GridTrack>, Vec<Vec<String>>);
+
+fn parse_grid_template_rows_with_areas(value: &str) -> Option<GridTemplateAreaRows> {
+    let mut row_strings = Vec::new();
+    let mut row_tracks = Vec::new();
+    let mut row_line_names: Vec<Vec<String>> = vec![Vec::new()];
+    let mut pos = 0usize;
+
+    while pos < value.len() {
+        let remaining = &value[pos..];
+        let Some(open_rel) = remaining.find(['"', '\'']) else {
+            break;
+        };
+        let open = pos + open_rel;
+        let quote = value[open..].chars().next()?;
+        let content_start = open + quote.len_utf8();
+        let close_rel = value[content_start..].find(quote)?;
+        let close = content_start + close_rel;
+        row_strings.push(value[content_start..close].to_string());
+
+        let after_quote = close + quote.len_utf8();
+        let next_quote = value[after_quote..]
+            .find(['"', '\''])
+            .map(|idx| after_quote + idx)
+            .unwrap_or(value.len());
+        let track_segment = value[after_quote..next_quote].trim();
+        if !track_segment.is_empty() {
+            let (tracks, names) = parse_grid_track_list(track_segment);
+            if let Some(first) = tracks.first() {
+                if let (Some(slot), Some(src)) = (row_line_names.last_mut(), names.first()) {
+                    slot.extend(src.iter().cloned());
+                }
+                row_tracks.push(first.clone());
+                row_line_names.push(names.get(1).cloned().unwrap_or_default());
+            }
+        } else {
+            row_tracks.push(GridTrack::Auto);
+            row_line_names.push(Vec::new());
+        }
+        pos = next_quote;
+    }
+
+    let areas = parse_grid_template_area_rows(&row_strings)?;
+    while row_tracks.len() < areas.len() {
+        row_tracks.push(GridTrack::Auto);
+        row_line_names.push(Vec::new());
+    }
+    Some((areas, row_tracks, row_line_names))
+}
+
+fn apply_grid_template_shorthand(style: &mut ComputedStyle, value: &str) {
+    let value = value.trim();
+    if value == "none" {
+        reset_grid_template(style);
+        return;
+    }
+
+    let (rows_part, cols_part) = split_top_level_once(value, '/').unwrap_or((value, ""));
+    if rows_part.contains('"') || rows_part.contains('\'') {
+        if let Some((areas, rows, row_names)) = parse_grid_template_rows_with_areas(rows_part) {
+            style.grid_template_areas = areas;
+            style.grid_template_rows = rows;
+            style.grid_template_row_line_names = row_names;
+        }
+    } else if !rows_part.trim().is_empty() && rows_part.trim() != "none" {
+        apply_grid_track_list_to_rows(style, rows_part);
+    }
+
+    if !cols_part.trim().is_empty() && cols_part.trim() != "none" {
+        apply_grid_track_list_to_columns(style, cols_part);
+    }
+    synthesize_grid_area_tracks(style);
+}
+
+fn apply_grid_shorthand(style: &mut ComputedStyle, value: &str) {
+    reset_grid_template(style);
+    style.grid_auto_rows = None;
+    style.grid_auto_flow_column = false;
+    style.grid_auto_flow_dense = false;
+
+    let value = value.trim();
+    if value == "none" {
+        return;
+    }
+
+    let (before_slash, after_slash) = split_top_level_once(value, '/').unwrap_or((value, ""));
+    let before_tokens = split_css_components(before_slash);
+    let after_tokens = split_css_components(after_slash);
+    let before_auto_flow = before_tokens.iter().any(|t| t == "auto-flow");
+    let after_auto_flow = after_tokens.iter().any(|t| t == "auto-flow");
+
+    if before_auto_flow {
+        style.grid_auto_flow_column = false;
+        style.grid_auto_flow_dense = before_tokens.iter().any(|t| t == "dense");
+        let row_tokens: Vec<&str> = before_tokens
+            .iter()
+            .map(String::as_str)
+            .filter(|t| *t != "auto-flow" && *t != "dense")
+            .collect();
+        if let Some(track) = row_tokens.first().and_then(|t| parse_single_track(t)) {
+            if let Some(v) = fixed_grid_track_size(&track) {
+                style.grid_auto_rows = Some(v);
+            }
+        }
+        if !after_slash.trim().is_empty() {
+            apply_grid_track_list_to_columns(style, after_slash);
+        }
+        return;
+    }
+
+    if after_auto_flow {
+        style.grid_auto_flow_column = true;
+        style.grid_auto_flow_dense = after_tokens.iter().any(|t| t == "dense");
+        if !before_slash.trim().is_empty() {
+            apply_grid_track_list_to_rows(style, before_slash);
+        }
+        return;
+    }
+
+    apply_grid_template_shorthand(style, value);
+}
+
+fn fixed_grid_track_size(track: &GridTrack) -> Option<f32> {
+    match track {
+        GridTrack::Fixed(v) => Some(*v),
+        GridTrack::Minmax(min, _) => Some(*min),
+        _ => None,
+    }
 }
 
 /// Parse a single grid track token (e.g. `1fr`, `200pt`, `100px`, `auto`).
@@ -7155,7 +7673,24 @@ fn parse_grid_track_list(val: &str) -> (Vec<GridTrack>, Vec<Vec<String>>) {
         remaining = &remaining[end..];
     }
 
+    add_nth_line_name_aliases(&mut line_names);
     (result, line_names)
+}
+
+fn add_nth_line_name_aliases(line_names: &mut [Vec<String>]) {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for names in line_names.iter_mut() {
+        let originals = names.clone();
+        for name in originals {
+            if name.contains(char::is_whitespace) {
+                continue;
+            }
+            let count = counts.entry(name.clone()).or_insert(0);
+            *count += 1;
+            names.push(format!("{} {}", *count, name));
+            names.push(format!("{} {}", name, *count));
+        }
+    }
 }
 
 /// Find the closing `)` matching an opening `(` at `start` in `s`.
@@ -10179,9 +10714,21 @@ mod tests {
         assert_eq!(style.grid_template_columns.len(), 2);
         // line 0 = start, line 1 = mid, line 2 = end
         assert_eq!(style.grid_template_column_line_names.len(), 3);
-        assert_eq!(style.grid_template_column_line_names[0], vec!["start"]);
-        assert_eq!(style.grid_template_column_line_names[1], vec!["mid"]);
-        assert_eq!(style.grid_template_column_line_names[2], vec!["end"]);
+        assert!(
+            style.grid_template_column_line_names[0]
+                .iter()
+                .any(|name| name == "start")
+        );
+        assert!(
+            style.grid_template_column_line_names[1]
+                .iter()
+                .any(|name| name == "mid")
+        );
+        assert!(
+            style.grid_template_column_line_names[2]
+                .iter()
+                .any(|name| name == "end")
+        );
     }
 
     #[test]
@@ -10226,6 +10773,34 @@ mod tests {
         let parent = ComputedStyle::default();
         let style = compute_style(HtmlTag::Div, Some("grid-auto-flow: row dense"), &parent);
         assert!(style.grid_auto_flow_dense);
+        assert!(!style.grid_auto_flow_column);
+    }
+
+    #[test]
+    fn grid_shorthand_auto_flow_rows_parses() {
+        let parent = ComputedStyle::default();
+        let style = compute_style(
+            HtmlTag::Div,
+            Some("display: grid; grid: auto-flow 60px / 70px 70px"),
+            &parent,
+        );
+        assert_eq!(style.display, Display::Grid);
+        assert_eq!(style.grid_template_columns.len(), 2);
+        assert!((style.grid_auto_rows.unwrap() - 45.0).abs() < 0.01);
+        assert!(!style.grid_auto_flow_column);
+    }
+
+    #[test]
+    fn grid_shorthand_auto_flow_rows_from_stylesheet_parses() {
+        let parent = ComputedStyle::default();
+        let rules = crate::parser::css::parse_stylesheet(
+            ".grid { display: grid; grid: auto-flow 60px / 70px 70px }",
+        );
+        let style =
+            compute_style_with_rules(HtmlTag::Div, None, &parent, &rules, "div", &["grid"], None);
+        assert_eq!(style.display, Display::Grid);
+        assert_eq!(style.grid_template_columns.len(), 2);
+        assert!((style.grid_auto_rows.unwrap() - 45.0).abs() < 0.01);
         assert!(!style.grid_auto_flow_column);
     }
 

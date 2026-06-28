@@ -11,8 +11,8 @@ use crate::style::computed::{
 use std::collections::HashMap;
 
 use super::engine::{
-    CounterState, InlineBox, LayoutBorder, TextLine, TextRun, decode_footnote_link,
-    encode_footnote_link, FOOTNOTE_CALL_FONT_SCALE,
+    CounterState, FOOTNOTE_CALL_FONT_SCALE, InlineBox, LayoutBorder, TextLine, TextRun,
+    decode_footnote_link, encode_footnote_link,
 };
 
 // ---------------------------------------------------------------------------
@@ -434,6 +434,11 @@ fn split_preserving_spaces(segment: &str, template: &TextRun, out: &mut Vec<Styl
 /// render contiguously yet may begin a new line. Restricting to letter-flanked
 /// hyphens avoids breaking number ranges, dates, or signs ("12-34", "-5").
 fn push_word_with_hyphen_breaks(word: &str, template: &TextRun, out: &mut Vec<StyledWord>) {
+    if should_break_as_char_tokens(word) {
+        push_char_break_tokens(word, template, out);
+        return;
+    }
+
     let chars: Vec<char> = word.chars().collect();
     let mut seg = String::new();
     let mut first = true;
@@ -461,6 +466,43 @@ fn push_word_with_hyphen_breaks(word: &str, template: &TextRun, out: &mut Vec<St
             preserve_spacing: false,
             joins_prev: !first,
         });
+    }
+}
+
+fn strip_soft_hyphens(text: &str) -> String {
+    if !text.contains('\u{00ad}') {
+        return text.to_string();
+    }
+    text.chars().filter(|&c| c != '\u{00ad}').collect()
+}
+
+fn should_break_as_char_tokens(word: &str) -> bool {
+    if word.chars().count() <= 1 {
+        return false;
+    }
+    // `line-break:anywhere` is not represented in ComputedStyle yet, but CSS
+    // Text's anywhere behavior is needed for punctuation-heavy unspaced runs.
+    // Restrict arbitrary Latin breaks to runs that carry visible punctuation so
+    // ordinary prose words still keep their normal unbreakable min-content.
+    if word
+        .chars()
+        .any(|ch| matches!(ch, '/' | '+' | '(' | ')' | '[' | ']' | '{' | '}'))
+    {
+        return true;
+    }
+    false
+}
+
+fn push_char_break_tokens(word: &str, template: &TextRun, out: &mut Vec<StyledWord>) {
+    let mut first = true;
+    for ch in word.chars() {
+        out.push(StyledWord {
+            text: ch.to_string(),
+            run: template.clone(),
+            preserve_spacing: false,
+            joins_prev: !first,
+        });
+        first = false;
     }
 }
 
@@ -561,13 +603,15 @@ pub(crate) fn wrap_text_runs(
     // contains RTL characters. This reorders runs into visual order so
     // RTL/LTR segments display correctly in the left-to-right PDF context.
     let full_text: String = runs.iter().map(|r| r.text.as_str()).collect();
-    let runs =
-        if options.bidi_override || options.paragraph_rtl || crate::bidi::has_rtl_chars(&full_text)
-        {
-            crate::bidi::reorder_runs_bidi(&runs, options.paragraph_rtl, options.bidi_override)
-        } else {
-            runs
-        };
+    let inferred_rtl = !options.paragraph_rtl
+        && !options.bidi_override
+        && crate::bidi::first_strong_is_rtl(&full_text);
+    let bidi_rtl = options.paragraph_rtl || inferred_rtl;
+    let runs = if options.bidi_override || bidi_rtl || crate::bidi::has_rtl_chars(&full_text) {
+        crate::bidi::reorder_runs_bidi(&runs, bidi_rtl, options.bidi_override)
+    } else {
+        runs
+    };
 
     // Concatenate all text then re-split by words, preserving run styles.
     // For text containing \n (white-space: pre), split on newlines first,
@@ -1023,8 +1067,9 @@ pub(crate) fn wrap_text_runs(
             continue;
         }
 
+        let paint_word = strip_soft_hyphens(&word);
         let word_width = estimate_word_width(
-            &word,
+            &paint_word,
             template.font_size,
             &template.font_family,
             template.bold,
@@ -1081,7 +1126,7 @@ pub(crate) fn wrap_text_runs(
             }
             let available_width = line_max_width(lines.len());
             if let Some((prefix, remainder)) = split_word_to_fit(
-                &word,
+                &paint_word,
                 available_width,
                 template.font_size,
                 &template.font_family,
@@ -1179,12 +1224,12 @@ pub(crate) fn wrap_text_runs(
                     vertical_align: prev_run.vertical_align,
                     text_shadow: prev_run.text_shadow.clone(),
                 });
-                word
+                paint_word
             } else {
-                format!(" {word}")
+                format!(" {paint_word}")
             }
         } else {
-            word
+            paint_word
         };
 
         let w = estimate_word_width(
@@ -1215,6 +1260,13 @@ pub(crate) fn wrap_text_runs(
     if options.dropcap_lines > 0 && options.dropcap_width > 0.0 {
         for (i, line) in lines.iter_mut().enumerate() {
             line.x_offset = drop_cap_offset(i);
+        }
+    }
+
+    if inferred_rtl {
+        for line in &mut lines {
+            let line_width = crate::layout::helpers::measure_runs_width(&line.runs, fonts);
+            line.x_offset += (options.max_width - line_width).max(0.0);
         }
     }
 
@@ -1731,15 +1783,16 @@ fn collect_text_runs_inner(
                     // backgrounds are drawn by the TextBlock itself.
                     // In preformatted blocks (<pre>), skip inline backgrounds
                     // to avoid overlapping rects that hide subsequent lines.
-                    let (bg, pad, br) = if inline_parent && !preserve_ws {
-                        (
-                            parent_style.background_color.map(|c| c.to_f32_rgba()),
-                            (parent_style.padding.left, parent_style.padding.top),
-                            parent_style.border_radius,
-                        )
-                    } else {
-                        (None, (0.0, 0.0), 0.0)
-                    };
+                    let (bg, pad, br) =
+                        if inline_parent && parent_style.white_space != WhiteSpace::Pre {
+                            (
+                                parent_style.background_color.map(|c| c.to_f32_rgba()),
+                                (parent_style.padding.left, parent_style.padding.top),
+                                parent_style.border_radius,
+                            )
+                        } else {
+                            (None, (0.0, 0.0), 0.0)
+                        };
                     push_styled_run(
                         TextRun {
                             text: processed,
@@ -1834,7 +1887,7 @@ fn collect_text_runs_inner(
                                     })
                                     .count()
                                     + 1)
-                                    .to_string();
+                                .to_string();
                                 push_styled_run(
                                     TextRun {
                                         text: format!("{marker} "),

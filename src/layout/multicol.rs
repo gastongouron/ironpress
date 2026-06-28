@@ -30,10 +30,12 @@
 
 use crate::parser::css::AncestorInfo;
 use crate::parser::dom::{DomNode, ElementNode};
-use crate::style::computed::{BorderStyle, ComputedStyle, Position, Visibility};
+use crate::style::computed::{BorderStyle, ComputedStyle, Position, Visibility, WritingMode};
 
 use super::context::{LayoutContext, LayoutEnv};
-use super::engine::{BackgroundFields, LayoutBorder, LayoutElement, flatten_element};
+use super::engine::{
+    flatten_element, BackgroundFields, LayoutBorder, LayoutElement, PageBreakSide,
+};
 use super::paginate::estimate_element_height;
 
 /// A single laid-out top-level child of the multicol element.
@@ -43,11 +45,19 @@ struct MultiColItem {
     elements: Vec<LayoutElement>,
     /// Outer (margin-box) height used for balancing.
     height: f32,
+    /// Outer (margin-box) width used for vertical writing-mode block flow.
+    width: f32,
     /// The item's trailing `margin-bottom` (the last in-flow element's bottom
     /// margin). Truncated at a column-fragment break per css-break-3 §4.2.
     margin_bottom: f32,
     /// `column-span: all` — render as a full-width band, not inside a column.
     span_all: bool,
+}
+
+struct ChildMulticolInfo {
+    span_all: bool,
+    definite_outer_height: Option<f32>,
+    definite_outer_width: Option<f32>,
 }
 
 /// The trailing `margin-bottom` of a laid-out item: the bottom margin of its
@@ -84,6 +94,47 @@ fn element_trailing_margin_bottom(elements: &[LayoutElement]) -> f32 {
         }
     }
     0.0
+}
+
+fn multicol_item_element_height(element: &LayoutElement) -> f32 {
+    match element {
+        LayoutElement::TextBlock {
+            block_height: Some(h),
+            margin_top,
+            margin_bottom,
+            border,
+            position,
+            ..
+        } if *position != Position::Absolute => {
+            margin_top + h + margin_bottom + border.vertical_width()
+        }
+        LayoutElement::Container {
+            block_height: Some(h),
+            margin_top,
+            margin_bottom,
+            position,
+            ..
+        } if *position != Position::Absolute => margin_top + h + margin_bottom,
+        _ => estimate_element_height(element),
+    }
+}
+
+fn multicol_item_element_width(element: &LayoutElement) -> f32 {
+    match element {
+        LayoutElement::TextBlock {
+            block_width: Some(w),
+            margin_top: _,
+            border,
+            position,
+            ..
+        } if *position != Position::Absolute => w + border.left.width + border.right.width,
+        LayoutElement::Container {
+            block_width: Some(w),
+            position,
+            ..
+        } if *position != Position::Absolute => *w,
+        _ => 0.0,
+    }
 }
 
 /// Lay out a multi-column container, replacing the previous grid-emulation path.
@@ -133,6 +184,8 @@ pub(crate) fn layout_multicol_container(
     // Column gap: `normal` resolves to 1em (the element's font-size, in pt).
     let gap = if style.column_gap_is_normal {
         style.font_size
+    } else if let Some(frac) = style.column_gap_pct {
+        inner_width * frac
     } else {
         style.column_gap
     };
@@ -174,7 +227,7 @@ pub(crate) fn layout_multicol_container(
             continue;
         };
         // Decide span-all by computing the child's style cheaply.
-        let span_all = child_span_all(
+        let child_info = child_multicol_info(
             child_el,
             style,
             env,
@@ -183,6 +236,7 @@ pub(crate) fn layout_multicol_container(
             element_count,
             &preceding_siblings,
         );
+        let span_all = child_info.span_all;
         let item_ctx = if span_all { &full_ctx } else { &col_ctx };
 
         let mut buf: Vec<LayoutElement> = Vec::new();
@@ -200,11 +254,19 @@ pub(crate) fn layout_multicol_container(
             &[],
             env,
         );
-        let height: f32 = buf.iter().map(estimate_element_height).sum();
+        let height: f32 = child_info
+            .definite_outer_height
+            .unwrap_or_else(|| buf.iter().map(multicol_item_element_height).sum());
+        let width: f32 = child_info.definite_outer_width.unwrap_or_else(|| {
+            buf.iter()
+                .map(multicol_item_element_width)
+                .fold(0.0, f32::max)
+        });
         let margin_bottom = element_trailing_margin_bottom(&buf);
         items.push(MultiColItem {
             elements: buf,
             height,
+            width,
             margin_bottom,
             span_all,
         });
@@ -246,6 +308,49 @@ pub(crate) fn layout_multicol_container(
         }
     });
 
+    if style.writing_mode == WritingMode::VerticalRl {
+        let block_height = Some(explicit_border_box_h.unwrap_or_else(|| {
+            pad_top
+                + max_vertical_rl_item_height(&items)
+                + style.padding.bottom
+                + style.border.bottom.width
+        }));
+        let mut x_cursor = pad_left + inner_width;
+        let mut column_children: Vec<LayoutElement> = Vec::new();
+        for item in &items {
+            if item.elements.len() != 1 {
+                continue;
+            }
+            let item_w = if item.width > 0.0 {
+                item.width
+            } else {
+                col_width
+            };
+            x_cursor -= item_w;
+            column_children.push(make_fragment_box(
+                &item.elements[0],
+                x_cursor - bl,
+                pad_top - bt,
+                item_w,
+                item.height,
+                true,
+                true,
+            ));
+        }
+        output.push(emit_multicol_wrapper(
+            style,
+            column_children,
+            border_box_w,
+            block_height,
+            h_offset,
+            style.margin.top,
+            style.margin.bottom,
+        ));
+        output.push(LayoutElement::PageBreak(PageBreakSide::Any, None));
+        output.push(empty_flow_anchor());
+        return;
+    }
+
     // ---- Page-aware column fragmentation (CSS Multicol §2 + Fragmentation 3) -
     // An auto-height, in-flow multicol whose column content is taller than the
     // page's content box is a *nested* fragmentation context: its columns fill to
@@ -270,9 +375,15 @@ pub(crate) fn layout_multicol_container(
         && num_cols >= 1
         && col_fill_h > 1.0
     {
-        let rows = build_paginated_column_rows(
-            &items, num_cols, col_width, gap, pad_left, bl, pad_top, bt, col_fill_h, style,
-        );
+        let rows = if style.column_fill_auto {
+            build_paginated_column_rows(
+                &items, num_cols, col_width, gap, pad_left, bl, pad_top, bt, col_fill_h, style,
+            )
+        } else {
+            build_balanced_paginated_column_rows(
+                &items, num_cols, col_width, gap, pad_left, bl, pad_top, bt, col_fill_h, style,
+            )
+        };
         // Only fragment when the content genuinely spills past one page (more than
         // one page-row). A single row means it fits — fall through unchanged.
         if rows.len() > 1 {
@@ -396,6 +507,7 @@ pub(crate) fn layout_multicol_container(
             && !run.is_empty();
 
         let mut run_max_h = 0.0f32;
+        let mut run_nonempty_cols = vec![false; num_cols];
         if let (true, Some(fill_h)) = (use_fragmentation, fill_h_auto) {
             // ---- Fragmenting fill path (column-fill: auto) -----------------
             let run_indices: Vec<usize> = (0..run.len()).collect();
@@ -404,8 +516,9 @@ pub(crate) fn layout_multicol_container(
                 if frags.is_empty() {
                     continue;
                 }
+                run_nonempty_cols[c] = true;
                 run_max_h = run_max_h.max(used[c]);
-                let col_x = pad_left + c as f32 * (col_width + gap);
+                let col_x = column_x(style, pad_left, col_width, gap, num_cols, c);
                 let mut col_kids: Vec<LayoutElement> = Vec::new();
                 for f in frags {
                     col_kids.push(make_fragment_box(
@@ -450,7 +563,8 @@ pub(crate) fn layout_multicol_container(
                 if bucket.is_empty() {
                     continue;
                 }
-                let col_x = pad_left + c as f32 * (col_width + gap);
+                run_nonempty_cols[c] = true;
+                let col_x = column_x(style, pad_left, col_width, gap, num_cols, c);
                 let mut col_kids: Vec<LayoutElement> = Vec::new();
                 let mut col_height = 0.0f32;
                 for &idx in bucket {
@@ -484,8 +598,12 @@ pub(crate) fn layout_multicol_container(
         {
             let rule_w = style.column_rule.width;
             for c in 0..num_cols - 1 {
-                // Center of the gap between column c and c+1.
-                let gap_center = pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
+                let has_left = run_nonempty_cols.get(c).copied().unwrap_or(false);
+                let has_right = run_nonempty_cols.get(c + 1).copied().unwrap_or(false);
+                if !has_left || !has_right {
+                    continue;
+                }
+                let gap_center = column_rule_x(style, pad_left, col_width, gap, num_cols, c);
                 let rule_x = gap_center - rule_w / 2.0;
                 rule_spans.push((rule_x, cursor_y, run_max_h));
             }
@@ -507,6 +625,7 @@ pub(crate) fn layout_multicol_container(
         // Content-box bottom (border-box coords) when the height is definite.
         let content_box_bottom =
             explicit_border_box_h.map(|bh| bh - style.padding.bottom - style.border.bottom.width);
+        let mut rule_children: Vec<LayoutElement> = Vec::new();
         for (rule_x, run_top, run_h) in rule_spans {
             let (rule_top, rule_h) = match content_box_bottom {
                 // Single balanced run + definite height: span the whole content
@@ -516,7 +635,7 @@ pub(crate) fn layout_multicol_container(
                 // rule is as tall as this run's columns.
                 _ => (run_top, run_h),
             };
-            column_children.push(make_rule_container(
+            rule_children.push(make_rule_container(
                 rule_x - bl,
                 rule_top - bt,
                 rule_w,
@@ -525,6 +644,8 @@ pub(crate) fn layout_multicol_container(
                 style.column_rule.style,
             ));
         }
+        rule_children.extend(column_children);
+        column_children = rule_children;
     }
 
     // ---- Outer container height --------------------------------------------
@@ -684,7 +805,7 @@ fn build_paginated_column_rows(
             }
             has_content = true;
             row_max = row_max.max(vused[vc]);
-            let col_x = pad_left + pc as f32 * (col_width + gap);
+            let col_x = column_x(style, pad_left, col_width, gap, num_cols, pc);
             let mut kids: Vec<LayoutElement> = Vec::new();
             for f in frags {
                 kids.push(make_fragment_box(
@@ -712,7 +833,12 @@ fn build_paginated_column_rows(
             let rule_w = style.column_rule.width;
             let rule_color = style.column_rule.color.unwrap_or(style.color).to_f32_rgba();
             for c in 0..num_cols - 1 {
-                let gap_center = pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
+                if vcols[page * num_cols + c].is_empty()
+                    || vcols[page * num_cols + c + 1].is_empty()
+                {
+                    continue;
+                }
+                let gap_center = column_rule_x(style, pad_left, col_width, gap, num_cols, c);
                 let rule_x = gap_center - rule_w / 2.0;
                 row_children.push(make_rule_container(
                     rule_x - bl,
@@ -727,6 +853,105 @@ fn build_paginated_column_rows(
         rows.push((row_children, row_max));
     }
     rows
+}
+
+/// Page-aware balanced multicol fragmentation for `column-fill: balance-all`.
+/// Each page row takes the largest document-order run that can be balanced into
+/// the available column block-size, then the next page row re-balances the
+/// remaining content.
+#[allow(clippy::too_many_arguments)]
+fn build_balanced_paginated_column_rows(
+    items: &[MultiColItem],
+    num_cols: usize,
+    col_width: f32,
+    gap: f32,
+    pad_left: f32,
+    bl: f32,
+    pad_top: f32,
+    bt: f32,
+    col_fill_h: f32,
+    style: &ComputedStyle,
+) -> Vec<(Vec<LayoutElement>, f32)> {
+    let mut rows: Vec<(Vec<LayoutElement>, f32)> = Vec::new();
+    let mut start = 0usize;
+    while start < items.len() {
+        let mut best_end = start + 1;
+        let mut best_buckets = vec![vec![0usize]];
+        let mut best_h = items[start].height;
+
+        for end in start + 1..=items.len() {
+            let heights: Vec<f32> = items[start..end].iter().map(|it| it.height).collect();
+            let buckets = balance_columns(&heights, num_cols);
+            let row_h = balanced_buckets_height(&items[start..end], &buckets);
+            if row_h <= col_fill_h + 0.01 || end == start + 1 {
+                best_end = end;
+                best_buckets = buckets;
+                best_h = row_h;
+            } else {
+                break;
+            }
+        }
+
+        let mut row_children: Vec<LayoutElement> = Vec::new();
+        if style.column_rule.width > 0.0
+            && style.column_rule.style != BorderStyle::None
+            && num_cols > 1
+        {
+            let rule_w = style.column_rule.width;
+            let rule_color = style.column_rule.color.unwrap_or(style.color).to_f32_rgba();
+            for c in 0..num_cols - 1 {
+                if !column_has_content(&best_buckets, c)
+                    || !column_has_content(&best_buckets, c + 1)
+                {
+                    continue;
+                }
+                let gap_center = column_rule_x(style, pad_left, col_width, gap, num_cols, c);
+                let rule_x = gap_center - rule_w / 2.0;
+                row_children.push(make_rule_container(
+                    rule_x - bl,
+                    pad_top - bt,
+                    rule_w,
+                    best_h,
+                    rule_color,
+                    style.column_rule.style,
+                ));
+            }
+        }
+
+        for (c, bucket) in best_buckets.iter().enumerate() {
+            if bucket.is_empty() {
+                continue;
+            }
+            let col_x = column_x(style, pad_left, col_width, gap, num_cols, c);
+            let mut col_kids: Vec<LayoutElement> = Vec::new();
+            let mut col_height = 0.0f32;
+            for &idx in bucket {
+                col_height += items[start + idx].height;
+                col_kids.extend(items[start + idx].elements.clone());
+            }
+            row_children.push(make_column_container(
+                col_kids,
+                col_x - bl,
+                pad_top - bt,
+                col_width,
+                col_height,
+            ));
+        }
+        rows.push((row_children, best_h));
+        start = best_end;
+    }
+    rows
+}
+
+fn balanced_buckets_height(items: &[MultiColItem], buckets: &[Vec<usize>]) -> f32 {
+    buckets
+        .iter()
+        .map(|bucket| bucket.iter().map(|&idx| items[idx].height).sum::<f32>())
+        .fold(0.0f32, f32::max)
+}
+
+fn max_vertical_rl_item_height(items: &[MultiColItem]) -> f32 {
+    items.iter().map(|item| item.height).fold(0.0f32, f32::max)
 }
 
 /// Page-aware multicol fragmentation for flows that include `column-span: all`.
@@ -777,7 +1002,7 @@ fn build_paginated_column_rows_with_spans(
         let rule_w = style.column_rule.width;
         let rule_color = style.column_rule.color.unwrap_or(style.color).to_f32_rgba();
         for c in 0..num_cols - 1 {
-            let gap_center = pad_left + (c + 1) as f32 * col_width + c as f32 * gap + gap / 2.0;
+            let gap_center = column_rule_x(style, pad_left, col_width, gap, num_cols, c);
             let rule_x = gap_center - rule_w / 2.0;
             row_children.push(make_rule_container(
                 rule_x - bl,
@@ -806,7 +1031,7 @@ fn build_paginated_column_rows_with_spans(
             if bucket.is_empty() {
                 continue;
             }
-            let col_x = pad_left + c as f32 * (col_width + gap);
+            let col_x = column_x(style, pad_left, col_width, gap, num_cols, c);
             let mut col_kids: Vec<LayoutElement> = Vec::new();
             let mut col_height = 0.0f32;
             for &idx in bucket {
@@ -1012,6 +1237,43 @@ fn fill_columns(heights: &[f32], num_cols: usize, fill_h: f32) -> Vec<Vec<usize>
     buckets
 }
 
+/// Physical x offset of a document-order column. Columns are ordered in the
+/// multicol container's inline base direction; for horizontal RTL that means
+/// document column 0 is the rightmost physical column.
+fn column_x(
+    style: &ComputedStyle,
+    pad_left: f32,
+    col_width: f32,
+    gap: f32,
+    num_cols: usize,
+    col: usize,
+) -> f32 {
+    let visual_col = match style.writing_mode {
+        WritingMode::HorizontalTb if style.direction_rtl => num_cols.saturating_sub(1) - col,
+        _ => col,
+    };
+    pad_left + visual_col as f32 * (col_width + gap)
+}
+
+/// Center x of the column rule between adjacent document-order columns.
+fn column_rule_x(
+    style: &ComputedStyle,
+    pad_left: f32,
+    col_width: f32,
+    gap: f32,
+    num_cols: usize,
+    left_doc_col: usize,
+) -> f32 {
+    let a = column_x(style, pad_left, col_width, gap, num_cols, left_doc_col);
+    let b = column_x(style, pad_left, col_width, gap, num_cols, left_doc_col + 1);
+    let (left, right) = if a <= b { (a, b) } else { (b, a) };
+    (left + col_width + right) / 2.0
+}
+
+fn column_has_content(buckets: &[Vec<usize>], col: usize) -> bool {
+    buckets.get(col).is_some_and(|b| !b.is_empty())
+}
+
 /// One placed fragment of an item inside a column for `column-fill: auto`.
 struct AutoFragment {
     /// Index into the run of the source item this fragment belongs to.
@@ -1072,6 +1334,16 @@ fn fragment_columns_auto(
     for &idx in indices {
         let margin = items[idx].margin_bottom.max(0.0);
         let box_h = (items[idx].height - margin).max(0.0);
+        let space_before_break = fill_h - y;
+        if y > 0.0
+            && y + box_h > fill_h + 0.01
+            && col + 1 < num_cols
+            && space_before_break < box_h * 0.5
+            && item_is_text_block(&items[idx])
+        {
+            col += 1;
+            y = 0.0;
+        }
         let mut remaining = box_h;
         let mut first_slice = true;
         // Place the box, splitting across columns as needed.
@@ -1175,6 +1447,10 @@ fn item_is_splittable(item: &MultiColItem) -> bool {
         )
 }
 
+fn item_is_text_block(item: &MultiColItem) -> bool {
+    item.elements.len() == 1 && matches!(item.elements[0], LayoutElement::TextBlock { .. })
+}
+
 /// Build one positioned fragment box for a `column-fill: auto` slice of an item.
 ///
 /// Clones the item's single block element, repositions it as an absolute box at
@@ -1192,6 +1468,11 @@ fn make_fragment_box(
     is_first: bool,
     is_last: bool,
 ) -> LayoutElement {
+    if is_first && is_last {
+        if let Some(wrapped) = make_whole_text_fragment(src, off_left, off_top, width, height) {
+            return wrapped;
+        }
+    }
     let mut el = src.clone();
     match &mut el {
         LayoutElement::Container {
@@ -1253,7 +1534,11 @@ fn make_fragment_box(
                 *padding_bottom = 0.0;
             }
             *block_width = Some(width);
-            *block_height = Some(height);
+            *block_height = Some(fragment_content_height(
+                height,
+                border.top.width + border.bottom.width,
+                *padding_top + *padding_bottom,
+            ));
             *margin_top = 0.0;
             *margin_bottom = 0.0;
             *position = Position::Absolute;
@@ -1265,6 +1550,72 @@ fn make_fragment_box(
         _ => {}
     }
     el
+}
+
+fn make_whole_text_fragment(
+    src: &LayoutElement,
+    off_left: f32,
+    off_top: f32,
+    width: f32,
+    height: f32,
+) -> Option<LayoutElement> {
+    let LayoutElement::TextBlock {
+        background_color,
+        border,
+        padding_top,
+        padding_bottom,
+        padding_left,
+        padding_right,
+        ..
+    } = src
+    else {
+        return None;
+    };
+    if background_color.is_none()
+        || border.left.width > 0.0
+        || border.right.width > 0.0
+        || border.top.width > 0.0
+        || border.bottom.width > 0.0
+        || *padding_top > 0.0
+        || *padding_bottom > 0.0
+        || *padding_left > 0.0
+        || *padding_right > 0.0
+    {
+        return None;
+    }
+
+    let mut text = src.clone();
+    if let LayoutElement::TextBlock {
+        background_color,
+        margin_top,
+        margin_bottom,
+        position,
+        offset_top,
+        offset_left,
+        clip_rect,
+        ..
+    } = &mut text
+    {
+        *background_color = None;
+        *margin_top = 0.0;
+        *margin_bottom = 0.0;
+        *position = Position::Static;
+        *offset_top = 0.0;
+        *offset_left = 0.0;
+        *clip_rect = None;
+    }
+    Some(empty_abs_container(
+        vec![text],
+        off_left,
+        off_top,
+        width,
+        height,
+        *background_color,
+    ))
+}
+
+fn fragment_content_height(border_box_h: f32, border_v: f32, padding_v: f32) -> f32 {
+    (border_box_h - border_v - padding_v).max(0.0)
 }
 
 /// Build a full-width band (for `column-span: all`) at the current cursor.
@@ -1370,9 +1721,27 @@ fn empty_abs_container(
     }
 }
 
-/// Compute whether a child carries `column-span: all` by resolving its style.
+fn empty_flow_anchor() -> LayoutElement {
+    let mut el = empty_abs_container(Vec::new(), 0.0, 0.0, 0.0, 0.01, None);
+    if let LayoutElement::Container {
+        position,
+        visible,
+        block_width,
+        block_height,
+        ..
+    } = &mut el
+    {
+        *position = Position::Static;
+        *visible = false;
+        *block_width = Some(0.0);
+        *block_height = Some(0.01);
+    }
+    el
+}
+
+/// Compute multicol-relevant child metadata by resolving its style.
 #[allow(clippy::too_many_arguments)]
-fn child_span_all(
+fn child_multicol_info(
     child_el: &ElementNode,
     parent_style: &ComputedStyle,
     env: &LayoutEnv,
@@ -1380,7 +1749,7 @@ fn child_span_all(
     child_index: usize,
     sibling_count: usize,
     preceding_siblings: &[(String, Vec<String>)],
-) -> bool {
+) -> ChildMulticolInfo {
     use crate::parser::css::SelectorContext;
     use crate::style::computed::compute_style_with_context;
     let classes = child_el.class_list();
@@ -1403,5 +1772,28 @@ fn child_span_all(
         &child_el.attributes,
         &selector_ctx,
     );
-    cs.column_span_all
+    let definite_outer_height = cs.height.map(|h| {
+        let border_padding = cs.border.vertical_width() + cs.padding.top + cs.padding.bottom;
+        let border_box_h = if cs.box_sizing == crate::style::computed::BoxSizing::BorderBox {
+            h
+        } else {
+            h + border_padding
+        };
+        cs.margin.top + border_box_h + cs.margin.bottom
+    });
+    let definite_outer_width = cs.width.map(|w| {
+        let border_padding =
+            cs.border.left.width + cs.border.right.width + cs.padding.left + cs.padding.right;
+        let border_box_w = if cs.box_sizing == crate::style::computed::BoxSizing::BorderBox {
+            w
+        } else {
+            w + border_padding
+        };
+        cs.margin.left + border_box_w + cs.margin.right
+    });
+    ChildMulticolInfo {
+        span_all: cs.column_span_all,
+        definite_outer_height,
+        definite_outer_width,
+    }
 }

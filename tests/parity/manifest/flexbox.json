@@ -1168,7 +1168,7 @@
     "description": "Direct text around an element child becomes anonymous flex items and remains visible in the flex row; catches implementations that iterate only element children and drop text nodes.",
     "file": "cases/flexbox/flexbox-anonymous-text-items.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1185,7 +1185,7 @@
     "description": "flex-direction:row follows direction:rtl so source order starts at the right main-start edge; catches physical left-to-right row layout that ignores logical axis mapping.",
     "file": "cases/flexbox/flexbox-direction-rtl-row.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1219,7 +1219,7 @@
     "description": "flex-basis:max-content must use the item's unwrapped max-content contribution instead of its small width; catches flex-basis parsers that reject intrinsic sizing keywords.",
     "file": "cases/flexbox/flexbox-flex-basis-max-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1253,7 +1253,7 @@
     "description": "An absolutely positioned flex child with auto insets uses the flex static-position rectangle from justify-content and align-self; catches anchoring at the padding-box origin.",
     "file": "cases/flexbox/flexbox-abspos-static-position.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1321,7 +1321,7 @@
     "description": "Zero-basis growing flex items with aspect-ratio derive auto cross size from their final grown main size; catches implementations that compute aspect-ratio height before flex-grow.",
     "file": "cases/flexbox/flexbox-aspect-ratio-grow-cross-size.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1355,7 +1355,7 @@
     "description": "overflow:hidden alone makes a shrinking row flex item's automatic minimum size zero; catches implementations that always keep the min-content floor and push the following item out.",
     "file": "cases/flexbox/flexbox-overflow-hidden-auto-min.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1491,7 +1491,7 @@
     "description": "direction:rtl plus flex-direction:row-reverse reverses the RTL inline axis so visual order runs left-to-right; catches physical row-reverse placement.",
     "file": "cases/flexbox/flexbox-row-reverse-rtl.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1610,7 +1610,7 @@
     "description": "align-items:safe center is equivalent to center when the item fits; catches parsers that reject the safe overflow-alignment prefix.",
     "file": "cases/flexbox/flexbox-align-items-safe-center.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1627,7 +1627,7 @@
     "description": "align-self:safe center overrides container align-items:flex-start when the item fits; catches parsers that leave align-self:auto.",
     "file": "cases/flexbox/flexbox-align-self-safe-center.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1644,7 +1644,7 @@
     "description": "align-content:safe center centers wrapped flex lines when they fit; catches parsers that reject safe center and fall back to stretch.",
     "file": "cases/flexbox/flexbox-align-content-safe-center.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1661,7 +1661,7 @@
     "description": "place-content:center space-between sets flex justify-content:space-between in a row container; catches implementations that ignore place-content.",
     "file": "cases/flexbox/flexbox-place-content-justify.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1678,7 +1678,7 @@
     "description": "place-items:center sets align-items:center for a flex row container; catches grid-only place-items implementations that leave items at cross-start.",
     "file": "cases/flexbox/flexbox-place-items-center.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1695,7 +1695,7 @@
     "description": "place-self:end sets flex align-self to the cross-end side; catches grid-only place-self implementations that leave the item at flex-start.",
     "file": "cases/flexbox/flexbox-place-self-end.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1780,7 +1780,7 @@
     "description": "flex-basis:fit-content shrink-to-fit sizes the flex base rather than using a declared width fallback; catches parsers that ignore fit-content.",
     "file": "cases/flexbox/flexbox-flex-basis-fit-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1797,7 +1797,7 @@
     "description": "flex-basis:calc(25% - 10px) resolves against the definite row main size; catches implementations that ignore calc() and use auto or equal-share sizing.",
     "file": "cases/flexbox/flexbox-flex-basis-calc-percent.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1814,7 +1814,7 @@
     "description": "The one-token flex:80px shorthand is a flex-basis form with grow and shrink enabled; catches parsers that only accept numeric grow values.",
     "file": "cases/flexbox/flexbox-flex-shorthand-basis-only.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1831,7 +1831,7 @@
     "description": "The two-token flex:1 80px shorthand means grow factor plus basis, not grow plus shrink; catches parsers that give both items zero basis.",
     "file": "cases/flexbox/flexbox-flex-shorthand-grow-basis.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1848,7 +1848,7 @@
     "description": "order:1.5 is invalid because order accepts integers, so source order is preserved; catches parsers that truncate decimal order values.",
     "file": "cases/flexbox/flexbox-order-decimal-invalid.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1916,7 +1916,7 @@
     "description": "In a definite-height column flex container, negative free space is removed using scaled shrink factors on the vertical main axis; catches row-only or unscaled shrink.",
     "file": "cases/flexbox/flexbox-column-flex-shrink.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1984,7 +1984,7 @@
     "description": "width:max-content shrink-wraps a flex container to its flex line rather than filling the containing block; catches block-width-only flex container sizing.",
     "file": "cases/flexbox/flexbox-container-width-max-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -2001,7 +2001,7 @@
     "description": "width:min-content gives a flex container an intrinsic width rather than a page-wide block width; catches flex layouts that ignore intrinsic width keywords.",
     "file": "cases/flexbox/flexbox-container-width-min-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -2018,7 +2018,7 @@
     "description": "A definite height plus aspect-ratio transfers into an auto main-size flex base in a row; catches code that only derives height from width.",
     "file": "cases/flexbox/flexbox-aspect-ratio-height-transfer.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -2035,7 +2035,7 @@
     "description": "overflow-wrap:anywhere lowers a long-word flex item's automatic minimum size so the row can keep the following item inside; catches unbreakable min-content floors.",
     "file": "cases/flexbox/flexbox-overflow-wrap-anywhere-auto-min.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -2069,7 +2069,7 @@
     "description": "In flex-direction:column, min-height:auto gives a shrinkable item a content-based main-axis minimum; catches row-only auto-min logic that compresses content.",
     "file": "cases/flexbox/flexbox-column-min-height-auto.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"

@@ -2,21 +2,24 @@ use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BorderCollapse, BoxSizing, ComputedStyle, Display, FontStyle, FontWeight, TableLayout,
-    TextAlign, VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
+    compute_style_with_context, BorderCollapse, BorderStyle, BoxSizing, ComputedStyle, Display,
+    FontStyle, FontWeight, TableLayout, TextAlign, VerticalAlign, Visibility, WhiteSpace,
 };
 use std::collections::HashMap;
 
 use super::context::{LayoutContext, LayoutEnv, ParentBox, Viewport};
 use super::engine::{
-    CounterState, LayoutBorder, LayoutElement, TextLine, TextRun, collects_as_inline_text,
-    flatten_element, has_background_paint, recurses_as_layout_child,
+    collects_as_inline_text, flatten_element, has_background_paint, recurses_as_layout_child,
+    CounterState, LayoutBorder, LayoutElement, TextLine, TextRun,
 };
 use super::paginate::{estimate_element_height, table_row_content_width};
 use super::text::{
-    TextWrapOptions, collapse_whitespace, estimate_word_width, expand_pre_tabs,
-    resolve_style_font_family, resolved_line_height_factor, wrap_text_runs,
+    collapse_whitespace, estimate_word_width, expand_pre_tabs, resolve_style_font_family,
+    resolved_line_height_factor, wrap_text_runs, TextWrapOptions,
 };
+
+const MAX_COLSPAN: usize = 1000;
+const MAX_ROWSPAN: usize = 65_534;
 
 /// A table cell ready for rendering.
 #[derive(Debug, Clone)]
@@ -285,7 +288,407 @@ fn parse_col_span(el: &ElementNode) -> usize {
         .get("span")
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(1)
-        .clamp(1, 1000)
+        .clamp(1, MAX_COLSPAN)
+}
+
+fn parse_cell_colspan(el: &ElementNode) -> usize {
+    el.attributes
+        .get("colspan")
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(1)
+        .clamp(1, MAX_COLSPAN)
+}
+
+fn parse_cell_rowspan(el: &ElementNode, remaining_rows_in_group: usize) -> usize {
+    let parsed = el
+        .attributes
+        .get("rowspan")
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(1);
+    let span = if parsed == 0 {
+        remaining_rows_in_group.max(1)
+    } else {
+        parsed.clamp(1, MAX_ROWSPAN)
+    };
+    span.min(remaining_rows_in_group.max(1))
+}
+
+fn parse_table_attr_length(el: &ElementNode, attr: &str) -> Option<f32> {
+    let value = el.attributes.get(attr)?.trim();
+    if value.is_empty() {
+        return None;
+    }
+    let parsed = if let Ok(number) = value.parse::<f32>() {
+        number * 0.75
+    } else {
+        match crate::parser::css::parse_length(value) {
+            Some(CssValue::Length(length)) => length,
+            _ => return None,
+        }
+    };
+    (parsed.is_finite() && parsed >= 0.0).then_some(parsed)
+}
+
+fn attr_border(width: f32, light: bool) -> LayoutBorder {
+    let light_color = (0.88, 0.88, 0.88);
+    let dark_color = (0.55, 0.55, 0.55);
+    let side = |color| super::engine::LayoutBorderSide {
+        width,
+        color,
+        alpha: 1.0,
+        style: BorderStyle::Solid,
+    };
+    LayoutBorder {
+        top: side(if light { light_color } else { dark_color }),
+        right: side(if light { dark_color } else { light_color }),
+        bottom: side(if light { dark_color } else { light_color }),
+        left: side(if light { light_color } else { dark_color }),
+    }
+}
+
+fn apply_cell_attribute_hints(
+    style: &mut ComputedStyle,
+    cellpadding: Option<f32>,
+    border_width: Option<f32>,
+) {
+    if let Some(padding) = cellpadding {
+        if style.padding.top <= 1.0
+            && style.padding.right <= 1.0
+            && style.padding.bottom <= 1.0
+            && style.padding.left <= 1.0
+        {
+            style.padding.top = padding;
+            style.padding.right = padding;
+            style.padding.bottom = padding;
+            style.padding.left = padding;
+        }
+    }
+
+    if let Some(width) = border_width {
+        if style.border.top.width == 0.0
+            && style.border.right.width == 0.0
+            && style.border.bottom.width == 0.0
+            && style.border.left.width == 0.0
+        {
+            let side = crate::style::computed::BorderSide {
+                width: (width / 2.0).max(1.0),
+                color: Some(crate::types::Color::rgb(128, 128, 128)),
+                style: BorderStyle::Solid,
+            };
+            style.border.top = side;
+            style.border.right = side;
+            style.border.bottom = side;
+            style.border.left = side;
+        }
+    }
+}
+
+fn table_section_key(el: Option<&ElementNode>, child_index: usize) -> usize {
+    el.map_or(child_index, |section| {
+        section as *const ElementNode as usize
+    })
+}
+
+fn distribute_extra_width(widths: &mut [f32], extra: f32) {
+    if widths.is_empty() || extra <= 0.0 {
+        return;
+    }
+    let total: f32 = widths.iter().sum();
+    if total > 0.0 {
+        for width in widths {
+            *width += extra * (*width / total);
+        }
+    } else {
+        let per_col = extra / widths.len() as f32;
+        for width in widths {
+            *width += per_col;
+        }
+    }
+}
+
+fn row_height_from_cells(cells: &[TableCell]) -> f32 {
+    cells
+        .iter()
+        .map(table_cell_content_height)
+        .fold(0.0f32, f32::max)
+}
+
+fn enforce_row_min_height(cells: &mut [TableCell], min_height: f32) {
+    if min_height <= 0.0 {
+        return;
+    }
+    let current = row_height_from_cells(cells);
+    if current >= min_height {
+        return;
+    }
+    if let Some(cell) = cells.iter_mut().find(|cell| cell.rowspan != 0) {
+        cell.min_content_height = cell.min_content_height.max(min_height);
+    } else if let Some(cell) = cells.first_mut() {
+        cell.min_content_height = cell.min_content_height.max(min_height);
+    }
+}
+
+fn stretch_table_rows_to_min_height(
+    output: &mut [LayoutElement],
+    target_table_height: f32,
+    vertical_edge_spacing: f32,
+) {
+    if target_table_height <= 0.0 {
+        return;
+    }
+    let mut row_indices = Vec::new();
+    let mut rows_height = 0.0f32;
+    for (idx, elem) in output.iter().enumerate() {
+        if let LayoutElement::TableRow { cells, .. } = elem {
+            row_indices.push(idx);
+            rows_height += row_height_from_cells(cells);
+        }
+    }
+    if row_indices.is_empty() {
+        return;
+    }
+    let target_rows_height =
+        (target_table_height - vertical_edge_spacing * (row_indices.len() + 1) as f32).max(0.0);
+    if rows_height >= target_rows_height {
+        return;
+    }
+    let extra_per_row = (target_rows_height - rows_height) / row_indices.len() as f32;
+    for idx in row_indices {
+        if let LayoutElement::TableRow { cells, .. } = &mut output[idx] {
+            let target_row_height = row_height_from_cells(cells) + extra_per_row;
+            enforce_row_min_height(cells, target_row_height);
+        }
+    }
+}
+
+fn table_cell_vertical_align(value: VerticalAlign) -> VerticalAlign {
+    match value {
+        VerticalAlign::Middle | VerticalAlign::Bottom | VerticalAlign::Top => value,
+        _ => VerticalAlign::Top,
+    }
+}
+
+fn estimate_run_text_width(run: &TextRun, text: &str, fonts: &HashMap<String, TtfFont>) -> f32 {
+    estimate_word_width(
+        text,
+        run.font_size,
+        &run.font_family,
+        run.bold,
+        run.italic,
+        fonts,
+    )
+}
+
+fn clip_text_lines_to_width(
+    lines: &mut [TextLine],
+    max_width: f32,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    if max_width <= 0.0 {
+        for line in lines {
+            line.runs.clear();
+        }
+        return;
+    }
+
+    for line in lines {
+        let mut used = 0.0f32;
+        let mut clipped_runs = Vec::new();
+        for run in &line.runs {
+            let run_width = estimate_run_text_width(run, &run.text, fonts);
+            if used + run_width <= max_width {
+                used += run_width;
+                clipped_runs.push(run.clone());
+                continue;
+            }
+
+            let mut clipped_text = String::new();
+            for ch in run.text.chars() {
+                let mut candidate = clipped_text.clone();
+                candidate.push(ch);
+                let candidate_width = estimate_run_text_width(run, &candidate, fonts);
+                if used + candidate_width > max_width {
+                    if !clipped_text.is_empty() {
+                        clipped_text.push(ch);
+                    }
+                    break;
+                }
+                clipped_text.push(ch);
+            }
+            if !clipped_text.is_empty() {
+                let mut clipped = run.clone();
+                clipped.text = clipped_text;
+                clipped_runs.push(clipped);
+            }
+            break;
+        }
+        line.runs = clipped_runs;
+    }
+}
+
+fn compute_table_column_count(
+    rows: &[&ElementNode],
+    row_section_indices: &[usize],
+    row_section_sizes: &[usize],
+    row_section_elements: &[Option<&ElementNode>],
+    row_section_child_indices: &[usize],
+) -> usize {
+    let mut max_cols = 0usize;
+    let mut occupied: Vec<usize> = Vec::new();
+    let mut current_section = None;
+
+    for (row_idx, row) in rows.iter().enumerate() {
+        let section_key = table_section_key(
+            row_section_elements[row_idx],
+            row_section_child_indices[row_idx],
+        );
+        if current_section != Some(section_key) {
+            occupied.clear();
+            current_section = Some(section_key);
+        }
+
+        let mut next_occupied = vec![0usize; occupied.len()];
+        let mut col_pos = 0usize;
+        let remaining_rows =
+            row_section_sizes[row_idx].saturating_sub(row_section_indices[row_idx]);
+
+        for child in &row.children {
+            let DomNode::Element(cell_el) = child else {
+                continue;
+            };
+            if cell_el.tag != HtmlTag::Td && cell_el.tag != HtmlTag::Th {
+                continue;
+            }
+            while occupied.get(col_pos).copied().unwrap_or(0) > 0 {
+                if col_pos >= next_occupied.len() {
+                    next_occupied.resize(col_pos + 1, 0);
+                }
+                next_occupied[col_pos] = occupied[col_pos].saturating_sub(1);
+                col_pos += 1;
+            }
+
+            let colspan = parse_cell_colspan(cell_el);
+            let rowspan = parse_cell_rowspan(cell_el, remaining_rows);
+            let end = col_pos.saturating_add(colspan);
+            if end > next_occupied.len() {
+                next_occupied.resize(end, 0);
+            }
+            if rowspan > 1 {
+                for slot in next_occupied.iter_mut().skip(col_pos).take(colspan) {
+                    *slot = rowspan - 1;
+                }
+            }
+            col_pos = end;
+            max_cols = max_cols.max(col_pos);
+        }
+
+        for (col, remaining) in occupied.iter().enumerate().skip(col_pos) {
+            if *remaining > 0 {
+                if col >= next_occupied.len() {
+                    next_occupied.resize(col + 1, 0);
+                }
+                next_occupied[col] = remaining.saturating_sub(1);
+                max_cols = max_cols.max(col + 1);
+            }
+        }
+        occupied = next_occupied;
+    }
+
+    max_cols.max(1)
+}
+
+fn compute_caption_style(
+    caption_el: &ElementNode,
+    caption_child_idx: usize,
+    section_count: usize,
+    table_style: &ComputedStyle,
+    table_ancestors: &[AncestorInfo],
+    rules: &[CssRule],
+) -> ComputedStyle {
+    let caption_classes = caption_el.class_list();
+    let caption_ctx = SelectorContext {
+        ancestors: table_ancestors.to_vec(),
+        child_index: caption_child_idx,
+        sibling_count: section_count,
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    };
+    compute_style_with_context(
+        caption_el.tag,
+        caption_el.style_attr(),
+        table_style,
+        rules,
+        caption_el.tag_name(),
+        &caption_classes,
+        caption_el.id(),
+        &caption_el.attributes,
+        &caption_ctx,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn measure_caption_min_width(
+    caption_el: &ElementNode,
+    caption_child_idx: usize,
+    section_count: usize,
+    caption_style: &ComputedStyle,
+    table_ancestors: &[AncestorInfo],
+    rules: &[CssRule],
+    fonts: &HashMap<String, TtfFont>,
+    filter_defs: &HashMap<String, ElementNode>,
+    counter_state: &mut CounterState,
+    available_width: f32,
+) -> f32 {
+    let mut caption_ancestors = table_ancestors.to_vec();
+    caption_ancestors.push(AncestorInfo {
+        element: caption_el,
+        child_index: caption_child_idx,
+        sibling_count: section_count,
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    });
+    let mut runs = Vec::new();
+    let mut nested = Vec::new();
+    collect_table_cell_content_inner(
+        &caption_el.children,
+        caption_style,
+        &mut runs,
+        &mut nested,
+        None,
+        rules,
+        fonts,
+        filter_defs,
+        false,
+        false,
+        true,
+        &caption_ancestors,
+        available_width.max(1.0),
+        counter_state,
+    );
+    let text_width: f32 = runs
+        .iter()
+        .map(|run| {
+            estimate_word_width(
+                &run.text,
+                run.font_size,
+                &run.font_family,
+                run.bold,
+                run.italic,
+                fonts,
+            )
+        })
+        .sum();
+    let nested_width = nested
+        .iter()
+        .map(nested_element_preferred_width)
+        .fold(0.0f32, f32::max);
+    let caption_border = LayoutBorder::from_computed(&caption_style.border);
+    text_width.max(nested_width)
+        + caption_style.padding.left
+        + caption_style.padding.right
+        + caption_border.horizontal_width()
 }
 
 fn assign_explicit_col_widths(
@@ -407,12 +810,7 @@ fn resolve_fixed_table_columns(
             if cell_el.tag != HtmlTag::Td && cell_el.tag != HtmlTag::Th {
                 continue;
             }
-            let colspan = cell_el
-                .attributes
-                .get("colspan")
-                .and_then(|value| value.parse::<usize>().ok())
-                .unwrap_or(1)
-                .max(1);
+            let colspan = parse_cell_colspan(cell_el);
 
             let cell_classes = cell_el.class_list();
             let mut cell_ancestors = row_selector_ctx.ancestors.clone();
@@ -593,6 +991,23 @@ pub(crate) fn flatten_table(
     let filter_defs = env.filter_defs;
     let counter_state = &mut *env.counter_state;
     let inner_width = resolve_table_inner_width(style, available_width);
+    let table_attr_border_width =
+        parse_table_attr_length(el, "border").filter(|width| *width > 0.0);
+    let table_attr_cellpadding = parse_table_attr_length(el, "cellpadding");
+    let table_attr_cellspacing = parse_table_attr_length(el, "cellspacing");
+    let legacy_border_spacing =
+        table_attr_cellspacing.or_else(|| table_attr_border_width.is_some().then_some(2.0 * 0.75));
+    let effective_border_spacing = if style.border_spacing == 0.0 {
+        legacy_border_spacing.unwrap_or(style.border_spacing)
+    } else {
+        style.border_spacing
+    };
+    let effective_border_spacing_vertical = if style.border_spacing_vertical == 0.0 {
+        legacy_border_spacing.unwrap_or(style.border_spacing_vertical)
+    } else {
+        style.border_spacing_vertical
+    };
+    let table_grid_inset = table_attr_border_width.unwrap_or(0.0);
 
     // Build ancestor chain: everything above + the table element itself.
     let mut table_ancestors: Vec<AncestorInfo> = ancestors.to_vec();
@@ -704,30 +1119,44 @@ pub(crate) fn flatten_table(
         row_section_sibling_counts = apply(&order, &row_section_sibling_counts);
     }
 
-    // Determine column count from the widest row, accounting for colspan
-    let num_cols = rows
-        .iter()
-        .map(|row| {
-            row.children
-                .iter()
-                .filter_map(|c| {
-                    if let DomNode::Element(e) = c {
-                        if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th {
-                            let colspan = e
-                                .attributes
-                                .get("colspan")
-                                .and_then(|v| v.parse::<usize>().ok())
-                                .unwrap_or(1)
-                                .max(1);
-                            return Some(colspan);
-                        }
-                    }
-                    None
-                })
-                .sum::<usize>()
-        })
-        .max()
-        .unwrap_or(1);
+    let caption_style_for_layout = caption.map(|(caption_el, caption_child_idx)| {
+        compute_caption_style(
+            caption_el,
+            caption_child_idx,
+            section_count,
+            style,
+            &table_ancestors,
+            rules,
+        )
+    });
+    let caption_min_width = if let (Some((caption_el, caption_child_idx)), Some(caption_style)) =
+        (caption, caption_style_for_layout.as_ref())
+    {
+        measure_caption_min_width(
+            caption_el,
+            caption_child_idx,
+            section_count,
+            caption_style,
+            &table_ancestors,
+            rules,
+            fonts,
+            filter_defs,
+            counter_state,
+            inner_width,
+        )
+    } else {
+        0.0
+    };
+
+    // Determine the table grid width with rowspan occupancy. A later row can
+    // need extra columns when earlier rowspans occupy leading slots.
+    let num_cols = compute_table_column_count(
+        &rows,
+        &row_section_indices,
+        &row_section_sizes,
+        &row_section_elements,
+        &row_section_child_indices,
+    );
 
     let mut column_parent_style = style.clone();
     column_parent_style.width = Some(inner_width);
@@ -841,16 +1270,16 @@ pub(crate) fn flatten_table(
     let columns_width = if matches!(
         style.border_collapse,
         crate::style::computed::BorderCollapse::Separate
-    ) && style.border_spacing > 0.0
+    ) && effective_border_spacing > 0.0
         && num_cols > 0
     {
-        (inner_width - (num_cols as f32 + 1.0) * style.border_spacing).max(0.0)
+        (inner_width - (num_cols as f32 + 1.0) * effective_border_spacing).max(0.0)
     } else if style.border_collapse == BorderCollapse::Collapse {
         (inner_width - outer_left_border / 2.0 - outer_right_border / 2.0).max(0.0)
     } else {
         inner_width
     };
-    let col_widths: Vec<f32> = if uses_fixed_table_layout(style) {
+    let mut col_widths: Vec<f32> = if uses_fixed_table_layout(style) {
         resolve_fixed_table_columns(
             style,
             columns_width,
@@ -867,7 +1296,7 @@ pub(crate) fn flatten_table(
         )
     } else {
         // --- Auto-sizing pass: measure preferred content width for each column ---
-        let min_col_width: f32 = 30.0;
+        let min_col_width: f32 = 0.0;
         let mut preferred_widths: Vec<f32> = vec![0.0; num_cols];
         // Per-column MIN-content width (CSS2 §17.5.2): the narrowest the column
         // can be without overflowing its unbreakable content. For normal wrapping
@@ -876,8 +1305,19 @@ pub(crate) fn flatten_table(
         // used width is floored at the sum of these, so nowrap content overflows
         // an undersized declared `width` (Chrome) instead of being crushed.
         let mut min_widths: Vec<f32> = vec![0.0; num_cols];
+        let mut spanning_widths: Vec<(usize, usize, f32, f32)> = Vec::new();
+        let mut sizing_occupied: Vec<usize> = vec![0; num_cols];
+        let mut sizing_section = None;
 
         for (sizing_row_idx, row) in rows.iter().enumerate() {
+            let section_key = table_section_key(
+                row_section_elements[sizing_row_idx],
+                row_section_child_indices[sizing_row_idx],
+            );
+            if sizing_section != Some(section_key) {
+                sizing_occupied.fill(0);
+                sizing_section = Some(section_key);
+            }
             let row_classes = row.class_list();
             // Build ancestors for the row: table + optional section element
             let mut sizing_row_ancestors = table_ancestors.clone();
@@ -920,12 +1360,15 @@ pub(crate) fn flatten_table(
             for child in &row.children {
                 if let DomNode::Element(cell_el) = child {
                     if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                        let colspan = cell_el
-                            .attributes
-                            .get("colspan")
-                            .and_then(|v| v.parse::<usize>().ok())
-                            .unwrap_or(1)
-                            .max(1);
+                        while col_pos < num_cols && sizing_occupied[col_pos] > 0 {
+                            sizing_occupied[col_pos] -= 1;
+                            col_pos += 1;
+                        }
+                        if col_pos >= num_cols {
+                            break;
+                        }
+                        let colspan = parse_cell_colspan(cell_el);
+                        let span = colspan.min(num_cols - col_pos);
                         let cell_classes = cell_el.class_list();
                         let mut cell_sizing_ancestors = sizing_row_ctx.ancestors.clone();
                         cell_sizing_ancestors.push(AncestorInfo {
@@ -944,7 +1387,7 @@ pub(crate) fn flatten_table(
                             following_siblings: Vec::new(),
                             is_empty: false,
                         };
-                        let cell_style = compute_style_with_context(
+                        let mut cell_style = compute_style_with_context(
                             cell_el.tag,
                             cell_el.style_attr(),
                             &row_style,
@@ -954,6 +1397,11 @@ pub(crate) fn flatten_table(
                             cell_el.id(),
                             &cell_el.attributes,
                             &cell_sizing_ctx,
+                        );
+                        apply_cell_attribute_hints(
+                            &mut cell_style,
+                            table_attr_cellpadding,
+                            table_attr_border_width,
                         );
                         let mut runs = Vec::new();
                         let mut nested_rows = Vec::new();
@@ -1089,27 +1537,45 @@ pub(crate) fn flatten_table(
                         // that wide even for shrinking).
                         let total_min = (content_min_width.max(nested_width) + cell_padding_x)
                             .max(explicit_cell_width);
-                        if colspan == 1 {
+                        if span == 1 {
                             if col_pos < num_cols {
                                 preferred_widths[col_pos] =
                                     preferred_widths[col_pos].max(total_preferred);
                                 min_widths[col_pos] = min_widths[col_pos].max(total_min);
                             }
                         } else {
-                            let per_col = total_preferred / colspan as f32;
-                            let per_col_min = total_min / colspan as f32;
-                            for i in 0..colspan {
+                            spanning_widths.push((col_pos, span, total_preferred, total_min));
+                        }
+                        let rowspan = parse_cell_rowspan(
+                            cell_el,
+                            row_section_sizes[sizing_row_idx]
+                                .saturating_sub(row_section_indices[sizing_row_idx]),
+                        );
+                        if rowspan > 1 {
+                            for i in 0..span {
                                 if col_pos + i < num_cols {
-                                    preferred_widths[col_pos + i] =
-                                        preferred_widths[col_pos + i].max(per_col);
-                                    min_widths[col_pos + i] =
-                                        min_widths[col_pos + i].max(per_col_min);
+                                    sizing_occupied[col_pos + i] = rowspan - 1;
                                 }
                             }
                         }
-                        col_pos += colspan;
+                        col_pos += span;
                     }
                 }
+            }
+        }
+
+        for (start, span, total_preferred, total_min) in spanning_widths {
+            let end = (start + span).min(num_cols);
+            let preferred_sum: f32 = preferred_widths[start..end].iter().sum();
+            if total_preferred > preferred_sum {
+                distribute_extra_width(
+                    &mut preferred_widths[start..end],
+                    total_preferred - preferred_sum,
+                );
+            }
+            let min_sum: f32 = min_widths[start..end].iter().sum();
+            if total_min > min_sum {
+                distribute_extra_width(&mut min_widths[start..end], total_min - min_sum);
             }
         }
 
@@ -1178,14 +1644,34 @@ pub(crate) fn flatten_table(
             }
         }
     };
+    let current_table_width = col_widths.iter().sum::<f32>()
+        + if style.border_collapse == BorderCollapse::Separate {
+            effective_border_spacing * (col_widths.len().saturating_add(1) as f32)
+        } else {
+            outer_left_border / 2.0 + outer_right_border / 2.0
+        };
+    if caption_min_width > current_table_width {
+        distribute_extra_width(&mut col_widths, caption_min_width - current_table_width);
+    }
 
     // Build layout rows, tracking cells occupied by rowspan from previous rows.
     // Each entry in `occupied` tracks the remaining rowspan count for that column.
     let mut occupied: Vec<usize> = vec![0; num_cols];
+    let mut occupied_min_heights: Vec<f32> = vec![0.0; num_cols];
+    let mut layout_section = None;
     // Remember where this table's rows start so a table-level background/border
     // box can be inserted ahead of them once the total height is known.
     let table_output_start = output.len();
     for (row_idx, row) in rows.iter().enumerate() {
+        let section_key = table_section_key(
+            row_section_elements[row_idx],
+            row_section_child_indices[row_idx],
+        );
+        if layout_section != Some(section_key) {
+            occupied.fill(0);
+            occupied_min_heights.fill(0.0);
+            layout_section = Some(section_key);
+        }
         let row_classes = row.class_list();
         // Use section-relative index for nth-child matching (browsers count
         // within thead/tbody/tfoot, not globally across all rows).
@@ -1247,12 +1733,7 @@ pub(crate) fn flatten_table(
                     if col_pos >= num_cols {
                         break;
                     }
-                    let colspan = cell_el
-                        .attributes
-                        .get("colspan")
-                        .and_then(|v| v.parse::<usize>().ok())
-                        .unwrap_or(1)
-                        .max(1);
+                    let colspan = parse_cell_colspan(cell_el);
                     let span = colspan.min(num_cols - col_pos);
 
                     let cell_classes = cell_el.class_list();
@@ -1273,7 +1754,7 @@ pub(crate) fn flatten_table(
                         following_siblings: Vec::new(),
                         is_empty: false,
                     };
-                    let cell_style = compute_style_with_context(
+                    let mut cell_style = compute_style_with_context(
                         cell_el.tag,
                         cell_el.style_attr(),
                         &row_style,
@@ -1283,6 +1764,11 @@ pub(crate) fn flatten_table(
                         cell_el.id(),
                         &cell_el.attributes,
                         &cell_selector_ctx,
+                    );
+                    apply_cell_attribute_hints(
+                        &mut cell_style,
+                        table_attr_cellpadding,
+                        table_attr_border_width,
                     );
                     let cell_border = LayoutBorder::from_computed(&cell_style.border);
                     cells.push(TableCell {
@@ -1311,16 +1797,27 @@ pub(crate) fn flatten_table(
                 }
 
                 if !cells.is_empty() {
+                    let first_emitted_row = output.len() == table_output_start;
+                    let mut row_cells = cells;
+                    let mut row_col_widths = col_widths.clone();
+                    if style.direction_rtl {
+                        row_cells.reverse();
+                        row_col_widths.reverse();
+                    }
                     output.push(LayoutElement::TableRow {
-                        cells,
-                        col_widths: col_widths.clone(),
-                        margin_top: 0.0,
+                        cells: row_cells,
+                        col_widths: row_col_widths,
+                        margin_top: if first_emitted_row {
+                            table_grid_inset
+                        } else {
+                            0.0
+                        },
                         margin_bottom: 0.0,
                         border_collapse: style.border_collapse,
-                        border_spacing: style.border_spacing,
+                        border_spacing: effective_border_spacing,
                         is_header: false,
                         is_footer: false,
-                        offset_left: style.margin.left.max(0.0),
+                        offset_left: style.margin.left.max(0.0) + table_grid_inset,
                         break_inside_avoid: style.break_inside_avoid,
                     });
                 }
@@ -1350,12 +1847,17 @@ pub(crate) fn flatten_table(
                 let span_cols = {
                     // Count how many consecutive occupied columns share this rowspan
                     let remaining = occupied[col_pos];
+                    let min_height = occupied_min_heights[col_pos];
                     let mut count = 1;
-                    while col_pos + count < num_cols && occupied[col_pos + count] == remaining {
+                    while col_pos + count < num_cols
+                        && occupied[col_pos + count] == remaining
+                        && (occupied_min_heights[col_pos + count] - min_height).abs() < 0.01
+                    {
                         count += 1;
                     }
                     count
                 };
+                let phantom_min_height = occupied_min_heights[col_pos];
                 cells.push(TableCell {
                     lines: Vec::new(),
                     nested_rows: Vec::new(),
@@ -1370,7 +1872,7 @@ pub(crate) fn flatten_table(
                     border: LayoutBorder::default(),
                     text_align: TextAlign::Left,
                     vertical_align: VerticalAlign::Baseline,
-                    min_content_height: 0.0,
+                    min_content_height: phantom_min_height,
                     hide_if_empty: false,
                     grid_inset: None,
                     clips: false,
@@ -1380,6 +1882,9 @@ pub(crate) fn flatten_table(
                 });
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
+                    if occupied[col_pos + i] == 0 {
+                        occupied_min_heights[col_pos + i] = 0.0;
+                    }
                 }
                 col_pos += span_cols;
                 continue;
@@ -1389,18 +1894,11 @@ pub(crate) fn flatten_table(
             let Some(cell_el) = next_cell else { break };
             next_cell = child_iter.next();
 
-            let colspan = cell_el
-                .attributes
-                .get("colspan")
-                .and_then(|v| v.parse::<usize>().ok())
-                .unwrap_or(1)
-                .max(1);
-            let rowspan = cell_el
-                .attributes
-                .get("rowspan")
-                .and_then(|v| v.parse::<usize>().ok())
-                .unwrap_or(1)
-                .max(1);
+            let colspan = parse_cell_colspan(cell_el);
+            let rowspan = parse_cell_rowspan(
+                cell_el,
+                row_section_sizes[row_idx].saturating_sub(row_section_indices[row_idx]),
+            );
 
             let cell_classes = cell_el.class_list();
             let mut cell_ancestors = row_selector_ctx.ancestors.clone();
@@ -1420,7 +1918,7 @@ pub(crate) fn flatten_table(
                 following_siblings: Vec::new(),
                 is_empty: false,
             };
-            let cell_style = compute_style_with_context(
+            let mut cell_style = compute_style_with_context(
                 cell_el.tag,
                 cell_el.style_attr(),
                 &row_style,
@@ -1430,6 +1928,11 @@ pub(crate) fn flatten_table(
                 cell_el.id(),
                 &cell_el.attributes,
                 &cell_selector_ctx,
+            );
+            apply_cell_attribute_hints(
+                &mut cell_style,
+                table_attr_cellpadding,
+                table_attr_border_width,
             );
             // Compute effective width from auto-sized column widths. Cell borders
             // are painted INSIDE the cell box (CSS2 §17.6: the border-box is the
@@ -1510,7 +2013,7 @@ pub(crate) fn flatten_table(
                 cell_inner.max(1.0),
                 counter_state,
             );
-            let lines = wrap_text_runs(
+            let mut lines = wrap_text_runs(
                 runs,
                 TextWrapOptions::new(
                     cell_inner.max(1.0),
@@ -1522,6 +2025,9 @@ pub(crate) fn flatten_table(
                 .with_bidi_override(cell_style.bidi_override),
                 fonts,
             );
+            if cell_style.overflow.clips() {
+                clip_text_lines_to_width(&mut lines, cell_inner.max(0.0), fonts);
+            }
 
             let bg = cell_style
                 .background_color
@@ -1546,6 +2052,11 @@ pub(crate) fn flatten_table(
             // text, because `&nbsp;` is content yet whitespace-collapses away.
             let hide_if_empty = cell_style.empty_cells == crate::style::computed::EmptyCells::Hide
                 && cell_has_no_content(cell_el);
+            let row_span_share = if rowspan > 1 {
+                (min_content_height / rowspan as f32).max(0.0)
+            } else {
+                min_content_height
+            };
             cells.push(TableCell {
                 lines,
                 nested_rows,
@@ -1561,15 +2072,11 @@ pub(crate) fn flatten_table(
                 rowspan,
                 border: cell_border,
                 text_align: cell_style.text_align,
-                vertical_align: if cell_style.vertical_align == VerticalAlign::Baseline {
-                    VerticalAlign::Top
-                } else {
-                    cell_style.vertical_align
-                },
-                min_content_height,
+                vertical_align: table_cell_vertical_align(cell_style.vertical_align),
+                min_content_height: row_span_share,
                 hide_if_empty,
                 grid_inset: None,
-                clips: false,
+                clips: cell_style.overflow.clips(),
                 background_gradient: None,
                 background_radial_gradient: None,
                 background_conic_gradient: None,
@@ -1580,6 +2087,7 @@ pub(crate) fn flatten_table(
                 for i in 0..colspan {
                     if col_pos + i < num_cols {
                         occupied[col_pos + i] = rowspan - 1;
+                        occupied_min_heights[col_pos + i] = row_span_share;
                     }
                 }
             }
@@ -1588,6 +2096,16 @@ pub(crate) fn flatten_table(
         }
 
         if !cells.is_empty() {
+            let first_emitted_row = output.len() == table_output_start;
+            if let Some(row_height) = row_style.height.or(row_style.min_height) {
+                enforce_row_min_height(&mut cells, row_height);
+            }
+            let mut row_cells = cells;
+            let mut row_col_widths = col_widths.clone();
+            if style.direction_rtl {
+                row_cells.reverse();
+                row_col_widths.reverse();
+            }
             let is_header = row_section_elements[row_idx]
                 .map(|s| s.tag == HtmlTag::Thead)
                 .unwrap_or(false);
@@ -1595,26 +2113,30 @@ pub(crate) fn flatten_table(
                 .map(|s| s.tag == HtmlTag::Tfoot)
                 .unwrap_or(false);
             output.push(LayoutElement::TableRow {
-                cells,
-                col_widths: col_widths.clone(),
+                cells: row_cells,
+                col_widths: row_col_widths,
                 // The table-level background box (inserted below) carries the
                 // table's own `margin-top`. The first row is therefore inset
                 // only by the top *vertical* `border-spacing` (zero when
                 // collapsed); subsequent rows are separated by the same.
                 margin_top: if style.border_collapse == BorderCollapse::Separate {
-                    style.border_spacing_vertical
+                    effective_border_spacing_vertical
+                } else {
+                    0.0
+                } + if first_emitted_row {
+                    table_grid_inset
                 } else {
                     0.0
                 },
                 margin_bottom: 0.0,
                 border_collapse: style.border_collapse,
-                border_spacing: style.border_spacing,
+                border_spacing: effective_border_spacing,
                 is_header,
                 is_footer,
                 // The table's own horizontal start margin shifts every cell (and
                 // the table box) right from the containing block's content edge,
                 // mirroring how `margin_top` shifts it down.
-                offset_left: style.margin.left.max(0.0),
+                offset_left: style.margin.left.max(0.0) + table_grid_inset,
                 break_inside_avoid: style.break_inside_avoid,
             });
         }
@@ -1630,12 +2152,24 @@ pub(crate) fn flatten_table(
     // Horizontal spacing applies to column gaps + left/right outer edges;
     // vertical spacing applies to row gaps + top/bottom outer edges. They differ
     // only for the two-value `border-spacing: H V` form.
-    let edge_spacing_h = if separate { style.border_spacing } else { 0.0 };
-    let edge_spacing_v = if separate {
-        style.border_spacing_vertical
+    let edge_spacing_h = if separate {
+        effective_border_spacing
     } else {
         0.0
     };
+    let edge_spacing_v = if separate {
+        effective_border_spacing_vertical
+    } else {
+        0.0
+    };
+
+    if let Some(table_height) = style.height.or(style.min_height) {
+        stretch_table_rows_to_min_height(
+            &mut output[table_output_start..],
+            table_height,
+            edge_spacing_v,
+        );
+    }
 
     // Height of the table content box: the rows plus, for `separate` collapse,
     // the vertical `border-spacing` above the first row, below the last row, and
@@ -1652,7 +2186,9 @@ pub(crate) fn flatten_table(
                 .fold(0.0f32, f32::max);
         }
     }
-    let box_height = rows_height + edge_spacing_v * (emitted_rows.saturating_add(1) as f32);
+    let box_height = rows_height
+        + edge_spacing_v * (emitted_rows.saturating_add(1) as f32)
+        + table_grid_inset * 2.0;
 
     // Width of the table content box: the resolved column widths plus, for
     // `separate` collapse, one horizontal `border-spacing` on each outer edge
@@ -1670,19 +2206,25 @@ pub(crate) fn flatten_table(
     };
     let box_width = columns_sum
         + edge_spacing_h * (col_widths.len().saturating_add(1) as f32)
-        + collapse_outer_w;
+        + collapse_outer_w
+        + table_grid_inset * 2.0;
 
     // The last row carries the bottom vertical `border-spacing` gap plus the
     // table's own `margin-bottom`, so the in-flow height below the rows matches
     // the box. A `caption-side: bottom` caption (appended after the rows) takes
     // over the table's `margin-bottom` instead, so the row keeps only the gap.
-    let bottom_caption = caption.is_some()
-        && matches!(
-            style.caption_side,
-            crate::style::computed::CaptionSide::Bottom
-        );
+    let caption_on_top = caption_style_for_layout
+        .as_ref()
+        .is_none_or(|caption_style| {
+            matches!(
+                caption_style.caption_side,
+                crate::style::computed::CaptionSide::Top
+            )
+        });
+    let bottom_caption = caption.is_some() && !caption_on_top;
     if let Some(LayoutElement::TableRow { margin_bottom, .. }) = output.last_mut() {
         *margin_bottom = edge_spacing_v
+            + table_grid_inset
             + if bottom_caption {
                 0.0
             } else {
@@ -1690,9 +2232,6 @@ pub(crate) fn flatten_table(
             };
     }
 
-    // `caption-side` decides whether a `<caption>` is placed above (default) or
-    // below the table box.
-    let caption_on_top = matches!(style.caption_side, crate::style::computed::CaptionSide::Top);
     let has_top_caption = caption.is_some() && caption_on_top;
 
     // The table's own `margin-top` is carried by whichever box comes first: a
@@ -1704,7 +2243,12 @@ pub(crate) fn flatten_table(
     // zero-flow box: its `margin-top` carries the table's own top margin (unless
     // a caption above already does) while a matching negative `margin-bottom`
     // cancels its height so the rows that follow render on top of it.
-    let table_border = LayoutBorder::from_computed(&style.border);
+    let mut table_border = LayoutBorder::from_computed(&style.border);
+    if !table_border.has_any() {
+        if let Some(width) = table_attr_border_width {
+            table_border = attr_border(width, true);
+        }
+    }
     if has_background_paint(style) || table_border.has_any() {
         let bg_margin_top = if has_top_caption {
             0.0
@@ -1780,26 +2324,16 @@ pub(crate) fn flatten_table(
     // the rows: it carries the table's `margin-top` and pushes the rest of the
     // table down by its own height.
     if let Some((caption_el, caption_child_idx)) = caption {
-        let caption_classes = caption_el.class_list();
-        let caption_ctx = SelectorContext {
-            ancestors: table_ancestors.clone(),
-            child_index: caption_child_idx,
-            sibling_count: section_count,
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
-            is_empty: false,
-        };
-        let caption_style = compute_style_with_context(
-            caption_el.tag,
-            caption_el.style_attr(),
-            style,
-            rules,
-            caption_el.tag_name(),
-            &caption_classes,
-            caption_el.id(),
-            &caption_el.attributes,
-            &caption_ctx,
-        );
+        let caption_style = caption_style_for_layout.clone().unwrap_or_else(|| {
+            compute_caption_style(
+                caption_el,
+                caption_child_idx,
+                section_count,
+                style,
+                &table_ancestors,
+                rules,
+            )
+        });
         let caption_inner =
             (box_width - caption_style.padding.left - caption_style.padding.right).max(1.0);
         let mut caption_ancestors = table_ancestors.clone();

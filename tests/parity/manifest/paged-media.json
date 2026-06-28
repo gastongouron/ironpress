@@ -999,7 +999,7 @@
     "file": "cases/paged-media/paged-page-margin-three-values.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box"
     ],
@@ -1016,7 +1016,7 @@
     "file": "cases/paged-media/paged-page-margin-percentage.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box"
     ],
@@ -1121,7 +1121,7 @@
     "file": "cases/paged-media/paged-first-right-cascade.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box"
     ],

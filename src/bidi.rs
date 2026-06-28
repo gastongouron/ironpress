@@ -156,6 +156,29 @@ pub(crate) fn has_rtl_chars(text: &str) -> bool {
     })
 }
 
+pub(crate) fn first_strong_is_rtl(text: &str) -> bool {
+    for ch in text.chars() {
+        let c = ch as u32;
+        if (0x0041..=0x005a).contains(&c)
+            || (0x0061..=0x007a).contains(&c)
+            || (0x00c0..=0x02af).contains(&c)
+        {
+            return false;
+        }
+        if (0x0600..=0x06FF).contains(&c)
+            || (0x0750..=0x077F).contains(&c)
+            || (0x08A0..=0x08FF).contains(&c)
+            || (0xFB50..=0xFDFF).contains(&c)
+            || (0xFE70..=0xFEFF).contains(&c)
+            || (0x0590..=0x05FF).contains(&c)
+            || (0xFB1D..=0xFB4F).contains(&c)
+        {
+            return true;
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

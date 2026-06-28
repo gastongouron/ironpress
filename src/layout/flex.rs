@@ -1,23 +1,24 @@
-use crate::parser::css::{AncestorInfo, SelectorContext};
-use crate::parser::dom::{DomNode, ElementNode};
+use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
+use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::style::computed::{
-    AlignContent, AlignItems, AlignSelf, BackgroundClip, BackgroundOrigin, BackgroundPosition,
-    BackgroundRepeat, BackgroundSize, BoxSizing, Clear, ComputedStyle, Display, FlexDirection,
-    FlexWrap, Float, JustifyContent, Overflow, OverflowWrap, Position, TextAlign, VerticalAlign,
-    Visibility, WhiteSpace, compute_style_with_context,
+    compute_style_with_context, AlignContent, AlignItems, AlignSelf, BackgroundClip,
+    BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing, Clear,
+    ComputedStyle, Display, FlexDirection, FlexWrap, Float, FontWeight, IntrinsicWidthKeyword,
+    JustifyContent, Overflow, OverflowWrap, Position, TextAlign, VerticalAlign, Visibility,
+    WhiteSpace,
 };
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
 use super::engine::{
-    BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine, TextRun,
     aspect_ratio_height, background_svg_for_style, collects_as_inline_text, flatten_element,
     has_background_paint, measure_runs_width, pseudo_is_block_like, push_block_pseudo,
-    resolve_padding_box_height,
+    resolve_padding_box_height, BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine,
+    TextRun,
 };
 use super::paginate::estimate_element_height;
 use super::text::{
-    FlexTextRunCollector, TextWrapOptions, estimate_word_width, resolved_line_height_factor,
-    wrap_text_runs,
+    estimate_word_width, resolve_style_font_family, resolved_line_height_factor, wrap_text_runs,
+    FlexTextRunCollector, TextWrapOptions,
 };
 
 /// Each child is laid out as a TextBlock at a computed position. The container
@@ -100,6 +101,261 @@ fn flex_text_min_content(
     total
 }
 
+fn flex_style_outer_width(style: &ComputedStyle, content_width: f32) -> f32 {
+    if style.box_sizing == BoxSizing::ContentBox {
+        content_width + style.padding.left + style.padding.right + style.border.horizontal_width()
+    } else {
+        content_width
+    }
+}
+
+fn flex_style_outer_height(style: &ComputedStyle, content_height: f32) -> f32 {
+    if style.box_sizing == BoxSizing::ContentBox {
+        content_height + style.padding.top + style.padding.bottom + style.border.vertical_width()
+    } else {
+        content_height
+    }
+}
+
+fn flex_direct_text_width(
+    text: &str,
+    style: &ComputedStyle,
+    fonts: &std::collections::HashMap<String, crate::parser::ttf::TtfFont>,
+) -> f32 {
+    let family = resolve_style_font_family(style, fonts);
+    let mut width = 0.0;
+    let mut first = true;
+    for word in text.split_whitespace() {
+        if !first {
+            width += estimate_word_width(
+                " ",
+                style.font_size,
+                &family,
+                style.font_weight == FontWeight::Bold,
+                style.font_style == crate::style::computed::FontStyle::Italic,
+                fonts,
+            );
+        }
+        width += estimate_word_width(
+            word,
+            style.font_size,
+            &family,
+            style.font_weight == FontWeight::Bold,
+            style.font_style == crate::style::computed::FontStyle::Italic,
+            fonts,
+        );
+        first = false;
+    }
+    width
+}
+
+#[derive(Clone, Copy)]
+struct FlexBasisRecovery {
+    grow: f32,
+    shrink: f32,
+    length: Option<f32>,
+    pct: Option<f32>,
+    content: bool,
+}
+
+fn parse_flex_basis_recovery(raw: &str) -> Option<FlexBasisRecovery> {
+    let parts: Vec<&str> = raw.split_whitespace().collect();
+    let (grow, shrink, basis_token) = match parts.as_slice() {
+        ["none"] | ["initial"] | ["auto"] => return None,
+        [grow] => (grow.parse::<f32>().ok()?.max(0.0), 1.0, "0"),
+        [grow, second] => {
+            let grow = grow.parse::<f32>().ok()?.max(0.0);
+            if second.parse::<f32>().is_ok() {
+                (grow, second.parse::<f32>().ok()?.max(0.0), "0")
+            } else {
+                (grow, 1.0, *second)
+            }
+        }
+        [grow, shrink, third, ..] => (
+            grow.parse::<f32>().ok()?.max(0.0),
+            shrink.parse::<f32>().ok()?.max(0.0),
+            *third,
+        ),
+        [] => return None,
+    };
+    match basis_token {
+        "auto" => Some(FlexBasisRecovery {
+            grow,
+            shrink,
+            length: None,
+            pct: None,
+            content: false,
+        }),
+        "content" => Some(FlexBasisRecovery {
+            grow,
+            shrink,
+            length: None,
+            pct: None,
+            content: true,
+        }),
+        token => match crate::parser::css::parse_length(token) {
+            Some(CssValue::Length(v)) => Some(FlexBasisRecovery {
+                grow,
+                shrink,
+                length: Some(v),
+                pct: None,
+                content: false,
+            }),
+            Some(CssValue::Percentage(p)) => Some(FlexBasisRecovery {
+                grow,
+                shrink,
+                length: None,
+                pct: Some(p / 100.0),
+                content: false,
+            }),
+            _ => None,
+        },
+    }
+}
+
+fn recover_flex_basis_from_shorthand(
+    child_el: &ElementNode,
+    classes: &[&str],
+    selector_ctx: &SelectorContext,
+    rules: &[CssRule],
+) -> Option<FlexBasisRecovery> {
+    let mut best: Option<(bool, u32, usize, FlexBasisRecovery)> = None;
+    for (source_idx, rule) in rules.iter().enumerate() {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
+        if !crate::parser::css::selector_matches_with_context(
+            &rule.selector,
+            child_el.tag_name(),
+            classes,
+            child_el.id(),
+            &child_el.attributes,
+            selector_ctx,
+        ) {
+            continue;
+        }
+        let Some(CssValue::Keyword(raw)) = rule.declarations.get("flex") else {
+            continue;
+        };
+        let Some(recovered) = parse_flex_basis_recovery(raw) else {
+            continue;
+        };
+        let important = rule
+            .declarations
+            .important
+            .get("flex")
+            .copied()
+            .unwrap_or(false);
+        let specificity = crate::parser::css::specificity(&rule.selector);
+        let take = best.is_none_or(|(best_important, best_spec, best_source, _)| {
+            (important, specificity, source_idx) >= (best_important, best_spec, best_source)
+        });
+        if take {
+            best = Some((important, specificity, source_idx, recovered));
+        }
+    }
+    best.map(|(_, _, _, recovered)| recovered)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn flex_intrinsic_container_width(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    available_width: f32,
+    ancestors: &[AncestorInfo],
+    env: &LayoutEnv,
+) -> Option<f32> {
+    let keyword = style.width_keyword?;
+    if !style.flex_direction.is_row() {
+        return None;
+    }
+
+    let mut contributions = Vec::new();
+    let mut element_idx = 0usize;
+    let element_count = el
+        .children
+        .iter()
+        .filter(|n| matches!(n, DomNode::Element(_)))
+        .count();
+
+    for child in &el.children {
+        match child {
+            DomNode::Text(text) => {
+                if text.split_whitespace().next().is_some() {
+                    contributions.push(flex_direct_text_width(text, style, env.fonts));
+                }
+            }
+            DomNode::Element(child_el) => {
+                let classes = child_el.class_list();
+                let selector_ctx = SelectorContext {
+                    ancestors: ancestors.to_vec(),
+                    child_index: element_idx,
+                    sibling_count: element_count,
+                    preceding_siblings: Vec::new(),
+                    following_siblings: Vec::new(),
+                    is_empty: false,
+                };
+                element_idx += 1;
+                let child_style = compute_style_with_context(
+                    child_el.tag,
+                    child_el.style_attr(),
+                    style,
+                    env.rules,
+                    child_el.tag_name(),
+                    &classes,
+                    child_el.id(),
+                    &child_el.attributes,
+                    &selector_ctx,
+                );
+                if child_style.display == Display::None
+                    || child_style.position == Position::Absolute
+                {
+                    continue;
+                }
+                let width = child_style
+                    .flex_basis
+                    .or(child_style.width)
+                    .map(|w| flex_style_outer_width(&child_style, w))
+                    .or_else(|| {
+                        child_style
+                            .height
+                            .zip(child_style.aspect_ratio)
+                            .map(|(h, ratio)| flex_style_outer_height(&child_style, h) * ratio)
+                    })
+                    .unwrap_or(0.0)
+                    + child_style.margin.left
+                    + child_style.margin.right;
+                contributions.push(width);
+            }
+        }
+    }
+
+    if contributions.is_empty() {
+        return None;
+    }
+
+    let main_gap = if style.flex_direction.is_row() {
+        style.column_gap.max(style.gap)
+    } else {
+        style.row_gap.max(style.gap)
+    };
+    let gaps = main_gap * contributions.len().saturating_sub(1) as f32;
+    let content = match keyword {
+        IntrinsicWidthKeyword::MinContent if style.flex_wrap.wraps() => {
+            contributions.into_iter().fold(0.0f32, f32::max)
+        }
+        IntrinsicWidthKeyword::MinContent | IntrinsicWidthKeyword::MaxContent => {
+            contributions.into_iter().sum::<f32>() + gaps
+        }
+        IntrinsicWidthKeyword::FitContent => {
+            let max_content = contributions.into_iter().sum::<f32>() + gaps;
+            max_content.min(available_width.max(0.0))
+        }
+    };
+
+    Some(content + style.padding.left + style.padding.right + style.border.horizontal_width())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_flex_container(
     el: &ElementNode,
@@ -116,6 +372,13 @@ pub(crate) fn layout_flex_container(
     let mut block_w = available_width;
     if let Some(w) = style.width {
         block_w = w.min(available_width);
+    } else if let Some(w) =
+        flex_intrinsic_container_width(el, style, available_width, ancestors, env)
+    {
+        block_w = w.min(available_width);
+    }
+    if let Some(mw) = style.min_width {
+        block_w = block_w.max(mw);
     }
     if let Some(mw) = style.max_width {
         block_w = block_w.min(mw);
@@ -210,13 +473,28 @@ pub(crate) fn layout_flex_container(
         })
         .collect();
     let has_abs_children = child_is_abs.iter().any(|&b| b);
-    // In-flow flex items (abs children excluded).
-    let child_elements: Vec<&ElementNode> = all_child_elements
-        .iter()
-        .zip(child_is_abs.iter())
-        .filter(|(_, is_abs)| !**is_abs)
-        .map(|(e, _)| *e)
-        .collect();
+    // In-flow flex items (abs children excluded). Text directly inside a flex
+    // container is wrapped in an anonymous block flex item (css-flexbox-1 §4).
+    let mut flex_child_storage: Vec<ElementNode> = Vec::new();
+    let mut element_idx = 0usize;
+    for child in &el.children {
+        match child {
+            DomNode::Element(child_el) => {
+                if !child_is_abs[element_idx] {
+                    flex_child_storage.push((*child_el).clone());
+                }
+                element_idx += 1;
+            }
+            DomNode::Text(text) => {
+                if text.split_whitespace().next().is_some() {
+                    let mut anon = ElementNode::new(HtmlTag::Div);
+                    anon.children.push(DomNode::Text(text.clone()));
+                    flex_child_storage.push(anon);
+                }
+            }
+        }
+    }
+    let child_elements: Vec<&ElementNode> = flex_child_storage.iter().collect();
 
     let child_count = child_elements.len();
 
@@ -268,6 +546,67 @@ pub(crate) fn layout_flex_container(
                 following_siblings: Vec::new(),
                 is_empty: false,
             });
+            let classes = child_el.class_list();
+            let selector_ctx = SelectorContext {
+                ancestors: ancestors.to_vec(),
+                child_index: idx,
+                sibling_count: total_child_count,
+                preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
+            };
+            let child_style = compute_style_with_context(
+                child_el.tag,
+                child_el.style_attr(),
+                style,
+                env.rules,
+                child_el.tag_name(),
+                &classes,
+                child_el.id(),
+                &child_el.attributes,
+                &selector_ctx,
+            );
+            let child_outer_w = child_style
+                .width
+                .map(|w| flex_style_outer_width(&child_style, w))
+                .unwrap_or(0.0);
+            let child_outer_h = child_style
+                .height
+                .map(|h| flex_style_outer_height(&child_style, h))
+                .or_else(|| {
+                    child_style
+                        .width
+                        .zip(child_style.aspect_ratio)
+                        .map(|(w, ratio)| flex_style_outer_width(&child_style, w) / ratio)
+                })
+                .unwrap_or(0.0);
+            let static_main_free = (inner_width.max(0.0) - child_outer_w).max(0.0);
+            let mut static_x = match style.justify_content {
+                JustifyContent::FlexStart | JustifyContent::SpaceBetween => 0.0,
+                JustifyContent::FlexEnd => static_main_free,
+                JustifyContent::Center
+                | JustifyContent::SpaceAround
+                | JustifyContent::SpaceEvenly => static_main_free / 2.0,
+            };
+            let row_mirrors = style.flex_direction.is_row()
+                && ((style.flex_direction == FlexDirection::RowReverse) ^ style.direction_rtl);
+            if row_mirrors {
+                static_x = inner_width.max(0.0) - static_x - child_outer_w;
+            }
+            let effective_align = match child_style.align_self {
+                AlignSelf::Auto => style.align_items,
+                AlignSelf::FlexStart => AlignItems::FlexStart,
+                AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                AlignSelf::Center => AlignItems::Center,
+                AlignSelf::Baseline => AlignItems::Baseline,
+                AlignSelf::Stretch => AlignItems::Stretch,
+            };
+            let static_cross_free = (content_h - child_outer_h).max(0.0);
+            let static_y = match effective_align {
+                AlignItems::FlexStart | AlignItems::Baseline | AlignItems::Stretch => 0.0,
+                AlignItems::FlexEnd => static_cross_free,
+                AlignItems::Center => static_cross_free / 2.0,
+            } + style.border.top.width;
             let child_ctx = ctx
                 .with_parent_and_basis(
                     inner_width.max(0.0),
@@ -302,15 +641,34 @@ pub(crate) fn layout_flex_container(
             for el in &mut buf {
                 match el {
                     LayoutElement::Container {
-                        offset_left,
-                        containing_block,
-                        ..
-                    }
-                    | LayoutElement::TextBlock {
+                        offset_top,
                         offset_left,
                         containing_block,
                         ..
                     } => {
+                        if child_style.left.is_none() && child_style.right.is_none() {
+                            *offset_left += static_x;
+                        }
+                        if child_style.top.is_none() && child_style.bottom.is_none() {
+                            *offset_top += static_y;
+                        }
+                        *offset_left += cb.x;
+                        if let Some(c) = containing_block {
+                            c.x = 0.0;
+                        }
+                    }
+                    LayoutElement::TextBlock {
+                        offset_left,
+                        offset_top,
+                        containing_block,
+                        ..
+                    } => {
+                        if child_style.left.is_none() && child_style.right.is_none() {
+                            *offset_left += static_x;
+                        }
+                        if child_style.top.is_none() && child_style.bottom.is_none() {
+                            *offset_top += static_y;
+                        }
                         *offset_left += cb.x;
                         if let Some(c) = containing_block {
                             c.x = 0.0;
@@ -342,6 +700,10 @@ pub(crate) fn layout_flex_container(
             let container_h = style
                 .height
                 .or_else(|| aspect_ratio_height(block_w, style))
+                .map(|h| match style.box_sizing {
+                    BoxSizing::ContentBox => h + style.padding.top + style.padding.bottom,
+                    BoxSizing::BorderBox => (h - style.border.vertical_width()).max(0.0),
+                })
                 .unwrap_or(0.0);
             let containing_block = (style.position == Position::Relative
                 || style.position == Position::Absolute)
@@ -532,6 +894,7 @@ pub(crate) fn layout_flex_container(
         rel_top: f32,
         is_relative: bool,
         z_index: i32,
+        aspect_ratio: Option<f32>,
     }
 
     // Resolve an item's outer (border-box) main-axis min/max clamps from its
@@ -621,7 +984,7 @@ pub(crate) fn layout_flex_container(
             following_siblings: Vec::new(),
             is_empty: false,
         };
-        let child_style = compute_style_with_context(
+        let mut child_style = compute_style_with_context(
             child_el.tag,
             child_el.style_attr(),
             &parent_for_children,
@@ -632,6 +995,15 @@ pub(crate) fn layout_flex_container(
             &child_el.attributes,
             &selector_ctx,
         );
+        if let Some(recovered) =
+            recover_flex_basis_from_shorthand(child_el, &classes, &selector_ctx, env.rules)
+        {
+            child_style.flex_grow = recovered.grow;
+            child_style.flex_shrink = recovered.shrink;
+            child_style.flex_basis = recovered.length;
+            child_style.flex_basis_pct = recovered.pct;
+            child_style.flex_basis_content = recovered.content;
+        }
 
         if child_style.display == Display::None {
             continue;
@@ -760,13 +1132,30 @@ pub(crate) fn layout_flex_container(
         let item_box_floor = child_style.border.horizontal_width()
             + child_style.padding.left
             + child_style.padding.right;
-        let child_w_initial = match resolved_basis.or(child_style.width) {
+        let transferred_aspect_width =
+            if style.flex_direction.is_row() && child_style.width.is_none() {
+                child_style
+                    .height
+                    .zip(child_style.aspect_ratio)
+                    .map(|(h, ratio)| flex_style_outer_height(&child_style, h) * ratio)
+            } else {
+                None
+            };
+        let auto_item_width = if style.flex_direction.is_row() {
+            width_for_percentages / child_count as f32
+        } else {
+            width_for_percentages
+        };
+        let child_w_initial = match resolved_basis
+            .or(child_style.width)
+            .or(transferred_aspect_width)
+        {
             Some(w) => inflate_outer(w).max(item_box_floor),
             None => {
                 if child_style.flex_grow > 0.0 {
                     item_box_floor
                 } else {
-                    width_for_percentages / child_count as f32
+                    auto_item_width
                 }
             }
         };
@@ -774,7 +1163,7 @@ pub(crate) fn layout_flex_container(
         // flex base is 0 — text needs a nonzero width to wrap into lines.
         // The actual item width will be set after grow distribution.
         let wrap_width = if child_w_initial < 1.0 && child_style.flex_grow > 0.0 {
-            width_for_percentages / child_count as f32
+            auto_item_width
         } else {
             child_w_initial
         };
@@ -795,9 +1184,12 @@ pub(crate) fn layout_flex_container(
         // wrapping decisions (content-box + padding + border for content-box),
         // child_w_for_layout is the content width used to lay out children so
         // percentage resolution against the parent content area is correct.
-        let child_w_for_flex = match resolved_basis.or(child_style.width) {
+        let child_w_for_flex = match resolved_basis
+            .or(child_style.width)
+            .or(transferred_aspect_width)
+        {
             Some(w) => inflate_outer(w).max(item_box_floor),
-            None => width_for_percentages / child_count as f32,
+            None => auto_item_width,
         };
         let child_w_for_layout = if child_style.flex_grow > 0.0
             && child_style.flex_basis == Some(0.0)
@@ -949,19 +1341,17 @@ pub(crate) fn layout_flex_container(
             // Detect that pattern and take the background block's border-box
             // height as the item's natural height instead.
             let self_bg_natural = match child_elements_buf.as_slice() {
-                [
-                    LayoutElement::TextBlock {
-                        block_height: Some(bg_h),
-                        border: bg_border,
-                        ..
-                    },
-                    LayoutElement::TextBlock {
-                        margin_top: spacer_mt,
-                        lines: spacer_lines,
-                        ..
-                    },
-                    ..,
-                ] if *spacer_mt < 0.0 && spacer_lines.is_empty() => {
+                [LayoutElement::TextBlock {
+                    block_height: Some(bg_h),
+                    border: bg_border,
+                    ..
+                }, LayoutElement::TextBlock {
+                    margin_top: spacer_mt,
+                    lines: spacer_lines,
+                    ..
+                }, ..]
+                    if *spacer_mt < 0.0 && spacer_lines.is_empty() =>
+                {
                     Some(bg_h + bg_border.vertical_width())
                 }
                 _ => None,
@@ -1041,6 +1431,7 @@ pub(crate) fn layout_flex_container(
                 rel_top: item_rel_top,
                 is_relative: item_is_relative,
                 z_index: child_style.z_index,
+                aspect_ratio: child_style.aspect_ratio,
             });
             continue;
         }
@@ -1091,7 +1482,7 @@ pub(crate) fn layout_flex_container(
         // Only the row main axis is handled here (column main = block height is
         // left at 0 to avoid disturbing column sizing).
         let (resolved_min_main, resolved_max_main) = main_min_max(&child_style);
-        let auto_min_main = if style.flex_direction.is_row()
+        let mut auto_min_main = if style.flex_direction.is_row()
             && child_style.min_width.is_none()
             && child_style.overflow_x == Overflow::Visible
             && child_style.overflow_y == Overflow::Visible
@@ -1161,6 +1552,14 @@ pub(crate) fn layout_flex_container(
             child_style.border.vertical_width(),
             child_style.box_sizing,
         );
+        if !style.flex_direction.is_row()
+            && child_style.min_height.is_none()
+            && child_style.overflow_x == Overflow::Visible
+            && child_style.overflow_y == Overflow::Visible
+            && text_height > 0.0
+        {
+            auto_min_main = (child_h + child_style.border.vertical_width()).min(resolved_max_main);
+        }
         if let Some(aspect_h) = aspect_h {
             child_h = child_h.max(aspect_h);
         }
@@ -1321,6 +1720,7 @@ pub(crate) fn layout_flex_container(
             rel_top: item_rel_top,
             is_relative: item_is_relative,
             z_index: child_style.z_index,
+            aspect_ratio: child_style.aspect_ratio,
         });
     }
 
@@ -1328,7 +1728,6 @@ pub(crate) fn layout_flex_container(
         output.append(&mut abs_output);
         return;
     }
-
     // Reorder items by CSS `order` (ascending), with document order breaking
     // ties. Layout/placement and visual paint order both follow `order`.
     if items.iter().any(|it| it.order != 0) {
@@ -2128,6 +2527,36 @@ pub(crate) fn layout_flex_container(
                     // handling), so we deliberately do NOT zero `free_space` here.
                 }
 
+                for &i in &line_items {
+                    if direction.is_row() && !items[i].has_explicit_height {
+                        let Some(ratio) = items[i].aspect_ratio else {
+                            continue;
+                        };
+                        if ratio <= 0.0 {
+                            continue;
+                        }
+                        let border_h = items[i]
+                            .elements
+                            .first()
+                            .and_then(|el| match el {
+                                LayoutElement::TextBlock { border, .. } => {
+                                    Some(border.vertical_width())
+                                }
+                                _ => None,
+                            })
+                            .unwrap_or(0.0);
+                        let border_box_h = (items[i].width / ratio).max(border_h);
+                        let pad_box_h = (border_box_h - border_h).max(0.0);
+                        if let Some(LayoutElement::TextBlock { block_height, .. }) =
+                            items[i].elements.first_mut()
+                        {
+                            *block_height = Some(pad_box_h);
+                        }
+                        items[i].height = border_box_h;
+                        items[i].natural_height = border_box_h;
+                    }
+                }
+
                 // Second pass: re-layout flex-grow items whose width changed
                 // significantly. This ensures percentage-width children inside
                 // flex items resolve against the final cell width, not the
@@ -2283,6 +2712,133 @@ pub(crate) fn layout_flex_container(
                                 items[i].height =
                                     items[i].elements.iter().map(estimate_element_height).sum();
                             }
+                        } else {
+                            let relayout_classes = child_el.class_list();
+                            let relayout_selector_ctx = SelectorContext {
+                                ancestors: ancestors.to_vec(),
+                                child_index: child_idx,
+                                sibling_count: child_count,
+                                preceding_siblings: Vec::new(),
+                                following_siblings: Vec::new(),
+                                is_empty: false,
+                            };
+                            let mut relayout_child_style = compute_style_with_context(
+                                child_el.tag,
+                                child_el.style_attr(),
+                                &parent_for_children,
+                                env.rules,
+                                child_el.tag_name(),
+                                &relayout_classes,
+                                child_el.id(),
+                                &child_el.attributes,
+                                &relayout_selector_ctx,
+                            );
+                            if let Some(recovered) = recover_flex_basis_from_shorthand(
+                                child_el,
+                                &relayout_classes,
+                                &relayout_selector_ctx,
+                                env.rules,
+                            ) {
+                                relayout_child_style.flex_grow = recovered.grow;
+                                relayout_child_style.flex_shrink = recovered.shrink;
+                                relayout_child_style.flex_basis = recovered.length;
+                                relayout_child_style.flex_basis_pct = recovered.pct;
+                                relayout_child_style.flex_basis_content = recovered.content;
+                            }
+                            let mut runs = Vec::new();
+                            let mut relayout_ancestors = ancestors.to_vec();
+                            relayout_ancestors.push(AncestorInfo {
+                                element: child_el,
+                                child_index: child_idx,
+                                sibling_count: child_count,
+                                preceding_siblings: Vec::new(),
+                                following_siblings: Vec::new(),
+                                is_empty: false,
+                            });
+                            FlexTextRunCollector {
+                                runs: &mut runs,
+                                rules: env.rules,
+                                fonts: env.fonts,
+                            }
+                            .collect(
+                                &child_el.children,
+                                &relayout_child_style,
+                                None,
+                                (0.0, 0.0),
+                                &relayout_ancestors,
+                            );
+                            let content_w = (final_w
+                                - relayout_child_style.padding.left
+                                - relayout_child_style.padding.right
+                                - relayout_child_style.border.horizontal_width())
+                            .max(1.0);
+                            let lines = if runs.is_empty() {
+                                Vec::new()
+                            } else {
+                                wrap_text_runs(
+                                    runs,
+                                    TextWrapOptions::new(
+                                        content_w,
+                                        relayout_child_style.font_size,
+                                        resolved_line_height_factor(
+                                            &relayout_child_style,
+                                            env.fonts,
+                                        ),
+                                        relayout_child_style.overflow_wrap,
+                                    )
+                                    .with_rtl(relayout_child_style.direction_rtl)
+                                    .with_bidi_override(relayout_child_style.bidi_override),
+                                    env.fonts,
+                                )
+                            };
+                            let text_h: f32 = lines.iter().map(|l| l.height).sum();
+                            let mut border_box_h = resolve_padding_box_height(
+                                text_h,
+                                relayout_child_style.height,
+                                relayout_child_style.padding.top,
+                                relayout_child_style.padding.bottom,
+                                relayout_child_style.border.vertical_width(),
+                                relayout_child_style.box_sizing,
+                            ) + relayout_child_style.border.vertical_width();
+                            if relayout_child_style.height.is_none() {
+                                if let Some(ratio) = relayout_child_style.aspect_ratio {
+                                    if ratio > 0.0 {
+                                        border_box_h = border_box_h.max(final_w / ratio);
+                                    }
+                                }
+                            }
+                            if let Some(LayoutElement::TextBlock {
+                                lines: old_lines,
+                                block_width,
+                                block_height,
+                                clip_rect,
+                                ..
+                            }) = items[i].elements.first_mut()
+                            {
+                                *old_lines = lines;
+                                *block_width = Some(final_w);
+                                *block_height = relayout_child_style
+                                    .height
+                                    .map(|_| {
+                                        (border_box_h
+                                            - relayout_child_style.border.vertical_width())
+                                        .max(0.0)
+                                    })
+                                    .or_else(|| {
+                                        relayout_child_style.aspect_ratio.map(|_| {
+                                            (border_box_h
+                                                - relayout_child_style.border.vertical_width())
+                                            .max(0.0)
+                                        })
+                                    });
+                                if relayout_child_style.overflow.clips() {
+                                    *clip_rect = Some((0.0, 0.0, final_w, border_box_h));
+                                }
+                            }
+                            items[i].height = border_box_h
+                                + relayout_child_style.margin.top
+                                + relayout_child_style.margin.bottom;
+                            items[i].natural_height = items[i].height;
                         }
                     }
                 }
@@ -2597,6 +3153,7 @@ pub(crate) fn layout_flex_container(
                         box_shadow: tb_bs,
                         border,
                         block_height: tb_bh,
+                        clip_rect: tb_clip,
                         transform: tb_transform,
                         transform_origin: tb_transform_origin,
                         ..
@@ -2618,6 +3175,60 @@ pub(crate) fn layout_flex_container(
                         let natural_h = tb_bh
                             .map(|h| h + border.vertical_width())
                             .unwrap_or(content_natural);
+                        if tb_clip.is_some() {
+                            let mut nested = item.elements.clone();
+                            if let Some(LayoutElement::TextBlock {
+                                block_width,
+                                block_height,
+                                clip_rect,
+                                ..
+                            }) = nested.first_mut()
+                            {
+                                *block_width = Some(item.width);
+                                *block_height =
+                                    Some((natural_h - border.vertical_width()).max(0.0));
+                                *clip_rect = Some((0.0, 0.0, item.width, natural_h));
+                            }
+                            flex_cells.push(FlexCell {
+                                lines: Vec::new(),
+                                x_offset: x,
+                                width: item.width,
+                                text_align: TextAlign::Left,
+                                background_color: None,
+                                padding_top: 0.0,
+                                padding_right: 0.0,
+                                padding_bottom: 0.0,
+                                padding_left: 0.0,
+                                border: LayoutBorder::default(),
+                                border_radius: 0.0,
+                                background_gradient: None,
+                                background_radial_gradient: None,
+                                background_conic_gradient: None,
+                                background_svg: None,
+                                background_blur_radius: 0.0,
+                                background_size: BackgroundSize::Auto,
+                                background_position: BackgroundPosition::default(),
+                                background_repeat: BackgroundRepeat::Repeat,
+                                background_origin: BackgroundOrigin::Padding,
+                                background_clip: BackgroundClip::Border,
+                                transform: None,
+                                transform_origin: crate::style::computed::TransformOrigin::default(
+                                ),
+                                box_shadow: Vec::new(),
+                                nested_elements: nested,
+                                natural_height: natural_h,
+                                has_explicit_height: item.has_explicit_height,
+                                cross_min: item.cross_min,
+                                cross_max: item.cross_max,
+                                align_self: item.align_self,
+                                y_offset: 0.0,
+                                line_cross_size: 0.0,
+                                is_positioned: false,
+                                z_index: item.z_index,
+                            });
+                            x += item.width + gap + extra_gap + item.margin_main_end;
+                            continue;
+                        }
                         flex_cells.push(FlexCell {
                             lines: tb_lines.clone(),
                             x_offset: x,
@@ -2698,12 +3309,10 @@ pub(crate) fn layout_flex_container(
                     x += item.width + gap + extra_gap + item.margin_main_end;
                 }
 
-                // `flex-direction: row-reverse` flips the main axis: main-start
-                // is the right edge. Mirror each cell's x within the content box
-                // so the first source item sits at the right and items run
-                // right-to-left (gaps and justify packing are preserved by the
-                // mirror because they are symmetric about the content box).
-                if direction == FlexDirection::RowReverse {
+                // The row main-start edge is right only when `row-reverse` and
+                // `direction:rtl` disagree. With both set, the reversals cancel:
+                // visual main-start is left again.
+                if (direction == FlexDirection::RowReverse) ^ style.direction_rtl {
                     for cell in flex_cells.iter_mut() {
                         cell.x_offset = inner_width - cell.x_offset - cell.width;
                     }
@@ -2717,6 +3326,10 @@ pub(crate) fn layout_flex_container(
                 // pre-shift its y by the slack inside the line to land it at the
                 // cross-end. (Stretch items already fill the line.)
                 let wrap_reversed = wrap == FlexWrap::WrapReverse;
+                let resolved_line_cross_size = line_items
+                    .iter()
+                    .map(|&i| items[i].height)
+                    .fold(line.cross_size, f32::max);
 
                 // Stamp each cell with its cross-axis position within the
                 // container so a single FlexRow can span every wrapped line.
@@ -2732,12 +3345,12 @@ pub(crate) fn layout_flex_container(
                             && align == AlignItems::Stretch
                             && cell.has_explicit_height));
                     let cross_pad = if wrap_reversed && anchor_start {
-                        (line.cross_size - cell.natural_height).max(0.0)
+                        (resolved_line_cross_size - cell.natural_height).max(0.0)
                     } else {
                         0.0
                     };
                     cell.y_offset = cross_offset + cross_pad;
-                    cell.line_cross_size = line.cross_size;
+                    cell.line_cross_size = resolved_line_cross_size;
                 }
 
                 // Apply each item's fixed cross-axis leading margin (margin-top
@@ -2754,6 +3367,52 @@ pub(crate) fn layout_flex_container(
                         cell.y_offset += it.rel_top;
                     }
                     cell.is_positioned = it.is_relative || it.z_index > 0;
+                }
+
+                let is_baseline_cell = |cell: &FlexCell| -> bool {
+                    matches!(
+                        match cell.align_self {
+                            AlignSelf::Auto => align,
+                            AlignSelf::FlexStart => AlignItems::FlexStart,
+                            AlignSelf::FlexEnd => AlignItems::FlexEnd,
+                            AlignSelf::Center => AlignItems::Center,
+                            AlignSelf::Baseline => AlignItems::Baseline,
+                            AlignSelf::Stretch => AlignItems::Stretch,
+                        },
+                        AlignItems::Baseline
+                    )
+                };
+                let first_baseline = |cell: &FlexCell| -> Option<f32> {
+                    let first = cell
+                        .lines
+                        .iter()
+                        .find(|line| line.runs.iter().any(|run| !run.text.is_empty()))?;
+                    let font_size = first
+                        .runs
+                        .iter()
+                        .filter(|run| !run.text.is_empty())
+                        .map(|run| run.font_size)
+                        .fold(0.0f32, f32::max);
+                    if font_size <= 0.0 {
+                        return None;
+                    }
+                    let half_leading = ((first.height - font_size) / 2.0).max(0.0);
+                    Some(cell.border.top.width + cell.padding_top + half_leading + font_size * 0.84)
+                };
+                let shared_baseline = flex_cells
+                    .iter()
+                    .filter(|cell| is_baseline_cell(cell))
+                    .filter_map(first_baseline)
+                    .fold(None, |acc: Option<f32>, b| {
+                        Some(acc.map_or(b, |a| a.max(b)))
+                    });
+                if let Some(shared) = shared_baseline {
+                    for cell in flex_cells.iter_mut().filter(|cell| is_baseline_cell(cell)) {
+                        if first_baseline(cell).is_none() {
+                            let synthesized = cell.natural_height;
+                            cell.y_offset += (shared - synthesized).max(0.0);
+                        }
+                    }
                 }
                 all_flex_cells.extend(flex_cells);
             }
@@ -3423,10 +4082,31 @@ pub(crate) fn layout_flex_container(
     // y_offset and line_cross_size handle per-line alignment internally.
     if (direction.is_row() || column_wrap_lines) && !all_flex_cells.is_empty() {
         all_flex_cells.sort_by_key(|cell| cell.z_index);
-        let row_height = if column_wrap_lines {
+        let row_height = if column_wrap_lines || (direction.is_row() && style.height.is_some()) {
             inner_cross_size
+        } else if lines.len() == 1 {
+            all_flex_cells
+                .iter()
+                .map(|cell| {
+                    if cell.line_cross_size > 0.0 {
+                        cell.line_cross_size
+                    } else {
+                        cell.natural_height
+                    }
+                })
+                .fold(total_cross.max(inner_cross_size), f32::max)
         } else {
-            total_cross.max(inner_cross_size)
+            all_flex_cells
+                .iter()
+                .map(|cell| {
+                    cell.y_offset
+                        + if cell.line_cross_size > 0.0 {
+                            cell.line_cross_size
+                        } else {
+                            cell.natural_height
+                        }
+                })
+                .fold(total_cross.max(inner_cross_size), f32::max)
         };
         output.push(LayoutElement::FlexRow {
             cells: all_flex_cells,

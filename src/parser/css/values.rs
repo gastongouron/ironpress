@@ -476,24 +476,39 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "align-items"
             | "align-content"
             | "align-self"
+            | "place-content"
             | "flex-wrap"
     ) {
         return Some(CssValue::Keyword(lower));
     }
 
-    if matches!(property, "flex-grow" | "flex-shrink" | "order") {
+    if matches!(property, "flex-grow" | "flex-shrink") {
         return parse_length(val);
+    }
+
+    if property == "order" {
+        return val
+            .trim()
+            .parse::<i32>()
+            .ok()
+            .map(|number| CssValue::Number(number as f32));
     }
 
     // Gap properties accept a single length or — for `gap` / `grid-gap` — a
     // two-value `<row> <column>` form. A single value parses as a length; the
     // two-value form is kept as a Keyword for the computed-style layer to split.
-    if matches!(property, "gap" | "grid-gap" | "column-gap" | "row-gap") {
+    if matches!(
+        property,
+        "gap" | "grid-gap" | "grid-column-gap" | "grid-row-gap" | "column-gap" | "row-gap"
+    ) {
         return parse_length(val).or_else(|| Some(CssValue::Keyword(lower.clone())));
     }
 
     if property == "flex-basis" {
-        if matches!(lower.as_str(), "auto" | "content") {
+        if matches!(
+            lower.as_str(),
+            "auto" | "content" | "min-content" | "max-content" | "fit-content"
+        ) {
             return Some(CssValue::Keyword(lower));
         }
         return parse_length(val);
@@ -521,13 +536,19 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "grid-template-columns"
             | "grid-template-rows"
             | "grid-auto-flow"
+            | "grid-auto-columns"
             | "justify-items"
             | "place-items"
             | "grid-column"
             | "grid-row"
+            | "grid-column-start"
+            | "grid-column-end"
+            | "grid-row-start"
+            | "grid-row-end"
             | "grid-template-areas"
             | "grid-area"
             | "grid-template"
+            | "grid"
             | "justify-self"
             | "place-self"
             | "clip-path"
