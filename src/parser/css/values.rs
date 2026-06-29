@@ -377,6 +377,16 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return parse_color(val);
     }
 
+    if property == "font-size-adjust" {
+        if lower == "none" {
+            return Some(CssValue::Keyword(lower));
+        }
+        if let Ok(value) = val.parse::<f32>() {
+            return Some(CssValue::Number(value));
+        }
+        return Some(CssValue::Keyword(val.to_string()));
+    }
+
     if matches!(property, "font-weight" | "font-style") {
         return Some(CssValue::Keyword(lower));
     }
@@ -388,6 +398,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
     if matches!(
         property,
         "text-align"
+            | "text-align-last"
             | "text-decoration"
             | "text-decoration-line"
             | "text-decoration-style"
@@ -543,6 +554,14 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "counter-reset"
             | "counter-increment"
             | "counter-set"
+            | "system"
+            | "symbols"
+            | "prefix"
+            | "suffix"
+            | "pad"
+            | "negative"
+            | "fallback"
+            | "range"
             | "string-set"
             | "list-style-type"
             | "list-style-position"
@@ -555,6 +574,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "overflow-inline"
             | "overflow-block"
             | "scrollbar-gutter"
+            | "scrollbar-width"
             | "visibility"
             | "transform"
             | "transform-origin"

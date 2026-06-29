@@ -109,6 +109,28 @@ fn resolve_target_attrs_in_last_run(runs: &mut [TextRun], el: &ElementNode) {
     run.text = text;
 }
 
+fn apply_inline_parent_background(
+    runs: &mut [TextRun],
+    start: usize,
+    parent_style: &ComputedStyle,
+) {
+    if parent_style.white_space == WhiteSpace::Pre {
+        return;
+    }
+    let Some(bg) = parent_style.background_color.map(|c| c.to_f32_rgba()) else {
+        return;
+    };
+    let padding = decoration_padding(parent_style, Some(bg));
+    let radius = decoration_radius(parent_style, Some(bg));
+    for run in &mut runs[start..] {
+        if run.inline_box.is_none() && run.background_color.is_none() {
+            run.background_color = Some(bg);
+            run.padding = padding;
+            run.border_radius = radius;
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // resolve_style_font_family / resolved_line_height_factor
 // ---------------------------------------------------------------------------
@@ -129,7 +151,7 @@ pub(crate) fn resolved_line_height_factor(
     style: &ComputedStyle,
     fonts: &HashMap<String, TtfFont>,
 ) -> f32 {
-    if style.line_height.is_nan() {
+    let factor = if style.line_height.is_nan() {
         let font_family = resolve_style_font_family(style, fonts);
         crate::fonts::normal_line_height_factor(
             &font_family,
@@ -144,6 +166,60 @@ pub(crate) fn resolved_line_height_factor(
         // size. Keep normal collected text out of the sentinel range; the drop
         // cap helper writes its reduced factor explicitly after collection.
         style.line_height.max(0.9)
+    };
+    encode_text_decoration_metadata(style, factor).unwrap_or(factor)
+}
+
+const TEXT_DECORATION_NAN_MARKER: u32 = 0b101;
+
+fn encode_text_decoration_metadata(style: &ComputedStyle, factor: f32) -> Option<f32> {
+    if style.text_decoration_style != TextDecorationStyle::Wavy
+        && style.text_decoration_thickness.is_none()
+        && style.text_underline_offset.is_none()
+    {
+        return None;
+    }
+
+    let factor_q = (factor.clamp(0.0, 3.96875) * 32.0).round() as u32;
+    let thickness_q = (style.text_decoration_thickness.unwrap_or(0.0).clamp(0.0, 7.75) * 4.0)
+        .round() as u32;
+    let offset_q = (style.text_underline_offset.unwrap_or(0.0).clamp(0.0, 7.75) * 4.0).round()
+        as u32;
+    let wavy = u32::from(style.text_decoration_style == TextDecorationStyle::Wavy);
+    let payload = (TEXT_DECORATION_NAN_MARKER << 19)
+        | ((factor_q & 0x7f) << 12)
+        | ((thickness_q & 0x1f) << 7)
+        | ((offset_q & 0x1f) << 2)
+        | wavy;
+    Some(f32::from_bits(0x7fc0_0000 | payload))
+}
+
+fn decode_text_decoration_metadata(run: &mut TextRun) {
+    let bits = run.line_height_factor.to_bits();
+    if bits & 0x7fc0_0000 != 0x7fc0_0000 {
+        return;
+    }
+    let payload = bits & 0x003f_ffff;
+    if payload >> 19 != TEXT_DECORATION_NAN_MARKER {
+        return;
+    }
+
+    let factor_q = (payload >> 12) & 0x7f;
+    let thickness_q = (payload >> 7) & 0x1f;
+    let offset_q = (payload >> 2) & 0x1f;
+    let wavy = payload & 0x1 != 0;
+
+    run.line_height_factor = factor_q as f32 / 32.0;
+    if run.background_color.is_none() {
+        if thickness_q > 0 {
+            run.padding.1 = thickness_q as f32 / 4.0;
+        }
+        let offset = offset_q as f32 / 4.0;
+        if wavy {
+            run.border_radius = -10_000.0 - offset;
+        } else if offset > 0.0 {
+            run.border_radius = -offset;
+        }
     }
 }
 
@@ -212,6 +288,27 @@ pub(crate) fn line_primary_font_size(runs: &[crate::layout::engine::TextRun]) ->
         .filter(|r| r.inline_box.is_none())
         .map(|r| r.font_size)
         .fold(0.0f32, f32::max)
+}
+
+fn run_glyph_top_floor(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> f32 {
+    if let Some(ch) = run.text.chars().find(|c| !c.is_whitespace())
+        && let FontFamily::Custom(name) = &run.font_family
+        && let Some((_, ttf)) =
+            crate::system_fonts::find_font(fonts, name, run.bold, run.italic)
+        && let Some(ratio) = ttf.glyph_top_ratio(ch)
+    {
+        return ratio * run.font_size;
+    }
+    let (asc_r, _) =
+        crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, fonts);
+    asc_r * run.font_size
+}
+
+fn is_drop_cap_marker_run(run: &TextRun) -> bool {
+    run.inline_box.is_none()
+        && run.line_height_factor.is_finite()
+        && run.line_height_factor < 0.9
+        && run.text.chars().filter(|c| !c.is_whitespace()).count() <= 1
 }
 
 // ---------------------------------------------------------------------------
@@ -784,13 +881,21 @@ pub(crate) fn wrap_text_runs(
     // The line box takes its height from the inline content it contains: each
     // run uses the line-height resolved from its *own* element's style, falling
     // back to the block-level factor when the run leaves it unspecified (NaN).
+    let authored_run_line_height = |run: &TextRun| {
+        let factor = if run.line_height_factor.is_nan() {
+            line_height_factor
+        } else {
+            run.line_height_factor.max(0.0)
+        };
+        run.font_size * factor
+    };
     let run_line_height = |run: &TextRun| {
         let factor = if run.line_height_factor.is_nan() {
             line_height_factor
         } else {
             run.line_height_factor.max(0.0)
         };
-        let base = run.font_size * factor;
+        let base = authored_run_line_height(run);
         // A `vertical-align: super`/`sub` run is painted with its half-leading-
         // padded glyph box shifted off the line baseline (css2 §10.8.1) by
         // `shift_basis_fs * RATIO` of the PARENT font size. The line box must
@@ -802,8 +907,13 @@ pub(crate) fn wrap_text_runs(
             VerticalAlign::Super => shift_basis_fs * crate::render::pdf::SUPER_SHIFT_RATIO,
             VerticalAlign::Sub => -shift_basis_fs * crate::render::pdf::SUB_SHIFT_RATIO,
             VerticalAlign::Length(v) => v,
-            VerticalAlign::Percent(p) => run.font_size * factor * p,
-            _ => return base,
+            VerticalAlign::Percent(p) => base * p,
+            _ => {
+                if is_drop_cap_marker_run(run) {
+                    return base;
+                }
+                return base.max(run_glyph_top_floor(run, fonts));
+            }
         };
         let (asc_r, desc_r) =
             crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, fonts);
@@ -850,7 +960,7 @@ pub(crate) fn wrap_text_runs(
     // element's own text (`<>` + `widget` → `<>widget`, never `<> widget`).
     let mut styled_words: Vec<StyledWord> = Vec::new();
     let mut prev_run_ends_ws = true;
-    for run in &runs {
+    for (run_idx, run) in runs.iter().enumerate() {
         let run_starts_ws = run.text.chars().next().is_some_and(char::is_whitespace);
         // The first emitted word of this run is directly adjacent to the prior
         // content when neither side of the boundary had whitespace.
@@ -890,6 +1000,11 @@ pub(crate) fn wrap_text_runs(
         // apply `first_word_joins` only to that token.
         let first_word_idx = styled_words.len();
         let has_newlines = run.text.contains('\n');
+        let keep_trailing_space_before_rtl = run_ends_ws
+            && !crate::bidi::has_rtl_chars(&run.text)
+            && runs
+                .get(run_idx + 1)
+                .is_some_and(|next| crate::bidi::has_rtl_chars(&next.text));
         // A run is kept as a single verbatim token (rather than word-split) only
         // when it carries *internal* significant whitespace that `split_whitespace`
         // would lose: a leading space (e.g. generated " label") or a collapsed-out
@@ -970,7 +1085,16 @@ pub(crate) fn wrap_text_runs(
         {
             first.joins_prev = true;
         }
-        prev_run_ends_ws = run_ends_ws;
+        if keep_trailing_space_before_rtl
+            && let Some(last) = styled_words.last_mut()
+            && last.text != "\n"
+            && !last.text.ends_with(char::is_whitespace)
+        {
+            last.text.push(' ');
+            prev_run_ends_ws = false;
+        } else {
+            prev_run_ends_ws = run_ends_ws;
+        }
     }
 
     if styled_words.is_empty() && !runs.is_empty() {
@@ -1233,7 +1357,7 @@ pub(crate) fn wrap_text_runs(
                         }
                         crate::style::computed::VerticalAlign::Length(v) => v,
                         crate::style::computed::VerticalAlign::Percent(p) => {
-                            run_line_height(&template) * p
+                            authored_run_line_height(&template) * p
                         }
                         _ => 0.0,
                     };
@@ -1683,10 +1807,11 @@ fn push_styled_run(
 /// placed into separate runs that reference the `__unicode_fallback` custom font,
 /// which is rendered through the CIDFontType2/Identity-H pipeline.
 pub(crate) fn push_text_run_with_fallback(
-    run: TextRun,
+    mut run: TextRun,
     runs: &mut Vec<TextRun>,
     fonts: &HashMap<String, TtfFont>,
 ) {
+    decode_text_decoration_metadata(&mut run);
     let is_standard_font = matches!(
         run.font_family,
         FontFamily::Helvetica | FontFamily::TimesRoman | FontFamily::Courier
@@ -2334,6 +2459,7 @@ fn collect_text_runs_inner(
                             &selector_ctx,
                             crate::parser::css::PseudoElement::After,
                         );
+                        let before_start = runs.len();
                         super::helpers::append_pseudo_inline_run(
                             runs,
                             before.as_ref(),
@@ -2341,7 +2467,9 @@ fn collect_text_runs_inner(
                             fonts,
                             counter_state,
                         );
+                        apply_inline_parent_background(runs, before_start, &style);
                         resolve_target_attrs_in_last_run(runs, el);
+                        let children_start = runs.len();
                         collect_text_runs_inner(
                             &el.children,
                             &style,
@@ -2353,6 +2481,8 @@ fn collect_text_runs_inner(
                             &child_ancestors,
                             counter_state,
                         );
+                        apply_inline_parent_background(runs, children_start, &style);
+                        let after_start = runs.len();
                         super::helpers::append_pseudo_inline_run(
                             runs,
                             after.as_ref(),
@@ -2360,6 +2490,7 @@ fn collect_text_runs_inner(
                             fonts,
                             counter_state,
                         );
+                        apply_inline_parent_background(runs, after_start, &style);
                         resolve_target_attrs_in_last_run(runs, el);
                     }
                 }

@@ -1270,7 +1270,7 @@
     "description": "A wrapped row flex container whose lines exceed one page fragments between flex lines; catches paginators that paint the flex layout as one overflowing atomic row.",
     "file": "cases/flexbox/flexbox-fragmentation-wrap-pages.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1287,7 +1287,7 @@
     "description": "min-width:0 plus overflow:hidden disables the flex item's automatic min-content floor so equal flex items share the row; catches implementations that always reserve min-content width.",
     "file": "cases/flexbox/flexbox-min-width-zero-auto-min.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1406,7 +1406,7 @@
     "description": "display:inline flex creates an inline-level flex container in a text line; catches parsers that ignore the two-keyword form and lose child sizing.",
     "file": "cases/flexbox/flexbox-display-inline-flex-two-keyword.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"

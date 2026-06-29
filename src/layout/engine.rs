@@ -1244,6 +1244,45 @@ fn collect_id_defs(nodes: &[DomNode], defs: &mut HashMap<String, ElementNode>) {
     }
 }
 
+fn first_root_child_margin_top(
+    nodes: &[DomNode],
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+) -> f32 {
+    for node in nodes {
+        match node {
+            DomNode::Text(text) if text.trim().is_empty() => continue,
+            DomNode::Text(_) => return 0.0,
+            DomNode::Element(el) => {
+                let classes = el.class_list();
+                let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+                let selector_ctx = SelectorContext::default();
+                let style = compute_style_with_context(
+                    el.tag,
+                    el.style_attr(),
+                    parent_style,
+                    rules,
+                    el.tag_name(),
+                    &class_refs,
+                    el.id(),
+                    &selector_attributes_with_has(el),
+                    &selector_ctx,
+                );
+                return style.margin.top;
+            }
+        }
+    }
+    0.0
+}
+
+fn background_paint_differs(a: &ComputedStyle, b: &ComputedStyle) -> bool {
+    a.background_color.map(|c| c.to_f32_rgba()) != b.background_color.map(|c| c.to_f32_rgba())
+        || a.background_gradient.is_some() != b.background_gradient.is_some()
+        || a.background_radial_gradient.is_some() != b.background_radial_gradient.is_some()
+        || a.background_conic_gradient.is_some() != b.background_conic_gradient.is_some()
+        || a.background_svg.is_some() != b.background_svg.is_some()
+}
+
 /// Lay out the DOM nodes into pages with stylesheet rules and custom fonts.
 #[allow(clippy::too_many_arguments)]
 pub fn layout_with_rules_and_fonts(
@@ -1263,12 +1302,28 @@ pub fn layout_with_rules_and_fonts(
     // properties still take effect even though the HTML parser unwraps the
     // <html>/<body> elements before layout.
     let mut parent_style = ComputedStyle::default();
+    let mut html_style = ComputedStyle::default();
+    let mut body_style = ComputedStyle::default();
     let default_parent = ComputedStyle::default();
     for rule in rules {
         let sel = rule.selector.trim();
         if sel == "body" || sel == "html" || sel == ":root" {
             crate::style::computed::apply_style_map(
                 &mut parent_style,
+                &rule.declarations,
+                &default_parent,
+            );
+        }
+        if sel == "html" || sel == ":root" {
+            crate::style::computed::apply_style_map(
+                &mut html_style,
+                &rule.declarations,
+                &default_parent,
+            );
+        }
+        if sel == "body" {
+            crate::style::computed::apply_style_map(
+                &mut body_style,
                 &rule.declarations,
                 &default_parent,
             );
@@ -1382,8 +1437,16 @@ pub fn layout_with_rules_and_fonts(
         }
     }
 
-    let has_body_bg = has_background_paint(&parent_style);
-    if has_body_bg {
+    let html_has_bg = has_background_paint(&html_style);
+    let body_has_bg = has_background_paint(&body_style);
+    let canvas_background_style = if html_has_bg {
+        Some(&html_style)
+    } else if has_background_paint(&parent_style) {
+        Some(&parent_style)
+    } else {
+        None
+    };
+    if let Some(canvas_style) = canvas_background_style {
         let BackgroundFields {
             gradient: background_gradient,
             radial_gradient: background_radial_gradient,
@@ -1395,11 +1458,11 @@ pub fn layout_with_rules_and_fonts(
             repeat: background_repeat,
             origin: background_origin,
             clip: background_clip,
-        } = BackgroundFields::from_style(&parent_style);
-        let bp_left = parent_style.padding.left;
-        let bp_right = parent_style.padding.right;
-        let bp_top = parent_style.padding.top;
-        let bp_bottom = parent_style.padding.bottom;
+        } = BackgroundFields::from_style(canvas_style);
+        let bp_left = canvas_style.padding.left;
+        let bp_right = canvas_style.padding.right;
+        let bp_top = canvas_style.padding.top;
+        let bp_bottom = canvas_style.padding.bottom;
         elements.push(LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
             orphans: 2,
@@ -1409,7 +1472,7 @@ pub fn layout_with_rules_and_fonts(
             margin_bottom: 0.0,
             text_align: TextAlign::Left,
             writing_mode: crate::style::computed::WritingMode::HorizontalTb,
-            background_color: parent_style.background_color.map(|c| c.to_f32_rgba()),
+            background_color: canvas_style.background_color.map(|c| c.to_f32_rgba()),
             padding_top: 0.0,
             padding_bottom: 0.0,
             padding_left: 0.0,
@@ -1425,6 +1488,93 @@ pub fn layout_with_rules_and_fonts(
             position: Position::Absolute,
             offset_top: -bp_top,
             offset_left: -bp_left,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: None,
+            box_shadow: Vec::new(),
+            visible: true,
+            clip_rect: None,
+            transform: None,
+            transform_origin: crate::style::computed::TransformOrigin::default(),
+            border_radius: 0.0,
+            border_radii: [0.0; 4],
+            border_radii_y: [0.0; 4],
+            outline_offset: 0.0,
+            outline_width: 0.0,
+            outline_color: None,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient,
+            background_radial_gradient,
+            background_conic_gradient,
+            background_svg,
+            background_blur_radius,
+            background_size,
+            background_position,
+            background_repeat,
+            background_origin,
+            background_clip,
+            z_index: -1,
+            repeat_on_each_page: true,
+            positioned_depth: 0,
+            heading_level: None,
+            clip_children_count: 0,
+        });
+    }
+
+    if html_has_bg && body_has_bg && background_paint_differs(&html_style, &body_style) {
+        let BackgroundFields {
+            gradient: background_gradient,
+            radial_gradient: background_radial_gradient,
+            conic_gradient: background_conic_gradient,
+            svg: background_svg,
+            blur_radius: background_blur_radius,
+            size: background_size,
+            position: background_position,
+            repeat: background_repeat,
+            origin: background_origin,
+            clip: background_clip,
+        } = BackgroundFields::from_style(&body_style);
+        let body_w = body_style
+            .width
+            .unwrap_or(available_width)
+            .max(0.0)
+            + body_style.padding.left
+            + body_style.padding.right;
+        let body_h = body_style
+            .height
+            .unwrap_or(content_height)
+            .max(0.0)
+            + body_style.padding.top
+            + body_style.padding.bottom;
+        let body_offset_top = first_root_child_margin_top(nodes, &parent_style, rules);
+        elements.push(LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
+            lines: vec![],
+            margin_top: 0.0,
+            margin_bottom: 0.0,
+            text_align: TextAlign::Left,
+            writing_mode: crate::style::computed::WritingMode::HorizontalTb,
+            background_color: body_style.background_color.map(|c| c.to_f32_rgba()),
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            padding_left: 0.0,
+            padding_right: 0.0,
+            border: LayoutBorder::default(),
+            block_width: Some(body_w),
+            block_height: Some(body_h),
+            opacity: 1.0,
+            mix_blend_mode: crate::style::computed::BlendMode::Normal,
+            background_blend_mode: crate::style::computed::BlendMode::Normal,
+            float: Float::None,
+            clear: Clear::None,
+            position: Position::Absolute,
+            offset_top: body_offset_top,
+            offset_left: 0.0,
             offset_bottom: 0.0,
             offset_right: 0.0,
             containing_block: None,
@@ -3546,13 +3696,23 @@ pub(crate) fn flatten_element(
                 indent: total_indent,
             }
         };
-        let auto_list_item_counter = el.tag == HtmlTag::Ol
+        let custom_unordered_counter = el.tag == HtmlTag::Ul
+            && matches!(
+                style.list_style_type,
+                ListStyleType::Custom(_) | ListStyleType::CounterStyle(_)
+            );
+        let auto_list_item_counter = (el.tag == HtmlTag::Ol || custom_unordered_counter)
             && !style
                 .counter_reset
                 .iter()
                 .any(|(name, _)| name == "list-item");
-        if auto_list_item_counter && let ListContext::Ordered { index, step, .. } = &ctx {
-            env.counter_state.push_reset("list-item", *index - *step);
+        if auto_list_item_counter {
+            match &ctx {
+                ListContext::Ordered { index, step, .. } => {
+                    env.counter_state.push_reset("list-item", *index - *step);
+                }
+                ListContext::Unordered { .. } => env.counter_state.push_reset("list-item", 0),
+            }
         }
         let child_el_count = el
             .children
@@ -3625,11 +3785,11 @@ pub(crate) fn flatten_element(
         // counter: absent an explicit `counter-increment: list-item ...`, every
         // item increments by the list direction before marker and generated
         // content are resolved.
+        let explicit_list_item_increment = style
+            .counter_increment
+            .iter()
+            .any(|(name, _)| name == "list-item");
         if let Some(ListContext::Ordered { index, step, .. }) = list_ctx {
-            let explicit_list_item_increment = style
-                .counter_increment
-                .iter()
-                .any(|(name, _)| name == "list-item");
             if let Some(value) = el
                 .attributes
                 .get("value")
@@ -3641,6 +3801,18 @@ pub(crate) fn flatten_element(
             }
             if !explicit_list_item_increment {
                 env.counter_state.increment("list-item", *step);
+            }
+        } else if matches!(list_ctx, Some(ListContext::Unordered { .. }))
+            && matches!(
+                style.list_style_type,
+                ListStyleType::Custom(_) | ListStyleType::CounterStyle(_)
+            )
+        {
+            if !env.counter_state.has_current("list-item") {
+                env.counter_state.set_current("list-item", 0);
+            }
+            if !explicit_list_item_increment {
+                env.counter_state.increment("list-item", 1);
             }
         }
 
@@ -3730,9 +3902,18 @@ pub(crate) fn flatten_element(
             String::new()
         } else {
             match list_ctx {
-                Some(ListContext::Unordered { .. }) => {
-                    format_list_marker(&style.list_style_type, 0)
+                Some(ListContext::Unordered { .. })
+                    if matches!(
+                        style.list_style_type,
+                        ListStyleType::Custom(_) | ListStyleType::CounterStyle(_)
+                    ) =>
+                {
+                    format_list_marker(
+                        &style.list_style_type,
+                        env.counter_state.get("list-item").max(0) as usize,
+                    )
                 }
+                Some(ListContext::Unordered { .. }) => format_list_marker(&style.list_style_type, 0),
                 // The <ol> UA default (`list-style-type: decimal`, set in
                 // `default_style`) is inherited by the <li>, so `style
                 // .list_style_type` already carries the correct ordered glyph
@@ -3998,7 +4179,13 @@ pub(crate) fn flatten_element(
                 margin_top: style.margin.top + extra_margin_top,
                 margin_bottom: style.margin.bottom + extra_margin_bottom,
                 text_align: style.text_align,
-                writing_mode: crate::style::computed::WritingMode::HorizontalTb,
+                writing_mode: if style.writing_mode
+                    == crate::style::computed::WritingMode::HorizontalTb
+                {
+                    parent_style.writing_mode
+                } else {
+                    style.writing_mode
+                },
                 background_color: style.background_color.map(|c| c.to_f32_rgba()),
                 padding_top: style.padding.top,
                 padding_bottom: style.padding.bottom,

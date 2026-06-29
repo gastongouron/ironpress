@@ -14,8 +14,8 @@ use super::flex::layout_flex_container;
 use super::grid::layout_grid_container;
 use super::table::flatten_table;
 use super::text::{
-    collect_text_runs, estimate_word_width, resolved_line_height_factor, wrap_text_runs,
-    FlexTextRunCollector, TextWrapOptions,
+    collect_text_runs, estimate_word_width, resolve_style_font_family, resolved_line_height_factor,
+    wrap_text_runs, FlexTextRunCollector, TextWrapOptions,
 };
 
 fn min_content_anywhere_width(
@@ -185,10 +185,16 @@ fn inline_text_cell(
     if lines.is_empty() {
         return None;
     }
-    let width = lines
+    let mut width = lines
         .iter()
         .map(|line| crate::layout::helpers::measure_runs_width(&line.runs, fonts))
         .fold(0.0f32, f32::max);
+    if lines
+        .iter()
+        .all(|line| line.runs.iter().all(|run| run.text.trim().is_empty()))
+    {
+        width = width.min(parent_style.font_size * 0.3125);
+    }
     let height = lines.iter().map(|line| line.height).sum::<f32>();
     Some((
         FlexCell {
@@ -257,6 +263,41 @@ fn push_parent_space_run(
         vertical_align: parent_style.vertical_align,
         text_shadow: parent_style.text_shadow.clone(),
     });
+}
+
+fn middle_aligned_text_shift(
+    parent_style: &ComputedStyle,
+    fonts: &HashMap<String, TtfFont>,
+    middle_box_above: f32,
+) -> f32 {
+    let font_family = resolve_style_font_family(parent_style, fonts);
+    let (asc_ratio, desc_ratio) = crate::fonts::font_metrics_ratios(
+        &font_family,
+        parent_style.font_weight == crate::style::computed::FontWeight::Bold,
+        parent_style.font_style == crate::style::computed::FontStyle::Italic,
+        fonts,
+    );
+    let line_height = parent_style.font_size * resolved_line_height_factor(parent_style, fonts);
+    let content = (asc_ratio + desc_ratio) * parent_style.font_size;
+    let half_leading = ((line_height - content) / 2.0).max(0.0);
+    let text_above = asc_ratio * parent_style.font_size + half_leading;
+    (middle_box_above - text_above).max(0.0)
+}
+
+fn parent_x_height(parent_style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> f32 {
+    let font_family = resolve_style_font_family(parent_style, fonts);
+    let ratio = if let crate::style::computed::FontFamily::Custom(name) = &font_family {
+        crate::system_fonts::find_font(
+            fonts,
+            name,
+            parent_style.font_weight == crate::style::computed::FontWeight::Bold,
+            parent_style.font_style == crate::style::computed::FontStyle::Italic,
+        )
+        .map_or(0.5, |(_, font)| font.x_height_ratio())
+    } else {
+        0.5
+    };
+    ratio * parent_style.font_size
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -400,19 +441,26 @@ fn inline_atomic_cell(
                     .iter()
                     .map(crate::layout::paginate::table_row_content_width)
                     .fold(0.0f32, f32::max);
-                if table_style.border_collapse == crate::style::computed::BorderCollapse::Separate
-                {
+                if table_style.border_collapse == crate::style::computed::BorderCollapse::Separate {
                     width += table_style.border_spacing * 2.0;
                 }
                 let height = nested
                     .iter()
                     .map(crate::layout::paginate::estimate_element_height)
                     .sum::<f32>();
+                let table_background = nested.iter().find_map(|el| match el {
+                    LayoutElement::TextBlock {
+                        background_color, ..
+                    } => *background_color,
+                    _ => None,
+                });
+                nested.retain(|el| !matches!(el, LayoutElement::TextBlock { .. }));
                 (
                     width,
                     height,
                     nested,
-                    child_style.background_color.map(|c| c.to_f32_rgba()),
+                    table_background
+                        .or_else(|| child_style.background_color.map(|c| c.to_f32_rgba())),
                     LayoutBorder::from_computed(&child_style.border),
                     (
                         child_style.padding.top,
@@ -420,7 +468,7 @@ fn inline_atomic_cell(
                         child_style.padding.bottom,
                         child_style.padding.left,
                     ),
-                    -height,
+                    0.0,
                 )
             }
             Display::InlineBlock => {
@@ -448,18 +496,22 @@ fn inline_atomic_cell(
                 let content_w = child_style.width.unwrap_or_else(|| {
                     lines
                         .iter()
-                        .map(|line| crate::layout::helpers::measure_runs_width(&line.runs, env.fonts))
+                        .map(|line| {
+                            crate::layout::helpers::measure_runs_width(&line.runs, env.fonts)
+                        })
                         .fold(0.0f32, f32::max)
                 });
                 let content_h = child_style
                     .height
                     .unwrap_or_else(|| lines.iter().map(|line| line.height).sum::<f32>());
-                let total_w =
-                    content_w + child_style.padding.left + child_style.padding.right
-                        + child_style.border.horizontal_width();
-                let total_h =
-                    content_h + child_style.padding.top + child_style.padding.bottom
-                        + child_style.border.vertical_width();
+                let total_w = content_w
+                    + child_style.padding.left
+                    + child_style.padding.right
+                    + child_style.border.horizontal_width();
+                let total_h = content_h
+                    + child_style.padding.top
+                    + child_style.padding.bottom
+                    + child_style.border.vertical_width();
                 return Some((
                     FlexCell {
                         lines,
@@ -580,6 +632,9 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
     let mut cells = Vec::new();
     let mut x = 0.0f32;
     let mut saw_atomic = false;
+    let mut saw_middle_table = false;
+    let mut saw_middle_non_table = false;
+    let mut middle_atomic_above = 0.0f32;
     let mut last_item_was_atomic = false;
     let mut pending_trailing_space = false;
 
@@ -634,14 +689,16 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
                         | Display::InlineTable
                         | Display::InlineBlock
                 ) {
-                    if pending_trailing_space
-                        && pending_runs.iter().any(|run| !run.text.is_empty())
+                    if pending_trailing_space && pending_runs.iter().any(|run| !run.text.is_empty())
                     {
                         push_parent_space_run(&mut pending_runs, parent_style, env.fonts);
                     }
-                    if let Some((cell, advance)) =
-                        inline_text_cell(std::mem::take(&mut pending_runs), parent_style, env.fonts, x)
-                    {
+                    if let Some((cell, advance)) = inline_text_cell(
+                        std::mem::take(&mut pending_runs),
+                        parent_style,
+                        env.fonts,
+                        x,
+                    ) {
                         x += advance;
                         cells.push(cell);
                     }
@@ -656,6 +713,18 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
                         env,
                     ) {
                         saw_atomic = true;
+                        if child_style.vertical_align
+                            == crate::style::computed::VerticalAlign::Middle
+                        {
+                            if child_style.display == Display::InlineTable {
+                                saw_middle_table = true;
+                            } else {
+                                saw_middle_non_table = true;
+                                let x_height = parent_x_height(parent_style, env.fonts);
+                                middle_atomic_above = middle_atomic_above
+                                    .max(cell.natural_height / 2.0 + x_height / 2.0);
+                            }
+                        }
                         x += advance;
                         cells.push(cell);
                     }
@@ -683,9 +752,12 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
             }
         }
     }
-    if let Some((cell, _advance)) =
-        inline_text_cell(std::mem::take(&mut pending_runs), parent_style, env.fonts, x)
-    {
+    if let Some((cell, _advance)) = inline_text_cell(
+        std::mem::take(&mut pending_runs),
+        parent_style,
+        env.fonts,
+        x,
+    ) {
         cells.push(cell);
     }
 
@@ -698,8 +770,22 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
         .iter()
         .map(|cell| cell.natural_height)
         .fold(line_height, f32::max);
+    if saw_middle_non_table {
+        let text_shift = middle_aligned_text_shift(parent_style, env.fonts, middle_atomic_above);
+        if text_shift > 0.0 {
+            for cell in &mut cells {
+                if !cell.lines.is_empty() {
+                    cell.y_offset += text_shift;
+                }
+            }
+        }
+    }
     let parent_border = LayoutBorder::from_computed(&parent_style.border);
-    let paints_parent_box = parent_style.background_color.is_some() || parent_border.has_any();
+    let plain_white_background = parent_style
+        .background_color
+        .is_some_and(|c| c.r == 255 && c.g == 255 && c.b == 255 && c.a == 255);
+    let paints_parent_box = parent_border.has_any()
+        || (parent_style.background_color.is_some() && !plain_white_background);
     let container_width = if paints_parent_box {
         parent_style.width.unwrap_or(ctx.available_width())
     } else {
@@ -740,7 +826,13 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
         background_repeat: BackgroundRepeat::Repeat,
         background_origin: BackgroundOrigin::Padding,
         background_clip: BackgroundClip::Border,
-        align_items: crate::style::computed::AlignItems::Baseline,
+        align_items: if saw_middle_non_table {
+            crate::style::computed::AlignItems::FlexStart
+        } else if saw_middle_table {
+            crate::style::computed::AlignItems::Center
+        } else {
+            crate::style::computed::AlignItems::Baseline
+        },
         positioned_depth: 0,
     });
     true
@@ -1220,7 +1312,8 @@ fn layout_inline_block_group_inner(
         parent_style.font_weight == crate::style::computed::FontWeight::Bold,
         parent_style.font_style == crate::style::computed::FontStyle::Italic,
         fonts,
-    );
+    )
+    .min(parent_style.font_size * 0.3125);
 
     for item in &items {
         let item_total_w = item.margin_left + item.width + item.margin_right;

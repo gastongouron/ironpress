@@ -1097,6 +1097,7 @@ pub(crate) fn format_list_marker(list_style_type: &ListStyleType, index: usize) 
         ListStyleType::UpperRoman => format!("{}. ", to_roman_upper(index)),
         ListStyleType::CjkDecimal => format!("{}、", to_cjk_decimal(index)),
         ListStyleType::String(marker) => marker.clone(),
+        ListStyleType::CounterStyle(style) => format_custom_counter_marker(style, index as i32),
         ListStyleType::Custom(_) => format!("{}. ", index),
         ListStyleType::None => String::new(),
     }
@@ -1232,7 +1233,7 @@ fn to_cjk_decimal(n: usize) -> String {
 pub(crate) fn format_counter_value(style: &ListStyleType, value: i32) -> String {
     // Roman/alpha styles are only defined for positive integers; negative or
     // zero values fall back to decimal (CSS counter-style fallback behavior).
-    if value <= 0 {
+    if value <= 0 && !matches!(style, ListStyleType::CounterStyle(_)) {
         return value.to_string();
     }
     let n = value as usize;
@@ -1243,9 +1244,44 @@ pub(crate) fn format_counter_value(style: &ListStyleType, value: i32) -> String 
         ListStyleType::LowerRoman => to_roman_lower(n),
         ListStyleType::UpperRoman => to_roman_upper(n),
         ListStyleType::CjkDecimal => to_cjk_decimal(n),
+        ListStyleType::CounterStyle(custom) => format_custom_counter_marker(custom, value),
         // decimal, disc, circle, square, none → plain decimal text.
         _ => value.to_string(),
     }
+}
+
+fn format_custom_counter_marker(
+    style: &crate::style::computed::CounterStyle,
+    value: i32,
+) -> String {
+    use crate::style::computed::CounterStyleSystem;
+
+    let negative = value < 0;
+    let abs_value = value.abs();
+    let mut representation = match style.system {
+        CounterStyleSystem::Cyclic if !style.symbols.is_empty() => {
+            let idx = if abs_value == 0 {
+                0
+            } else {
+                (abs_value as usize - 1) % style.symbols.len()
+            };
+            style.symbols[idx].clone()
+        }
+        CounterStyleSystem::Cyclic => abs_value.to_string(),
+        CounterStyleSystem::ExtendsDecimal => abs_value.to_string(),
+    };
+    if let Some((width, pad_symbol)) = &style.pad {
+        while representation.chars().count() < *width {
+            representation.insert_str(0, pad_symbol);
+        }
+    }
+    if negative {
+        representation = format!(
+            "{}{}{}",
+            style.negative.0, representation, style.negative.1
+        );
+    }
+    format!("{}{}{}", style.prefix, representation, style.suffix)
 }
 
 // ---------------------------------------------------------------------------
@@ -1321,7 +1357,7 @@ pub(crate) fn resolve_content_with_quotes(
                 } else {
                     pattern.as_str()
                 };
-                for _ in 0..18 {
+                for _ in 0..16 {
                     result.push_str(pattern);
                 }
             }

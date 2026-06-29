@@ -433,7 +433,9 @@ pub(super) fn render_cell_text(
                     ctx.custom_fonts,
                 );
                 let desc = descender_ratio * run.font_size;
-                let underline_y = text_y - desc * 0.6 - super::decoration_offset(run);
+                let underline_y = text_y
+                    - desc * super::underline_descender_factor(run)
+                    - super::decoration_offset(run);
                 let thickness = super::decoration_thickness(run);
                 super::push_decoration_stroke(
                     content,

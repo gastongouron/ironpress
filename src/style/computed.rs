@@ -568,6 +568,8 @@ pub enum BlendMode {
     Saturation,
     Color,
     Luminosity,
+    /// Internal marker for `isolation:isolate` when no actual blend mode applies.
+    Isolate,
     BackgroundList {
         modes: [u8; 8],
         len: u8,
@@ -632,6 +634,7 @@ impl BlendMode {
             BlendMode::Saturation => Some("Saturation"),
             BlendMode::Color => Some("Color"),
             BlendMode::Luminosity => Some("Luminosity"),
+            BlendMode::Isolate => None,
             BlendMode::BackgroundList { modes, len } if len > 0 => {
                 Self::from_code(modes[0]).pdf_name()
             }
@@ -1325,7 +1328,24 @@ pub enum ListStyleType {
     CjkDecimal,
     String(String),
     Custom(String),
+    CounterStyle(CounterStyle),
     None,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CounterStyle {
+    pub system: CounterStyleSystem,
+    pub symbols: Vec<String>,
+    pub prefix: String,
+    pub suffix: String,
+    pub pad: Option<(usize, String)>,
+    pub negative: (String, String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CounterStyleSystem {
+    Cyclic,
+    ExtendsDecimal,
 }
 /// CSS list-style-position property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -2525,6 +2545,7 @@ pub fn compute_style_with_context(
     if tag != HtmlTag::Img {
         add_filter_drop_shadow_box_shadow(&mut style);
     }
+    resolve_custom_counter_style(&mut style.list_style_type, rules);
 
     // Resolve `currentColor`. Two cases collapse here, both needing the
     // element's now-finalized `color`:
@@ -2788,6 +2809,7 @@ pub fn compute_pseudo_element_style(
         style.margin.left = em * style.font_size;
     }
     sync_line_height_from_absolute(&mut style);
+    resolve_custom_counter_style(&mut style.list_style_type, rules);
 
     // Resolve any `currentColor` sentinels against the pseudo-element's color.
     resolve_current_color(&mut style);
@@ -3381,15 +3403,20 @@ fn apply_font_shorthand(
         }
     }
 
-    let (size_raw, line_raw) = tokens[size_idx]
+    let (size_raw, mut line_raw) = tokens[size_idx]
         .split_once('/')
         .map_or((tokens[size_idx], None), |(size, line)| (size, Some(line)));
+    let mut family_start = size_idx + 1;
+    if line_raw.is_none() && tokens.get(family_start).is_some_and(|token| *token == "/") {
+        line_raw = tokens.get(family_start + 1).copied();
+        family_start += 2;
+    }
     apply_font_size_token(style, size_raw, length_context);
     if let Some(line) = line_raw {
         apply_line_height_token(style, line, length_context);
     }
 
-    let family = tokens[size_idx + 1..].join(" ");
+    let family = tokens[family_start..].join(" ");
     if !family.trim().is_empty() {
         style.font_stack = parse_font_stack(&family);
         style.font_family = style.font_stack.primary();
@@ -3590,15 +3617,22 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.font_family = style.font_stack.primary();
     }
 
-    if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-size-adjust") {
-        if k != "none" {
-            if let Ok(target_aspect) = k.trim().parse::<f32>() {
-                let actual_aspect =
-                    crate::style::font_ctx::style_x_height_ratio(style).unwrap_or(0.5);
-                if actual_aspect > 0.0 {
-                    style.font_size *= target_aspect / actual_aspect;
-                    sync_line_height_from_absolute(style);
-                }
+    if let Some(value) = get_non_special(map, "font-size-adjust") {
+        let target_aspect = match value {
+            CssValue::Number(v) => Some(*v),
+            CssValue::Keyword(k) if k != "none" => k.trim().parse::<f32>().ok(),
+            _ => None,
+        };
+        if let Some(target_aspect) = target_aspect
+            && target_aspect.is_finite()
+            && target_aspect > 0.0
+        {
+            let actual_aspect =
+                crate::style::font_ctx::style_font_size_adjust_x_height_ratio(style)
+                    .unwrap_or(0.5);
+            if actual_aspect > 0.0 {
+                style.font_size *= target_aspect / actual_aspect;
+                sync_line_height_from_absolute(style);
             }
         }
     }
@@ -6139,6 +6173,114 @@ fn parse_list_style_type(k: &str) -> ListStyleType {
         "none" => ListStyleType::None,
         other => ListStyleType::Custom(other.to_string()),
     }
+}
+
+fn resolve_custom_counter_style(list_style_type: &mut ListStyleType, rules: &[CssRule]) {
+    let ListStyleType::Custom(name) = list_style_type else {
+        return;
+    };
+    let Some(style) = find_counter_style(name, rules) else {
+        return;
+    };
+    *list_style_type = ListStyleType::CounterStyle(style);
+}
+
+fn find_counter_style(name: &str, rules: &[CssRule]) -> Option<CounterStyle> {
+    let selector = format!("@counter-style {}", name.to_ascii_lowercase());
+    rules.iter().rev().find_map(|rule| {
+        if rule.selector.trim().to_ascii_lowercase() == selector {
+            parse_counter_style_rule(&rule.declarations)
+        } else {
+            None
+        }
+    })
+}
+
+fn counter_style_keyword(map: &StyleMap, property: &str) -> Option<String> {
+    match map.get(property)? {
+        CssValue::Keyword(value) => Some(value.trim().to_string()),
+        CssValue::Number(value) => Some(value.to_string()),
+        _ => None,
+    }
+}
+
+fn parse_counter_style_rule(map: &StyleMap) -> Option<CounterStyle> {
+    let system_raw = counter_style_keyword(map, "system").unwrap_or_else(|| "symbolic".into());
+    let system_lower = system_raw.to_ascii_lowercase();
+    let system = if system_lower.split_whitespace().any(|part| part == "cyclic") {
+        CounterStyleSystem::Cyclic
+    } else if system_lower
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .windows(2)
+        .any(|pair| pair == ["extends", "decimal"])
+    {
+        CounterStyleSystem::ExtendsDecimal
+    } else {
+        return None;
+    };
+    let symbols = counter_style_keyword(map, "symbols")
+        .map(|raw| parse_counter_style_symbols(&raw))
+        .unwrap_or_default();
+    let prefix = counter_style_keyword(map, "prefix")
+        .and_then(|raw| parse_quoted_css_string(raw.trim()))
+        .unwrap_or_default();
+    let suffix = counter_style_keyword(map, "suffix")
+        .and_then(|raw| parse_quoted_css_string(raw.trim()))
+        .unwrap_or_else(|| ". ".to_string());
+    let pad = counter_style_keyword(map, "pad").and_then(|raw| {
+        let mut parts = raw.split_whitespace();
+        let width = parts.next()?.parse::<usize>().ok()?;
+        let symbol = parse_quoted_css_string(raw[raw.find(char::is_whitespace)?..].trim())?;
+        Some((width, symbol))
+    });
+    let negative = counter_style_keyword(map, "negative")
+        .map(|raw| {
+            let parts = parse_counter_style_symbols(&raw);
+            match parts.as_slice() {
+                [prefix, suffix, ..] => (prefix.clone(), suffix.clone()),
+                [prefix] => (prefix.clone(), String::new()),
+                _ => ("-".to_string(), String::new()),
+            }
+        })
+        .unwrap_or_else(|| ("-".to_string(), String::new()));
+
+    Some(CounterStyle {
+        system,
+        symbols,
+        prefix,
+        suffix,
+        pad,
+        negative,
+    })
+}
+
+fn parse_counter_style_symbols(raw: &str) -> Vec<String> {
+    let mut symbols = Vec::new();
+    let mut rest = raw.trim();
+    while !rest.is_empty() {
+        rest = rest.trim_start();
+        let Some(ch) = rest.chars().next() else {
+            break;
+        };
+        if ch == '"' || ch == '\'' {
+            let after = &rest[ch.len_utf8()..];
+            if let Some(end) = after.find(ch) {
+                symbols.push(repair_css_string_mojibake(&after[..end]));
+                rest = &after[end + ch.len_utf8()..];
+            } else {
+                symbols.push(repair_css_string_mojibake(after));
+                break;
+            }
+        } else if let Some(space) = rest.find(char::is_whitespace) {
+            symbols.push(rest[..space].to_string());
+            rest = &rest[space..];
+        } else {
+            symbols.push(rest.to_string());
+            break;
+        }
+    }
+    symbols
 }
 
 fn parse_quoted_css_string(raw: &str) -> Option<String> {

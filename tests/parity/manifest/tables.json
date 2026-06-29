@@ -1140,7 +1140,7 @@
     "description": "The table has a thick red collapsed border while the outer cells have thinner blue borders on the same outer grid edges. Catches wrong implementations where an implementation that paints the table border box independently or samples only cell borders shows the wrong outer color/thickness.",
     "file": "cases/tables/tables-collapse-outer-table-border.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1395,7 +1395,7 @@
     "description": "A table uses border=4 without CSS borders, so browser presentational hints draw visible table/cell borders. Catches wrong implementations where a CSS-only renderer ignores the attribute and paints only the cell backgrounds.",
     "file": "cases/tables/tables-border-attribute.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

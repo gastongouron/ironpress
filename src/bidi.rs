@@ -138,9 +138,25 @@ pub(crate) fn reorder_runs_bidi(
     if result.is_empty() {
         runs.to_vec()
     } else {
+        move_first_visual_run_leading_spaces_to_end(&mut result);
         move_trailing_spaces_to_previous_visual_run(&mut result);
         result
     }
+}
+
+fn move_first_visual_run_leading_spaces_to_end(runs: &mut [TextRun]) {
+    let Some(first) = runs.first_mut() else {
+        return;
+    };
+    let count = first.text.chars().take_while(|ch| *ch == ' ').count();
+    if count == 0 || count == first.text.chars().count() {
+        return;
+    }
+    let mut rest = first.text.chars().skip(count).collect::<String>();
+    for _ in 0..count {
+        rest.push(' ');
+    }
+    first.text = rest;
 }
 
 fn move_trailing_spaces_to_previous_visual_run(runs: &mut [TextRun]) {

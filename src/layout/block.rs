@@ -15,14 +15,14 @@ use super::engine::{
 };
 use super::helpers::{
     BackgroundFields, LayoutOverflowKeyword, append_pseudo_inline_run, aspect_ratio_height,
-    authored_intrinsic_width_keyword, authored_line_clamp, authored_overflow_axes,
-    authored_overflow_clip_margin, authored_pseudo_keyword_property, authored_scrollbar_gutter,
-    build_pseudo_block, collects_as_inline_text, establishes_bfc_with_overflow,
-    has_background_paint, heading_level, patch_absolute_children_containing_block,
-    pseudo_is_block_like, push_block_pseudo, recurses_as_layout_child,
-    resolve_abs_containing_block, resolve_content_box_height, resolve_inset,
-    resolve_padding_box_height, resolve_relative_offsets, selector_attributes_with_has,
-    selector_context_from_ancestors,
+    authored_intrinsic_width_keyword, authored_keyword_property, authored_line_clamp,
+    authored_overflow_axes, authored_overflow_clip_margin, authored_pseudo_keyword_property,
+    authored_scrollbar_gutter, build_pseudo_block, collects_as_inline_text,
+    establishes_bfc_with_overflow, has_background_paint, heading_level,
+    patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
+    recurses_as_layout_child, resolve_abs_containing_block, resolve_content_box_height,
+    resolve_inset, resolve_padding_box_height, resolve_relative_offsets,
+    selector_attributes_with_has, selector_context_from_ancestors,
 };
 use super::inline::{
     element_has_css_display_block, element_is_inline_block, layout_inline_block_group_with_spacing,
@@ -36,6 +36,49 @@ use super::text::{
 
 const VERTICAL_LR_LINE_MARKER: f32 = -1_000_000.0;
 const VERTICAL_UPRIGHT_LINE_MARKER: f32 = -2_000_000.0;
+
+fn clear_first_backdropless_descendant_blend(elements: &mut [LayoutElement]) -> bool {
+    for element in elements {
+        match element {
+            LayoutElement::TextBlock { mix_blend_mode, .. }
+                if mix_blend_mode.pdf_name().is_some() =>
+            {
+                *mix_blend_mode = crate::style::computed::BlendMode::Normal;
+                return true;
+            }
+            LayoutElement::Container { mix_blend_mode, .. }
+                if mix_blend_mode.pdf_name().is_some() =>
+            {
+                *mix_blend_mode = crate::style::computed::BlendMode::Normal;
+                return true;
+            }
+            LayoutElement::Container {
+                children,
+                background_color,
+                border,
+                box_shadow,
+                background_gradient,
+                background_radial_gradient,
+                background_conic_gradient,
+                background_svg,
+                ..
+            } if background_color.is_none()
+                && !border.has_any()
+                && box_shadow.is_empty()
+                && background_gradient.is_none()
+                && background_radial_gradient.is_none()
+                && background_conic_gradient.is_none()
+                && background_svg.is_none() =>
+            {
+                if clear_first_backdropless_descendant_blend(children) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
 
 fn restyle_runs_for_first_line_wrap(
     runs: &mut [TextRun],
@@ -397,8 +440,31 @@ pub(crate) fn layout_block_element(
     };
 
     let selector_ctx = selector_context_from_ancestors(child_ancestors, el);
-    let overflow_axes =
+    let mut overflow_axes =
         authored_overflow_axes(el, style, env.rules, child_ancestors, &selector_ctx);
+    if authored_keyword_property(
+        el,
+        env.rules,
+        child_ancestors,
+        &selector_ctx,
+        "scrollbar-width",
+    )
+    .as_deref()
+        == Some("none")
+    {
+        if matches!(
+            overflow_axes.x,
+            LayoutOverflowKeyword::Scroll | LayoutOverflowKeyword::Auto
+        ) {
+            overflow_axes.x = LayoutOverflowKeyword::Hidden;
+        }
+        if matches!(
+            overflow_axes.y,
+            LayoutOverflowKeyword::Scroll | LayoutOverflowKeyword::Auto
+        ) {
+            overflow_axes.y = LayoutOverflowKeyword::Hidden;
+        }
+    }
     let overflow_clip_margin =
         authored_overflow_clip_margin(el, env.rules, child_ancestors, &selector_ctx);
     let line_clamp = authored_line_clamp(el, env.rules, child_ancestors, &selector_ctx);
@@ -589,13 +655,44 @@ pub(crate) fn layout_block_element(
         .as_ref()
         .is_some_and(|s| pseudo_is_block_like(s) && s.position != Position::Absolute);
     let has_inflow_block_pseudo = has_block_before || has_block_after;
+    let has_blended_block_child = el.children.iter().any(|c| {
+        let DomNode::Element(e) = c else {
+            return false;
+        };
+        if !(e.tag.is_block()
+            || e.tag == HtmlTag::Svg
+            || element_has_css_display_block(e, style, env.rules, child_ancestors))
+        {
+            return false;
+        }
+        let classes = e.class_list();
+        let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+        let child_style = compute_style_with_context(
+            e.tag,
+            e.style_attr(),
+            style,
+            env.rules,
+            e.tag_name(),
+            &class_refs,
+            e.id(),
+            &selector_attributes_with_has(e),
+            &SelectorContext::default(),
+        );
+        child_style.mix_blend_mode != crate::style::computed::BlendMode::Normal
+            || child_style.opacity < 1.0
+            || child_style.isolation_isolate
+    });
     // `early_has_visual`/`nesting_depth` are needed both here (to decide whether
     // a block pseudo routes through the Container wrapper) and later (to gate the
     // wrapper itself), so compute them once up front.
     let early_has_visual = has_background_paint(style)
         || style.border.has_any()
         || style.border_radius > 0.0
-        || !style.box_shadow.is_empty();
+        || !style.box_shadow.is_empty()
+        || style.opacity < 1.0
+        || style.mix_blend_mode != crate::style::computed::BlendMode::Normal
+        || style.isolation_isolate
+        || has_blended_block_child;
     let nesting_depth = ancestors.len();
     // A block-level `::before` is normally emitted here as the first in-flow
     // block. But when this element takes the Container wrapper path (it has
@@ -635,6 +732,7 @@ pub(crate) fn layout_block_element(
     // When a math span is encountered, flush accumulated text runs as a
     // TextBlock, emit a MathBlock, then continue collecting.
     let mut runs = Vec::new();
+    let mut mixed_inline_row_emitted = false;
     if !skip_inline_collection {
         append_pseudo_inline_run(
             &mut runs,
@@ -893,7 +991,11 @@ pub(crate) fn layout_block_element(
         let parent_has_visual = has_background_paint(style)
             || style.border.has_any()
             || style.border_radius > 0.0
-            || !style.box_shadow.is_empty();
+            || !style.box_shadow.is_empty()
+            || style.opacity < 1.0
+            || style.mix_blend_mode != crate::style::computed::BlendMode::Normal
+            || style.isolation_isolate
+            || has_blended_block_child;
         // Check early if this positioned container has absolute children.
         // When true, skip the has_block_children fast path so we use the
         // Container/wrapper path instead, preserving the containing block.
@@ -1419,6 +1521,7 @@ pub(crate) fn layout_block_element(
             )
         {
             // The mixed inline-row path emitted the inline content as one row.
+            mixed_inline_row_emitted = true;
         } else {
             collect_text_runs(
                 &el.children,
@@ -1477,8 +1580,10 @@ pub(crate) fn layout_block_element(
             || layout_padding_right > 0.0
             || style.padding.bottom > 0.0)
         && nesting_depth < 40;
-    let had_inline_runs =
-        had_text_runs || (has_inline_box_runs && !will_use_group_wrapper) || has_math_children;
+    let had_inline_runs = mixed_inline_row_emitted
+        || had_text_runs
+        || (has_inline_box_runs && !will_use_group_wrapper)
+        || has_math_children;
     if will_use_group_wrapper {
         // Pure inline-block group inside a wrapper: drop the placeholder runs so
         // `layout_inline_block_group` lays them out (unchanged behaviour).
@@ -1493,8 +1598,21 @@ pub(crate) fn layout_block_element(
         // `white-space: nowrap` and `pre` never soft-wrap: render with an
         // unbounded width so only explicit newlines break lines. `pre-wrap`
         // keeps spaces but still wraps at the box edge.
+        let vertical_content_height = effective_height.map(|h| {
+            if style.box_sizing == BoxSizing::BorderBox {
+                (h - style.padding.top - style.padding.bottom - style.border.vertical_width())
+                    .max(0.0)
+            } else {
+                h
+            }
+        });
         let wrap_width = if matches!(style.white_space, WhiteSpace::NoWrap | WhiteSpace::Pre) {
             f32::MAX
+        } else if matches!(
+            style.writing_mode,
+            crate::style::computed::WritingMode::VerticalRl
+        ) {
+            vertical_content_height.unwrap_or(inner_width)
         } else {
             inner_width
         };
@@ -1788,7 +1906,11 @@ pub(crate) fn layout_block_element(
         let early_has_visual_for_wrapper = has_background_paint(style)
             || style.border.has_any()
             || style.border_radius > 0.0
-            || !style.box_shadow.is_empty();
+            || !style.box_shadow.is_empty()
+            || style.opacity < 1.0
+            || style.mix_blend_mode != crate::style::computed::BlendMode::Normal
+            || style.isolation_isolate
+            || has_blended_block_child;
         let early_needs_wrapper = early_has_visual_for_wrapper
             || style.aspect_ratio.is_some()
             || style.height.is_some()
@@ -1842,7 +1964,11 @@ pub(crate) fn layout_block_element(
     let has_visual = has_background_paint(style)
         || style.border.has_any()
         || style.border_radius > 0.0
-        || !style.box_shadow.is_empty();
+        || !style.box_shadow.is_empty()
+        || style.opacity < 1.0
+        || style.mix_blend_mode != crate::style::computed::BlendMode::Normal
+        || style.isolation_isolate
+        || has_blended_block_child;
     // A positioned container (position: relative/absolute) needs the
     // Container element to establish a containing block for absolute children.
     let has_abs_children = positioned_container
@@ -2289,6 +2415,17 @@ pub(crate) fn layout_block_element(
             origin: background_origin,
             clip: background_clip,
         } = BackgroundFields::from_style(style);
+        if (style.opacity < 1.0 || style.isolation_isolate)
+            && bg.is_none()
+            && !style.border.has_any()
+            && style.box_shadow.is_empty()
+            && background_gradient.is_none()
+            && background_radial_gradient.is_none()
+            && background_conic_gradient.is_none()
+            && background_svg.is_none()
+        {
+            clear_first_backdropless_descendant_blend(&mut child_elements);
+        }
         // Resolve containing block and offsets for absolute elements.
         // Pass the border-box height (`container_h` is the padding box) so a
         // bottom-anchored absolute box measures to its border edge, not 1 border
@@ -2341,7 +2478,13 @@ pub(crate) fn layout_block_element(
                 None
             },
             opacity: style.opacity,
-            mix_blend_mode: style.mix_blend_mode,
+            mix_blend_mode: if style.isolation_isolate
+                && style.mix_blend_mode == crate::style::computed::BlendMode::Normal
+            {
+                crate::style::computed::BlendMode::Isolate
+            } else {
+                style.mix_blend_mode
+            },
             background_blend_mode: style.background_blend_mode,
             visible: style.visibility == Visibility::Visible,
             float: style.float,
@@ -2627,27 +2770,7 @@ fn vertical_upright_lines(
                 });
                 continue;
             }
-            let mut digit_buf = String::new();
-            let flush_digits =
-                |buf: &mut String, out: &mut Vec<crate::layout::engine::TextLine>| {
-                    if buf.is_empty() {
-                        return;
-                    }
-                    out.push(crate::layout::engine::TextLine {
-                        runs: vec![TextRun {
-                            text: std::mem::take(buf),
-                            ..run.clone()
-                        }],
-                        height: line.height,
-                        x_offset: line.x_offset,
-                    });
-                };
             for ch in run.text.chars() {
-                if ch.is_ascii_digit() && digit_buf.len() < 2 {
-                    digit_buf.push(ch);
-                    continue;
-                }
-                flush_digits(&mut digit_buf, &mut out);
                 if ch.is_whitespace() {
                     continue;
                 }
@@ -2660,7 +2783,6 @@ fn vertical_upright_lines(
                     x_offset: line.x_offset,
                 });
             }
-            flush_digits(&mut digit_buf, &mut out);
         }
     }
     out

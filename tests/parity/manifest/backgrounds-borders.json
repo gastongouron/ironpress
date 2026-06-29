@@ -711,7 +711,7 @@
     "description": "background-attachment:local positions a bottom stripe against the scrollable content canvas; catches aliases to scroll/static attachment.",
     "file": "cases/backgrounds-borders/background-attachment-local-scroll-canvas.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",
@@ -750,7 +750,7 @@
       "background-color",
       "root-canvas"
     ],
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch"

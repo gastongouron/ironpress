@@ -756,7 +756,7 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-text-baseline",
@@ -816,7 +816,7 @@
     "pass_threshold_pct": 6.0,
     "partial_threshold_pct": 18.0,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-text-baseline",

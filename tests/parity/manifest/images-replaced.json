@@ -497,7 +497,7 @@
     "file": "cases/images-replaced/img-object-position-far-edge-length.html",
     "weight": 1,
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-image-render"

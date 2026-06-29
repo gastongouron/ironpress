@@ -82,6 +82,32 @@ pub fn style_ch_ratio(style: &ComputedStyle) -> Option<f32> {
     )
 }
 
+/// X-height ratio for `font-size-adjust`.
+///
+/// Chromium applies the adjustment from the hinted/scaled font metrics. For
+/// bundled fonts whose OS/2 table has no `sxHeight`, our raw outline fallback is
+/// slightly below Chrome because it is unhinted. Round the resolved x-height to
+/// CSS pixels at the current computed font size before deriving the ratio; this
+/// leaves `ex` unit resolution on the unhinted metric path above.
+pub fn style_font_size_adjust_x_height_ratio(style: &ComputedStyle) -> Option<f32> {
+    with_resolved_font(
+        &style.font_stack,
+        style.font_weight == FontWeight::Bold,
+        style.font_style == FontStyle::Italic,
+        |font| {
+            let ratio = font.x_height_ratio();
+            let font_size_px = style.font_size / 0.75;
+            if font_size_px.is_finite() && font_size_px > 0.0 {
+                let hinted_px = (ratio * font_size_px).round();
+                if hinted_px > 0.0 {
+                    return hinted_px / font_size_px;
+                }
+            }
+            ratio
+        },
+    )
+}
+
 fn with_resolved_font(
     stack: &FontStack,
     bold: bool,
