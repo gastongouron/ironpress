@@ -18,7 +18,8 @@ use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
     AlignItems, AlignSelf, BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
     BackgroundSize, BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily,
-    LinearGradient, Overflow, Position, RadialExtent, RadialGradient, RadialShape, TextAlign,
+    LengthPercent, LinearGradient, MaskComposite, MaskLayer, MaskLayerSource, MaskMode,
+    MaskSource, Overflow, Position, RadialExtent, RadialGradient, RadialShape, ShapeBox, TextAlign,
     VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
@@ -4959,6 +4960,16 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             container_y_top,
                             container_w,
                             total_h,
+                            BoxMetrics {
+                                border_left: border.left.width,
+                                border_right: border.right.width,
+                                border_top: border.top.width,
+                                border_bottom: border.bottom.width,
+                                padding_left: *c_pl,
+                                padding_right: *c_pr,
+                                padding_top: *c_pt,
+                                padding_bottom: *c_pb,
+                            },
                         );
                     }
 
@@ -4975,6 +4986,16 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             container_y_top,
                             container_w,
                             total_h,
+                            BoxMetrics {
+                                border_left: border.left.width,
+                                border_right: border.right.width,
+                                border_top: border.top.width,
+                                border_bottom: border.bottom.width,
+                                padding_left: *c_pl,
+                                padding_right: *c_pr,
+                                padding_top: *c_pt,
+                                padding_bottom: *c_pb,
+                            },
                         ) {
                             content.push_str("q\n");
                             content.push_str(&format!("/{gs_name} gs\n"));
@@ -6547,6 +6568,85 @@ fn emit_ellipse_path(content: &mut String, cx: f32, cy: f32, rx: f32, ry: f32) {
 /// Emit the geometry for a CSS `clip-path` basic shape as a PDF clip (`... W n`),
 /// resolved against the element border box (`left`/`top_y` are the top-left in
 /// PDF bottom-up coordinates; `w`/`h` the box size). Caller wraps in `q`..`Q`.
+#[derive(Clone, Copy)]
+pub(crate) struct BoxMetrics {
+    border_left: f32,
+    border_right: f32,
+    border_top: f32,
+    border_bottom: f32,
+    padding_left: f32,
+    padding_right: f32,
+    padding_top: f32,
+    padding_bottom: f32,
+}
+
+fn resolve_len_percent(v: LengthPercent, extent: f32) -> f32 {
+    if v.is_percent && v.value < 0.0 {
+        extent + v.value
+    } else if v.is_percent {
+        extent * v.value / 100.0
+    } else {
+        v.value
+    }
+}
+
+fn shape_reference_rect(
+    left: f32,
+    top_y: f32,
+    w: f32,
+    h: f32,
+    metrics: BoxMetrics,
+    box_kind: ShapeBox,
+) -> (f32, f32, f32, f32) {
+    let (il, ir, it, ib) = match box_kind {
+        ShapeBox::Border => (0.0, 0.0, 0.0, 0.0),
+        ShapeBox::Padding => (
+            metrics.border_left,
+            metrics.border_right,
+            metrics.border_top,
+            metrics.border_bottom,
+        ),
+        ShapeBox::Content => (
+            metrics.border_left + metrics.padding_left,
+            metrics.border_right + metrics.padding_right,
+            metrics.border_top + metrics.padding_top,
+            metrics.border_bottom + metrics.padding_bottom,
+        ),
+    };
+    (
+        left + il,
+        top_y - it,
+        (w - il - ir).max(0.0),
+        (h - it - ib).max(0.0),
+    )
+}
+
+fn resolve_clip_radius(
+    radius: crate::style::computed::ClipRadius,
+    w: f32,
+    h: f32,
+    cx: f32,
+    cy: f32,
+) -> f32 {
+    match radius {
+        crate::style::computed::ClipRadius::Length(lp) => resolve_len_percent(lp, (w * w + h * h).sqrt() / std::f32::consts::SQRT_2),
+        crate::style::computed::ClipRadius::Extent(extent) => match extent {
+            crate::style::computed::ShapeExtent::ClosestSide => cx.min(w - cx).min(cy.min(h - cy)),
+            crate::style::computed::ShapeExtent::FarthestSide => cx.max(w - cx).max(cy.max(h - cy)),
+            crate::style::computed::ShapeExtent::ClosestCorner => {
+                let dx = cx.min(w - cx);
+                let dy = cy.min(h - cy);
+                (dx * dx + dy * dy).sqrt()
+            }
+            crate::style::computed::ShapeExtent::FarthestCorner => {
+                let dx = cx.max(w - cx);
+                let dy = cy.max(h - cy);
+                (dx * dx + dy * dy).sqrt()
+            }
+        },
+    }
+}
+
 fn push_clip_path(
     content: &mut String,
     clip: &crate::style::computed::ClipPath,
@@ -6554,50 +6654,141 @@ fn push_clip_path(
     top_y: f32,
     w: f32,
     h: f32,
+    metrics: BoxMetrics,
 ) {
     use crate::style::computed::ClipPath;
-    let along_x = |(v, pct): (f32, bool)| if pct { w * v / 100.0 } else { v };
-    let along_y = |(v, pct): (f32, bool)| if pct { h * v / 100.0 } else { v };
     match clip {
-        ClipPath::Circle { r, cx, cy } => {
-            let cxp = left + along_x(*cx);
-            let cyp = top_y - along_y(*cy);
-            // % radius resolves against the diagonal/sqrt(2); approximate with
-            // the smaller axis for px-free cases. px radii are absolute.
-            let rad = if r.1 { w.min(h) * r.0 / 100.0 } else { r.0 };
+        ClipPath::Circle {
+            r,
+            cx,
+            cy,
+            geometry_box,
+        } => {
+            let (rx, ry_top, rw, rh) = shape_reference_rect(left, top_y, w, h, metrics, *geometry_box);
+            let cx_off = resolve_len_percent(*cx, rw);
+            let cy_off = resolve_len_percent(*cy, rh);
+            let cxp = rx + cx_off;
+            let cyp = ry_top - cy_off;
+            let rad = resolve_clip_radius(*r, rw, rh, cx_off, cy_off);
             emit_ellipse_path(content, cxp, cyp, rad, rad);
         }
-        ClipPath::Ellipse { rx, ry, cx, cy } => {
-            let cxp = left + along_x(*cx);
-            let cyp = top_y - along_y(*cy);
-            emit_ellipse_path(content, cxp, cyp, along_x(*rx), along_y(*ry));
+        ClipPath::Ellipse {
+            rx,
+            ry,
+            cx,
+            cy,
+            geometry_box,
+        } => {
+            let (bx, by_top, bw, bh) = shape_reference_rect(left, top_y, w, h, metrics, *geometry_box);
+            let off_x = resolve_len_percent(*cx, bw);
+            let off_y = resolve_len_percent(*cy, bh);
+            let cxp = bx + off_x;
+            let cyp = by_top - off_y;
+            let resolve_r = |r: crate::style::computed::ClipRadius, axis: f32, other: f32, off: f32| {
+                match r {
+                    crate::style::computed::ClipRadius::Length(lp) => resolve_len_percent(lp, axis),
+                    crate::style::computed::ClipRadius::Extent(crate::style::computed::ShapeExtent::ClosestSide) => off.min(axis - off),
+                    crate::style::computed::ClipRadius::Extent(crate::style::computed::ShapeExtent::FarthestSide) => off.max(axis - off),
+                    crate::style::computed::ClipRadius::Extent(_) => (axis * axis + other * other).sqrt() * 0.5,
+                }
+            };
+            emit_ellipse_path(
+                content,
+                cxp,
+                cyp,
+                resolve_r(*rx, bw, bh, off_x),
+                resolve_r(*ry, bh, bw, off_y),
+            );
         }
         ClipPath::Inset {
             top,
             right,
             bottom,
             left: l,
-            radius,
+            radii_x,
+            radii_y,
+            geometry_box,
         } => {
-            let x0 = left + along_x(*l);
-            let x1 = left + w - along_x(*right);
-            let y1 = top_y - along_y(*top); // upper edge
-            let y0 = top_y - (h - along_y(*bottom)); // lower edge
+            let (bx, by_top, bw, bh) = shape_reference_rect(left, top_y, w, h, metrics, *geometry_box);
+            let x0 = bx + resolve_len_percent(*l, bw);
+            let x1 = bx + bw - resolve_len_percent(*right, bw);
+            let y1 = by_top - resolve_len_percent(*top, bh);
+            let y0 = by_top - (bh - resolve_len_percent(*bottom, bh));
             let (rw, rh) = ((x1 - x0).max(0.0), (y1 - y0).max(0.0));
-            if *radius > 0.0 {
-                content.push_str(&rounded_rect_path(x0, y0, rw, rh, *radius));
+            if radii_x.iter().any(|r| *r > 0.0) || radii_y.iter().any(|r| *r > 0.0) {
+                if let Some(path) = rounded_box_path(x0, y0, rw, rh, *radii_x, *radii_y) {
+                    content.push_str(&path);
+                } else {
+                    content.push_str(&rounded_rect_path_per_corner(x0, y0, rw, rh, *radii_x));
+                }
                 content.push('\n');
             } else {
                 content.push_str(&format!("{x0} {y0} {rw} {rh} re\n"));
             }
         }
-        ClipPath::Polygon(points) => {
+        ClipPath::Polygon {
+            points,
+            even_odd,
+            geometry_box,
+        } => {
+            let (bx, by_top, bw, bh) = shape_reference_rect(left, top_y, w, h, metrics, *geometry_box);
             for (i, (px, py)) in points.iter().enumerate() {
-                let x = left + along_x(*px);
-                let y = top_y - along_y(*py);
+                let x = bx + resolve_len_percent(*px, bw);
+                let y = by_top - resolve_len_percent(*py, bh);
                 content.push_str(&format!("{x} {y} {}\n", if i == 0 { "m" } else { "l" }));
             }
             content.push_str("h\n");
+            if *even_odd {
+                content.push_str("W* n\n");
+                return;
+            }
+        }
+        ClipPath::Path {
+            commands,
+            geometry_box,
+        } => {
+            let (bx, by_top, _, _) = shape_reference_rect(left, top_y, w, h, metrics, *geometry_box);
+            for cmd in commands {
+                match *cmd {
+                    crate::parser::svg::PathCommand::MoveTo(x, y) => content.push_str(&format!("{} {} m\n", bx + x * 0.75, by_top - y * 0.75)),
+                    crate::parser::svg::PathCommand::LineTo(x, y) => content.push_str(&format!("{} {} l\n", bx + x * 0.75, by_top - y * 0.75)),
+                    crate::parser::svg::PathCommand::CubicTo(x1, y1, x2, y2, x, y) => content.push_str(&format!("{} {} {} {} {} {} c\n", bx + x1 * 0.75, by_top - y1 * 0.75, bx + x2 * 0.75, by_top - y2 * 0.75, bx + x * 0.75, by_top - y * 0.75)),
+                    crate::parser::svg::PathCommand::QuadTo(x1, y1, x, y) => {
+                        let cx1 = bx + x1 * 0.75;
+                        let cy1 = by_top - y1 * 0.75;
+                        content.push_str(&format!("{cx1} {cy1} {} {} {} {} c\n", bx + x * 0.75, by_top - y * 0.75, bx + x * 0.75, by_top - y * 0.75));
+                    }
+                    crate::parser::svg::PathCommand::ClosePath => content.push_str("h\n"),
+                }
+            }
+        }
+        ClipPath::Rect {
+            x,
+            y,
+            width,
+            height,
+            radii_x,
+            radii_y,
+            geometry_box,
+        } => {
+            let (bx, by_top, bw, bh) = shape_reference_rect(left, top_y, w, h, metrics, *geometry_box);
+            let rx = bx + resolve_len_percent(*x, bw);
+            let ry_top = by_top - resolve_len_percent(*y, bh);
+            let rw = resolve_len_percent(*width, bw);
+            let rh = resolve_len_percent(*height, bh);
+            let ry = ry_top - rh;
+            if radii_x.iter().any(|r| *r > 0.0) || radii_y.iter().any(|r| *r > 0.0) {
+                if let Some(path) = rounded_box_path(rx, ry, rw, rh, *radii_x, *radii_y) {
+                    content.push_str(&path);
+                } else {
+                    content.push_str(&rounded_rect_path_per_corner(rx, ry, rw, rh, *radii_x));
+                }
+            } else {
+                content.push_str(&format!("{rx} {ry} {rw} {rh} re\n"));
+            }
+        }
+        ClipPath::Url(_) => {
+            content.push_str(&format!("{left} {} {w} {h} re\n", top_y - h));
         }
     }
     content.push_str("W n\n");
@@ -7904,7 +8095,24 @@ fn render_container_children(
                     let nk_needs_clip_path = nk_clip_path.is_some();
                     if let Some(cp) = nk_clip_path {
                         content.push_str("q\n");
-                        push_clip_path(content, cp, nk_x, nk_top_y, nk_w, nk_total_h);
+                        push_clip_path(
+                            content,
+                            cp,
+                            nk_x,
+                            nk_top_y,
+                            nk_w,
+                            nk_total_h,
+                            BoxMetrics {
+                                border_left: border.left.width,
+                                border_right: border.right.width,
+                                border_top: border.top.width,
+                                border_bottom: border.bottom.width,
+                                padding_left: *padding_left,
+                                padding_right: *padding_right,
+                                padding_top: *padding_top,
+                                padding_bottom: *padding_bottom,
+                            },
+                        );
                     }
 
                     // CSS mask-image (css-masking-1 §3): soft-mask the nested box.
@@ -7917,6 +8125,16 @@ fn render_container_children(
                             nk_top_y,
                             nk_w,
                             nk_total_h,
+                            BoxMetrics {
+                                border_left: border.left.width,
+                                border_right: border.right.width,
+                                border_top: border.top.width,
+                                border_bottom: border.bottom.width,
+                                padding_left: *padding_left,
+                                padding_right: *padding_right,
+                                padding_top: *padding_top,
+                                padding_bottom: *padding_bottom,
+                            },
                         ) {
                             content.push_str("q\n");
                             content.push_str(&format!("/{gs_name} gs\n"));
@@ -13086,21 +13304,23 @@ fn coverage_byte(rgba: (f32, f32, f32, f32), mode: crate::style::computed::MaskM
 /// buffer (row 0 = top of the box, matching PDF image sample order). Each byte
 /// is the mask coverage for one pixel under `mode`.
 fn rasterize_mask_coverage(
-    source: &crate::style::computed::MaskSource,
-    mode: crate::style::computed::MaskMode,
+    source: &MaskSource,
+    mode: MaskMode,
     px_w: u32,
     px_h: u32,
+    scale_x: f32,
+    scale_y: f32,
 ) -> Vec<u8> {
-    use crate::style::computed::{MaskSource, RadialExtent, RadialPos, RadialShape};
+    use crate::style::computed::{RadialPos, RadialShape};
     let w = px_w as f32;
     let h = px_h as f32;
     // Resolve a `RadialPos` to MASK PIXELS along an axis of `extent` pixels.
     // `Fraction` scales by the pixel extent directly; `Points` is stored in PDF
     // points, so convert to pixels (1pt = 1/0.75 px) to match the buffer space.
-    let resolve_px = |p: RadialPos, extent: f32| -> f32 {
+    let resolve_px = |p: RadialPos, extent: f32, scale: f32| -> f32 {
         match p {
             RadialPos::Fraction(f) => extent * f,
-            RadialPos::Points(pt) => pt / 0.75,
+            RadialPos::Points(pt) => (pt / 0.75) * scale,
         }
     };
     let mut out = Vec::with_capacity((px_w * px_h) as usize);
@@ -13135,8 +13355,8 @@ fn rasterize_mask_coverage(
         }
         MaskSource::Radial(rg) => {
             // Centre in mask pixels.
-            let cx = resolve_px(rg.center.0, w);
-            let cy = resolve_px(rg.center.1, h);
+            let cx = resolve_px(rg.center.0, w, scale_x);
+            let cy = resolve_px(rg.center.1, h, scale_y);
             // Resolve the ending-shape radii (px). Explicit radii win; else the
             // extent keyword (default farthest-corner) is computed from the box.
             let dist_x = cx.max(w - cx);
@@ -13144,10 +13364,10 @@ fn rasterize_mask_coverage(
             let near_x = cx.min(w - cx);
             let near_y = cy.min(h - cy);
             let (rx, ry) = if let Some(r) = rg.radius {
-                let rp = r / 0.75; // points → mask pixels
+                let rp = r / 0.75 * scale_x; // points → mask pixels
                 (rp, rp)
             } else if let Some((ex, ey)) = rg.radii {
-                (resolve_px(ex, w), resolve_px(ey, h))
+                (resolve_px(ex, w, scale_x), resolve_px(ey, h, scale_y))
             } else {
                 match (rg.shape, rg.extent) {
                     (RadialShape::Circle, RadialExtent::ClosestSide) => {
@@ -13193,8 +13413,8 @@ fn rasterize_mask_coverage(
             }
         }
         MaskSource::Conic(cg) => {
-            let cx = resolve_px(cg.center.0, w);
-            let cy = resolve_px(cg.center.1, h);
+            let cx = resolve_px(cg.center.0, w, scale_x);
+            let cy = resolve_px(cg.center.1, h, scale_y);
             let from = cg.from_angle.to_radians();
             for py in 0..px_h {
                 let fy = py as f32 + 0.5;
@@ -13206,14 +13426,184 @@ fn rasterize_mask_coverage(
                     let dy = fy - cy;
                     let mut ang = dx.atan2(-dy) - from;
                     ang = ang.rem_euclid(std::f32::consts::TAU);
-                    let t = ang / std::f32::consts::TAU;
+                    let mut t = ang / std::f32::consts::TAU;
+                    if cg.repeating {
+                        t = t.rem_euclid(repeat_period(&cg.stops));
+                    }
                     out.push(coverage_byte(sample_gradient_stops(&cg.stops, t), mode));
                 }
             }
         }
         // SVG `url()` masks are rasterised by `rasterize_svg_mask_coverage` and
         // never reach this gradient sampler.
-        MaskSource::Svg(_) => {}
+        MaskSource::Svg(_) | MaskSource::Layers(_) | MaskSource::BorderRing { .. } | MaskSource::Ref(_) => {}
+    }
+    out
+}
+
+fn source_from_layer_source(source: &MaskLayerSource) -> Option<MaskSource> {
+    match source {
+        MaskLayerSource::Linear(g) => Some(MaskSource::Linear(g.clone())),
+        MaskLayerSource::Radial(g) => Some(MaskSource::Radial(g.clone())),
+        MaskLayerSource::Conic(g) => Some(MaskSource::Conic(g.clone())),
+        MaskLayerSource::Svg(bytes) => Some(MaskSource::Svg(bytes.clone())),
+        MaskLayerSource::Ref(_) => None,
+    }
+}
+
+fn layer_sample(
+    source: &MaskLayerSource,
+    mode: MaskMode,
+    px_w: u32,
+    px_h: u32,
+    scale_x: f32,
+    scale_y: f32,
+) -> Option<Vec<u8>> {
+    match source {
+        MaskLayerSource::Svg(bytes) => rasterize_svg_mask_coverage(bytes, mode, px_w, px_h),
+        _ => source_from_layer_source(source)
+            .map(|src| rasterize_mask_coverage(&src, mode, px_w, px_h, scale_x, scale_y)),
+    }
+}
+
+fn mask_box_rect_pts(w: f32, h: f32, metrics: BoxMetrics, box_kind: ShapeBox) -> (f32, f32, f32, f32) {
+    let (_, top, bw, bh) = shape_reference_rect(0.0, 0.0, w, h, metrics, box_kind);
+    let x = match box_kind {
+        ShapeBox::Border => 0.0,
+        ShapeBox::Padding => metrics.border_left,
+        ShapeBox::Content => metrics.border_left + metrics.padding_left,
+    };
+    let y_top = -top;
+    (x, y_top, bw, bh)
+}
+
+fn mask_tile_offsets(origin: f32, step: f32, extent: f32) -> Vec<f32> {
+    tile_offsets(origin, step, extent)
+}
+
+fn rasterize_mask_layer(layer: &MaskLayer, px_w: u32, px_h: u32, w: f32, h: f32, metrics: BoxMetrics) -> Option<Vec<u8>> {
+    let sx = px_w as f32 / w.max(1e-6);
+    let sy = px_h as f32 / h.max(1e-6);
+    let (origin_x, origin_y, origin_w, origin_h) = mask_box_rect_pts(w, h, metrics, layer.origin);
+    let (clip_x, clip_y, clip_w, clip_h) = mask_box_rect_pts(w, h, metrics, layer.clip);
+    let resolve_axis = |value: f32, is_percent: bool, extent: f32| {
+        if is_percent { extent * value / 100.0 } else { value }
+    };
+    let (tile_w, tile_h) = match layer.layer_box.size {
+        Some(BackgroundSize::Explicit {
+            width,
+            height,
+            width_is_percent,
+            height_is_percent,
+        }) => (
+            resolve_axis(width, width_is_percent, origin_w),
+            height.map_or(origin_h, |v| resolve_axis(v, height_is_percent, origin_h)),
+        ),
+        _ => (origin_w, origin_h),
+    };
+    if tile_w <= 0.0 || tile_h <= 0.0 {
+        return None;
+    }
+    let (offset_x, offset_y) = match layer.layer_box.position {
+        Some(pos) => (
+            if pos.x_is_percent { (origin_w - tile_w) * pos.x } else { pos.x },
+            if pos.y_is_percent { (origin_h - tile_h) * pos.y } else { pos.y },
+        ),
+        None => (0.0, 0.0),
+    };
+    let repeat = layer.layer_box.repeat.unwrap_or(BackgroundRepeat::Repeat);
+    let xs = match repeat {
+        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatY => vec![offset_x],
+        _ => mask_tile_offsets(offset_x, tile_w, origin_w),
+    };
+    let ys = match repeat {
+        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatX => vec![offset_y],
+        _ => mask_tile_offsets(offset_y, tile_h, origin_h),
+    };
+    let tile_px_w = ((tile_w * sx).round() as u32).clamp(1, 2048);
+    let tile_px_h = ((tile_h * sy).round() as u32).clamp(1, 2048);
+    let tile_scale_x = tile_px_w as f32 / (tile_w / 0.75).max(1e-6);
+    let tile_scale_y = tile_px_h as f32 / (tile_h / 0.75).max(1e-6);
+    let tile_cov = layer_sample(
+        &layer.source,
+        layer.mode,
+        tile_px_w,
+        tile_px_h,
+        tile_scale_x,
+        tile_scale_y,
+    )?;
+    let mut out = vec![0u8; (px_w * px_h) as usize];
+    let clip_l = (clip_x * sx).floor() as i32;
+    let clip_t = (clip_y * sy).floor() as i32;
+    let clip_r = ((clip_x + clip_w) * sx).ceil() as i32;
+    let clip_b = ((clip_y + clip_h) * sy).ceil() as i32;
+    for oy in ys {
+        for ox in &xs {
+            let dest_x = ((origin_x + *ox) * sx).round() as i32;
+            let dest_y = ((origin_y + oy) * sy).round() as i32;
+            for ty in 0..tile_px_h as i32 {
+                let dy = dest_y + ty;
+                if dy < 0 || dy >= px_h as i32 || dy < clip_t || dy >= clip_b {
+                    continue;
+                }
+                for tx in 0..tile_px_w as i32 {
+                    let dx = dest_x + tx;
+                    if dx < 0 || dx >= px_w as i32 || dx < clip_l || dx >= clip_r {
+                        continue;
+                    }
+                    let src_idx = (ty as u32 * tile_px_w + tx as u32) as usize;
+                    let dst_idx = (dy as u32 * px_w + dx as u32) as usize;
+                    out[dst_idx] = tile_cov[src_idx];
+                }
+            }
+        }
+    }
+    Some(out)
+}
+
+fn composite_mask(source: u8, dest: u8, op: MaskComposite) -> u8 {
+    let s = f32::from(source) / 255.0;
+    let d = f32::from(dest) / 255.0;
+    let a = match op {
+        MaskComposite::Add => s + d * (1.0 - s),
+        MaskComposite::Subtract => s * (1.0 - d),
+        MaskComposite::Intersect => s * d,
+        MaskComposite::Exclude => s * (1.0 - d) + d * (1.0 - s),
+    };
+    (a.clamp(0.0, 1.0) * 255.0).round() as u8
+}
+
+fn rasterize_mask_layers(layers: &[MaskLayer], px_w: u32, px_h: u32, w: f32, h: f32, metrics: BoxMetrics) -> Option<Vec<u8>> {
+    let mut accum = vec![0u8; (px_w * px_h) as usize];
+    let mut first = true;
+    for layer in layers.iter().rev() {
+        let cov = rasterize_mask_layer(layer, px_w, px_h, w, h, metrics)?;
+        if first {
+            accum = cov;
+            first = false;
+        } else {
+            for (dst, src) in accum.iter_mut().zip(cov) {
+                *dst = composite_mask(src, *dst, layer.composite);
+            }
+        }
+    }
+    Some(accum)
+}
+
+fn rasterize_mask_border_ring(px_w: u32, px_h: u32, w: f32, h: f32, width: f32) -> Vec<u8> {
+    let sx = px_w as f32 / w.max(1e-6);
+    let sy = px_h as f32 / h.max(1e-6);
+    let l = (width * sx).round() as u32;
+    let t = (width * sy).round() as u32;
+    let r = px_w.saturating_sub(l);
+    let b = px_h.saturating_sub(t);
+    let mut out = vec![0u8; (px_w * px_h) as usize];
+    for y in 0..px_h {
+        for x in 0..px_w {
+            if x < l || x >= r || y < t || y >= b {
+                out[(y * px_w + x) as usize] = 255;
+            }
+        }
     }
     out
 }
@@ -13265,10 +13655,9 @@ fn rasterize_svg_mask_coverage(
             px[3] as f32 / 255.0,
         );
         let cov = match mode {
-            MaskMode::Alpha => a,
-            // `luminance` and `match-source` (image) both use luminance. The
-            // RGB are premultiplied, so the product already folds in alpha.
-            MaskMode::Luminance | MaskMode::MatchSource => 0.2126 * r + 0.7152 * g + 0.0722 * b,
+            MaskMode::Alpha | MaskMode::MatchSource => a,
+            // `luminance` uses premultiplied RGB, so alpha is already folded in.
+            MaskMode::Luminance => 0.2126 * r + 0.7152 * g + 0.0722 * b,
         };
         out.push((cov.clamp(0.0, 1.0) * 255.0).round() as u8);
     }
@@ -13780,14 +14169,16 @@ impl PdfWriter {
     /// positioned over the box, and registered as an `/SMask` ExtGState. Returns
     /// the graphics-state name to emit with `gs` (the caller wraps the masked
     /// paint in `q /name gs ... Q`), or `None` if the source can't be rasterised.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn add_mask_soft_mask(
         &mut self,
-        source: &crate::style::computed::MaskSource,
-        mode: crate::style::computed::MaskMode,
+        source: &MaskSource,
+        mode: MaskMode,
         x: f32,
         top_y: f32,
         w: f32,
         h: f32,
+        metrics: BoxMetrics,
     ) -> Option<String> {
         if w <= 0.0 || h <= 0.0 {
             return None;
@@ -13798,17 +14189,12 @@ impl PdfWriter {
         // Falls through to the raster path below for gradient masks, or any SVG
         // that can't be vectorised self-contained (needs shading/image/font
         // resources, or fails to parse).
-        if let crate::style::computed::MaskSource::Svg(bytes) = source {
-            if let Some(gs) = self.try_svg_vector_soft_mask(bytes, x, top_y, w, h) {
-                return Some(gs);
-            }
-        }
         // VECTOR path for linear-gradient masks: a native PDF axial shading painted
         // into a DeviceRGB luminosity group (gray = mask coverage), resolution-
         // independent like Chrome — instead of a 1-sample/CSS-px coverage bitmap
         // upscaled by the device. Conic masks stay raster (no native PDF conic
         // shading); radial masks could follow the same approach later.
-        if let crate::style::computed::MaskSource::Linear(lg) = source {
+        if let MaskSource::Linear(lg) = source {
             if let Some(gs) = self.try_linear_mask_vector_shading(lg, mode, x, top_y, w, h) {
                 return Some(gs);
             }
@@ -13818,13 +14204,21 @@ impl PdfWriter {
         // upscales without a hard edge, and the gradient's CSS-px geometry (center
         // /radius) is computed in this same space, so the grid must stay 1:1 with
         // CSS px. Capped so a very large box can't blow up the PDF.
-        let px_w = ((w / 0.75).round() as u32).clamp(1, 1024);
-        let px_h = ((h / 0.75).round() as u32).clamp(1, 1024);
+        let px_w = ((w / 0.75 * 4.0).round() as u32).clamp(1, 4096);
+        let px_h = ((h / 0.75 * 4.0).round() as u32).clamp(1, 4096);
         let coverage = match source {
-            crate::style::computed::MaskSource::Svg(bytes) => {
-                rasterize_svg_mask_coverage(bytes, mode, px_w, px_h)?
-            }
-            _ => rasterize_mask_coverage(source, mode, px_w, px_h),
+            MaskSource::Svg(bytes) => rasterize_svg_mask_coverage(bytes, mode, px_w, px_h)?,
+            MaskSource::Layers(layers) => rasterize_mask_layers(layers, px_w, px_h, w, h, metrics)?,
+            MaskSource::BorderRing { width } => rasterize_mask_border_ring(px_w, px_h, w, h, *width),
+            MaskSource::Ref(_) => return None,
+            _ => rasterize_mask_coverage(
+                source,
+                mode,
+                px_w,
+                px_h,
+                px_w as f32 / (w / 0.75).max(1e-6),
+                px_h as f32 / (h / 0.75).max(1e-6),
+            ),
         };
 
         // DeviceGray coverage image (luminosity source for the group).
@@ -13862,6 +14256,7 @@ impl PdfWriter {
     /// Returns `None` (so the caller falls back to raster) when the SVG can't be
     /// parsed, has zero size, renders nothing, or needs gradient/image/font
     /// resources the self-contained mask form can't carry.
+    #[allow(dead_code)]
     fn try_svg_vector_soft_mask(
         &mut self,
         svg_bytes: &[u8],

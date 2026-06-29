@@ -1508,7 +1508,7 @@
     "description": "In writing-mode:vertical-rl, flex-direction:row follows the vertical inline axis and stacks items top-to-bottom; catches physical horizontal row layout.",
     "file": "cases/flexbox/flexbox-writing-mode-vertical-rl-row.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1525,7 +1525,7 @@
     "description": "In writing-mode:vertical-rl, flex-direction:column follows the horizontal block axis right-to-left; catches physical top-to-bottom column layout.",
     "file": "cases/flexbox/flexbox-writing-mode-vertical-rl-column.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1542,7 +1542,7 @@
     "description": "writing-mode:vertical-lr with flex-direction:row follows the vertical inline axis; catches parsers that treat vertical-lr as horizontal-tb.",
     "file": "cases/flexbox/flexbox-writing-mode-vertical-lr-row.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

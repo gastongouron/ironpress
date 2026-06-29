@@ -44,7 +44,12 @@ pub(crate) fn resolved_line_height_factor(
             fonts,
         )
     } else {
-        style.line_height
+        // The renderer uses factors below 0.9 as an internal marker for floated
+        // `::first-letter` drop caps. Ordinary inline text can otherwise reach
+        // that range when an absolute line-height is inherited by a larger font
+        // size. Keep normal collected text out of the sentinel range; the drop
+        // cap helper writes its reduced factor explicitly after collection.
+        style.line_height.max(0.9)
     }
 }
 

@@ -180,6 +180,186 @@ pub(crate) fn authored_intrinsic_width_keyword(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LayoutOverflowKeyword {
+    Visible,
+    Clip,
+    Hidden,
+    Scroll,
+    Auto,
+}
+
+impl LayoutOverflowKeyword {
+    pub(crate) fn clips(self) -> bool {
+        !matches!(self, Self::Visible)
+    }
+
+    pub(crate) fn establishes_bfc(self) -> bool {
+        matches!(self, Self::Hidden | Self::Scroll | Self::Auto)
+    }
+
+    fn is_scrollable(self) -> bool {
+        matches!(self, Self::Hidden | Self::Scroll | Self::Auto)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct LayoutOverflowAxes {
+    pub(crate) x: LayoutOverflowKeyword,
+    pub(crate) y: LayoutOverflowKeyword,
+}
+
+impl LayoutOverflowAxes {
+    pub(crate) fn clips_any(self) -> bool {
+        self.x.clips() || self.y.clips()
+    }
+
+    pub(crate) fn establishes_bfc(self) -> bool {
+        self.x.establishes_bfc() || self.y.establishes_bfc()
+    }
+}
+
+fn parse_layout_overflow_keyword(value: &str) -> LayoutOverflowKeyword {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "clip" => LayoutOverflowKeyword::Clip,
+        "hidden" => LayoutOverflowKeyword::Hidden,
+        "scroll" => LayoutOverflowKeyword::Scroll,
+        "auto" => LayoutOverflowKeyword::Auto,
+        _ => LayoutOverflowKeyword::Visible,
+    }
+}
+
+fn coerce_layout_overflow_axis(
+    this: LayoutOverflowKeyword,
+    other: LayoutOverflowKeyword,
+) -> LayoutOverflowKeyword {
+    match this {
+        LayoutOverflowKeyword::Visible if other.is_scrollable() => LayoutOverflowKeyword::Auto,
+        LayoutOverflowKeyword::Clip if other.is_scrollable() => LayoutOverflowKeyword::Hidden,
+        value => value,
+    }
+}
+
+pub(crate) fn authored_overflow_axes(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) -> LayoutOverflowAxes {
+    let from_computed = |value| match value {
+        crate::style::computed::Overflow::Visible => LayoutOverflowKeyword::Visible,
+        crate::style::computed::Overflow::Hidden => LayoutOverflowKeyword::Hidden,
+        crate::style::computed::Overflow::Scroll => LayoutOverflowKeyword::Scroll,
+        crate::style::computed::Overflow::Auto => LayoutOverflowKeyword::Auto,
+    };
+    let mut x = from_computed(style.overflow_x);
+    let mut y = from_computed(style.overflow_y);
+    let mut saw_authored = false;
+
+    if let Some(value) = authored_keyword_property(el, rules, ancestors, selector_ctx, "overflow") {
+        let mut parts = value.split_whitespace();
+        if let Some(first) = parts.next() {
+            x = parse_layout_overflow_keyword(first);
+            y = parts.next().map(parse_layout_overflow_keyword).unwrap_or(x);
+            saw_authored = true;
+        }
+    }
+    if let Some(value) = authored_keyword_property(el, rules, ancestors, selector_ctx, "overflow-x")
+    {
+        x = parse_layout_overflow_keyword(&value);
+        saw_authored = true;
+    }
+    if let Some(value) = authored_keyword_property(el, rules, ancestors, selector_ctx, "overflow-y")
+    {
+        y = parse_layout_overflow_keyword(&value);
+        saw_authored = true;
+    }
+    // Horizontal writing-mode is the only mode currently laid out by the block
+    // engine, so logical inline/block overflow map to x/y here.
+    if let Some(value) =
+        authored_keyword_property(el, rules, ancestors, selector_ctx, "overflow-inline")
+    {
+        x = parse_layout_overflow_keyword(&value);
+        saw_authored = true;
+    }
+    if let Some(value) =
+        authored_keyword_property(el, rules, ancestors, selector_ctx, "overflow-block")
+    {
+        y = parse_layout_overflow_keyword(&value);
+        saw_authored = true;
+    }
+
+    if saw_authored {
+        LayoutOverflowAxes {
+            x: coerce_layout_overflow_axis(x, y),
+            y: coerce_layout_overflow_axis(y, x),
+        }
+    } else {
+        LayoutOverflowAxes { x, y }
+    }
+}
+
+pub(crate) fn authored_line_clamp(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) -> Option<usize> {
+    for property in ["line-clamp", "-webkit-line-clamp"] {
+        let Some(value) = authored_property_value(el, rules, ancestors, selector_ctx, property)
+        else {
+            continue;
+        };
+        let n = match value {
+            CssValue::Number(n) => n,
+            CssValue::Keyword(raw) => raw
+                .split_whitespace()
+                .find_map(|part| part.parse::<f32>().ok())?,
+            _ => continue,
+        };
+        if n.is_finite() && n >= 1.0 {
+            return Some(n.floor() as usize);
+        }
+    }
+    None
+}
+
+pub(crate) fn authored_overflow_clip_margin(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) -> f32 {
+    match authored_property_value(el, rules, ancestors, selector_ctx, "overflow-clip-margin") {
+        Some(CssValue::Length(v)) if v.is_finite() => v.max(0.0),
+        Some(CssValue::Number(v)) if v.is_finite() => v.max(0.0),
+        _ => 0.0,
+    }
+}
+
+pub(crate) fn authored_scrollbar_gutter(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) -> (f32, f32) {
+    let Some(value) =
+        authored_keyword_property(el, rules, ancestors, selector_ctx, "scrollbar-gutter")
+    else {
+        return (0.0, 0.0);
+    };
+    if !value.split_whitespace().any(|part| part == "stable") {
+        return (0.0, 0.0);
+    }
+    let gutter = 15.0 * 0.75;
+    if value.split_whitespace().any(|part| part == "both-edges") {
+        (gutter, gutter)
+    } else {
+        (0.0, gutter)
+    }
+}
+
 pub(crate) fn authored_display_contents(
     el: &ElementNode,
     rules: &[CssRule],
@@ -536,8 +716,18 @@ pub(crate) fn collapse_margin_pair(a: f32, b: f32) -> f32 {
 /// § 8.3.1). Covers `overflow != visible`, floats, and absolute positioning;
 /// flex/grid containers route through their own layout and never reach the block
 /// margin-collapse path, so they need no entry here.
+#[allow(dead_code)]
 pub(crate) fn establishes_bfc(style: &ComputedStyle) -> bool {
     style.overflow.clips()
+        || style.float != crate::style::computed::Float::None
+        || style.position == Position::Absolute
+}
+
+pub(crate) fn establishes_bfc_with_overflow(
+    style: &ComputedStyle,
+    overflow_axes: LayoutOverflowAxes,
+) -> bool {
+    overflow_axes.establishes_bfc()
         || style.float != crate::style::computed::Float::None
         || style.position == Position::Absolute
 }

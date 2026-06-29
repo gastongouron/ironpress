@@ -675,7 +675,7 @@
     "description": "A vertical flex container taller than one page should continue its child items on later pages; catches paginators that treat flex containers as unsplittable atoms.",
     "file": "cases/paged-media/paged-flex-column-fragmentation.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

@@ -3,7 +3,7 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BoxSizing, Clear, ComputedStyle, Display, Float, Position, TextAlign, TextOverflow,
+    BoxSizing, Clear, ComputedStyle, Display, Float, Overflow, Position, TextAlign, TextOverflow,
     VerticalAlign, Visibility, WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
@@ -14,20 +14,22 @@ use super::engine::{
     forward_siblings,
 };
 use super::helpers::{
-    BackgroundFields, append_pseudo_inline_run, aspect_ratio_height,
-    authored_intrinsic_width_keyword, authored_pseudo_keyword_property, build_pseudo_block,
-    collects_as_inline_text, has_background_paint, heading_level,
-    patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
-    recurses_as_layout_child, resolve_abs_containing_block, resolve_content_box_height,
-    resolve_inset, resolve_padding_box_height, resolve_relative_offsets,
+    BackgroundFields, LayoutOverflowKeyword, append_pseudo_inline_run, aspect_ratio_height,
+    authored_intrinsic_width_keyword, authored_line_clamp, authored_overflow_axes,
+    authored_overflow_clip_margin, authored_pseudo_keyword_property, authored_scrollbar_gutter,
+    build_pseudo_block, collects_as_inline_text, establishes_bfc_with_overflow,
+    has_background_paint, heading_level, patch_absolute_children_containing_block,
+    pseudo_is_block_like, push_block_pseudo, recurses_as_layout_child,
+    resolve_abs_containing_block, resolve_content_box_height, resolve_inset,
+    resolve_padding_box_height, resolve_relative_offsets, selector_context_from_ancestors,
 };
 use super::inline::{
     element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
 };
 use super::paginate::estimate_element_height;
 use super::text::{
-    TextWrapOptions, apply_text_overflow_ellipsis, collect_text_runs, resolved_line_height_factor,
-    wrap_text_runs,
+    TextWrapOptions, apply_text_overflow_ellipsis, collect_text_runs, estimate_word_width,
+    resolved_line_height_factor, wrap_text_runs,
 };
 
 /// Lay out a `display: block` or `display: inline-block` element.
@@ -257,11 +259,28 @@ pub(crate) fn layout_block_element(
         style.margin.left
     };
 
+    let selector_ctx = selector_context_from_ancestors(child_ancestors, el);
+    let overflow_axes =
+        authored_overflow_axes(el, style, env.rules, child_ancestors, &selector_ctx);
+    let overflow_clip_margin =
+        authored_overflow_clip_margin(el, env.rules, child_ancestors, &selector_ctx);
+    let line_clamp = authored_line_clamp(el, env.rules, child_ancestors, &selector_ctx);
+    let (scrollbar_gutter_left, scrollbar_gutter_right) = if matches!(
+        overflow_axes.y,
+        LayoutOverflowKeyword::Hidden | LayoutOverflowKeyword::Scroll | LayoutOverflowKeyword::Auto
+    ) {
+        authored_scrollbar_gutter(el, env.rules, child_ancestors, &selector_ctx)
+    } else {
+        (0.0, 0.0)
+    };
+    let layout_padding_left = style.padding.left + scrollbar_gutter_left;
+    let layout_padding_right = style.padding.right + scrollbar_gutter_right;
+
     // `block_w` is now the border-box (outer) width for both box-sizing modes
     // (content-box added padding+border above), so the content area is always
     // the outer width minus horizontal padding and border.
     let inner_width =
-        block_w - style.padding.left - style.padding.right - style.border.horizontal_width();
+        block_w - layout_padding_left - layout_padding_right - style.border.horizontal_width();
     let inner_width = inner_width.max(0.0);
 
     // Resolve percentage border-radius. Per CSS Backgrounds §5.1 a horizontal
@@ -340,7 +359,7 @@ pub(crate) fn layout_block_element(
                 x: style.left.unwrap_or(0.0)
                     + auto_offset_left
                     + style.border.left.width
-                    + style.padding.left,
+                    + layout_padding_left,
                 width: cb_width,
                 height: padding_box_height,
                 depth: positioned_depth,
@@ -530,8 +549,8 @@ pub(crate) fn layout_block_element(
                 })
                 .fold(0.0f32, f32::max);
             let shrink_w = max_line_w
-                + style.padding.left
-                + style.padding.right
+                + layout_padding_left
+                + layout_padding_right
                 + style.border.horizontal_width();
             shrink_w.min(block_w)
         } else {
@@ -573,8 +592,8 @@ pub(crate) fn layout_block_element(
             background_color: bg,
             padding_top: style.padding.top,
             padding_bottom: style.padding.bottom,
-            padding_left: style.padding.left,
-            padding_right: style.padding.right,
+            padding_left: layout_padding_left,
+            padding_right: layout_padding_right,
             border: LayoutBorder::from_computed(&style.border),
             block_width: explicit_width,
             block_height: effective_height,
@@ -762,9 +781,9 @@ pub(crate) fn layout_block_element(
         // (padding + border) to every child type. Without this, a `display:flex`,
         // positioned, or block child of e.g. `<div style="padding:20px">` renders
         // at the parent's border-box origin (padding silently dropped).
-        let has_padding_offset = style.padding.left > 0.0
+        let has_padding_offset = layout_padding_left > 0.0
             || style.padding.top > 0.0
-            || style.padding.right > 0.0
+            || layout_padding_right > 0.0
             || style.padding.bottom > 0.0;
         let has_block_children = !parent_has_visual
             && !has_padding_offset
@@ -827,8 +846,8 @@ pub(crate) fn layout_block_element(
                     background_color: bg,
                     padding_top: 0.0,
                     padding_bottom: 0.0,
-                    padding_left: style.padding.left,
-                    padding_right: style.padding.right,
+                    padding_left: layout_padding_left,
+                    padding_right: layout_padding_right,
                     border: LayoutBorder::from_computed(&style.border),
                     block_width: Some(block_w),
                     block_height: effective_height.map(|_| wrapper_h),
@@ -897,8 +916,8 @@ pub(crate) fn layout_block_element(
                         background_color: None,
                         padding_top: 0.0,
                         padding_bottom: 0.0,
-                        padding_left: style.padding.left,
-                        padding_right: style.padding.right,
+                        padding_left: layout_padding_left,
+                        padding_right: layout_padding_right,
                         border: LayoutBorder::default(),
                         block_width: None,
                         block_height: None,
@@ -1045,7 +1064,7 @@ pub(crate) fn layout_block_element(
             // For visual containers, propagate parent padding to children
             // so they render inside the padded area.
             if parent_has_visual {
-                if style.padding.left > 0.0 || style.padding.right > 0.0 {
+                if layout_padding_left > 0.0 || layout_padding_right > 0.0 {
                     for elem in &mut block_child_buf {
                         if let LayoutElement::TextBlock {
                             padding_left,
@@ -1053,8 +1072,8 @@ pub(crate) fn layout_block_element(
                             ..
                         } = elem
                         {
-                            *padding_left += style.padding.left;
-                            *padding_right += style.padding.right;
+                            *padding_left += layout_padding_left;
+                            *padding_right += layout_padding_right;
                         }
                     }
                 }
@@ -1291,9 +1310,9 @@ pub(crate) fn layout_block_element(
         && (early_has_visual
             || style.height.is_some()
             || style.aspect_ratio.is_some()
-            || style.padding.left > 0.0
+            || layout_padding_left > 0.0
             || style.padding.top > 0.0
-            || style.padding.right > 0.0
+            || layout_padding_right > 0.0
             || style.padding.bottom > 0.0)
         && nesting_depth < 40;
     let had_inline_runs =
@@ -1350,6 +1369,10 @@ pub(crate) fn layout_block_element(
         // the dynamically-determined first formatted line.
         if let Some(ref fl) = first_line_style {
             crate::layout::helpers::apply_first_line_style(&mut lines, fl, env.fonts);
+        }
+
+        if let Some(max_lines) = line_clamp {
+            apply_line_clamp(&mut lines, max_lines, inner_width, env.fonts);
         }
 
         // Apply text-overflow: ellipsis when overflow is hidden, white-space
@@ -1467,12 +1490,12 @@ pub(crate) fn layout_block_element(
             padding_left: if has_block_kids_for_wrapper {
                 0.0
             } else {
-                style.padding.left
+                layout_padding_left
             },
             padding_right: if has_block_kids_for_wrapper {
                 0.0
             } else {
-                style.padding.right
+                layout_padding_right
             },
             border: if has_block_kids_for_wrapper {
                 LayoutBorder::default()
@@ -1661,9 +1684,9 @@ pub(crate) fn layout_block_element(
     let needs_wrapper = has_visual
         || style.aspect_ratio.is_some()
         || style.height.is_some()
-        || style.padding.left > 0.0
+        || layout_padding_left > 0.0
         || style.padding.top > 0.0
-        || style.padding.right > 0.0
+        || layout_padding_right > 0.0
         || style.padding.bottom > 0.0
         || (positioned_container && (before_is_abs || after_is_abs))
         || has_abs_children;
@@ -1821,6 +1844,7 @@ pub(crate) fn layout_block_element(
                 ));
             }
         }
+        let child_bounds = child_overflow_bounds(&child_elements);
         // CSS 2.1 § 8.3.1: margins of a block and its first/last in-flow
         // children collapse when no padding/border/line box separates them.
         // Absorb the child margins into the container's own so that flow
@@ -1833,7 +1857,7 @@ pub(crate) fn layout_block_element(
         // establishes a new BFC (overflow != visible, float, absolute); the
         // *bottom* collapse-through is additionally suppressed when the box has a
         // definite (non-auto) height, which contains the last child's margin.
-        let bfc = crate::layout::helpers::establishes_bfc(style);
+        let bfc = establishes_bfc_with_overflow(style, overflow_axes);
         crate::layout::helpers::collapse_margins_through_parent(
             &mut child_elements,
             &mut wrapper_margin_top,
@@ -1846,8 +1870,20 @@ pub(crate) fn layout_block_element(
             bfc || has_definite_height,
         );
 
-        // Measure children total height
-        let children_h_raw: f32 = child_elements.iter().map(estimate_element_height).sum();
+        // Measure children total height. A non-BFC auto-height block does not
+        // grow to enclose floated descendants; a BFC does.
+        let children_h_raw: f32 = if !bfc {
+            child_elements
+                .iter()
+                .filter(|child| {
+                    crate::layout::paginate::element_float(child) == Float::None
+                        && !layout_element_is_absolute(child)
+                })
+                .map(estimate_element_height)
+                .sum()
+        } else {
+            child_elements.iter().map(estimate_element_height).sum()
+        };
         // A definite `height` clamps the padding-box to that size (content
         // overflows). A `min-height`-only floor (`effective_height` set but not
         // definite) must still grow to fit taller content — pass `None` so the
@@ -1896,6 +1932,35 @@ pub(crate) fn layout_block_element(
                 max_height_clamped = true;
             }
         }
+        let clip_margin_contains_overflow = overflow_clip_margin > 0.0
+            && child_bounds.min_x >= -(layout_padding_left + overflow_clip_margin)
+            && child_bounds.max_x <= inner_width + layout_padding_right + overflow_clip_margin
+            && child_bounds.max_y <= container_h + overflow_clip_margin;
+        let mut emitted_block_w = block_w;
+        if overflow_axes.x == LayoutOverflowKeyword::Visible && overflow_axes.y.clips() {
+            emitted_block_w = emitted_block_w.max(
+                style.border.horizontal_width()
+                    + layout_padding_left
+                    + child_bounds.max_x.max(inner_width)
+                    + layout_padding_right,
+            );
+        }
+        let mut emitted_container_h = container_h;
+        if overflow_axes.y == LayoutOverflowKeyword::Visible && overflow_axes.x.clips() {
+            emitted_container_h = emitted_container_h
+                .max(child_bounds.max_y + style.padding.top + style.padding.bottom);
+        }
+        let emitted_overflow = if clip_margin_contains_overflow || !overflow_axes.clips_any() {
+            Overflow::Visible
+        } else if overflow_axes.x == LayoutOverflowKeyword::Auto
+            && overflow_axes.y == LayoutOverflowKeyword::Auto
+        {
+            Overflow::Auto
+        } else {
+            Overflow::Hidden
+        };
+        let emitted_overflow_x = overflow_keyword_to_computed(overflow_axes.x);
+        let emitted_overflow_y = overflow_keyword_to_computed(overflow_axes.y);
         // For pseudo-element containing block sizing (abs children with
         // height:100%), collapse the first/last children's outer margins
         // through the parent when no padding/border blocks them. The
@@ -2024,11 +2089,11 @@ pub(crate) fn layout_block_element(
             outline_offset: style.outline_offset,
             padding_top: style.padding.top,
             padding_bottom: style.padding.bottom,
-            padding_left: style.padding.left,
-            padding_right: style.padding.right,
+            padding_left: layout_padding_left,
+            padding_right: layout_padding_right,
             margin_top: wrapper_margin_top,
             margin_bottom: wrapper_margin_bottom,
-            block_width: Some(block_w),
+            block_width: Some(emitted_block_w),
             // `block_width` is the full border-box width (`block_w` is the
             // declared width, which already includes border under border-box).
             // The renderer and flow estimate both treat a Container's
@@ -2040,9 +2105,9 @@ pub(crate) fn layout_block_element(
             // border thickness.) The aspect-ratio case is left as-is: its height
             // is derived from the border-box width and is already consistent.
             block_height: if effective_height.is_some() || max_height_clamped {
-                Some(container_h + style.border.vertical_width())
+                Some(emitted_container_h + style.border.vertical_width())
             } else if style.aspect_ratio.is_some() {
-                Some(container_h)
+                Some(emitted_container_h)
             } else {
                 None
             },
@@ -2055,9 +2120,9 @@ pub(crate) fn layout_block_element(
             position: style.position,
             offset_top: wrapper_top,
             offset_left: wrapper_left + auto_offset_left,
-            overflow: style.overflow,
-            overflow_x: style.overflow_x,
-            overflow_y: style.overflow_y,
+            overflow: emitted_overflow,
+            overflow_x: emitted_overflow_x,
+            overflow_y: emitted_overflow_y,
             transform: style.transform,
             transform_origin: style.transform_origin,
             clip_path: style.clip_path.clone(),
@@ -2199,7 +2264,7 @@ pub(crate) fn layout_block_element(
         && style.padding.bottom == 0.0
         && style.border.top.width == 0.0
         && style.border.bottom.width == 0.0
-        && !style.overflow.clips()
+        && !overflow_axes.clips_any()
         && style.position != Position::Absolute
         && style.float == Float::None;
     if self_collapsing && (style.margin.top != 0.0 || style.margin.bottom != 0.0) {
@@ -2234,4 +2299,164 @@ pub(crate) fn layout_block_element(
         env.counter_state,
     );
     false
+}
+
+fn apply_line_clamp(
+    lines: &mut Vec<crate::layout::engine::TextLine>,
+    max_lines: usize,
+    max_width: f32,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    if max_lines == 0 || lines.len() <= max_lines {
+        return;
+    }
+    lines.truncate(max_lines);
+    let Some(line) = lines.last_mut() else {
+        return;
+    };
+    if line.runs.is_empty() {
+        return;
+    }
+    let template = line.runs[0].clone();
+    let full_text: String = line.runs.iter().map(|run| run.text.as_str()).collect();
+    let ellipsis = "...";
+    let ellipsis_width = estimate_word_width(
+        ellipsis,
+        template.font_size,
+        &template.font_family,
+        template.bold,
+        template.italic,
+        fonts,
+    );
+    let mut truncated = String::new();
+    for ch in full_text.chars() {
+        truncated.push(ch);
+        let width = estimate_word_width(
+            &truncated,
+            template.font_size,
+            &template.font_family,
+            template.bold,
+            template.italic,
+            fonts,
+        );
+        if width + ellipsis_width > max_width {
+            truncated.pop();
+            break;
+        }
+    }
+    while truncated.ends_with(char::is_whitespace) {
+        truncated.pop();
+    }
+    truncated.push_str(ellipsis);
+    line.runs = vec![TextRun {
+        text: truncated,
+        ..template
+    }];
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ChildOverflowBounds {
+    min_x: f32,
+    max_x: f32,
+    max_y: f32,
+}
+
+fn child_overflow_bounds(children: &[LayoutElement]) -> ChildOverflowBounds {
+    let mut bounds = ChildOverflowBounds {
+        min_x: 0.0,
+        max_x: 0.0,
+        max_y: 0.0,
+    };
+    for child in children {
+        let (x, width) = child_x_and_width(child);
+        bounds.min_x = bounds.min_x.min(x);
+        bounds.max_x = bounds.max_x.max(x + width);
+        bounds.max_y = bounds.max_y.max(estimate_element_height(child));
+    }
+    bounds
+}
+
+fn overflow_keyword_to_computed(value: LayoutOverflowKeyword) -> Overflow {
+    match value {
+        LayoutOverflowKeyword::Visible => Overflow::Visible,
+        LayoutOverflowKeyword::Clip | LayoutOverflowKeyword::Hidden => Overflow::Hidden,
+        LayoutOverflowKeyword::Scroll => Overflow::Scroll,
+        LayoutOverflowKeyword::Auto => Overflow::Auto,
+    }
+}
+
+fn layout_element_is_absolute(element: &LayoutElement) -> bool {
+    matches!(
+        element,
+        LayoutElement::TextBlock {
+            position: Position::Absolute,
+            ..
+        } | LayoutElement::Container {
+            position: Position::Absolute,
+            ..
+        }
+    )
+}
+
+fn child_x_and_width(child: &LayoutElement) -> (f32, f32) {
+    match child {
+        LayoutElement::TextBlock {
+            offset_left,
+            block_width,
+            padding_left,
+            padding_right,
+            border,
+            lines,
+            ..
+        } => {
+            let line_w = lines
+                .iter()
+                .flat_map(|line| &line.runs)
+                .map(|run| {
+                    crate::fonts::str_width(&run.text, run.font_size, &run.font_family, run.bold)
+                })
+                .sum::<f32>();
+            (
+                *offset_left,
+                block_width
+                    .unwrap_or(line_w + padding_left + padding_right + border.horizontal_width()),
+            )
+        }
+        LayoutElement::Container {
+            offset_left,
+            block_width,
+            ..
+        } => (*offset_left, block_width.unwrap_or(0.0)),
+        LayoutElement::Image {
+            width,
+            margin_top: _,
+            ..
+        } => (0.0, *width),
+        LayoutElement::Svg { width, .. } => (0.0, *width),
+        LayoutElement::FlexRow {
+            offset_left,
+            container_width,
+            ..
+        } => (*offset_left, *container_width),
+        LayoutElement::GridRow {
+            col_widths,
+            padding_left,
+            padding_right,
+            border,
+            ..
+        } => (
+            0.0,
+            col_widths.iter().sum::<f32>()
+                + padding_left
+                + padding_right
+                + border.horizontal_width(),
+        ),
+        LayoutElement::TableRow {
+            col_widths,
+            offset_left,
+            ..
+        } => (*offset_left, col_widths.iter().sum()),
+        LayoutElement::MathBlock { .. } => (0.0, 0.0),
+        _ => (0.0, 0.0),
+    }
 }

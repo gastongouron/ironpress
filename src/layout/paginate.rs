@@ -980,6 +980,7 @@ fn split_element(
         .or_else(|| split_image_block(element, avail_below_box_top))
         .or_else(|| split_svg_block(element, avail_below_box_top))
         .or_else(|| split_table_row(element, avail_below_box_top))
+        .or_else(|| split_flex_row(element, avail_below_box_top))
         .or_else(|| split_container(element, avail_below_box_top))
 }
 
@@ -1063,6 +1064,120 @@ fn split_table_row(
             cell.padding_top = 0.0;
             cell.min_content_height = rest_h;
         }
+    }
+
+    Some((first, rest))
+}
+
+/// Split a wrapped row-direction flex container at a flex-line boundary. Flex
+/// lines are class-A break opportunities between sibling flex items; keeping
+/// the cells grouped by their `y_offset` preserves each line's internal
+/// main-axis layout while allowing the flex container's border/background to
+/// continue on the next fragmentainer.
+fn split_flex_row(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::FlexRow {
+        cells,
+        row_height,
+        border,
+        padding_top,
+        padding_bottom: _,
+        ..
+    } = element
+    else {
+        return None;
+    };
+    if cells.is_empty() || *row_height <= 1.0 || avail_below_box_top <= 1.0 {
+        return None;
+    }
+    let avail_inner = (avail_below_box_top - border.top.width - *padding_top).max(0.0);
+    if *row_height <= avail_inner + 0.5 {
+        return None;
+    }
+
+    let mut line_tops: Vec<f32> = cells.iter().map(|cell| cell.y_offset).collect();
+    line_tops.sort_by(f32::total_cmp);
+    line_tops.dedup_by(|a, b| (*a - *b).abs() <= 0.5);
+    if line_tops.len() <= 1 {
+        return None;
+    }
+
+    let line_extent = |line_top: f32| -> f32 {
+        cells
+            .iter()
+            .filter(|cell| (cell.y_offset - line_top).abs() <= 0.5)
+            .map(|cell| {
+                if cell.line_cross_size > 0.0 {
+                    cell.line_cross_size
+                } else {
+                    cell.natural_height
+                }
+            })
+            .fold(0.0_f32, f32::max)
+    };
+
+    let mut cut_y = None;
+    for (idx, &top) in line_tops.iter().enumerate() {
+        let bottom = top + line_extent(top);
+        if idx > 0 && bottom > avail_inner + 0.5 {
+            cut_y = Some(top);
+            break;
+        }
+    }
+    let cut_y = cut_y?;
+    if cut_y <= 0.5 || cut_y >= *row_height - 0.5 {
+        return None;
+    }
+
+    let mut first_cells = Vec::new();
+    let mut rest_cells = Vec::new();
+    for cell in cells {
+        if cell.y_offset < cut_y - 0.5 {
+            first_cells.push(cell.clone());
+        } else {
+            let mut rest = cell.clone();
+            rest.y_offset = (rest.y_offset - cut_y).max(0.0);
+            rest_cells.push(rest);
+        }
+    }
+    if first_cells.is_empty() || rest_cells.is_empty() {
+        return None;
+    }
+
+    let mut first = element.clone();
+    if let LayoutElement::FlexRow {
+        cells,
+        row_height,
+        margin_bottom,
+        padding_bottom,
+        border,
+        ..
+    } = &mut first
+    {
+        *cells = first_cells;
+        *row_height = (avail_below_box_top - border.top.width - *padding_top).max(cut_y);
+        *margin_bottom = 0.0;
+        *padding_bottom = 0.0;
+        border.bottom.width = 0.0;
+    }
+
+    let mut rest = element.clone();
+    if let LayoutElement::FlexRow {
+        cells,
+        row_height,
+        margin_top,
+        padding_top,
+        border,
+        ..
+    } = &mut rest
+    {
+        *cells = rest_cells;
+        *row_height = (*row_height - cut_y).max(0.0);
+        *margin_top = 0.0;
+        *padding_top = 0.0;
+        border.top.width = 0.0;
     }
 
     Some((first, rest))
@@ -2096,6 +2211,58 @@ pub(crate) fn paginate_with_first_page(
             }
         }
         if page_broke_mid_loop {
+            let painted_fixed_text = matches!(
+                &element,
+                LayoutElement::TextBlock {
+                    background_color: Some(_),
+                    block_height: Some(_),
+                    ..
+                }
+            );
+            if painted_fixed_text
+                && elem_position == Position::Static
+                && elem_float == Float::None
+                && !in_table_body
+            {
+                let avail_below_box_top = effective_content_height - (y + margin_top_val);
+                if let Some((first, rest)) =
+                    split_fixed_height_text_block(&element, avail_below_box_top)
+                {
+                    y += margin_top_val;
+                    collect_footnotes_from_element(&first, &mut current_footnotes);
+                    current_elements.push((y, first));
+                    let consumed_height = content_height;
+                    let margin_override = pending_named_page
+                        .map(|geom| geom.margin)
+                        .or_else(|| page_margin_override(pages.len()));
+                    let page_size_override = pending_named_page.map(|geom| geom.page_size);
+                    pages.push(Page {
+                        elements: std::mem::take(&mut current_elements),
+                        running_elements: current_running_elements.clone(),
+                        footnotes: std::mem::take(&mut current_footnotes),
+                        margin_override,
+                        page_size_override,
+                    });
+                    content_height = pending_named_page
+                        .map(|geom| geom.content_height)
+                        .unwrap_or(default_content_height);
+                    for bg in &absolute_backgrounds {
+                        current_elements.push(bg.clone());
+                    }
+                    y = 0.0;
+                    prev_margin_bottom = 0.0;
+                    first_on_page = true;
+                    on_first_page = false;
+                    left_floats.clear();
+                    right_floats.clear();
+                    advance_positioned_ancestors_after_page_break(
+                        &mut positioned_y_by_depth,
+                        consumed_height,
+                    );
+                    work.push_front(rest);
+                    continue;
+                }
+            }
             // Repeat the running footer at the bottom of the page being closed,
             // directly after the last body row (matching Chrome: the footer is
             // NOT flushed to the page edge — any reserved slack stays as

@@ -168,33 +168,96 @@ pub enum GridAlign {
     Center,
 }
 
+/// A CSS reference box for `clip-path` / `mask-origin` / `mask-clip`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShapeBox {
+    #[default]
+    Border,
+    Padding,
+    Content,
+}
+
+/// A CSS `<length-percentage>` stored as points or percentage.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LengthPercent {
+    pub value: f32,
+    pub is_percent: bool,
+}
+
+impl From<(f32, bool)> for LengthPercent {
+    fn from((value, is_percent): (f32, bool)) -> Self {
+        Self { value, is_percent }
+    }
+}
+
+/// Shape-radius keywords accepted by `circle()` / `ellipse()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShapeExtent {
+    #[default]
+    ClosestSide,
+    FarthestSide,
+    ClosestCorner,
+    FarthestCorner,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ClipRadius {
+    Length(LengthPercent),
+    Extent(ShapeExtent),
+}
+
 /// A CSS `clip-path` basic shape. Lengths are in points; positions/percentages
-/// resolve against the element's border box at render time.
+/// resolve against the selected reference box at render time.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClipPath {
     /// `circle(r at cx cy)` — radius + centre, each (value, is_percent).
     Circle {
-        r: (f32, bool),
-        cx: (f32, bool),
-        cy: (f32, bool),
+        r: ClipRadius,
+        cx: LengthPercent,
+        cy: LengthPercent,
+        geometry_box: ShapeBox,
     },
     /// `ellipse(rx ry at cx cy)`.
     Ellipse {
-        rx: (f32, bool),
-        ry: (f32, bool),
-        cx: (f32, bool),
-        cy: (f32, bool),
+        rx: ClipRadius,
+        ry: ClipRadius,
+        cx: LengthPercent,
+        cy: LengthPercent,
+        geometry_box: ShapeBox,
     },
     /// `inset(top right bottom left [round radius])`.
     Inset {
-        top: (f32, bool),
-        right: (f32, bool),
-        bottom: (f32, bool),
-        left: (f32, bool),
-        radius: f32,
+        top: LengthPercent,
+        right: LengthPercent,
+        bottom: LengthPercent,
+        left: LengthPercent,
+        radii_x: [f32; 4],
+        radii_y: [f32; 4],
+        geometry_box: ShapeBox,
     },
     /// `polygon(x y, ...)` — vertices, each coord (value, is_percent).
-    Polygon(Vec<((f32, bool), (f32, bool))>),
+    Polygon {
+        points: Vec<(LengthPercent, LengthPercent)>,
+        even_odd: bool,
+        geometry_box: ShapeBox,
+    },
+    /// `path("...")`, parsed with the SVG path-data grammar.
+    Path {
+        commands: Vec<crate::parser::svg::PathCommand>,
+        geometry_box: ShapeBox,
+    },
+    /// `rect()` / `xywh()` rectangle with optional rounded corners.
+    Rect {
+        x: LengthPercent,
+        y: LengthPercent,
+        width: LengthPercent,
+        height: LengthPercent,
+        radii_x: [f32; 4],
+        radii_y: [f32; 4],
+        geometry_box: ShapeBox,
+    },
+    /// `url(#id)` fragment reference. Resolution needs document SVG defs.
+    Url(String),
 }
 
 /// A CSS `mask-image` source (css-masking-1 §3.1). The deterministic CSS-image
@@ -210,6 +273,40 @@ pub enum MaskSource {
     /// `url(...)` pointing at an SVG image (data URI or file). Holds the raw SVG
     /// bytes; rasterised to a coverage buffer at paint time (css-masking-1 §3.2).
     Svg(std::sync::Arc<Vec<u8>>),
+    /// A resolved CSS mask layer list.
+    Layers(Vec<MaskLayer>),
+    /// `mask-border-*` represented as a border-box ring coverage mask.
+    BorderRing { width: f32 },
+    /// `url(#id)` fragment reference. Resolution needs document SVG defs.
+    Ref(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum MaskLayerSource {
+    Linear(LinearGradient),
+    Radial(RadialGradient),
+    Conic(ConicGradient),
+    Svg(std::sync::Arc<Vec<u8>>),
+    Ref(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MaskComposite {
+    #[default]
+    Add,
+    Subtract,
+    Intersect,
+    Exclude,
+}
+
+#[derive(Debug, Clone)]
+pub struct MaskLayer {
+    pub source: MaskLayerSource,
+    pub mode: MaskMode,
+    pub layer_box: GradientLayerBox,
+    pub origin: ShapeBox,
+    pub clip: ShapeBox,
+    pub composite: MaskComposite,
 }
 
 /// CSS `mask-mode` (css-masking-1 §3.4): how the mask layer's pixels are turned
@@ -3501,6 +3598,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "grid-area") {
         apply_grid_area(style, k);
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip") {
+        style.clip_path = parse_legacy_clip_rect(k);
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip-path") {
         style.clip_path = parse_clip_path(k);
     }
@@ -3509,24 +3609,21 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // to the unprefixed names at parse time. `mask-mode` resolves how the source
     // pixels become coverage (default `match-source` → alpha for CSS images).
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-mode") {
-        style.mask_mode = match k.trim().to_ascii_lowercase().as_str() {
-            "alpha" => MaskMode::Alpha,
-            "luminance" => MaskMode::Luminance,
-            _ => MaskMode::MatchSource,
-        };
+        style.mask_mode = parse_mask_mode(k);
     }
-    // `mask` shorthand: take its image token if present (other sub-values are
-    // not yet modelled). The `mask-image` longhand wins when both are set.
+    // `mask` shorthand: parse the image plus its position/size/repeat/mode.
+    // Longhands below override it when present, as usual in the cascade map.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask") {
-        if let Some(src) = parse_mask_image(k) {
+        if let Some(src) = parse_mask_shorthand(k, style.mask_mode) {
             style.mask_image = src;
         }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-image") {
-        if let Some(src) = parse_mask_image(k) {
+        if let Some(src) = parse_mask_image(k, style.mask_mode) {
             style.mask_image = src;
         }
     }
+    apply_mask_longhands(map, style);
 
     // Grid gap (shorthand sets both column and row gap)
     if let Some(CssValue::Length(v)) = get_non_special(map, "grid-gap") {
@@ -6613,46 +6710,226 @@ fn parse_clip_len(token: &str) -> Option<(f32, bool)> {
     }
 }
 
+fn parse_clip_len_lp(token: &str) -> Option<LengthPercent> {
+    parse_clip_len(token).map(LengthPercent::from)
+}
+
+fn parse_shape_box(token: &str) -> Option<ShapeBox> {
+    match token.trim().to_ascii_lowercase().as_str() {
+        "border-box" => Some(ShapeBox::Border),
+        "padding-box" => Some(ShapeBox::Padding),
+        "content-box" => Some(ShapeBox::Content),
+        _ => None,
+    }
+}
+
+fn parse_shape_extent(token: &str) -> Option<ShapeExtent> {
+    match token.trim().to_ascii_lowercase().as_str() {
+        "closest-side" => Some(ShapeExtent::ClosestSide),
+        "farthest-side" => Some(ShapeExtent::FarthestSide),
+        "closest-corner" => Some(ShapeExtent::ClosestCorner),
+        "farthest-corner" => Some(ShapeExtent::FarthestCorner),
+        _ => None,
+    }
+}
+
+fn parse_clip_radius(token: &str, default: ShapeExtent) -> Option<ClipRadius> {
+    let t = token.trim();
+    if t.is_empty() {
+        return Some(ClipRadius::Extent(default));
+    }
+    if let Some(extent) = parse_shape_extent(t) {
+        Some(ClipRadius::Extent(extent))
+    } else {
+        parse_clip_len_lp(t).map(ClipRadius::Length)
+    }
+}
+
+fn split_clip_geometry_box(raw: &str) -> (&str, ShapeBox) {
+    let mut s = raw.trim();
+    for suffix in ["border-box", "padding-box", "content-box"] {
+        if let Some(rest) = s.strip_suffix(suffix) {
+            s = rest.trim();
+            if s.is_empty() {
+                return (suffix, ShapeBox::Border);
+            }
+            return (s, parse_shape_box(suffix).unwrap_or_default());
+        }
+    }
+    (s, ShapeBox::Border)
+}
+
+fn split_function_args<'a>(raw: &'a str, name: &str) -> Option<&'a str> {
+    raw.trim()
+        .strip_prefix(name)?
+        .trim_start()
+        .strip_prefix('(')?
+        .strip_suffix(')')
+        .map(str::trim)
+}
+
+fn split_css_words(raw: &str) -> Vec<String> {
+    split_css_components(raw)
+        .into_iter()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+fn parse_clip_position(raw: &str) -> (LengthPercent, LengthPercent) {
+    let center = LengthPercent {
+        value: 50.0,
+        is_percent: true,
+    };
+    let tokens = split_css_words(raw);
+    if tokens.is_empty() {
+        return (center, center);
+    }
+    let edge_value = |edge: &str, offset: Option<&str>| -> Option<LengthPercent> {
+        match edge {
+            "left" | "top" => offset
+                .and_then(parse_clip_len_lp)
+                .or(Some(LengthPercent {
+                    value: 0.0,
+                    is_percent: true,
+                })),
+            "right" | "bottom" => {
+                if let Some(lp) = offset.and_then(parse_clip_len_lp) {
+                    if lp.is_percent {
+                        Some(LengthPercent {
+                            value: 100.0 - lp.value,
+                            is_percent: true,
+                        })
+                    } else {
+                        Some(LengthPercent {
+                            value: -lp.value,
+                            is_percent: true,
+                        })
+                    }
+                } else {
+                    Some(LengthPercent {
+                        value: 100.0,
+                        is_percent: true,
+                    })
+                }
+            }
+            "center" => Some(center),
+            _ => None,
+        }
+    };
+    if tokens.len() == 4 {
+        let mut x = None;
+        let mut y = None;
+        let mut i = 0usize;
+        while i + 1 < tokens.len() {
+            match tokens[i].as_str() {
+                "left" | "right" => x = edge_value(&tokens[i], Some(&tokens[i + 1])),
+                "top" | "bottom" => y = edge_value(&tokens[i], Some(&tokens[i + 1])),
+                _ => {}
+            }
+            i += 2;
+        }
+        return (x.unwrap_or(center), y.unwrap_or(center));
+    }
+    if tokens.len() == 2 {
+        let a = tokens[0].as_str();
+        let b = tokens[1].as_str();
+        if matches!(a, "top" | "bottom") || matches!(b, "left" | "right") {
+            return (
+                edge_value(b, None).unwrap_or_else(|| parse_clip_len_lp(b).unwrap_or(center)),
+                edge_value(a, None).unwrap_or_else(|| parse_clip_len_lp(a).unwrap_or(center)),
+            );
+        }
+        return (
+            edge_value(a, None).unwrap_or_else(|| parse_clip_len_lp(a).unwrap_or(center)),
+            edge_value(b, None).unwrap_or_else(|| parse_clip_len_lp(b).unwrap_or(center)),
+        );
+    }
+    let first = tokens[0].as_str();
+    if matches!(first, "top" | "bottom") {
+        (center, edge_value(first, None).unwrap_or(center))
+    } else {
+        (edge_value(first, None).unwrap_or_else(|| parse_clip_len_lp(first).unwrap_or(center)), center)
+    }
+}
+
+fn parse_border_radius_list(raw: &str) -> ([f32; 4], [f32; 4]) {
+    let expand = |vals: Vec<f32>| -> [f32; 4] {
+        match vals.as_slice() {
+            [a] => [*a; 4],
+            [a, b] => [*a, *b, *a, *b],
+            [a, b, c] => [*a, *b, *c, *b],
+            [a, b, c, d, ..] => [*a, *b, *c, *d],
+            _ => [0.0; 4],
+        }
+    };
+    let (x_part, y_part) = raw.split_once('/').unwrap_or((raw, raw));
+    let xs = x_part
+        .split_whitespace()
+        .filter_map(|t| parse_clip_len(t).map(|(v, _)| v.max(0.0)))
+        .collect();
+    let ys = y_part
+        .split_whitespace()
+        .filter_map(|t| parse_clip_len(t).map(|(v, _)| v.max(0.0)))
+        .collect();
+    let rx = expand(xs);
+    let ry = if y_part == raw { rx } else { expand(ys) };
+    (rx, ry)
+}
+
+fn parse_rect_like_radii(raw: &str) -> ([f32; 4], [f32; 4]) {
+    raw.split_once(" round ")
+        .map(|(_, r)| parse_border_radius_list(r))
+        .unwrap_or(([0.0; 4], [0.0; 4]))
+}
+
 /// Parse a CSS `clip-path` basic shape (circle/ellipse/inset/polygon). Returns
 /// None for `none` and unsupported forms (url(), path(), etc.).
 fn parse_clip_path(val: &str) -> Option<ClipPath> {
-    let raw = val.trim();
-    let center = (50.0, true);
-    let parse_pos = |s: &str| -> ((f32, bool), (f32, bool)) {
-        // `at X Y` — default to centre when a coord is missing/unparsable.
-        let mut it = s.split_whitespace();
-        let x = it.next().and_then(parse_clip_len).unwrap_or(center);
-        let y = it.next().and_then(parse_clip_len).unwrap_or(center);
-        (x, y)
-    };
-    if let Some(inner) = raw
-        .strip_prefix("circle(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
-        let (shape, pos) = inner.split_once(" at ").unwrap_or((inner, ""));
-        let r = parse_clip_len(shape.trim())?;
-        let (cx, cy) = parse_pos(pos);
-        return Some(ClipPath::Circle { r, cx, cy });
+    let (raw, geometry_box) = split_clip_geometry_box(val);
+    let raw = raw.trim();
+    if raw.eq_ignore_ascii_case("none") {
+        return None;
     }
-    if let Some(inner) = raw
-        .strip_prefix("ellipse(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
+    if let Some(inner) = split_function_args(raw, "circle") {
         let (shape, pos) = inner.split_once(" at ").unwrap_or((inner, ""));
-        let mut radii = shape.split_whitespace();
-        let rx = radii.next().and_then(parse_clip_len)?;
-        let ry = radii.next().and_then(parse_clip_len).unwrap_or(rx);
-        let (cx, cy) = parse_pos(pos);
-        return Some(ClipPath::Ellipse { rx, ry, cx, cy });
+        let r = parse_clip_radius(shape.trim(), ShapeExtent::ClosestSide)?;
+        let (cx, cy) = parse_clip_position(pos);
+        return Some(ClipPath::Circle {
+            r,
+            cx,
+            cy,
+            geometry_box,
+        });
     }
-    if let Some(inner) = raw.strip_prefix("inset(").and_then(|s| s.strip_suffix(')')) {
+    if let Some(inner) = split_function_args(raw, "ellipse") {
+        let (shape, pos) = inner.split_once(" at ").unwrap_or((inner, ""));
+        let radii: Vec<String> = split_css_words(shape);
+        let rx = radii
+            .first()
+            .and_then(|s| parse_clip_radius(s, ShapeExtent::FarthestSide))
+            .unwrap_or(ClipRadius::Extent(ShapeExtent::FarthestSide));
+        let ry = radii
+            .get(1)
+            .and_then(|s| parse_clip_radius(s, ShapeExtent::FarthestSide))
+            .unwrap_or(rx);
+        let (cx, cy) = parse_clip_position(pos);
+        return Some(ClipPath::Ellipse {
+            rx,
+            ry,
+            cx,
+            cy,
+            geometry_box,
+        });
+    }
+    if let Some(inner) = split_function_args(raw, "inset") {
         let (insets_part, radius) = match inner.split_once(" round ") {
-            Some((a, r)) => (a, parse_clip_len(r.trim()).map_or(0.0, |(v, _)| v)),
-            None => (inner, 0.0),
+            Some((a, r)) => (a, parse_border_radius_list(r)),
+            None => (inner, ([0.0; 4], [0.0; 4])),
         };
-        let vals: Vec<(f32, bool)> = insets_part
+        let vals: Vec<LengthPercent> = insets_part
             .split_whitespace()
-            .filter_map(parse_clip_len)
+            .filter_map(parse_clip_len_lp)
             .collect();
         // CSS 1-4 value shorthand (top, right, bottom, left).
         let (top, right, bottom, left) = match vals.len() {
@@ -6667,81 +6944,409 @@ fn parse_clip_path(val: &str) -> Option<ClipPath> {
             right,
             bottom,
             left,
-            radius,
+            radii_x: radius.0,
+            radii_y: radius.1,
+            geometry_box,
         });
     }
-    if let Some(inner) = raw
-        .strip_prefix("polygon(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
-        let points: Vec<((f32, bool), (f32, bool))> = inner
-            .split(',')
+    if let Some(inner) = split_function_args(raw, "polygon") {
+        let mut parts = split_top_level_comma(inner);
+        let even_odd = parts
+            .first()
+            .is_some_and(|p| p.trim().eq_ignore_ascii_case("evenodd"));
+        if even_odd {
+            parts.remove(0);
+        }
+        let points: Vec<(LengthPercent, LengthPercent)> = parts
+            .iter()
             .filter_map(|pair| {
                 let mut it = pair.split_whitespace();
-                let x = parse_clip_len(it.next()?)?;
-                let y = parse_clip_len(it.next()?)?;
+                let x = parse_clip_len_lp(it.next()?)?;
+                let y = parse_clip_len_lp(it.next()?)?;
                 Some((x, y))
             })
             .collect();
         if points.len() >= 3 {
-            return Some(ClipPath::Polygon(points));
+            return Some(ClipPath::Polygon {
+                points,
+                even_odd,
+                geometry_box,
+            });
+        }
+    }
+    if let Some(inner) = split_function_args(raw, "path") {
+        let d = inner
+            .trim()
+            .trim_matches(|c: char| c == '"' || c == '\'');
+        let commands = crate::parser::svg::parse_path_data(d);
+        if !commands.is_empty() {
+            return Some(ClipPath::Path {
+                commands,
+                geometry_box,
+            });
+        }
+    }
+    if let Some(inner) = split_function_args(raw, "rect") {
+        let (coords, radii) = inner.split_once(" round ").unwrap_or((inner, ""));
+        let vals: Vec<LengthPercent> = coords
+            .split_whitespace()
+            .filter_map(parse_clip_len_lp)
+            .collect();
+        if vals.len() >= 4 {
+            let top = vals[0];
+            let right = vals[1];
+            let bottom = vals[2];
+            let left = vals[3];
+            let (radii_x, radii_y) = if radii.is_empty() {
+                ([0.0; 4], [0.0; 4])
+            } else {
+                parse_border_radius_list(radii)
+            };
+            return Some(ClipPath::Rect {
+                x: left,
+                y: top,
+                width: LengthPercent {
+                    value: right.value - left.value,
+                    is_percent: right.is_percent && left.is_percent,
+                },
+                height: LengthPercent {
+                    value: bottom.value - top.value,
+                    is_percent: bottom.is_percent && top.is_percent,
+                },
+                radii_x,
+                radii_y,
+                geometry_box,
+            });
+        }
+    }
+    if let Some(inner) = split_function_args(raw, "xywh") {
+        let (coords, _) = inner.split_once(" round ").unwrap_or((inner, ""));
+        let vals: Vec<LengthPercent> = coords
+            .split_whitespace()
+            .filter_map(parse_clip_len_lp)
+            .collect();
+        if vals.len() >= 4 {
+            let (radii_x, radii_y) = parse_rect_like_radii(inner);
+            return Some(ClipPath::Rect {
+                x: vals[0],
+                y: vals[1],
+                width: vals[2],
+                height: vals[3],
+                radii_x,
+                radii_y,
+                geometry_box,
+            });
+        }
+    }
+    if let Some(id) = raw.strip_prefix("url(#").and_then(|s| s.strip_suffix(')')) {
+        return Some(ClipPath::Url(id.to_string()));
+    }
+    parse_shape_box(raw).map(|box_kind| ClipPath::Inset {
+        top: LengthPercent {
+            value: 0.0,
+            is_percent: false,
+        },
+        right: LengthPercent {
+            value: 0.0,
+            is_percent: false,
+        },
+        bottom: LengthPercent {
+            value: 0.0,
+            is_percent: false,
+        },
+        left: LengthPercent {
+            value: 0.0,
+            is_percent: false,
+        },
+        radii_x: [0.0; 4],
+        radii_y: [0.0; 4],
+        geometry_box: box_kind,
+    })
+}
+
+fn parse_legacy_clip_rect(val: &str) -> Option<ClipPath> {
+    let raw = val.trim();
+    let inner = split_function_args(raw, "rect")?;
+    let vals: Vec<LengthPercent> = inner
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|s| !s.trim().is_empty())
+        .filter_map(parse_clip_len_lp)
+        .collect();
+    if vals.len() < 4 {
+        return None;
+    }
+    Some(ClipPath::Rect {
+        x: vals[3],
+        y: vals[0],
+        width: LengthPercent {
+            value: vals[1].value - vals[3].value,
+            is_percent: vals[1].is_percent && vals[3].is_percent,
+        },
+        height: LengthPercent {
+            value: vals[2].value - vals[0].value,
+            is_percent: vals[2].is_percent && vals[0].is_percent,
+        },
+        radii_x: [0.0; 4],
+        radii_y: [0.0; 4],
+        geometry_box: ShapeBox::Border,
+    })
+}
+
+fn parse_mask_mode(raw: &str) -> MaskMode {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "alpha" => MaskMode::Alpha,
+        "luminance" => MaskMode::Luminance,
+        _ => MaskMode::MatchSource,
+    }
+}
+
+fn parse_mask_composite(raw: &str) -> MaskComposite {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "subtract" | "source-out" => MaskComposite::Subtract,
+        "intersect" | "source-in" => MaskComposite::Intersect,
+        "exclude" | "xor" => MaskComposite::Exclude,
+        _ => MaskComposite::Add,
+    }
+}
+
+fn parse_mask_layer_source(raw: &str) -> Option<MaskLayerSource> {
+    let lower = raw.trim().to_ascii_lowercase();
+    if lower.starts_with("linear-gradient(") || lower.starts_with("repeating-linear-gradient(") {
+        return parse_linear_gradient(raw).map(MaskLayerSource::Linear);
+    }
+    if lower.starts_with("radial-gradient(") || lower.starts_with("repeating-radial-gradient(") {
+        return parse_radial_gradient(raw).map(MaskLayerSource::Radial);
+    }
+    if lower.starts_with("conic-gradient(") || lower.starts_with("repeating-conic-gradient(") {
+        return parse_conic_gradient(raw).map(MaskLayerSource::Conic);
+    }
+    if lower.starts_with("url(#") {
+        let id = raw.trim().strip_prefix("url(#")?.strip_suffix(')')?;
+        return Some(MaskLayerSource::Ref(id.to_string()));
+    }
+    if lower.starts_with("url(") {
+        return parse_mask_url_svg(raw).map(MaskLayerSource::Svg);
+    }
+    None
+}
+
+fn mask_layer_from_source(source: MaskLayerSource, mode: MaskMode) -> MaskLayer {
+    MaskLayer {
+        source,
+        mode,
+        layer_box: GradientLayerBox::default(),
+        origin: ShapeBox::Border,
+        clip: ShapeBox::Border,
+        composite: MaskComposite::Add,
+    }
+}
+
+fn mask_source_from_layers(layers: Vec<MaskLayer>) -> Option<Option<MaskSource>> {
+    match layers.len() {
+        0 => None,
+        1 => {
+            let layer = layers.into_iter().next()?;
+            if layer.layer_box.size.is_none()
+                && layer.layer_box.position.is_none()
+                && layer.layer_box.repeat.is_none()
+                && layer.origin == ShapeBox::Border
+                && layer.clip == ShapeBox::Border
+                && layer.composite == MaskComposite::Add
+            {
+                match layer.source {
+                    MaskLayerSource::Linear(g) => Some(Some(MaskSource::Linear(g))),
+                    MaskLayerSource::Radial(g) => Some(Some(MaskSource::Radial(g))),
+                    MaskLayerSource::Conic(g) => Some(Some(MaskSource::Conic(g))),
+                    MaskLayerSource::Svg(bytes) => Some(Some(MaskSource::Svg(bytes))),
+                    MaskLayerSource::Ref(id) => Some(Some(MaskSource::Ref(id))),
+                }
+            } else {
+                Some(Some(MaskSource::Layers(vec![layer])))
+            }
+        }
+        _ => Some(Some(MaskSource::Layers(layers))),
+    }
+}
+
+fn parse_mask_image(val: &str, mode: MaskMode) -> Option<Option<MaskSource>> {
+    let raw = val.trim();
+    if raw.eq_ignore_ascii_case("none") {
+        return Some(None);
+    }
+    let layers: Vec<MaskLayer> = split_top_level_commas_value(raw)
+        .into_iter()
+        .filter_map(|part| parse_mask_layer_source(&part).map(|src| mask_layer_from_source(src, mode)))
+        .collect();
+    mask_source_from_layers(layers)
+}
+
+fn extract_first_function(raw: &str) -> Option<(&str, &str)> {
+    let raw = raw.trim();
+    let open = raw.find('(')?;
+    let mut depth = 0i32;
+    let mut quote = None;
+    for (idx, ch) in raw.char_indices().skip(open) {
+        if let Some(q) = quote {
+            if ch == q {
+                quote = None;
+            }
+            continue;
+        }
+        match ch {
+            '"' | '\'' => quote = Some(ch),
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((&raw[..=idx], raw[idx + 1..].trim()));
+                }
+            }
+            _ => {}
         }
     }
     None
 }
 
-/// Parse a CSS `mask-image` (or the image token of the `mask` shorthand) into a
-/// `MaskSource` (css-masking-1 §3.1). Only the deterministic CSS-image sources
-/// (linear/radial/conic gradients incl. their repeating variants) are modelled;
-/// `url()` references are deferred (return `None` = leave the current value).
-///
-/// Returns:
-/// - `None` — unrecognised / unsupported (e.g. `url(...)`); caller leaves as-is.
-/// - `Some(None)` — explicit `none`; caller clears the mask.
-/// - `Some(Some(src))` — a parseable gradient mask source.
-fn parse_mask_image(val: &str) -> Option<Option<MaskSource>> {
+fn parse_mask_shorthand(val: &str, inherited_mode: MaskMode) -> Option<Option<MaskSource>> {
     let raw = val.trim();
-    let lower = raw.to_ascii_lowercase();
-    // For a multi-layer (comma-separated) value, mask only the primary layer.
-    let first = raw.split(',').next().unwrap_or(raw).trim();
-    let first_lower = first.to_ascii_lowercase();
-    if lower == "none" || first_lower == "none" {
+    if raw.eq_ignore_ascii_case("none") {
         return Some(None);
     }
-    if first_lower.starts_with("linear-gradient(")
-        || first_lower.starts_with("repeating-linear-gradient(")
-    {
-        // A comma-separated gradient must be parsed from the whole `raw` value
-        // (its own args contain commas); only fall back to the layer split when
-        // the gradient is followed by extra layers.
-        return parse_linear_gradient(raw)
-            .or_else(|| parse_linear_gradient(first))
-            .map(|g| Some(MaskSource::Linear(g)));
+    let (image, rest) = extract_first_function(raw)?;
+    let mut layer = mask_layer_from_source(parse_mask_layer_source(image)?, inherited_mode);
+    let mut rest = rest.trim();
+    for token in split_css_words(rest) {
+        match token.as_str() {
+            "alpha" | "luminance" | "match-source" => layer.mode = parse_mask_mode(&token),
+            "repeat" | "no-repeat" | "repeat-x" | "repeat-y" => {
+                layer.layer_box.repeat = Some(parse_background_repeat_value(&token));
+            }
+            "border-box" | "padding-box" | "content-box" => {
+                if let Some(box_kind) = parse_shape_box(&token) {
+                    layer.origin = box_kind;
+                    layer.clip = box_kind;
+                }
+            }
+            _ => {}
+        }
     }
-    if first_lower.starts_with("radial-gradient(")
-        || first_lower.starts_with("repeating-radial-gradient(")
-    {
-        return parse_radial_gradient(raw)
-            .or_else(|| parse_radial_gradient(first))
-            .map(|g| Some(MaskSource::Radial(g)));
+    if let Some((pos, tail)) = rest.split_once('/') {
+        layer.layer_box.position = parse_background_position(pos.trim());
+        let size_tokens: Vec<String> = split_css_components(tail)
+            .into_iter()
+            .take_while(|t| {
+                !matches!(
+                    t.as_str(),
+                    "repeat" | "no-repeat" | "repeat-x" | "repeat-y" | "alpha" | "luminance"
+                )
+            })
+            .collect();
+        if !size_tokens.is_empty() {
+            layer.layer_box.size = Some(parse_background_size_value(&size_tokens.join(" ")));
+        }
+    } else {
+        let tokens = split_css_components(rest);
+        let mut pos_tokens = Vec::new();
+        for token in &tokens {
+            if matches!(
+                token.as_str(),
+                "repeat" | "no-repeat" | "repeat-x" | "repeat-y" | "alpha" | "luminance"
+            ) || parse_shape_box(token).is_some()
+            {
+                break;
+            }
+            pos_tokens.push(token.clone());
+        }
+        if !pos_tokens.is_empty() {
+            layer.layer_box.position = parse_background_position(&pos_tokens.join(" "));
+        }
     }
-    if first_lower.starts_with("conic-gradient(")
-        || first_lower.starts_with("repeating-conic-gradient(")
-    {
-        return parse_conic_gradient(raw)
-            .or_else(|| parse_conic_gradient(first))
-            .map(|g| Some(MaskSource::Conic(g)));
+    rest = "";
+    let _ = rest;
+    Some(Some(MaskSource::Layers(vec![layer])))
+}
+
+fn apply_mask_longhands(map: &StyleMap, style: &mut ComputedStyle) {
+    let Some(source) = style.mask_image.take() else {
+        if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-border-source")
+            && parse_mask_layer_source(k).is_some()
+        {
+            let width = get_non_special(map, "mask-border-width")
+                .and_then(|v| match v {
+                    CssValue::Length(w) => Some(*w),
+                    CssValue::Keyword(k) => parse_clip_len(k).map(|(v, _)| v),
+                    _ => None,
+                })
+                .unwrap_or(0.0);
+            style.mask_image = Some(MaskSource::BorderRing { width });
+        }
+        return;
+    };
+    let mut layers = match source {
+        MaskSource::Layers(layers) => layers,
+        MaskSource::Linear(g) => vec![mask_layer_from_source(MaskLayerSource::Linear(g), style.mask_mode)],
+        MaskSource::Radial(g) => vec![mask_layer_from_source(MaskLayerSource::Radial(g), style.mask_mode)],
+        MaskSource::Conic(g) => vec![mask_layer_from_source(MaskLayerSource::Conic(g), style.mask_mode)],
+        MaskSource::Svg(bytes) => vec![mask_layer_from_source(MaskLayerSource::Svg(bytes), style.mask_mode)],
+        MaskSource::Ref(id) => vec![mask_layer_from_source(MaskLayerSource::Ref(id), style.mask_mode)],
+        MaskSource::BorderRing { width } => {
+            style.mask_image = Some(MaskSource::BorderRing { width });
+            return;
+        }
+    };
+    if layers.is_empty() {
+        return;
     }
-    // `url(...)` mask reference (css-masking-1 §3.1). Only SVG image sources are
-    // supported as masks: the referenced SVG is loaded and rasterised to a
-    // coverage buffer at paint time. Non-SVG / unloadable urls leave the value
-    // unchanged (return `None`) rather than clearing it. Parse from the whole
-    // `raw` value because a `url(data:...)` argument legitimately contains commas
-    // (so the layer split on `,` would truncate the data URI).
-    if lower.starts_with("url(") {
-        return parse_mask_url_svg(raw).map(MaskSource::Svg).map(Some);
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-size") {
+        for (idx, layer) in layers.iter_mut().enumerate() {
+            if let Some(part) = nth_layer_value(k, idx) {
+                layer.layer_box.size = Some(parse_background_size_value(&part));
+            }
+        }
     }
-    None
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-position") {
+        for (idx, layer) in layers.iter_mut().enumerate() {
+            if let Some(part) = nth_layer_value(k, idx) {
+                layer.layer_box.position = parse_background_position(&part);
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-repeat") {
+        for (idx, layer) in layers.iter_mut().enumerate() {
+            if let Some(part) = nth_layer_value(k, idx) {
+                layer.layer_box.repeat = Some(parse_background_repeat_value(&part));
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-origin") {
+        for (idx, layer) in layers.iter_mut().enumerate() {
+            if let Some(part) = nth_layer_value(k, idx).and_then(|p| parse_shape_box(&p)) {
+                layer.origin = part;
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-clip") {
+        for (idx, layer) in layers.iter_mut().enumerate() {
+            if let Some(part) = nth_layer_value(k, idx).and_then(|p| parse_shape_box(&p)) {
+                layer.clip = part;
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-mode") {
+        for (idx, layer) in layers.iter_mut().enumerate() {
+            if let Some(part) = nth_layer_value(k, idx) {
+                layer.mode = parse_mask_mode(&part);
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "mask-composite") {
+        for (idx, layer) in layers.iter_mut().enumerate() {
+            if let Some(part) = nth_layer_value(k, idx) {
+                layer.composite = parse_mask_composite(&part);
+            }
+        }
+    }
+    style.mask_image = Some(MaskSource::Layers(layers));
 }
 
 /// Resolve a `url(...)` mask reference to raw SVG bytes (css-masking-1 §3.1).
@@ -8428,7 +9033,13 @@ pub fn parse_radial_gradient(val: &str) -> Option<RadialGradient> {
         return None;
     }
 
+    let length_stop_extent = max_gradient_length_stop(color_parts);
     let stops = parse_gradient_stops(color_parts)?;
+    let radius = if repeating && radius.is_none() {
+        length_stop_extent
+    } else {
+        radius
+    };
 
     Some(RadialGradient {
         stops,
@@ -8723,7 +9334,13 @@ fn split_gradient_args(s: &str) -> Vec<String> {
 /// handling is required for hard color-stop and repeating gradients.
 fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
     // Pass 1: parse each part into (color, list of explicit fractional positions).
-    let mut raw: Vec<(Color, Vec<f32>)> = Vec::new();
+    let mut raw: Vec<(Color, Vec<(f32, bool)>)> = Vec::new();
+    let stop_pos = |token: &str| -> Option<(f32, bool)> {
+        if let Some(n) = token.strip_suffix('%') {
+            return n.parse::<f32>().ok().map(|p| (p / 100.0, false));
+        }
+        parse_clip_len(token).map(|(v, _)| (v, true))
+    };
     for part in parts {
         let part = part.trim();
         if part.is_empty() {
@@ -8737,14 +9354,11 @@ fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
         if tokens.is_empty() {
             continue;
         }
-        // Find the boundary: trailing tokens that parse as a `%` position.
+        // Find the boundary: trailing tokens that parse as a stop position.
         let mut split_at = tokens.len();
         while split_at > 1 {
             let t = tokens[split_at - 1];
-            if t.strip_suffix('%')
-                .and_then(|n| n.parse::<f32>().ok())
-                .is_some()
-            {
+            if stop_pos(t).is_some() {
                 split_at -= 1;
             } else {
                 break;
@@ -8752,17 +9366,58 @@ fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
         }
         let color_str = tokens[..split_at].join(" ");
         let color = parse_gradient_color(&color_str)?;
-        let positions: Vec<f32> = tokens[split_at..]
+        let positions: Vec<(f32, bool)> = tokens[split_at..]
             .iter()
-            .filter_map(|t| t.strip_suffix('%').and_then(|n| n.parse::<f32>().ok()))
-            .map(|p| p / 100.0)
+            .filter_map(|t| stop_pos(t))
             .collect();
         raw.push((color, positions));
     }
+    let mut lens: Vec<f32> = raw
+        .iter()
+        .flat_map(|(_, positions)| {
+            positions
+                .iter()
+                .filter(|(_, is_len)| *is_len)
+                .map(|(p, _)| *p)
+        })
+        .collect();
+    lens.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let max_len = match lens.as_slice() {
+        [] => 0.0,
+        [only] => *only,
+        many => {
+            let max = many[many.len() - 1];
+            let prev = many[..many.len() - 1]
+                .iter()
+                .rev()
+                .copied()
+                .find(|v| *v > 0.0 && (*v - max).abs() > 1e-6)
+                .unwrap_or(max);
+            if prev > 0.0 && max / prev < 1.1 {
+                prev
+            } else {
+                max
+            }
+        }
+    };
 
     // Pass 2: expand range stops and flatten into (color, Option<position>).
     let mut flat: Vec<(Color, Option<f32>)> = Vec::new();
     for (color, positions) in raw {
+        let positions: Vec<f32> = positions
+            .into_iter()
+            .map(|(p, is_len)| {
+                if is_len {
+                    if max_len > 0.0 {
+                        (p / max_len).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    }
+                } else {
+                    p
+                }
+            })
+            .collect();
         match positions.len() {
             0 => flat.push((color, None)),
             1 => flat.push((color, Some(positions[0]))),
@@ -8821,6 +9476,26 @@ fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
         .collect();
 
     if stops.len() >= 2 { Some(stops) } else { None }
+}
+
+fn max_gradient_length_stop(parts: &[String]) -> Option<f32> {
+    let mut max_len = 0.0_f32;
+    for part in parts {
+        let tokens: Vec<&str> = part.split_whitespace().collect();
+        let mut split_at = tokens.len();
+        while split_at > 1 {
+            let t = tokens[split_at - 1];
+            if let Some((v, false)) = parse_clip_len(t) {
+                max_len = max_len.max(v);
+                split_at -= 1;
+            } else if t.strip_suffix('%').and_then(|n| n.parse::<f32>().ok()).is_some() {
+                split_at -= 1;
+            } else {
+                break;
+            }
+        }
+    }
+    (max_len > 0.0).then_some(max_len)
 }
 
 /// Parse a color string for gradient stops.

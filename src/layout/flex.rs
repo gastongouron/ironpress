@@ -5,15 +5,15 @@ use crate::style::computed::{
     BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize, BoxSizing, Clear,
     ComputedStyle, Display, FlexDirection, FlexWrap, Float, FontWeight, IntrinsicWidthKeyword,
     JustifyContent, Overflow, OverflowWrap, Position, TextAlign, VerticalAlign, Visibility,
-    WhiteSpace,
+    WhiteSpace, WritingMode,
 };
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
 use super::engine::{
     aspect_ratio_height, background_svg_for_style, collects_as_inline_text, flatten_element,
     has_background_paint, measure_runs_width, pseudo_is_block_like, push_block_pseudo,
-    resolve_padding_box_height, BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine,
-    TextRun,
+    resolve_padding_box_height, BackgroundFields, FlexCell, LayoutBorder, LayoutElement,
+    PageBreakSide, TextLine, TextRun,
 };
 use super::paginate::estimate_element_height;
 use super::text::{
@@ -257,6 +257,109 @@ fn recover_flex_basis_from_shorthand(
     best.map(|(_, _, _, recovered)| recovered)
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FlexWritingMode {
+    HorizontalTb,
+    VerticalRl,
+    VerticalLr,
+}
+
+impl FlexWritingMode {
+    fn is_vertical(self) -> bool {
+        matches!(
+            self,
+            FlexWritingMode::VerticalRl | FlexWritingMode::VerticalLr
+        )
+    }
+
+    fn block_axis_reversed(self) -> bool {
+        self == FlexWritingMode::VerticalRl
+    }
+}
+
+fn writing_mode_from_keyword(value: &CssValue) -> Option<FlexWritingMode> {
+    let CssValue::Keyword(raw) = value else {
+        return None;
+    };
+    match raw.as_str() {
+        "vertical-rl" => Some(FlexWritingMode::VerticalRl),
+        "vertical-lr" => Some(FlexWritingMode::VerticalLr),
+        "horizontal-tb" => Some(FlexWritingMode::HorizontalTb),
+        _ => None,
+    }
+}
+
+fn recover_flex_writing_mode(
+    el: &ElementNode,
+    style: &ComputedStyle,
+    ancestors: &[AncestorInfo],
+    rules: &[CssRule],
+) -> FlexWritingMode {
+    let mut mode = match style.writing_mode {
+        WritingMode::VerticalRl => FlexWritingMode::VerticalRl,
+        WritingMode::HorizontalTb => FlexWritingMode::HorizontalTb,
+    };
+    let classes = el.class_list();
+    let selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        child_index: ancestors.last().map_or(0, |a| a.child_index),
+        sibling_count: ancestors.last().map_or(1, |a| a.sibling_count),
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    };
+    let mut best: Option<(bool, u32, usize, FlexWritingMode)> = None;
+    for (source_idx, rule) in rules.iter().enumerate() {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
+        if !crate::parser::css::selector_matches_with_context(
+            &rule.selector,
+            el.tag_name(),
+            &classes,
+            el.id(),
+            &el.attributes,
+            &selector_ctx,
+        ) {
+            continue;
+        }
+        let Some(raw) = rule.declarations.properties.get("writing-mode") else {
+            continue;
+        };
+        let Some(candidate) = writing_mode_from_keyword(raw) else {
+            continue;
+        };
+        let important = rule
+            .declarations
+            .important
+            .get("writing-mode")
+            .copied()
+            .unwrap_or(false);
+        let specificity = crate::parser::css::specificity(&rule.selector);
+        let take = best.is_none_or(|(best_important, best_spec, best_source, _)| {
+            (important, specificity, source_idx) >= (best_important, best_spec, best_source)
+        });
+        if take {
+            best = Some((important, specificity, source_idx, candidate));
+        }
+    }
+    if let Some((_, _, _, recovered)) = best {
+        mode = recovered;
+    }
+    if let Some(inline) = el
+        .style_attr()
+        .map(crate::parser::css::parse_inline_style)
+        .and_then(|map| {
+            map.properties
+                .get("writing-mode")
+                .and_then(writing_mode_from_keyword)
+        })
+    {
+        mode = inline;
+    }
+    mode
+}
+
 #[allow(clippy::too_many_arguments)]
 fn flex_intrinsic_container_width(
     el: &ElementNode,
@@ -368,6 +471,7 @@ pub(crate) fn layout_flex_container(
     positioned_depth: usize,
     env: &mut LayoutEnv,
 ) {
+    let flex_writing_mode = recover_flex_writing_mode(el, style, ancestors, env.rules);
     let available_width = ctx.available_width();
     let mut block_w = available_width;
     if let Some(w) = style.width {
@@ -1693,8 +1797,23 @@ pub(crate) fn layout_flex_container(
                 item_border_box_h = bb;
             }
         }
+        let mut item_elements = Vec::new();
+        if child_style.page_break_before || child_style.page_name.is_some() {
+            item_elements.push(LayoutElement::PageBreak(
+                PageBreakSide::from(child_style.break_before),
+                child_style.page_name.clone(),
+            ));
+        }
+        item_elements.push(elem);
+        if child_style.page_break_after {
+            item_elements.push(LayoutElement::PageBreak(
+                PageBreakSide::from(child_style.break_after),
+                None,
+            ));
+        }
+
         items.push(FlexItem {
-            elements: vec![elem],
+            elements: item_elements,
             width: child_w,
             base_width: child_w,
             flex_grow: child_style.flex_grow,
@@ -2210,11 +2329,200 @@ pub(crate) fn layout_flex_container(
 
     let column_wrap_lines = !direction.is_row() && lines.len() > 1;
 
+    if flex_writing_mode.is_vertical() && !wrap.wraps() {
+        let mut cursor = 0.0_f32;
+        let mut vertical_cells = Vec::new();
+        let ordered_items: Vec<usize> = if direction == FlexDirection::ColumnReverse
+            || direction == FlexDirection::RowReverse
+        {
+            (0..items.len()).rev().collect()
+        } else {
+            (0..items.len()).collect()
+        };
+        for (pos, item_idx) in ordered_items.iter().copied().enumerate() {
+            if pos > 0 {
+                cursor += gap;
+            }
+            let item = &items[item_idx];
+            let (x_offset, y_offset) = if direction.is_row() {
+                let x = if flex_writing_mode.block_axis_reversed() {
+                    inner_width - item.width
+                } else {
+                    0.0
+                };
+                (x + item.margin_cross_start, cursor + item.margin_main_start)
+            } else {
+                let x = if flex_writing_mode.block_axis_reversed() {
+                    inner_width - cursor - item.width
+                } else {
+                    cursor
+                };
+                (x + item.margin_main_start, item.margin_cross_start)
+            };
+            let mut cell = if let Some(LayoutElement::TextBlock {
+                lines: tb_lines,
+                text_align: tb_ta,
+                background_color: tb_bg,
+                padding_top: tb_pt,
+                padding_bottom: tb_pb,
+                padding_left: tb_pl,
+                padding_right: tb_pr,
+                border_radius: tb_br,
+                background_gradient: tb_grad,
+                background_radial_gradient: tb_rgrad,
+                background_conic_gradient: tb_cgrad,
+                background_svg: tb_bg_svg,
+                background_blur_radius: tb_bg_blur,
+                background_size: tb_bg_size,
+                background_position: tb_bg_pos,
+                background_repeat: tb_bg_repeat,
+                background_origin: tb_bg_origin,
+                background_clip: tb_bg_clip,
+                box_shadow: tb_bs,
+                border,
+                block_height: tb_bh,
+                transform: tb_transform,
+                transform_origin: tb_transform_origin,
+                ..
+            }) = item
+                .elements
+                .iter()
+                .find(|elem| matches!(elem, LayoutElement::TextBlock { .. }))
+            {
+                let text_h: f32 = tb_lines.iter().map(|l| l.height).sum();
+                let content_natural = *tb_pt + text_h + *tb_pb + border.vertical_width();
+                let natural_h = tb_bh
+                    .map(|h| h + border.vertical_width())
+                    .unwrap_or(content_natural);
+                FlexCell {
+                    lines: tb_lines.clone(),
+                    x_offset,
+                    width: item.width,
+                    text_align: *tb_ta,
+                    background_color: *tb_bg,
+                    padding_top: *tb_pt,
+                    padding_right: *tb_pr,
+                    padding_bottom: *tb_pb,
+                    padding_left: *tb_pl,
+                    border: *border,
+                    natural_height: natural_h,
+                    has_explicit_height: true,
+                    cross_min: 0.0,
+                    cross_max: f32::INFINITY,
+                    align_self: AlignSelf::FlexStart,
+                    border_radius: *tb_br,
+                    background_gradient: tb_grad.clone(),
+                    background_radial_gradient: tb_rgrad.clone(),
+                    background_conic_gradient: tb_cgrad.clone(),
+                    background_svg: tb_bg_svg.clone(),
+                    background_blur_radius: *tb_bg_blur,
+                    background_size: *tb_bg_size,
+                    background_position: *tb_bg_pos,
+                    background_repeat: *tb_bg_repeat,
+                    background_origin: *tb_bg_origin,
+                    background_clip: *tb_bg_clip,
+                    transform: *tb_transform,
+                    transform_origin: *tb_transform_origin,
+                    box_shadow: tb_bs.clone(),
+                    nested_elements: Vec::new(),
+                    y_offset,
+                    line_cross_size: natural_h,
+                    is_positioned: item.is_relative || item.z_index > 0,
+                    z_index: item.z_index,
+                }
+            } else {
+                FlexCell {
+                    lines: Vec::new(),
+                    x_offset,
+                    width: item.width,
+                    text_align: TextAlign::Left,
+                    background_color: None,
+                    padding_top: 0.0,
+                    padding_right: 0.0,
+                    padding_bottom: 0.0,
+                    padding_left: 0.0,
+                    border: LayoutBorder::default(),
+                    natural_height: item.height,
+                    has_explicit_height: true,
+                    cross_min: 0.0,
+                    cross_max: f32::INFINITY,
+                    align_self: AlignSelf::FlexStart,
+                    border_radius: 0.0,
+                    background_gradient: None,
+                    background_radial_gradient: None,
+                    background_conic_gradient: None,
+                    background_svg: None,
+                    background_blur_radius: 0.0,
+                    background_size: BackgroundSize::Auto,
+                    background_position: BackgroundPosition::default(),
+                    background_repeat: BackgroundRepeat::Repeat,
+                    background_origin: BackgroundOrigin::Padding,
+                    background_clip: BackgroundClip::Border,
+                    transform: None,
+                    transform_origin: crate::style::computed::TransformOrigin::default(),
+                    box_shadow: Vec::new(),
+                    nested_elements: item.elements.clone(),
+                    y_offset,
+                    line_cross_size: item.height,
+                    is_positioned: item.is_relative || item.z_index > 0,
+                    z_index: item.z_index,
+                }
+            };
+            if item.is_relative {
+                cell.x_offset += item.rel_left;
+                cell.y_offset += item.rel_top;
+            }
+            vertical_cells.push(cell);
+            cursor += if direction.is_row() {
+                item.height
+            } else {
+                item.width
+            };
+        }
+        vertical_cells.sort_by_key(|cell| cell.z_index);
+        output.push(LayoutElement::FlexRow {
+            cells: vertical_cells,
+            row_height: inner_cross_size,
+            margin_top: style.margin.top,
+            margin_bottom: style.margin.bottom,
+            offset_left: h_offset,
+            background_color: bg,
+            container_width: block_w,
+            padding_top: style.padding.top,
+            padding_bottom: style.padding.bottom,
+            padding_left: style.padding.left,
+            padding_right: style.padding.right,
+            border: LayoutBorder::from_computed(&style.border),
+            border_radius: style.border_radius,
+            box_shadow: style.box_shadow.clone(),
+            background_gradient: style.background_gradient.clone(),
+            background_radial_gradient: style.background_radial_gradient.clone(),
+            background_conic_gradient: style.background_conic_gradient.clone(),
+            background_svg: background_svg_for_style(style),
+            background_blur_radius: style.blur_radius,
+            background_size: style.background_size,
+            background_position: style.background_position,
+            background_repeat: style.background_repeat,
+            background_origin: style.background_origin,
+            background_clip: style.background_clip,
+            align_items: AlignItems::FlexStart,
+            positioned_depth: abs_cb_depth,
+        });
+        output.append(&mut abs_output);
+        return;
+    }
+
     // For single-line column direction, emit container background separately.
     // Multi-line column-wrap uses a FlexRow wrapper below so the items can be
     // positioned in additional columns while the container remains one flow box.
+    let column_auto_overflows_fragmentainer = !direction.is_row()
+        && !column_wrap_lines
+        && style.height.is_none()
+        && container_h + style.border.vertical_width() + style.margin.top + style.margin.bottom
+            > ctx.available_height();
     let emitted_column_bg = !direction.is_row()
         && !column_wrap_lines
+        && !column_auto_overflows_fragmentainer
         && (has_background_paint(style) || style.border.has_any() || !style.box_shadow.is_empty());
     if emitted_column_bg {
         // Emit the container background/border as a visual element.
@@ -2375,6 +2683,12 @@ pub(crate) fn layout_flex_container(
             clip_children_count: 0,
         });
     }
+    let column_bg_pair = if emitted_column_bg && output.len() >= 2 {
+        let len = output.len();
+        Some((output[len - 2].clone(), output[len - 1].clone()))
+    } else {
+        None
+    };
 
     // Position items within the flex container and emit them. align-content
     // leading bumps the first line away from the cross-start edge.
@@ -3813,6 +4127,55 @@ pub(crate) fn layout_flex_container(
                         let mut item_last_margin_bottom = 0.0_f32;
 
                         for elem in &item.elements {
+                            if matches!(elem, LayoutElement::PageBreak(_, _)) {
+                                output.push(elem.clone());
+                                if let Some((bg_fragment, spacer_fragment)) = &column_bg_pair {
+                                    let start = if item_first_elem {
+                                        item_pos
+                                    } else {
+                                        item_pos + 1
+                                    };
+                                    let remaining_count = column_order.len().saturating_sub(start);
+                                    if remaining_count > 0 {
+                                        let remaining_h: f32 = column_order[start..]
+                                            .iter()
+                                            .map(|&idx| items[idx].height)
+                                            .sum::<f32>()
+                                            + gap * remaining_count.saturating_sub(1) as f32;
+                                        let mut bg_fragment = bg_fragment.clone();
+                                        let mut spacer_fragment = spacer_fragment.clone();
+                                        let mut bg_flow_height = remaining_h + style.padding.bottom;
+                                        if let LayoutElement::TextBlock {
+                                            margin_top,
+                                            padding_top,
+                                            block_height,
+                                            border,
+                                            border_radii,
+                                            border_radii_y,
+                                            ..
+                                        } = &mut bg_fragment
+                                        {
+                                            *margin_top = 0.0;
+                                            *padding_top = 0.0;
+                                            border.top.width = 0.0;
+                                            border_radii[0] = 0.0;
+                                            border_radii[1] = 0.0;
+                                            border_radii_y[0] = 0.0;
+                                            border_radii_y[1] = 0.0;
+                                            *block_height = Some(bg_flow_height);
+                                            bg_flow_height += border.vertical_width();
+                                        }
+                                        if let LayoutElement::TextBlock { margin_top, .. } =
+                                            &mut spacer_fragment
+                                        {
+                                            *margin_top = -bg_flow_height;
+                                        }
+                                        output.push(bg_fragment);
+                                        output.push(spacer_fragment);
+                                    }
+                                }
+                                continue;
+                            }
                             if let LayoutElement::TextBlock {
                                 lines: tb_lines,
                                 margin_top: tb_mt,
