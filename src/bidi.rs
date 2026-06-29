@@ -138,7 +138,29 @@ pub(crate) fn reorder_runs_bidi(
     if result.is_empty() {
         runs.to_vec()
     } else {
+        move_trailing_spaces_to_previous_visual_run(&mut result);
         result
+    }
+}
+
+fn move_trailing_spaces_to_previous_visual_run(runs: &mut [TextRun]) {
+    for idx in 1..runs.len() {
+        let trailing: String = runs[idx]
+            .text
+            .chars()
+            .rev()
+            .take_while(|ch| *ch == ' ')
+            .collect();
+        if trailing.is_empty() {
+            continue;
+        }
+        let count = trailing.chars().count();
+        for _ in 0..count {
+            runs[idx].text.pop();
+        }
+        for _ in 0..count {
+            runs[idx - 1].text.push(' ');
+        }
     }
 }
 
@@ -233,11 +255,9 @@ mod tests {
         assert!(combined.contains("Hello"));
         assert!(combined.contains("World"));
         // Arabic chars should be present (possibly reversed)
-        assert!(
-            combined
-                .chars()
-                .any(|c| (0x0600..=0x06FF).contains(&(c as u32)))
-        );
+        assert!(combined
+            .chars()
+            .any(|c| (0x0600..=0x06FF).contains(&(c as u32))));
     }
 
     #[test]

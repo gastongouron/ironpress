@@ -553,7 +553,7 @@
     "file": "cases/transforms/transforms-perspective-rotate-x.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -571,7 +571,7 @@
     "file": "cases/transforms/transforms-perspective-translate-z.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -589,7 +589,7 @@
     "file": "cases/transforms/transforms-rotate3d-axis.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -625,7 +625,7 @@
     "file": "cases/transforms/transforms-preserve-3d-depth-order.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -661,7 +661,7 @@
     "file": "cases/transforms/transforms-translate3d-perspective.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -679,7 +679,7 @@
     "file": "cases/transforms/transforms-scale3d-rotate-y.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -697,7 +697,7 @@
     "file": "cases/transforms/transforms-origin-z-offset.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

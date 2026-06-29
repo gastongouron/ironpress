@@ -102,6 +102,32 @@ fn fetch_remote_bytes(url: &str) -> Option<Vec<u8>> {
     }
 }
 
+fn page_decl_value(raw: &str, property: &str) -> Option<String> {
+    raw.split(';').find_map(|declaration| {
+        let (prop, val) = declaration.split_once(':')?;
+        prop.trim()
+            .eq_ignore_ascii_case(property)
+            .then(|| val.trim().to_string())
+    })
+}
+
+fn parse_page_descriptor_length(value: &str) -> Option<f32> {
+    let value = value.trim();
+    if let Some(n) = value.strip_suffix("mm") {
+        n.trim().parse::<f32>().ok().map(|v| v * 2.83465)
+    } else if let Some(n) = value.strip_suffix("cm") {
+        n.trim().parse::<f32>().ok().map(|v| v * 28.3465)
+    } else if let Some(n) = value.strip_suffix("in") {
+        n.trim().parse::<f32>().ok().map(|v| v * 72.0)
+    } else if let Some(n) = value.strip_suffix("pt") {
+        n.trim().parse::<f32>().ok()
+    } else if let Some(n) = value.strip_suffix("px") {
+        n.trim().parse::<f32>().ok().map(|v| v * 0.75)
+    } else {
+        value.parse::<f32>().ok()
+    }
+}
+
 pub use error::IronpressError;
 pub use types::{Margin, PageSize};
 
@@ -687,6 +713,52 @@ impl HtmlConverter {
             && crate::layout::helpers::has_background_paint(&page_bg_style))
         .then_some(&page_bg_style);
 
+        let mut page_bleed: Option<f32> = None;
+        let mut page_bleed_auto = false;
+        let mut page_marks_crop = false;
+        let mut page_marks_cross = false;
+        let mut page_orientation = render::pdf::PageOrientation::Upright;
+        for pr in &page_rules {
+            if pr.selector != PageSelector::None {
+                continue;
+            }
+            let Some(raw) = &pr.raw_declarations else {
+                continue;
+            };
+            if let Some(value) = page_decl_value(raw, "bleed") {
+                if value.eq_ignore_ascii_case("auto") {
+                    page_bleed = None;
+                    page_bleed_auto = true;
+                } else if let Some(length) = parse_page_descriptor_length(&value) {
+                    page_bleed = Some(length.max(0.0));
+                    page_bleed_auto = false;
+                }
+            }
+            if let Some(value) = page_decl_value(raw, "marks") {
+                let value = value.to_ascii_lowercase();
+                page_marks_crop = value.split_whitespace().any(|part| part == "crop");
+                page_marks_cross = value.split_whitespace().any(|part| part == "cross");
+                if value.split_whitespace().any(|part| part == "none") {
+                    page_marks_crop = false;
+                    page_marks_cross = false;
+                }
+            }
+            if let Some(value) = page_decl_value(raw, "page-orientation") {
+                page_orientation = match value.to_ascii_lowercase().as_str() {
+                    "rotate-left" => render::pdf::PageOrientation::RotateLeft,
+                    "rotate-right" => render::pdf::PageOrientation::RotateRight,
+                    _ => render::pdf::PageOrientation::Upright,
+                };
+            }
+        }
+        let page_bleed = page_bleed.unwrap_or({
+            if page_bleed_auto || page_marks_crop {
+                6.0
+            } else {
+                0.0
+            }
+        });
+
         // Step 5: Layout
         let pages = layout::engine::layout_with_rules_and_fonts(
             &result.nodes,
@@ -695,6 +767,7 @@ impl HtmlConverter {
             &rules,
             &parsed_fonts,
             page_bg,
+            page_bleed,
             layout::paginate::PageMarginOverrides {
                 first: first_page_margin,
                 spread: layout::paginate::SpreadMargins {
@@ -709,25 +782,32 @@ impl HtmlConverter {
         //
         // Collect the `@page` margin boxes (CSS Paged Media 3 §5) into the page
         // decoration so running headers/footers + page counters render on every
-        // page. Only unselected `@page { }` rules (`PageSelector::None`) feed the
-        // document-wide running header/footer; per-page-selected margin boxes
-        // (`:first`/named) are a documented follow-up.
+        // page. Keep selected boxes too; the renderer applies the page-context
+        // selector cascade per physical page.
         let margin_boxes: Vec<parser::css::MarginBox> = page_rules
             .iter()
-            .filter(|pr| pr.selector == PageSelector::None)
             .flat_map(|pr| pr.margin_boxes.iter().cloned())
             .collect();
 
-        let decoration =
-            if self.header.is_some() || self.footer.is_some() || !margin_boxes.is_empty() {
-                Some(render::pdf::PageDecoration {
-                    header: self.header.clone(),
-                    footer: self.footer.clone(),
-                    margin_boxes,
-                })
-            } else {
-                None
-            };
+        let has_physical_decoration =
+            page_bleed > 0.0 || page_marks_crop || page_marks_cross || page_orientation.rotates();
+        let decoration = if self.header.is_some()
+            || self.footer.is_some()
+            || !margin_boxes.is_empty()
+            || has_physical_decoration
+        {
+            Some(render::pdf::PageDecoration {
+                header: self.header.clone(),
+                footer: self.footer.clone(),
+                margin_boxes,
+                bleed: page_bleed,
+                marks_crop: page_marks_crop,
+                marks_cross: page_marks_cross,
+                page_orientation,
+            })
+        } else {
+            None
+        };
 
         let render_opts = render::pdf::RenderOpts {
             compress: self.compress,

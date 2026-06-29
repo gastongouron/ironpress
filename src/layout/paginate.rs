@@ -1,12 +1,12 @@
 use super::engine::{
-    decode_footnote_link, layout_element_paint_order, table_cell_content_height, FootnoteItem,
-    LayoutElement, Page, PageBreakSide, TableCell, FOOTNOTE_CALL_FONT_SCALE,
+    FOOTNOTE_CALL_FONT_SCALE, FootnoteItem, LayoutElement, Page, PageBreakSide, TableCell,
+    decode_footnote_link, layout_element_paint_order, table_cell_content_height,
 };
 use crate::style::computed::{
     BorderCollapse, BoxDecorationBreak, Clear, Float, ObjectFit, Position,
 };
 use crate::types::{Margin, PageSize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn advance_positioned_ancestors_after_page_break(
     positioned_y_by_depth: &mut HashMap<usize, f32>,
@@ -34,6 +34,8 @@ fn collect_footnotes_from_element(element: &LayoutElement, out: &mut Vec<Footnot
                         bold: run.bold,
                         italic: run.italic,
                         color: run.color,
+                        marker_color: run.color,
+                        marker_prefix: "{marker}. ".to_string(),
                         font_family: run.font_family.clone(),
                         line_height_factor: run.line_height_factor,
                     });
@@ -200,7 +202,7 @@ fn estimate_element_height_bounded(element: &LayoutElement, depth: usize) -> f32
             margin_bottom,
             ..
         } => margin_top + layout.height() + margin_bottom,
-        LayoutElement::RunningElement { .. } => 0.0,
+        LayoutElement::RunningElement { .. } | LayoutElement::NamedString { .. } => 0.0,
         LayoutElement::Container {
             children,
             padding_top,
@@ -951,7 +953,13 @@ fn split_svg_block(
     element: &LayoutElement,
     avail_below_box_top: f32,
 ) -> Option<(LayoutElement, LayoutElement)> {
-    let LayoutElement::Svg { tree, height, .. } = element else {
+    let LayoutElement::Svg {
+        tree,
+        height,
+        border,
+        ..
+    } = element
+    else {
         return None;
     };
     if *height <= 0.0 {
@@ -963,7 +971,9 @@ fn split_svg_block(
         return None;
     }
     let source = svg_source_box(tree)?;
-    let slice_src_h = source.height * (first_h / *height);
+    let first_content_h = (first_h - border.top.width).max(0.0);
+    let total_content_h = (height - border.vertical_width()).max(1.0);
+    let slice_src_h = source.height * (first_content_h / total_content_h).clamp(0.0, 1.0);
 
     let mut first = element.clone();
     if let LayoutElement::Svg {
@@ -971,12 +981,14 @@ fn split_svg_block(
         height: f_h,
         flow_extra_bottom: f_fe,
         margin_bottom: f_mb,
+        border: f_border,
         ..
     } = &mut first
     {
         *f_h = first_h;
         *f_fe = 0.0;
         *f_mb = 0.0;
+        f_border.bottom.width = 0.0;
         f_tree.view_box = Some(crate::parser::svg::ViewBox {
             min_x: source.min_x,
             min_y: source.min_y,
@@ -990,11 +1002,13 @@ fn split_svg_block(
         tree: r_tree,
         height: r_h,
         margin_top: r_mt,
+        border: r_border,
         ..
     } = &mut rest
     {
         *r_h = *height - first_h;
         *r_mt = 0.0;
+        r_border.top.width = 0.0;
         r_tree.view_box = Some(crate::parser::svg::ViewBox {
             min_x: source.min_x,
             min_y: source.min_y + slice_src_h,
@@ -1815,6 +1829,8 @@ pub(crate) fn paginate_with_first_page(
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
     let mut current_running_elements: HashMap<String, LayoutElement> = HashMap::new();
+    let mut current_running_elements_started: HashSet<String> = HashSet::new();
+    let mut current_named_strings: HashMap<String, String> = HashMap::new();
     let mut current_footnotes: Vec<FootnoteItem> = Vec::new();
     // Page 1 starts with body/html margin-top applied; continuation pages
     // start flush against the page margin (Chrome's print-model: body margin
@@ -1883,7 +1899,12 @@ pub(crate) fn paginate_with_first_page(
     let mut work: std::collections::VecDeque<LayoutElement> = elements.into();
     while let Some(element) = work.pop_front() {
         if let LayoutElement::RunningElement { name, element } = element {
+            current_running_elements_started.insert(name.clone());
             current_running_elements.insert(name, *element);
+            continue;
+        }
+        if let LayoutElement::NamedString { name, value } = element {
+            current_named_strings.insert(name, value);
             continue;
         }
 
@@ -2158,10 +2179,7 @@ pub(crate) fn paginate_with_first_page(
                     continue;
                 }
                 let consumed_height = y;
-                extend_open_column_flex_decoration_to_break(
-                    &mut current_elements,
-                    content_height,
-                );
+                extend_open_column_flex_decoration_to_break(&mut current_elements, content_height);
                 // The page being finalized adopts the named margin in force while
                 // it was filled (if any), else the parity/`:first` override.
                 let margin_override = pending_named_page
@@ -2171,6 +2189,8 @@ pub(crate) fn paginate_with_first_page(
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     running_elements: current_running_elements.clone(),
+                    running_elements_started: std::mem::take(&mut current_running_elements_started),
+                    named_strings: current_named_strings.clone(),
                     footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
@@ -2223,6 +2243,8 @@ pub(crate) fn paginate_with_first_page(
                         pages.push(Page {
                             elements: blank,
                             running_elements: current_running_elements.clone(),
+                            running_elements_started: HashSet::new(),
+                            named_strings: current_named_strings.clone(),
                             footnotes: Vec::new(),
                             margin_override,
                             page_size_override,
@@ -2340,7 +2362,9 @@ pub(crate) fn paginate_with_first_page(
                 margin_bottom,
                 ..
             } => (layout.height(), *margin_top, *margin_bottom),
-            LayoutElement::RunningElement { .. } => (0.0, 0.0, 0.0),
+            LayoutElement::RunningElement { .. } | LayoutElement::NamedString { .. } => {
+                (0.0, 0.0, 0.0)
+            }
             LayoutElement::Container {
                 children,
                 padding_top,
@@ -2497,6 +2521,10 @@ pub(crate) fn paginate_with_first_page(
                     pages.push(Page {
                         elements: std::mem::take(&mut current_elements),
                         running_elements: current_running_elements.clone(),
+                        running_elements_started: std::mem::take(
+                            &mut current_running_elements_started,
+                        ),
+                        named_strings: current_named_strings.clone(),
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
@@ -2551,6 +2579,10 @@ pub(crate) fn paginate_with_first_page(
                     pages.push(Page {
                         elements: std::mem::take(&mut current_elements),
                         running_elements: current_running_elements.clone(),
+                        running_elements_started: std::mem::take(
+                            &mut current_running_elements_started,
+                        ),
+                        named_strings: current_named_strings.clone(),
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
@@ -2591,6 +2623,10 @@ pub(crate) fn paginate_with_first_page(
                     pages.push(Page {
                         elements: std::mem::take(&mut current_elements),
                         running_elements: current_running_elements.clone(),
+                        running_elements_started: std::mem::take(
+                            &mut current_running_elements_started,
+                        ),
+                        named_strings: current_named_strings.clone(),
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
@@ -2639,6 +2675,8 @@ pub(crate) fn paginate_with_first_page(
             pages.push(Page {
                 elements: std::mem::take(&mut current_elements),
                 running_elements: current_running_elements.clone(),
+                running_elements_started: std::mem::take(&mut current_running_elements_started),
+                named_strings: current_named_strings.clone(),
                 footnotes: std::mem::take(&mut current_footnotes),
                 margin_override,
                 page_size_override,
@@ -2725,7 +2763,9 @@ pub(crate) fn paginate_with_first_page(
         // The small epsilon absorbs sub-point text-measurement rounding so a box
         // that merely grazes the page bottom is not spuriously fragmented.
         const FRAG_EPSILON: f32 = 2.0;
+        let followed_by_forced_break = matches!(work.front(), Some(LayoutElement::PageBreak(..)));
         if elem_position == Position::Static
+            && !followed_by_forced_break
             && y + element_height > effective_content_height + FRAG_EPSILON
         {
             let avail_below_box_top = effective_content_height - (y + effective_margin_top);
@@ -2750,6 +2790,8 @@ pub(crate) fn paginate_with_first_page(
                 pages.push(Page {
                     elements: std::mem::take(&mut current_elements),
                     running_elements: current_running_elements.clone(),
+                    running_elements_started: std::mem::take(&mut current_running_elements_started),
+                    named_strings: current_named_strings.clone(),
                     footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
@@ -2835,6 +2877,8 @@ pub(crate) fn paginate_with_first_page(
         pages.push(Page {
             elements: current_elements,
             running_elements: current_running_elements.clone(),
+            running_elements_started: std::mem::take(&mut current_running_elements_started),
+            named_strings: current_named_strings.clone(),
             footnotes: std::mem::take(&mut current_footnotes),
             margin_override,
             page_size_override,
@@ -2847,6 +2891,8 @@ pub(crate) fn paginate_with_first_page(
         pages.push(Page {
             elements: Vec::new(),
             running_elements: current_running_elements,
+            running_elements_started: current_running_elements_started,
+            named_strings: current_named_strings,
             footnotes: current_footnotes,
             margin_override: page_margin_override(0),
             page_size_override: None,

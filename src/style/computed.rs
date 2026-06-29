@@ -1268,6 +1268,9 @@ pub enum ContentItem {
     Url(String),
 }
 
+pub(crate) const TARGET_PLACEHOLDER_START: &str = "\u{1e}ip-target:";
+pub(crate) const TARGET_PLACEHOLDER_END: &str = "\u{1f}";
+
 /// CSS box-shadow value.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
@@ -1452,17 +1455,24 @@ pub struct ComputedStyle {
     pub margin_em_left: Option<f32>,
     pub padding: EdgeSizes,
     pub text_align: TextAlign,
+    pub text_align_last: Option<TextAlign>,
+    pub word_break_keep_all: bool,
     /// CSS direction property (ltr/rtl), set from `dir` attribute or CSS.
     pub direction_rtl: bool,
     /// CSS `writing-mode` (css-writing-modes-4 §3.1). Inherited; initial
     /// `horizontal-tb`. Inherited automatically via the `parent.clone()` model
     /// in `compute_style_with_context` (never reset in the non-inherited block).
     pub writing_mode: WritingMode,
+    pub writing_mode_vertical_lr: bool,
+    pub text_orientation_upright: bool,
     /// CSS `unicode-bidi: bidi-override` (or `isolate-override`). When set, the
     /// element's inline content is reordered strictly in sequence according to
     /// `direction`, overriding the characters' intrinsic bidi classes
     /// (css-writing-modes-4 §2.4). Not inherited; initial is `normal` (false).
     pub bidi_override: bool,
+    /// CSS `unicode-bidi: plaintext`: each forced line break resolves its own
+    /// paragraph base direction from its first strong character.
+    pub bidi_plaintext: bool,
     pub text_decoration_underline: bool,
     pub text_decoration_line_through: bool,
     pub text_decoration_overline: bool,
@@ -1901,9 +1911,14 @@ impl Default for ComputedStyle {
             margin_em_left: None,
             padding: EdgeSizes::default(),
             text_align: TextAlign::Left,
+            text_align_last: None,
+            word_break_keep_all: false,
             direction_rtl: false,
             writing_mode: WritingMode::HorizontalTb,
+            writing_mode_vertical_lr: false,
+            text_orientation_upright: false,
             bidi_override: false,
+            bidi_plaintext: false,
             text_decoration_underline: false,
             text_decoration_line_through: false,
             text_decoration_overline: false,
@@ -2190,6 +2205,8 @@ pub fn compute_style_with_context(
     style.opacity = 1.0;
     // `unicode-bidi` is not inherited; initial is `normal`.
     style.bidi_override = false;
+    style.bidi_plaintext = false;
+    style.word_break_keep_all = false;
     style.float = Float::None;
     style.clear = Clear::None;
     style.position = Position::Static;
@@ -2522,6 +2539,8 @@ pub fn compute_pseudo_element_style(
     style.opacity = 1.0;
     // `unicode-bidi` is not inherited; initial is `normal`.
     style.bidi_override = false;
+    style.bidi_plaintext = false;
+    style.word_break_keep_all = false;
     style.float = Float::None;
     style.clear = Clear::None;
     style.position = Position::Static;
@@ -2670,6 +2689,7 @@ fn is_inherited_property(property: &str) -> bool {
             | "font-family"
             | "line-height"
             | "text-align"
+            | "text-align-last"
             | "text-decoration"
             | "visibility"
             | "letter-spacing"
@@ -2680,8 +2700,11 @@ fn is_inherited_property(property: &str) -> bool {
             | "font-variant-caps"
             | "font-feature-settings"
             | "white-space"
+            | "white-space-collapse"
+            | "text-wrap-mode"
             | "overflow-wrap"
             | "word-wrap"
+            | "word-break"
             | "border-collapse"
             | "border-spacing"
             | "empty-cells"
@@ -2711,6 +2734,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
             style.line_height_absolute = default.line_height_absolute;
         }
         "text-align" => style.text_align = default.text_align,
+        "text-align-last" => style.text_align_last = default.text_align_last,
         "text-decoration" => {
             style.text_decoration_underline = default.text_decoration_underline;
             style.text_decoration_line_through = default.text_decoration_line_through;
@@ -2836,6 +2860,9 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "gap" => style.gap = default.gap,
         "text-overflow" => style.text_overflow = default.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = default.overflow_wrap,
+        "word-break" => style.word_break_keep_all = default.word_break_keep_all,
+        "white-space-collapse" => style.white_space = default.white_space,
+        "text-wrap-mode" => style.white_space = default.white_space,
         "border-collapse" => style.border_collapse = default.border_collapse,
         "table-layout" => style.table_layout = default.table_layout,
         "border-spacing" => {
@@ -2892,6 +2919,7 @@ fn reset_all_to_initial(style: &mut ComputedStyle) {
     let viewport_height = style.viewport_height;
     let direction_rtl = style.direction_rtl;
     let bidi_override = style.bidi_override;
+    let bidi_plaintext = style.bidi_plaintext;
     let custom_properties = style.custom_properties.clone();
 
     *style = ComputedStyle::default();
@@ -2901,6 +2929,7 @@ fn reset_all_to_initial(style: &mut ComputedStyle) {
     style.viewport_height = viewport_height;
     style.direction_rtl = direction_rtl;
     style.bidi_override = bidi_override;
+    style.bidi_plaintext = bidi_plaintext;
     style.custom_properties = custom_properties;
 }
 
@@ -2920,6 +2949,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
             style.line_height_absolute = parent.line_height_absolute;
         }
         "text-align" => style.text_align = parent.text_align,
+        "text-align-last" => style.text_align_last = parent.text_align_last,
         "text-decoration" => {
             style.text_decoration_underline = parent.text_decoration_underline;
             style.text_decoration_line_through = parent.text_decoration_line_through;
@@ -3045,6 +3075,9 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "gap" => style.gap = parent.gap,
         "text-overflow" => style.text_overflow = parent.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = parent.overflow_wrap,
+        "word-break" => style.word_break_keep_all = parent.word_break_keep_all,
+        "white-space-collapse" => style.white_space = parent.white_space,
+        "text-wrap-mode" => style.white_space = parent.white_space,
         "empty-cells" => style.empty_cells = parent.empty_cells,
         "caption-side" => style.caption_side = parent.caption_side,
         "border-collapse" => style.border_collapse = parent.border_collapse,
@@ -3420,8 +3453,52 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.text_align = match k.as_str() {
             "center" => TextAlign::Center,
             "right" => TextAlign::Right,
+            "left" => TextAlign::Left,
             "justify" => TextAlign::Justify,
+            "start" => {
+                if style.direction_rtl {
+                    TextAlign::Right
+                } else {
+                    TextAlign::Left
+                }
+            }
+            "end" => {
+                if style.direction_rtl {
+                    TextAlign::Left
+                } else {
+                    TextAlign::Right
+                }
+            }
+            "match-parent" => {
+                if parent.direction_rtl && !style.direction_rtl && parent.text_align == TextAlign::Left
+                {
+                    TextAlign::Right
+                } else {
+                    parent.text_align
+                }
+            }
             _ => TextAlign::Left,
+        };
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-align-last") {
+        style.text_align_last = match k.as_str() {
+            "center" => Some(TextAlign::Center),
+            "right" => Some(TextAlign::Right),
+            "left" => Some(TextAlign::Left),
+            "justify" => Some(TextAlign::Justify),
+            "start" => Some(if style.direction_rtl {
+                TextAlign::Right
+            } else {
+                TextAlign::Left
+            }),
+            "end" => Some(if style.direction_rtl {
+                TextAlign::Left
+            } else {
+                TextAlign::Right
+            }),
+            "auto" => None,
+            _ => style.text_align_last,
         };
     }
 
@@ -4584,13 +4661,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         };
     }
 
-    if let Some(CssValue::Keyword(k)) = get_non_special(map, "perspective") {
-        let trimmed = k.trim();
-        style.perspective = if trimmed.eq_ignore_ascii_case("none") {
-            None
-        } else {
-            parse_transform_length(trimmed, style.font_size, style.root_font_size)
-                .and_then(|(v, is_pct)| (!is_pct && v > 0.0).then_some(v))
+    if let Some(value) = get_non_special(map, "perspective") {
+        style.perspective = match value {
+            CssValue::Length(v) if *v > 0.0 => Some(*v),
+            CssValue::Keyword(k) if k.trim().eq_ignore_ascii_case("none") => None,
+            CssValue::Keyword(k) => {
+                parse_transform_length(k.trim(), style.font_size, style.root_font_size)
+                    .and_then(|(v, is_pct)| (!is_pct && v > 0.0).then_some(v))
+            }
+            _ => style.perspective,
         };
     }
 
@@ -4598,6 +4677,29 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         if let Some(origin) = parse_transform_origin(k, style.font_size, style.root_font_size) {
             style.perspective_origin = origin;
         }
+    }
+
+    if style.transform_box == TransformBox::ContentBox
+        && style.transform_origin.x_fraction == 0.0
+        && style.transform_origin.y_fraction == 0.0
+    {
+        style.transform_origin.x_length += style.border.left.width + style.padding.left;
+        style.transform_origin.y_length += style.border.top.width + style.padding.top;
+        style.transform_box = TransformBox::BorderBox;
+    }
+
+    if let (Some(Transform::Matrix3d(matrix)), Some(perspective)) =
+        (style.transform, parent.perspective)
+    {
+        let parent_w = parent.width.unwrap_or(0.0);
+        let parent_h = parent.height.unwrap_or(parent_w);
+        let (px, py) = parent.perspective_origin.resolve(parent_w, parent_h);
+        style.transform = Some(Transform::Project3d {
+            matrix,
+            perspective,
+            perspective_origin_x: px - style.left.unwrap_or(0.0),
+            perspective_origin_y: py - style.top.unwrap_or(0.0),
+        });
     }
 
     // Border-radius shorthand: a single value keeps the fast uniform path; a
@@ -4780,6 +4882,49 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => {}
         }
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-align") {
+        style.text_align = match k.as_str() {
+            "start" => {
+                if style.direction_rtl {
+                    TextAlign::Right
+                } else {
+                    TextAlign::Left
+                }
+            }
+            "end" => {
+                if style.direction_rtl {
+                    TextAlign::Left
+                } else {
+                    TextAlign::Right
+                }
+            }
+            "match-parent" => {
+                if parent.direction_rtl && !style.direction_rtl && parent.text_align == TextAlign::Left
+                {
+                    TextAlign::Right
+                } else {
+                    parent.text_align
+                }
+            }
+            _ => style.text_align,
+        };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-align-last") {
+        style.text_align_last = match k.as_str() {
+            "start" => Some(if style.direction_rtl {
+                TextAlign::Right
+            } else {
+                TextAlign::Left
+            }),
+            "end" => Some(if style.direction_rtl {
+                TextAlign::Left
+            } else {
+                TextAlign::Right
+            }),
+            "match-parent" => Some(parent.text_align_last.unwrap_or(parent.text_align)),
+            _ => style.text_align_last,
+        };
+    }
 
     // CSS `writing-mode` property (css-writing-modes-4 §3.1). Inherited (so it
     // is never reset in the non-inherited block above; it rides the
@@ -4787,10 +4932,20 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // other keyword (including the unsupported `vertical-lr`/`sideways-*`) falls
     // back to the default horizontal mode.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "writing-mode") {
+        style.writing_mode_vertical_lr = false;
         style.writing_mode = match k.as_str() {
             "vertical-rl" => WritingMode::VerticalRl,
+            "vertical-lr" => {
+                style.writing_mode_vertical_lr = true;
+                WritingMode::VerticalRl
+            }
+            "sideways-rl" => WritingMode::VerticalRl,
             _ => WritingMode::HorizontalTb,
         };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-orientation")
+    {
+        style.text_orientation_upright = k == "upright";
     }
 
     // CSS `unicode-bidi` property. Not inherited. `bidi-override` (and the
@@ -4799,6 +4954,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // characters' intrinsic bidi classes (css-writing-modes-4 §2.4).
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "unicode-bidi") {
         style.bidi_override = matches!(k.as_str(), "bidi-override" | "isolate-override");
+        style.bidi_plaintext = k == "plaintext";
     }
 
     // Text-transform
@@ -4848,6 +5004,17 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             "break-spaces" => WhiteSpace::BreakSpaces,
             _ => WhiteSpace::Normal,
         };
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "white-space-collapse")
+        && k == "preserve"
+        && style.white_space == WhiteSpace::Normal
+    {
+        style.white_space = WhiteSpace::PreWrap;
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-wrap-mode")
+        && k == "nowrap"
+    {
+        style.white_space = WhiteSpace::NoWrap;
     }
 
     // Letter-spacing
@@ -4912,6 +5079,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // `overflow-wrap: anywhere`; the visual line-breaking is equivalent for
     // print output. (`keep-all` / `normal` leave the default behavior.)
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "word-break") {
+        style.word_break_keep_all = k == "keep-all";
         if k == "break-all" && style.overflow_wrap == OverflowWrap::Normal {
             style.overflow_wrap = OverflowWrap::Anywhere;
         }
@@ -5584,6 +5752,25 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
         } else if let Some((name, tail)) = parse_content_function(rest, "attr(") {
             items.push(ContentItem::Attr(name.trim().to_string()));
             rest = tail;
+        } else if let Some((inner, tail)) = parse_content_function_balanced(rest, "target-counter(")
+        {
+            let mut parts = inner.splitn(2, ',').map(str::trim);
+            let target = parts.next().unwrap_or("");
+            let counter = parts.next().unwrap_or("");
+            if !target.is_empty() && counter.eq_ignore_ascii_case("page") {
+                items.push(ContentItem::String(format!(
+                    "{TARGET_PLACEHOLDER_START}counter|{target}|page{TARGET_PLACEHOLDER_END}"
+                )));
+            }
+            rest = tail;
+        } else if let Some((inner, tail)) = parse_content_function_balanced(rest, "target-text(") {
+            let target = inner.split(',').next().unwrap_or("").trim();
+            if !target.is_empty() {
+                items.push(ContentItem::String(format!(
+                    "{TARGET_PLACEHOLDER_START}text|{target}{TARGET_PLACEHOLDER_END}"
+                )));
+            }
+            rest = tail;
         } else if let Some((inner, tail)) = parse_content_function(rest, "counters(") {
             // counters(name, sep[, style])
             let mut parts = inner.splitn(3, ',');
@@ -5642,6 +5829,20 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
 
 fn parse_content_function<'a>(rest: &'a str, prefix: &str) -> Option<(&'a str, &'a str)> {
     rest.strip_prefix(prefix)?.split_once(')')
+}
+
+fn parse_content_function_balanced<'a>(rest: &'a str, prefix: &str) -> Option<(&'a str, &'a str)> {
+    let body = rest.strip_prefix(prefix)?;
+    let mut depth = 0usize;
+    for (idx, ch) in body.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' if depth == 0 => return Some((&body[..idx], &body[idx + 1..])),
+            ')' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Parse the CSS `quotes` property (css-content-3 §2.4.1).
@@ -6739,14 +6940,18 @@ fn parse_single_transform(val: &str, font_size: f32, root_font_size: f32) -> Opt
         .strip_prefix("rotateY(")
         .and_then(|s| s.strip_suffix(')'))
     {
-        return Some(Transform::Matrix3d(matrix3d_rotate_y(parse_angle_deg(inner)?)));
+        return Some(Transform::Matrix3d(matrix3d_rotate_y(parse_angle_deg(
+            inner,
+        )?)));
     }
 
     if let Some(inner) = val
         .strip_prefix("rotateX(")
         .and_then(|s| s.strip_suffix(')'))
     {
-        return Some(Transform::Matrix3d(matrix3d_rotate_x(parse_angle_deg(inner)?)));
+        return Some(Transform::Matrix3d(matrix3d_rotate_x(parse_angle_deg(
+            inner,
+        )?)));
     }
 
     if let Some(inner) = val
@@ -7216,11 +7421,7 @@ fn compose_transforms(transforms: &[Transform]) -> Option<Transform> {
     }
 }
 
-fn parse_individual_translate(
-    val: &str,
-    font_size: f32,
-    root_font_size: f32,
-) -> Option<Transform> {
+fn parse_individual_translate(val: &str, font_size: f32, root_font_size: f32) -> Option<Transform> {
     let parts: Vec<&str> = val.split_whitespace().collect();
     let len = |s: &str| parse_transform_length(s, font_size, root_font_size);
     match parts.as_slice() {

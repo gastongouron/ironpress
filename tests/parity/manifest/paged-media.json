@@ -929,7 +929,7 @@
     "file": "cases/paged-media/paged-bordered-tall-image-fragment.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-image-render",
       "probe-border-box"
@@ -965,7 +965,7 @@
     "file": "cases/paged-media/paged-size-ledger-keyword.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box"
     ],
@@ -982,7 +982,7 @@
     "file": "cases/paged-media/paged-size-jis-b4-landscape.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box"
     ],
@@ -1033,7 +1033,7 @@
     "file": "cases/paged-media/paged-page-orientation-rotate-left.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box"
     ],
@@ -1050,7 +1050,7 @@
     "file": "cases/paged-media/paged-marks-crop-cross.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1068,7 +1068,7 @@
     "file": "cases/paged-media/paged-bleed-crop-background.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box"
     ],
@@ -1156,7 +1156,7 @@
     "file": "cases/paged-media/paged-top-bottom-margin-boxes.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1192,7 +1192,7 @@
     "file": "cases/paged-media/paged-corner-margin-box-position.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1210,7 +1210,7 @@
     "file": "cases/paged-media/paged-first-margin-box-override.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1246,7 +1246,7 @@
     "file": "cases/paged-media/paged-page-counter-reset-seven.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1403,7 +1403,7 @@
     "file": "cases/paged-media/paged-element-first-except.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline",
       "probe-fill-box"

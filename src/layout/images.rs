@@ -180,7 +180,10 @@ pub(crate) fn load_image_from_element(
             style.max_height,
         );
 
-        sync_svg_tree_to_layout_box(&mut tree, width, height);
+        let border = LayoutBorder::from_computed(&style.border);
+        let content_width = (width - border.horizontal_width()).max(0.0);
+        let content_height = (height - border.vertical_width()).max(0.0);
+        sync_svg_tree_to_layout_box(&mut tree, content_width, content_height);
         return Some(LayoutElement::Svg {
             tree,
             width,
@@ -188,6 +191,8 @@ pub(crate) fn load_image_from_element(
             flow_extra_bottom: 0.0,
             margin_top: style.margin.top,
             margin_bottom: style.margin.bottom,
+            background_color: style.background_color.map(|c| c.to_f32_rgba()),
+            border,
         });
     }
 
@@ -289,13 +294,8 @@ fn build_filter_raster(
     let rgba = decode_image_for_blur(raw)?.to_rgba8();
     if let Some(ds) = drop_shadow {
         // drop-shadow operates on the (color-filtered) source.
-        let (src, _) = apply_filter_ops_rgba(
-            &rgba,
-            color_filters,
-            content_w_pt,
-            content_h_pt,
-            0.0,
-        )?;
+        let (src, _) =
+            apply_filter_ops_rgba(&rgba, color_filters, content_w_pt, content_h_pt, 0.0)?;
         return crate::render::blur::drop_shadow_image(
             &src,
             content_w_pt,
@@ -714,6 +714,8 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             flow_extra_bottom,
             margin_top,
             margin_bottom,
+            background_color,
+            border,
         } => LayoutElement::Svg {
             tree,
             width,
@@ -721,6 +723,8 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             flow_extra_bottom: flow_extra_bottom + baseline_gap,
             margin_top,
             margin_bottom,
+            background_color,
+            border,
         },
         other => other,
     }

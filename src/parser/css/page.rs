@@ -1,6 +1,6 @@
 use super::{
-    CssValue, FontFaceRule, MarginBox, MarginBoxPosition, MarginContentToken, PageRule, PageSelector,
-    extract_url_path,
+    CssValue, FontFaceRule, MarginBox, MarginBoxPosition, MarginContentToken, PageRule,
+    PageSelector, extract_url_path,
     model::{FontFaceSource, UnicodeRange},
     preprocess_media_queries,
 };
@@ -601,9 +601,16 @@ pub(crate) fn parse_margin_box_content(val: &str) -> Vec<MarginContentToken> {
             }
         } else if rest.len() >= 8 && rest[..8].eq_ignore_ascii_case("element(") {
             if let Some(end) = rest.find(')') {
-                let name = rest[8..end].split(',').next().unwrap_or("").trim();
+                let mut parts = rest[8..end].split(',').map(str::trim);
+                let name = parts.next().unwrap_or("");
+                let policy = parts.next().filter(|s| !s.is_empty());
                 if !name.is_empty() {
-                    tokens.push(MarginContentToken::Element(name.to_ascii_lowercase()));
+                    let mut encoded = name.to_ascii_lowercase();
+                    if let Some(policy) = policy {
+                        encoded.push('|');
+                        encoded.push_str(&policy.to_ascii_lowercase());
+                    }
+                    tokens.push(MarginContentToken::Element(encoded));
                 }
                 i += end + 1;
             } else {
@@ -770,6 +777,9 @@ pub(crate) fn parse_page_declarations(decls: &str) -> Option<PageRule> {
                     has_any = true;
                 }
             }
+            "bleed" | "marks" | "page-orientation" => {
+                has_any = true;
+            }
             _ => {}
         }
     }
@@ -800,7 +810,10 @@ pub(crate) fn parse_page_size(val: &str) -> Option<(f32, f32)> {
         "a5" => return Some((419.53, 595.28)),
         "letter" => return Some((612.0, 792.0)),
         "legal" => return Some((612.0, 1008.0)),
+        "ledger" => return Some((792.0, 1224.0)),
         "b5" => return Some((498.9, 708.66)),
+        "jis-b4" => return Some((728.50, 1031.81)),
+        "jis-b5" => return Some((515.91, 728.50)),
         "portrait" => return parse_page_size("a4"),
         "landscape" => return parse_page_size("a4").map(|(width, height)| (height, width)),
         _ => {}
@@ -814,7 +827,11 @@ pub(crate) fn parse_page_size(val: &str) -> Option<(f32, f32)> {
     }
 
     if parts.len() == 2 {
-        let (size_name, orientation) = (parts[0], parts[1]);
+        let (size_name, orientation) = if matches!(parts[0], "portrait" | "landscape") {
+            (parts[1], parts[0])
+        } else {
+            (parts[0], parts[1])
+        };
         if let Some((w, h)) = parse_page_size(size_name) {
             return match orientation {
                 "landscape" => Some((h, w)),

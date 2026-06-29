@@ -5,8 +5,9 @@ use crate::parser::ttf::TtfFont;
 // without a separate import.
 pub(crate) use crate::style::computed::OverflowWrap;
 use crate::style::computed::{
-    BoxSizing, ComputedStyle, Display, Float, FontFamily, FontStyle, FontWeight, Position,
-    VerticalAlign, WhiteSpace, compute_style_with_context,
+    BoxSizing, ComputedStyle, Display, Float, FontFamily, FontStyle, FontWeight,
+    IntrinsicWidthKeyword, Position, TARGET_PLACEHOLDER_START, VerticalAlign, WhiteSpace,
+    compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -14,6 +15,22 @@ use super::engine::{
     CounterState, FOOTNOTE_CALL_FONT_SCALE, InlineBox, LayoutBorder, TextLine, TextRun,
     decode_footnote_link, encode_footnote_link,
 };
+
+fn resolve_target_attrs_in_last_run(runs: &mut [TextRun], el: &ElementNode) {
+    let Some(run) = runs.last_mut() else {
+        return;
+    };
+    if !run.text.contains(TARGET_PLACEHOLDER_START) {
+        return;
+    }
+    let mut text = run.text.clone();
+    let needle = "attr(href)";
+    if text.contains(needle) {
+        let value = el.attributes.get("href").map(String::as_str).unwrap_or("");
+        text = text.replace(needle, value);
+    }
+    run.text = text;
+}
 
 // ---------------------------------------------------------------------------
 // resolve_style_font_family / resolved_line_height_factor
@@ -265,14 +282,19 @@ pub(crate) fn estimate_word_width(
     italic: bool,
     fonts: &HashMap<String, TtfFont>,
 ) -> f32 {
+    let cjk_em_width = word
+        .chars()
+        .filter(|ch| is_cjk_char(*ch) || is_cjk_closing_punctuation(*ch))
+        .count() as f32
+        * font_size;
     if let Some(width) =
         crate::text::measure_text_width(word, font_size, font_family, bold, italic, fonts)
     {
-        return width;
+        return width.max(cjk_em_width);
     }
 
     // Use AFM metrics for standard fonts (non-bold for layout estimation)
-    crate::fonts::str_width(word, font_size, font_family, false)
+    crate::fonts::str_width(word, font_size, font_family, false).max(cjk_em_width)
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +307,7 @@ pub(crate) struct TextWrapOptions {
     pub(crate) default_font_size: f32,
     pub(crate) line_height_factor: f32,
     pub(crate) overflow_wrap: OverflowWrap,
+    pub(crate) word_break_keep_all: bool,
     /// Paragraph base direction for the Unicode Bidi Algorithm. Set to `true`
     /// when the containing block has `direction: rtl` (or `dir="rtl"`).
     pub(crate) paragraph_rtl: bool,
@@ -292,6 +315,9 @@ pub(crate) struct TextWrapOptions {
     /// sequence according to `direction`, overriding intrinsic bidi classes
     /// (css-writing-modes-4 §2.4).
     pub(crate) bidi_override: bool,
+    /// `unicode-bidi: plaintext`: resolve paragraph direction separately for
+    /// forced-break-delimited text segments instead of using one base direction.
+    pub(crate) bidi_plaintext: bool,
     /// `white-space: pre-wrap`: preserve spaces/newlines but still allow soft
     /// wrapping at space boundaries. Distinguishes pre-wrap (wraps) from `pre`
     /// (which the caller renders with an unbounded width so it never wraps).
@@ -330,8 +356,10 @@ impl TextWrapOptions {
             default_font_size,
             line_height_factor,
             overflow_wrap,
+            word_break_keep_all: false,
             paragraph_rtl: false,
             bidi_override: false,
+            bidi_plaintext: false,
             pre_wrap: false,
             break_spaces: false,
             text_indent: 0.0,
@@ -356,6 +384,16 @@ impl TextWrapOptions {
     /// Set `unicode-bidi: bidi-override` for the inline content.
     pub(crate) const fn with_bidi_override(mut self, bidi_override: bool) -> Self {
         self.bidi_override = bidi_override;
+        self
+    }
+
+    pub(crate) const fn with_bidi_plaintext(mut self, bidi_plaintext: bool) -> Self {
+        self.bidi_plaintext = bidi_plaintext;
+        self
+    }
+
+    pub(crate) const fn with_word_break_keep_all(mut self, keep_all: bool) -> Self {
+        self.word_break_keep_all = keep_all;
         self
     }
 
@@ -438,8 +476,13 @@ fn split_preserving_spaces(segment: &str, template: &TextRun, out: &mut Vec<Styl
 /// segment; later segments `join` the prior one (no inter-word space) so they
 /// render contiguously yet may begin a new line. Restricting to letter-flanked
 /// hyphens avoids breaking number ranges, dates, or signs ("12-34", "-5").
-fn push_word_with_hyphen_breaks(word: &str, template: &TextRun, out: &mut Vec<StyledWord>) {
-    if should_break_as_char_tokens(word) {
+fn push_word_with_hyphen_breaks(
+    word: &str,
+    template: &TextRun,
+    out: &mut Vec<StyledWord>,
+    keep_all: bool,
+) {
+    if should_break_as_char_tokens(word, keep_all) {
         push_char_break_tokens(word, template, out);
         return;
     }
@@ -481,9 +524,28 @@ fn strip_soft_hyphens(text: &str) -> String {
     text.chars().filter(|&c| c != '\u{00ad}').collect()
 }
 
-fn should_break_as_char_tokens(word: &str) -> bool {
+fn is_cjk_char(ch: char) -> bool {
+    let c = ch as u32;
+    (0x3040..=0x30ff).contains(&c)
+        || (0x3400..=0x4dbf).contains(&c)
+        || (0x4e00..=0x9fff).contains(&c)
+        || (0xf900..=0xfaff).contains(&c)
+        || (0xac00..=0xd7af).contains(&c)
+}
+
+fn is_cjk_closing_punctuation(ch: char) -> bool {
+    matches!(
+        ch,
+        '、' | '。' | '，' | '．' | '！' | '？' | '）' | '］' | '｝' | '」' | '』'
+    )
+}
+
+fn should_break_as_char_tokens(word: &str, keep_all: bool) -> bool {
     if word.chars().count() <= 1 {
         return false;
+    }
+    if !keep_all && word.chars().any(is_cjk_char) {
+        return true;
     }
     // `line-break:anywhere` is not represented in ComputedStyle yet, but CSS
     // Text's anywhere behavior is needed for punctuation-heavy unspaced runs.
@@ -501,6 +563,10 @@ fn should_break_as_char_tokens(word: &str) -> bool {
 fn push_char_break_tokens(word: &str, template: &TextRun, out: &mut Vec<StyledWord>) {
     let mut first = true;
     for ch in word.chars() {
+        if is_cjk_closing_punctuation(ch) && let Some(prev) = out.last_mut() {
+            prev.text.push(ch);
+            continue;
+        }
         out.push(StyledWord {
             text: ch.to_string(),
             run: template.clone(),
@@ -609,10 +675,13 @@ pub(crate) fn wrap_text_runs(
     // RTL/LTR segments display correctly in the left-to-right PDF context.
     let full_text: String = runs.iter().map(|r| r.text.as_str()).collect();
     let inferred_rtl = !options.paragraph_rtl
+        && !options.bidi_plaintext
         && !options.bidi_override
         && crate::bidi::first_strong_is_rtl(&full_text);
     let bidi_rtl = options.paragraph_rtl || inferred_rtl;
-    let runs = if options.bidi_override || bidi_rtl || crate::bidi::has_rtl_chars(&full_text) {
+    let runs = if !options.bidi_plaintext
+        && (options.bidi_override || bidi_rtl || crate::bidi::has_rtl_chars(&full_text))
+    {
         crate::bidi::reorder_runs_bidi(&runs, bidi_rtl, options.bidi_override)
     } else {
         runs
@@ -708,7 +777,12 @@ pub(crate) fn wrap_text_runs(
                     }
                 } else {
                     for word in segment.split_whitespace() {
-                        push_word_with_hyphen_breaks(word, run, &mut styled_words);
+                        push_word_with_hyphen_breaks(
+                            word,
+                            run,
+                            &mut styled_words,
+                            options.word_break_keep_all,
+                        );
                     }
                 }
             }
@@ -725,7 +799,12 @@ pub(crate) fn wrap_text_runs(
             }
         } else {
             for word in run.text.split_whitespace() {
-                push_word_with_hyphen_breaks(word, run, &mut styled_words);
+                push_word_with_hyphen_breaks(
+                    word,
+                    run,
+                    &mut styled_words,
+                    options.word_break_keep_all,
+                );
             }
         }
 
@@ -1268,7 +1347,22 @@ pub(crate) fn wrap_text_runs(
         }
     }
 
-    if inferred_rtl {
+    if options.bidi_plaintext {
+        for line in &mut lines {
+            let line_text: String = line.runs.iter().map(|r| r.text.as_str()).collect();
+            if line_text.is_empty() {
+                continue;
+            }
+            let line_rtl = crate::bidi::first_strong_is_rtl(&line_text);
+            if line_rtl || crate::bidi::has_rtl_chars(&line_text) {
+                line.runs = crate::bidi::reorder_runs_bidi(&line.runs, line_rtl, false);
+            }
+            if line_rtl && options.max_width.is_finite() {
+                let line_width = crate::layout::helpers::measure_runs_width(&line.runs, fonts);
+                line.x_offset += (options.max_width - line_width).max(0.0);
+            }
+        }
+    } else if inferred_rtl {
         for line in &mut lines {
             let line_width = crate::layout::helpers::measure_runs_width(&line.runs, fonts);
             line.x_offset += (options.max_width - line_width).max(0.0);
@@ -1287,6 +1381,7 @@ pub(crate) fn apply_text_overflow_ellipsis(
     lines: &mut Vec<TextLine>,
     max_width: f32,
     fonts: &HashMap<String, TtfFont>,
+    rtl: bool,
 ) {
     // With nowrap, there should be only one line. Truncate it if it overflows.
     if lines.is_empty() {
@@ -1322,9 +1417,15 @@ pub(crate) fn apply_text_overflow_ellipsis(
         return;
     }
 
-    // Truncate character by character until text + ellipsis fits
+    // Truncate character by character until text + ellipsis fits.
     let mut truncated = String::new();
-    for ch in total_text.chars() {
+    let chars: Vec<char> = total_text.chars().collect();
+    let iter: Box<dyn Iterator<Item = char>> = if rtl {
+        Box::new(chars.iter().rev().copied())
+    } else {
+        Box::new(chars.iter().copied())
+    };
+    for ch in iter {
         truncated.push(ch);
         let w = estimate_word_width(
             &truncated,
@@ -1339,7 +1440,12 @@ pub(crate) fn apply_text_overflow_ellipsis(
             break;
         }
     }
-    truncated.push_str(ellipsis);
+    if rtl {
+        truncated = truncated.chars().rev().collect();
+        truncated.insert_str(0, ellipsis);
+    } else {
+        truncated.push_str(ellipsis);
+    }
 
     lines[0] = TextLine {
         runs: vec![TextRun {
@@ -1517,6 +1623,24 @@ pub(crate) fn push_text_run_with_fallback(
     }
 }
 
+fn min_content_anywhere_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
+    runs.iter()
+        .filter(|r| r.inline_box.is_none())
+        .flat_map(|r| {
+            r.text.chars().map(|ch| {
+                estimate_word_width(
+                    &ch.to_string(),
+                    r.font_size,
+                    &r.font_family,
+                    r.bold,
+                    r.italic,
+                    fonts,
+                )
+            })
+        })
+        .fold(0.0f32, f32::max)
+}
+
 // ---------------------------------------------------------------------------
 // collect_text_runs / collect_text_runs_inner
 // ---------------------------------------------------------------------------
@@ -1561,19 +1685,29 @@ fn build_inline_box(
         ancestors,
         counter_state,
     );
+    let wrap_inner_width = if !has_explicit_width
+        && style.width_keyword == Some(IntrinsicWidthKeyword::MinContent)
+        && style.overflow_wrap == OverflowWrap::Anywhere
+    {
+        min_content_anywhere_width(&runs, fonts).max(1.0)
+    } else {
+        inner_width.max(1.0)
+    };
     let lines = if runs.is_empty() {
         Vec::new()
     } else {
         wrap_text_runs(
             runs,
             TextWrapOptions::new(
-                inner_width.max(1.0),
+                wrap_inner_width,
                 style.font_size,
                 resolved_line_height_factor(style, fonts),
                 style.overflow_wrap,
             )
             .with_rtl(style.direction_rtl)
-            .with_bidi_override(style.bidi_override),
+            .with_bidi_override(style.bidi_override)
+            .with_bidi_plaintext(style.bidi_plaintext)
+            .with_word_break_keep_all(style.word_break_keep_all),
             fonts,
         )
     };
@@ -1585,6 +1719,13 @@ fn build_inline_box(
         } else {
             child_w
         }
+    } else if style.width_keyword == Some(IntrinsicWidthKeyword::MinContent)
+        && style.overflow_wrap == OverflowWrap::Anywhere
+    {
+        lines
+            .iter()
+            .map(|l| crate::layout::helpers::measure_runs_width(&l.runs, fonts))
+            .fold(0.0f32, f32::max)
     } else {
         // Shrink-to-fit width must use the REAL bundled-font advances per line
         // (the former str_width is Helvetica AFM and mis-sizes a ParitySans run,
@@ -1882,15 +2023,16 @@ fn collect_text_runs_inner(
                             collect_inline_plain_text(&el.children, &mut footnote_text);
                             let footnote_text = collapse_whitespace(&footnote_text);
                             if !footnote_text.is_empty() {
-                                let marker = (runs
-                                    .iter()
-                                    .filter(|run| {
-                                        run.link_url
-                                            .as_deref()
-                                            .and_then(decode_footnote_link)
-                                            .is_some()
-                                    })
-                                    .count()
+                                let marker = (counter_state.get("footnote")
+                                    + runs
+                                        .iter()
+                                        .filter(|run| {
+                                            run.link_url
+                                                .as_deref()
+                                                .and_then(decode_footnote_link)
+                                                .is_some()
+                                        })
+                                        .count() as i32
                                     + 1)
                                 .to_string();
                                 push_styled_run(
@@ -2017,6 +2159,7 @@ fn collect_text_runs_inner(
                             fonts,
                             counter_state,
                         );
+                        resolve_target_attrs_in_last_run(runs, el);
                         collect_text_runs_inner(
                             &el.children,
                             &style,
@@ -2035,6 +2178,7 @@ fn collect_text_runs_inner(
                             fonts,
                             counter_state,
                         );
+                        resolve_target_attrs_in_last_run(runs, el);
                     }
                 }
             }

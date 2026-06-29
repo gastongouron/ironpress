@@ -5,9 +5,9 @@ use crate::style::computed::{
     AlignItems, BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
     BackgroundSize, BorderCollapse, BorderSides, BoxShadow, Clear, ComputedStyle, ConicGradient,
     Display, Float, FontFamily, FontStyle, FontWeight, LinearGradient, ListStylePosition,
-    ListStyleType, Overflow, Position, RadialGradient, TextAlign, Transform, TransformBox,
-    TransformOrigin, VerticalAlign, Visibility, compute_pseudo_element_style,
-    compute_style_with_context,
+    ListStyleType, Overflow, Position, RadialGradient, TARGET_PLACEHOLDER_END,
+    TARGET_PLACEHOLDER_START, TextAlign, Transform, TransformBox, TransformOrigin, VerticalAlign,
+    Visibility, compute_pseudo_element_style, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -349,6 +349,7 @@ pub struct TextRun {
 const FOOTNOTE_LINK_PREFIX: &str = "ironpress-footnote:";
 const FOOTNOTE_LINK_SEPARATOR: char = '\u{1f}';
 pub(crate) const FOOTNOTE_CALL_FONT_SCALE: f32 = 0.96;
+const TARGET_ANCHOR_PREFIX: &str = "ironpress-target-anchor:";
 
 pub(crate) fn encode_footnote_link(marker: &str, text: &str) -> String {
     format!("{FOOTNOTE_LINK_PREFIX}{marker}{FOOTNOTE_LINK_SEPARATOR}{text}")
@@ -358,6 +359,10 @@ pub(crate) fn decode_footnote_link(value: &str) -> Option<(String, String)> {
     let payload = value.strip_prefix(FOOTNOTE_LINK_PREFIX)?;
     let (marker, text) = payload.split_once(FOOTNOTE_LINK_SEPARATOR)?;
     Some((marker.to_string(), text.to_string()))
+}
+
+pub(crate) fn is_internal_target_anchor(value: &str) -> bool {
+    value.starts_with(TARGET_ANCHOR_PREFIX)
 }
 
 /// An atomic inline-level box laid out inside a line of text, produced for
@@ -441,6 +446,8 @@ pub struct FootnoteItem {
     pub bold: bool,
     pub italic: bool,
     pub color: (f32, f32, f32),
+    pub marker_color: (f32, f32, f32),
+    pub marker_prefix: String,
     pub font_family: FontFamily,
     pub line_height_factor: f32,
 }
@@ -449,14 +456,17 @@ impl FootnoteItem {
     pub(crate) fn text_runs(&self) -> Vec<TextRun> {
         vec![
             TextRun {
-                text: format!("{}. ", self.marker),
+                text: self
+                    .marker_prefix
+                    .replace("{marker}", &self.marker)
+                    .replace("{counter}", &self.marker),
                 font_size: self.font_size,
                 bold: self.bold,
                 italic: self.italic,
                 underline: false,
                 line_through: false,
                 overline: false,
-                color: self.color,
+                color: self.marker_color,
                 decoration_color: None,
                 link_url: None,
                 font_family: self.font_family.clone(),
@@ -716,7 +726,10 @@ pub enum LayoutElement {
         src_crop: Option<[f32; 4]>,
     },
     /// A horizontal rule.
-    HorizontalRule { margin_top: f32, margin_bottom: f32 },
+    HorizontalRule {
+        margin_top: f32,
+        margin_bottom: f32,
+    },
     /// An inline SVG element.
     Svg {
         /// The parsed SVG tree.
@@ -732,6 +745,8 @@ pub enum LayoutElement {
         margin_top: f32,
         /// Bottom margin.
         margin_bottom: f32,
+        background_color: Option<(f32, f32, f32, f32)>,
+        border: LayoutBorder,
     },
     /// A flex row with cells positioned horizontally.
     #[allow(dead_code)]
@@ -895,6 +910,10 @@ pub enum LayoutElement {
         name: String,
         element: Box<LayoutElement>,
     },
+    NamedString {
+        name: String,
+        value: String,
+    },
     /// A forced page break, carrying the requested page parity (CSS
     /// Fragmentation 3 §3.1). `PageBreakSide::Any` is a plain break. The
     /// optional second field is the CSS Paged Media 3 §3.4 `page: <name>` of
@@ -979,6 +998,11 @@ pub struct Page {
     pub elements: Vec<(f32, LayoutElement)>, // (y_position, element)
     /// Running elements active on this page, keyed by `position: running(name)`.
     pub running_elements: HashMap<String, LayoutElement>,
+    /// Running element names captured on this page, used by
+    /// `element(name, first-except)` to suppress the defining page.
+    pub running_elements_started: std::collections::HashSet<String>,
+    /// Named strings active on this page, keyed by `string-set` name.
+    pub named_strings: HashMap<String, String>,
     /// CSS GCPM footnotes collected while laying out this page.
     pub footnotes: Vec<FootnoteItem>,
     /// Per-page margin override (CSS Paged Media 3 §3 page-context cascade).
@@ -1124,6 +1148,7 @@ pub fn layout_with_rules(
         rules,
         &HashMap::new(),
         None,
+        0.0,
         super::paginate::PageMarginOverrides::default(),
     )
 }
@@ -1143,6 +1168,7 @@ fn collect_id_defs(nodes: &[DomNode], defs: &mut HashMap<String, ElementNode>) {
 }
 
 /// Lay out the DOM nodes into pages with stylesheet rules and custom fonts.
+#[allow(clippy::too_many_arguments)]
 pub fn layout_with_rules_and_fonts(
     nodes: &[DomNode],
     page_size: PageSize,
@@ -1150,6 +1176,7 @@ pub fn layout_with_rules_and_fonts(
     rules: &[CssRule],
     custom_fonts: &HashMap<String, TtfFont>,
     page_background: Option<&ComputedStyle>,
+    page_bleed: f32,
     page_margin_overrides: super::paginate::PageMarginOverrides,
 ) -> Vec<Page> {
     // Expose the loaded fonts to style resolution for the whole pass so the
@@ -1231,16 +1258,16 @@ pub fn layout_with_rules_and_fonts(
                 padding_left: 0.0,
                 padding_right: 0.0,
                 border: LayoutBorder::default(),
-                block_width: Some(page_size.width),
-                block_height: Some(page_size.height),
+                block_width: Some(page_size.width + 2.0 * page_bleed),
+                block_height: Some(page_size.height + 2.0 * page_bleed),
                 opacity: 1.0,
                 mix_blend_mode: crate::style::computed::BlendMode::Normal,
                 background_blend_mode: crate::style::computed::BlendMode::Normal,
                 float: Float::None,
                 clear: Clear::None,
                 position: Position::Absolute,
-                offset_top: -margin.top,
-                offset_left: -margin.left,
+                offset_top: -margin.top - page_bleed,
+                offset_left: -margin.left - page_bleed,
                 offset_bottom: 0.0,
                 offset_right: 0.0,
                 containing_block: None,
@@ -1359,6 +1386,8 @@ pub fn layout_with_rules_and_fonts(
 
     let ancestors: Vec<AncestorInfo> = Vec::new();
     let mut counter_state = CounterState::default();
+    counter_state.apply_resets(&parent_style.counter_reset);
+    counter_state.apply_increments(&parent_style.counter_increment);
     let root_ctx = LayoutContext {
         viewport: Viewport {
             width: available_width,
@@ -1431,14 +1460,18 @@ pub fn layout_with_rules_and_fonts(
                 )
             })
             .collect();
-    super::paginate::paginate_with_first_page(
+    let mut pages = super::paginate::paginate_with_first_page(
         elements,
         content_height,
         parent_style.margin.top + parent_style.padding.top,
         first_page,
         page_margin_overrides.spread,
         named_pages,
-    )
+    );
+    let mut dom_targets = HashMap::new();
+    collect_dom_targets(nodes, &mut dom_targets);
+    resolve_target_placeholders(&mut pages, &dom_targets);
+    pages
 }
 
 fn collect_plain_text(nodes: &[DomNode], out: &mut String) {
@@ -1450,6 +1483,190 @@ fn collect_plain_text(nodes: &[DomNode], out: &mut String) {
             }
             DomNode::Element(el) => collect_plain_text(&el.children, out),
         }
+    }
+}
+
+fn string_set_marker(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) -> Option<LayoutElement> {
+    let raw = match authored_property_value(el, rules, ancestors, selector_ctx, "string-set")? {
+        crate::parser::css::CssValue::Keyword(value) => value,
+        _ => return None,
+    };
+    let mut parts = raw.splitn(2, char::is_whitespace);
+    let name = parts.next()?.trim().to_ascii_lowercase();
+    let value_expr = parts.next().unwrap_or("").trim();
+    if name.is_empty() {
+        return None;
+    }
+    let value = if value_expr.eq_ignore_ascii_case("content()") {
+        let mut text = String::new();
+        collect_plain_text(&el.children, &mut text);
+        collapse_whitespace(&text)
+    } else if value_expr.len() >= 5 && value_expr[..5].eq_ignore_ascii_case("attr(") {
+        value_expr
+            .find(')')
+            .and_then(|end| el.attributes.get(value_expr[5..end].trim()))
+            .cloned()
+            .unwrap_or_default()
+    } else {
+        value_expr
+            .trim_matches(|c| c == '"' || c == '\'')
+            .to_string()
+    };
+    Some(LayoutElement::NamedString { name, value })
+}
+
+fn collect_dom_targets(nodes: &[DomNode], out: &mut HashMap<String, String>) {
+    for node in nodes {
+        if let DomNode::Element(el) = node {
+            if let Some(id) = el.id().filter(|id| !id.is_empty()) {
+                let mut text = String::new();
+                collect_plain_text(&el.children, &mut text);
+                let text = collapse_whitespace(&text);
+                if !text.is_empty() {
+                    out.insert(id.to_string(), text);
+                }
+            }
+            collect_dom_targets(&el.children, out);
+        }
+    }
+}
+
+fn page_contains_text(page: &Page, needle: &str) -> bool {
+    page.elements
+        .iter()
+        .any(|(_, element)| element_contains_text(element, needle))
+}
+
+fn element_contains_text(element: &LayoutElement, needle: &str) -> bool {
+    match element {
+        LayoutElement::TextBlock { lines, .. } => lines.iter().any(|line| {
+            let text: String = line.runs.iter().map(|run| run.text.as_str()).collect();
+            text.contains(needle)
+        }),
+        LayoutElement::Container { children, .. } => children
+            .iter()
+            .any(|child| element_contains_text(child, needle)),
+        LayoutElement::TableRow { cells, .. } | LayoutElement::GridRow { cells, .. } => {
+            cells.iter().any(|cell| {
+                cell.nested_rows
+                    .iter()
+                    .any(|row| element_contains_text(row, needle))
+            })
+        }
+        LayoutElement::FlexRow { cells, .. } => cells.iter().any(|cell| {
+            cell.nested_elements
+                .iter()
+                .any(|child| element_contains_text(child, needle))
+        }),
+        _ => false,
+    }
+}
+
+fn resolve_target_placeholders(pages: &mut [Page], dom_targets: &HashMap<String, String>) {
+    if dom_targets.is_empty() {
+        return;
+    }
+    let mut page_by_id = HashMap::new();
+    for (id, text) in dom_targets {
+        if let Some((idx, _)) = pages
+            .iter()
+            .enumerate()
+            .find(|(_, page)| page_contains_text(page, text))
+        {
+            page_by_id.insert(id.clone(), idx + 1);
+        }
+    }
+    for page in pages {
+        for (_, element) in &mut page.elements {
+            resolve_target_placeholders_in_element(element, dom_targets, &page_by_id);
+        }
+    }
+}
+
+fn resolve_target_placeholders_in_element(
+    element: &mut LayoutElement,
+    dom_targets: &HashMap<String, String>,
+    page_by_id: &HashMap<String, usize>,
+) {
+    match element {
+        LayoutElement::TextBlock { lines, .. } => {
+            for line in lines {
+                for run in &mut line.runs {
+                    if run.text.contains(TARGET_PLACEHOLDER_START) {
+                        run.text =
+                            resolve_target_placeholders_in_text(&run.text, dom_targets, page_by_id);
+                    }
+                }
+            }
+        }
+        LayoutElement::Container { children, .. } => {
+            for child in children {
+                resolve_target_placeholders_in_element(child, dom_targets, page_by_id);
+            }
+        }
+        LayoutElement::TableRow { cells, .. } | LayoutElement::GridRow { cells, .. } => {
+            for cell in cells {
+                for row in &mut cell.nested_rows {
+                    resolve_target_placeholders_in_element(row, dom_targets, page_by_id);
+                }
+            }
+        }
+        LayoutElement::FlexRow { cells, .. } => {
+            for cell in cells {
+                for child in &mut cell.nested_elements {
+                    resolve_target_placeholders_in_element(child, dom_targets, page_by_id);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn resolve_target_placeholders_in_text(
+    text: &str,
+    dom_targets: &HashMap<String, String>,
+    page_by_id: &HashMap<String, usize>,
+) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(TARGET_PLACEHOLDER_START) {
+        out.push_str(&rest[..start]);
+        let payload_start = start + TARGET_PLACEHOLDER_START.len();
+        let Some(end_rel) = rest[payload_start..].find(TARGET_PLACEHOLDER_END) else {
+            out.push_str(&rest[start..]);
+            return out;
+        };
+        let payload = &rest[payload_start..payload_start + end_rel];
+        out.push_str(&resolve_target_payload(payload, dom_targets, page_by_id));
+        rest = &rest[payload_start + end_rel + TARGET_PLACEHOLDER_END.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
+fn resolve_target_payload(
+    payload: &str,
+    dom_targets: &HashMap<String, String>,
+    page_by_id: &HashMap<String, usize>,
+) -> String {
+    let mut parts = payload.split('|');
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some("counter"), Some(target), Some("page")) => target
+            .strip_prefix('#')
+            .and_then(|id| page_by_id.get(id))
+            .map(|page| page.to_string())
+            .unwrap_or_default(),
+        (Some("text"), Some(target), _) => target
+            .strip_prefix('#')
+            .and_then(|id| dom_targets.get(id))
+            .cloned()
+            .unwrap_or_default(),
+        _ => String::new(),
     }
 }
 
@@ -2161,14 +2378,7 @@ fn flatten_nodes(
                 // Whitespace between consecutive inline-block elements must
                 // not break the group — they should stay on the same row.
                 if !trimmed.is_empty() {
-                    flush_ib(
-                        &mut ib_group,
-                        parent_style,
-                        &ib_ctx,
-                        output,
-                        ancestors,
-                        env,
-                    );
+                    flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
                 }
                 if !trimmed.is_empty() {
                     flush_table_cells(
@@ -2310,6 +2520,9 @@ fn flatten_nodes(
                     &el.attributes,
                     &selector_ctx,
                 );
+                if let Some(marker) = string_set_marker(el, env.rules, ancestors, &selector_ctx) {
+                    output.push(marker);
+                }
                 if let Some(name) = style.running_name.clone() {
                     flush_table_cells(
                         &mut table_cell_group,
@@ -2322,14 +2535,7 @@ fn flatten_nodes(
                         element_count,
                         env,
                     );
-                    flush_ib(
-                        &mut ib_group,
-                        parent_style,
-                        &ib_ctx,
-                        output,
-                        ancestors,
-                        env,
-                    );
+                    flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
                     if let Some(running) =
                         build_running_element(name, el, &style, &ib_ctx, ancestors, env)
                     {
@@ -2344,14 +2550,7 @@ fn flatten_nodes(
                 }
 
                 if style.display == Display::TableCell {
-                    flush_ib(
-                        &mut ib_group,
-                        parent_style,
-                        &ib_ctx,
-                        output,
-                        ancestors,
-                        env,
-                    );
+                    flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
                     table_cell_group.push(el);
                 } else
                 // Check if this element is inline-block
@@ -2389,14 +2588,7 @@ fn flatten_nodes(
                         env,
                     );
                     // Flush any pending inline-block group
-                    flush_ib(
-                        &mut ib_group,
-                        parent_style,
-                        &ib_ctx,
-                        output,
-                        ancestors,
-                        env,
-                    );
+                    flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
                     flatten_element(
                         el,
                         parent_style,
@@ -2433,14 +2625,7 @@ fn flatten_nodes(
         element_count,
         env,
     );
-    flush_ib(
-        &mut ib_group,
-        parent_style,
-        &ib_ctx,
-        output,
-        ancestors,
-        env,
-    );
+    flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
 }
 
 /// Ordered `(tag, classes)` list of the element children of `nodes`, used to
@@ -2766,6 +2951,8 @@ pub(crate) fn flatten_element(
                 flow_extra_bottom: 0.0,
                 margin_top: style.margin.top,
                 margin_bottom: style.margin.bottom,
+                background_color: style.background_color.map(|c| c.to_f32_rgba()),
+                border: LayoutBorder::from_computed(&style.border),
             });
         }
         return;
@@ -3180,8 +3367,7 @@ pub(crate) fn flatten_element(
     }
 
     // Table handling
-    if el.tag == HtmlTag::Table || matches!(style.display, Display::Table | Display::InlineTable)
-    {
+    if el.tag == HtmlTag::Table || matches!(style.display, Display::Table | Display::InlineTable) {
         flatten_table(
             el,
             &style,
@@ -8309,6 +8495,7 @@ mod tests {
             &rules,
             &std::collections::HashMap::new(),
             Some(&page_bg),
+            0.0,
             crate::layout::paginate::PageMarginOverrides::default(),
         );
 
@@ -10522,6 +10709,7 @@ line 3</pre>
             &rules,
             &std::collections::HashMap::new(),
             None,
+            0.0,
             crate::layout::paginate::PageMarginOverrides::default(),
         );
 

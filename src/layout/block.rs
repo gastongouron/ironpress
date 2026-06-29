@@ -32,6 +32,18 @@ use super::text::{
     resolved_line_height_factor, wrap_text_runs,
 };
 
+const VERTICAL_LR_LINE_MARKER: f32 = -1_000_000.0;
+const VERTICAL_UPRIGHT_LINE_MARKER: f32 = -2_000_000.0;
+
+fn collect_plain_text_for_dir_auto(nodes: &[DomNode], out: &mut String) {
+    for node in nodes {
+        match node {
+            DomNode::Text(text) => out.push_str(text),
+            DomNode::Element(el) => collect_plain_text_for_dir_auto(&el.children, out),
+        }
+    }
+}
+
 /// Lay out a `display: block` or `display: inline-block` element.
 ///
 /// Returns `true` when the layout completed via the mixed-block-children
@@ -53,6 +65,16 @@ pub(crate) fn layout_block_element(
     env: &mut LayoutEnv,
 ) -> bool {
     let output_start_len = output.len();
+    if el.attributes.get("dir").is_some_and(|v| v == "auto") {
+        let mut text = String::new();
+        collect_plain_text_for_dir_auto(&el.children, &mut text);
+        style.direction_rtl = crate::bidi::first_strong_is_rtl(&text);
+        style.text_align = if style.direction_rtl {
+            TextAlign::Right
+        } else {
+            TextAlign::Left
+        };
+    }
     let available_width = ctx.available_width();
     let available_height = ctx.available_height();
     // Basis for percentage `width`/`min-width`/`max-width` (CSS 2.1 § 10.2):
@@ -530,6 +552,8 @@ pub(crate) fn layout_block_element(
             )
             .with_rtl(style.direction_rtl)
             .with_bidi_override(style.bidi_override)
+            .with_bidi_plaintext(style.bidi_plaintext)
+            .with_word_break_keep_all(style.word_break_keep_all)
             .with_text_indent(style.text_indent),
             fonts,
         );
@@ -1350,6 +1374,8 @@ pub(crate) fn layout_block_element(
             )
             .with_rtl(style.direction_rtl)
             .with_bidi_override(style.bidi_override)
+            .with_bidi_plaintext(style.bidi_plaintext)
+            .with_word_break_keep_all(style.word_break_keep_all)
             .with_pre_wrap(matches!(
                 style.white_space,
                 WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
@@ -1375,9 +1401,28 @@ pub(crate) fn layout_block_element(
             crate::layout::helpers::apply_first_line_style(&mut lines, fl, env.fonts);
         }
 
+        if matches!(
+            style.writing_mode,
+            crate::style::computed::WritingMode::VerticalRl
+        ) && style.text_orientation_upright
+        {
+            lines = vertical_upright_lines(&lines);
+            if let Some(first) = lines.first_mut() {
+                first.x_offset += VERTICAL_UPRIGHT_LINE_MARKER;
+            }
+        } else if matches!(
+            style.writing_mode,
+            crate::style::computed::WritingMode::VerticalRl
+        ) && let Some(first) = lines.first_mut()
+            && style.writing_mode_vertical_lr
+        {
+            first.x_offset += VERTICAL_LR_LINE_MARKER;
+        }
+
         if let Some(max_lines) = line_clamp {
             apply_line_clamp(&mut lines, max_lines, inner_width, env.fonts);
         }
+        apply_text_align_last(&mut lines, style, inner_width, env.fonts);
 
         // Apply text-overflow: ellipsis when overflow is hidden, white-space
         // is nowrap, and we have a fixed width.
@@ -1386,7 +1431,7 @@ pub(crate) fn layout_block_element(
             && style.white_space == WhiteSpace::NoWrap
             && style.width.is_some()
         {
-            apply_text_overflow_ellipsis(&mut lines, inner_width, env.fonts);
+            apply_text_overflow_ellipsis(&mut lines, inner_width, env.fonts, style.direction_rtl);
         }
 
         let bg = style
@@ -2356,6 +2401,79 @@ fn apply_line_clamp(
         text: truncated,
         ..template
     }];
+}
+
+fn apply_text_align_last(
+    lines: &mut [crate::layout::engine::TextLine],
+    style: &ComputedStyle,
+    inner_width: f32,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    let Some(align) = style.text_align_last else {
+        return;
+    };
+    let Some(line) = lines.last_mut() else {
+        return;
+    };
+    let line_width = crate::layout::helpers::measure_runs_width(&line.runs, fonts);
+    line.x_offset += match align {
+        TextAlign::Center => ((inner_width - line_width) / 2.0).max(0.0),
+        TextAlign::Right => (inner_width - line_width).max(0.0),
+        TextAlign::Left | TextAlign::Justify => 0.0,
+    };
+}
+
+fn vertical_upright_lines(
+    lines: &[crate::layout::engine::TextLine],
+) -> Vec<crate::layout::engine::TextLine> {
+    let mut out = Vec::new();
+    for line in lines {
+        for run in &line.runs {
+            if run.inline_box.is_some() {
+                out.push(crate::layout::engine::TextLine {
+                    runs: vec![run.clone()],
+                    height: line.height,
+                    x_offset: line.x_offset,
+                });
+                continue;
+            }
+            let mut digit_buf = String::new();
+            let flush_digits =
+                |buf: &mut String, out: &mut Vec<crate::layout::engine::TextLine>| {
+                    if buf.is_empty() {
+                        return;
+                    }
+                    out.push(crate::layout::engine::TextLine {
+                        runs: vec![TextRun {
+                            text: std::mem::take(buf),
+                            ..run.clone()
+                        }],
+                        height: line.height,
+                        x_offset: line.x_offset,
+                    });
+                };
+            for ch in run.text.chars() {
+                if ch.is_ascii_digit() && digit_buf.len() < 2 {
+                    digit_buf.push(ch);
+                    continue;
+                }
+                flush_digits(&mut digit_buf, &mut out);
+                if ch.is_whitespace() {
+                    continue;
+                }
+                out.push(crate::layout::engine::TextLine {
+                    runs: vec![TextRun {
+                        text: ch.to_string(),
+                        ..run.clone()
+                    }],
+                    height: line.height,
+                    x_offset: line.x_offset,
+                });
+            }
+            flush_digits(&mut digit_buf, &mut out);
+        }
+    }
+    out
 }
 
 #[derive(Debug, Clone, Copy)]

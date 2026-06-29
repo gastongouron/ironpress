@@ -2,9 +2,9 @@ use crate::parser::css::{AncestorInfo, CssRule, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BoxSizing, ComputedStyle, ConicGradient, Display, GridTrack, LinearGradient, RadialGradient,
-    TextAlign, Transform, compute_style_with_context,
+    compute_style_with_context, BackgroundClip, BackgroundOrigin, BackgroundPosition,
+    BackgroundRepeat, BackgroundSize, BoxSizing, ComputedStyle, ConicGradient, Display, GridTrack,
+    IntrinsicWidthKeyword, LinearGradient, OverflowWrap, RadialGradient, TextAlign, Transform,
 };
 use std::collections::HashMap;
 
@@ -12,9 +12,30 @@ use super::context::{LayoutContext, LayoutEnv};
 use super::engine::{BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine};
 use super::grid::layout_grid_container;
 use super::text::{
-    FlexTextRunCollector, TextWrapOptions, estimate_word_width, resolved_line_height_factor,
-    wrap_text_runs,
+    estimate_word_width, resolved_line_height_factor, wrap_text_runs, FlexTextRunCollector,
+    TextWrapOptions,
 };
+
+fn min_content_anywhere_width(
+    runs: &[crate::layout::engine::TextRun],
+    fonts: &HashMap<String, TtfFont>,
+) -> f32 {
+    runs.iter()
+        .filter(|r| r.inline_box.is_none())
+        .flat_map(|r| {
+            r.text.chars().map(|ch| {
+                estimate_word_width(
+                    &ch.to_string(),
+                    r.font_size,
+                    &r.font_family,
+                    r.bold,
+                    r.italic,
+                    fonts,
+                )
+            })
+        })
+        .fold(0.0f32, f32::max)
+}
 
 /// Check if an element computes to an atomic inline-level layout child.
 pub(crate) fn element_is_inline_block(
@@ -102,7 +123,16 @@ pub(crate) fn layout_inline_block_group(
     ancestors: &[AncestorInfo],
     fonts: &HashMap<String, TtfFont>,
 ) {
-    layout_inline_block_group_inner(elements, parent_style, ctx, output, rules, ancestors, fonts, None);
+    layout_inline_block_group_inner(
+        elements,
+        parent_style,
+        ctx,
+        output,
+        rules,
+        ancestors,
+        fonts,
+        None,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -334,17 +364,27 @@ fn layout_inline_block_group_inner(
             &child_ancestors,
         );
 
+        let wrap_inner_width = if !has_explicit_width
+            && child_style.width_keyword == Some(IntrinsicWidthKeyword::MinContent)
+            && child_style.overflow_wrap == OverflowWrap::Anywhere
+        {
+            min_content_anywhere_width(&runs, fonts).max(1.0)
+        } else {
+            inner_width.max(1.0)
+        };
         let lines = if !runs.is_empty() {
             wrap_text_runs(
                 runs,
                 TextWrapOptions::new(
-                    inner_width.max(1.0),
+                    wrap_inner_width,
                     child_style.font_size,
                     resolved_line_height_factor(&child_style, fonts),
                     child_style.overflow_wrap,
                 )
                 .with_rtl(child_style.direction_rtl)
-                .with_bidi_override(child_style.bidi_override),
+                .with_bidi_override(child_style.bidi_override)
+                .with_bidi_plaintext(child_style.bidi_plaintext)
+                .with_word_break_keep_all(child_style.word_break_keep_all),
                 fonts,
             )
         } else {

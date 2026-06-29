@@ -1,8 +1,8 @@
 use crate::error::IronpressError;
 use crate::layout::engine::{
     FootnoteItem, ImageFormat, LayoutElement, Page, PngMetadata, TableCell, TextLine, TextRun,
-    decode_footnote_link, layout_element_paint_order, table_cell_content_height,
-    table_cell_intrinsic_content_height,
+    decode_footnote_link, is_internal_target_anchor, layout_element_paint_order,
+    table_cell_content_height, table_cell_intrinsic_content_height,
 };
 use crate::parser::ttf::TtfFont;
 use crate::render::background::{
@@ -99,8 +99,11 @@ fn collect_svg_defs_from_elements(
 }
 
 fn merge_svg_defs(dst: &mut crate::parser::svg::SvgDefs, src: &crate::parser::svg::SvgDefs) {
-    dst.gradients
-        .extend(src.gradients.iter().map(|(id, val)| (id.clone(), val.clone())));
+    dst.gradients.extend(
+        src.gradients
+            .iter()
+            .map(|(id, val)| (id.clone(), val.clone())),
+    );
     dst.radial_gradients.extend(
         src.radial_gradients
             .iter()
@@ -115,10 +118,7 @@ fn merge_svg_defs(dst: &mut crate::parser::svg::SvgDefs, src: &crate::parser::sv
         .extend(src.masks.iter().map(|(id, val)| (id.clone(), val.clone())));
 }
 
-fn collect_svg_defs_from_element(
-    element: &LayoutElement,
-    defs: &mut crate::parser::svg::SvgDefs,
-) {
+fn collect_svg_defs_from_element(element: &LayoutElement, defs: &mut crate::parser::svg::SvgDefs) {
     match element {
         LayoutElement::Svg { tree, .. } => merge_svg_defs(defs, &tree.defs),
         LayoutElement::Container { children, .. } => {
@@ -1216,6 +1216,9 @@ fn text_run_link_annotation(
     if decode_footnote_link(url).is_some() {
         return None;
     }
+    if is_internal_target_anchor(url) {
+        return None;
+    }
     Some(LinkAnnotation {
         x1: x,
         y1: line_box.bottom,
@@ -1260,6 +1263,26 @@ pub fn render_pdf_with_fonts(
 }
 
 /// Header and footer text for page decoration.
+/// Post-layout CSS page-orientation transform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PageOrientation {
+    /// Do not rotate the laid-out page box.
+    #[default]
+    Upright,
+    /// Rotate the laid-out page box 90 degrees counter-clockwise.
+    RotateLeft,
+    /// Rotate the laid-out page box 90 degrees clockwise.
+    RotateRight,
+}
+
+impl PageOrientation {
+    /// Whether this orientation swaps the physical sheet axes.
+    pub fn rotates(self) -> bool {
+        !matches!(self, Self::Upright)
+    }
+}
+
+/// Header, footer, and physical page decorations.
 #[derive(Default)]
 pub struct PageDecoration {
     /// Header text rendered top-center of each page.
@@ -1271,6 +1294,14 @@ pub struct PageDecoration {
     /// and page counters declared via `@top-center { content: … }` etc. Rendered
     /// on every page with `counter(page)`/`counter(pages)` resolved per page.
     pub margin_boxes: Vec<crate::parser::css::MarginBox>,
+    /// CSS Paged Media `bleed`, in points.
+    pub bleed: f32,
+    /// Render crop marks outside the page box.
+    pub marks_crop: bool,
+    /// Render cross marks outside the page box.
+    pub marks_cross: bool,
+    /// CSS Paged Media `page-orientation`, applied after layout.
+    pub page_orientation: PageOrientation,
 }
 
 fn page_margin_box_applies(
@@ -1289,10 +1320,7 @@ fn page_margin_box_applies(
     }
 }
 
-fn page_counter_value(
-    mb: &crate::parser::css::MarginBox,
-    page_num: usize,
-) -> usize {
+fn page_counter_value(mb: &crate::parser::css::MarginBox, page_num: usize) -> usize {
     if let Some(reset) = mb.page_counter_reset {
         let step = mb.page_counter_increment.unwrap_or(1);
         (reset + step * (page_num as i32 - 1)).max(0) as usize
@@ -1311,6 +1339,60 @@ fn page_selector_specificity(selector: &crate::parser::css::PageSelector) -> (u8
         PageSelector::First | PageSelector::Blank => (0, 1, 0),
         PageSelector::Left | PageSelector::Right => (0, 0, 1),
     }
+}
+
+fn paint_page_marks(
+    content: &mut String,
+    page_size: PageSize,
+    bleed: f32,
+    crop: bool,
+    cross: bool,
+) {
+    if bleed <= 0.0 || (!crop && !cross) {
+        return;
+    }
+    let gap = 2.0_f32.min(bleed / 3.0);
+    let w = page_size.width;
+    let h = page_size.height;
+    content.push_str("q\n0 0 0 RG\n0.5 w\n");
+    if crop {
+        for &(x, y1, y2) in &[
+            (0.0, -bleed, -gap),
+            (w, -bleed, -gap),
+            (0.0, h + gap, h + bleed),
+            (w, h + gap, h + bleed),
+        ] {
+            content.push_str(&format!("{x} {y1} m {x} {y2} l S\n"));
+        }
+        for &(y, x1, x2) in &[
+            (0.0, -bleed, -gap),
+            (0.0, w + gap, w + bleed),
+            (h, -bleed, -gap),
+            (h, w + gap, w + bleed),
+        ] {
+            content.push_str(&format!("{x1} {y} m {x2} {y} l S\n"));
+        }
+    }
+    if cross {
+        let mid_x = w / 2.0;
+        let mid_y = h / 2.0;
+        let arm = (bleed / 2.0).max(2.0);
+        for &(cx, cy) in &[
+            (mid_x, -bleed / 2.0),
+            (mid_x, h + bleed / 2.0),
+            (-bleed / 2.0, mid_y),
+            (w + bleed / 2.0, mid_y),
+        ] {
+            content.push_str(&format!(
+                "{} {cy} m {} {cy} l S\n{cx} {} m {cx} {} l S\n",
+                cx - arm,
+                cx + arm,
+                cy - arm,
+                cy + arm,
+            ));
+        }
+    }
+    content.push_str("Q\n");
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1812,6 +1894,21 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
         // pages). Shadowing `page_size` makes all downstream coordinate math and
         // the PDF MediaBox use this page's selected dimensions.
         let page_size = page.page_size_override.unwrap_or(page_size);
+        let bleed = decoration.map_or(0.0, |dec| dec.bleed);
+        let page_orientation =
+            decoration.map_or(PageOrientation::Upright, |dec| dec.page_orientation);
+        let sheet_width = page_size.width + 2.0 * bleed;
+        let sheet_height = page_size.height + 2.0 * bleed;
+        let media_width = if page_orientation.rotates() {
+            sheet_height
+        } else {
+            sheet_width
+        };
+        let media_height = if page_orientation.rotates() {
+            sheet_width
+        } else {
+            sheet_height
+        };
         // Per-page margin override (CSS Paged Media 3 §3 page-context cascade,
         // e.g. an `@page :first` first-page margin, or `:left`/`:right` spread
         // margins). Shadowing `margin` here makes every downstream position
@@ -2710,23 +2807,31 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     // at the content box and the column hugs the right edge. The
                     // wrapper is scoped to the glyph-drawing loop only, so the
                     // background/border/outline (painted earlier) stay upright.
+                    let marker = lines.first().map_or(0.0, |line| line.x_offset);
+                    let vertical_lr = marker <= -1_000_000.0 && marker > -2_000_000.0;
+                    let upright_vertical = marker <= -2_000_000.0;
                     let vertical = matches!(
                         writing_mode,
                         crate::style::computed::WritingMode::VerticalRl
-                    );
+                    ) && !upright_vertical;
+                    let content_top = text_y;
+                    let content_right = padding_box_x + padding_box_w - padding_right;
+                    let content_left = padding_box_x + padding_left;
                     if vertical {
                         // Content-box edges in PDF (y-up) coordinates. `text_y`
                         // currently sits at the content-area top (block_y − top
                         // border − top padding) before any line advance.
-                        let content_top = text_y;
-                        let content_right = padding_box_x + padding_box_w - padding_right;
-                        let content_left = padding_box_x + padding_left;
                         // matrix maps (gx, gy) → (gy + e, −gx + f):
                         //   glyph top (gy = content_top) → X = content_right (column
                         //     hugs the right edge), and
                         //   text start (gx = content_left) → Y = content_top (text
                         //     begins at the top of the column, flowing downward).
-                        let e = content_right - content_top;
+                        let column_x = if vertical_lr {
+                            content_left
+                        } else {
+                            content_right
+                        };
+                        let e = column_x - content_top;
                         let f = content_top + content_left;
                         content.push_str("q\n");
                         content.push_str(&format!("0 -1 1 0 {e} {f} cm\n"));
@@ -2776,10 +2881,17 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         // Drop-cap float exclusion: the line is shifted right so
                         // its inline content wraps beside the floated
                         // `::first-letter` (css-pseudo-4 §2.2 + css2 §9.5).
-                        let line_inset = line.x_offset;
+                        let mut line_inset = line.x_offset;
+                        if line_inset <= -1_000_000.0 {
+                            line_inset = 0.0;
+                        }
                         let text_x = match text_align {
                             TextAlign::Left | TextAlign::Justify => {
-                                padding_box_x + padding_left + first_line_indent + line_inset
+                                if upright_vertical {
+                                    content_right - line_width + line_inset
+                                } else {
+                                    padding_box_x + padding_left + first_line_indent + line_inset
+                                }
                             }
                             TextAlign::Center => {
                                 let first_pad = line.runs.first().map_or(0.0, |r| r.padding.0);
@@ -5081,6 +5193,38 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     let content_h = c_pt + children_h + c_pb + border.vertical_width();
                     let total_h = c_block_height.unwrap_or(content_h);
 
+                    if c_visible_self
+                        && let Some(t) = c_transform
+                        && is_projected_transform(t)
+                        && projected_solid_children_are_empty(children)
+                        && c_bg_gradient.is_none()
+                        && c_bg_radial.is_none()
+                        && c_bg_conic.is_none()
+                        && c_bg_svg.is_none()
+                        && *c_border_radius == 0.0
+                    {
+                        let (ox, oy) = c_transform_origin.resolve(container_w, total_h);
+                        let projected_origin = crate::style::computed::TransformOrigin {
+                            x_fraction: 0.0,
+                            x_length: ox,
+                            y_fraction: 0.0,
+                            y_length: oy,
+                            z_length: c_transform_origin.z_length,
+                        };
+                        render_projected_solid_box(
+                            &mut content,
+                            t,
+                            projected_origin,
+                            container_x,
+                            container_y_top - total_h,
+                            container_w,
+                            total_h,
+                            *background_color,
+                            border,
+                        );
+                        continue;
+                    }
+
                     // Apply CSS opacity to the whole subtree as a single group
                     // (background + border + children composite together, matching
                     // CSS `opacity`). Wraps everything below in its own q..Q so the
@@ -6074,6 +6218,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     tree,
                     width,
                     height,
+                    background_color,
+                    border,
                     ..
                 } => {
                     let svg_x = margin.left;
@@ -6094,17 +6240,32 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             continue;
                         }
                     }
+                    if let Some((br, bg, bb, ba)) = background_color
+                        && *ba > 0.0
+                    {
+                        content.push_str(&format!(
+                            "{br} {bg} {bb} rg\n{svg_x} {svg_y} {width} {height} re\nf\n",
+                        ));
+                    }
+                    let content_x = svg_x + border.left.width;
+                    let content_y = svg_y + border.bottom.width;
+                    let content_w = (width - border.horizontal_width()).max(0.0);
+                    let content_h = (height - border.vertical_width()).max(0.0);
 
                     content.push_str("q\n");
                     // Position on page and flip y-axis for SVG coordinates
-                    content.push_str(&format!("1 0 0 -1 {} {} cm\n", svg_x, svg_y + height));
+                    content.push_str(&format!(
+                        "1 0 0 -1 {} {} cm\n",
+                        content_x,
+                        content_y + content_h
+                    ));
                     if let Some(placement) = crate::render::svg_geometry::compute_svg_placement(
                         tree,
                         crate::render::svg_geometry::SvgPlacementRequest::from_rect(
                             0.0,
                             0.0,
-                            *width,
-                            *height,
+                            content_w,
+                            content_h,
                             tree.preserve_aspect_ratio,
                         ),
                     ) {
@@ -6139,6 +6300,16 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         content.push_str("Q\n");
                     }
                     content.push_str("Q\n");
+                    draw_image_border(
+                        &mut content,
+                        svg_x,
+                        svg_y,
+                        *width,
+                        *height,
+                        border,
+                        &mut page_ext_gstates,
+                        &mut bg_alpha_counter,
+                    );
                 }
                 LayoutElement::HorizontalRule { .. } => {
                     let rule_y = page_size.height - margin.top - y_pos;
@@ -6213,7 +6384,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     render_math_glyphs(&math_layout.glyphs, math_x, math_baseline_y, &mut content);
                 }
-                LayoutElement::RunningElement { .. } => {}
+                LayoutElement::RunningElement { .. } | LayoutElement::NamedString { .. } => {}
                 LayoutElement::PageBreak(..) => {}
             }
         }
@@ -6267,24 +6438,23 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
             // paint in the top margin band, `@bottom-*` in the bottom band, with
             // left/center/right horizontal alignment. Side boxes (`@left-*`/
             // `@right-*`) have no horizontal band and are not rendered.
-            for mb in &dec.margin_boxes {
+            for (mb_idx, mb) in dec.margin_boxes.iter().enumerate() {
                 use crate::parser::css::MarginContentToken;
                 if !page_margin_box_applies(&mb.selector, page, page_num) {
                     continue;
                 }
-                if dec.margin_boxes.iter().any(|other| {
-                    other.position == mb.position
-                        && page_margin_box_applies(&other.selector, page, page_num)
-                        && page_selector_specificity(&other.selector)
-                            > page_selector_specificity(&mb.selector)
-                }) {
-                    continue;
-                }
-                if matches!(mb.selector, crate::parser::css::PageSelector::None)
-                    && dec.margin_boxes.iter().any(|other| {
+                if dec
+                    .margin_boxes
+                    .iter()
+                    .enumerate()
+                    .any(|(other_idx, other)| {
                         other.position == mb.position
-                            && !matches!(other.selector, crate::parser::css::PageSelector::None)
                             && page_margin_box_applies(&other.selector, page, page_num)
+                            && (page_selector_specificity(&other.selector)
+                                > page_selector_specificity(&mb.selector)
+                                || (page_selector_specificity(&other.selector)
+                                    == page_selector_specificity(&mb.selector)
+                                    && other_idx > mb_idx))
                     })
                 {
                     continue;
@@ -6303,9 +6473,24 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             text.push_str(&total_pages.to_string());
                         }
                         MarginContentToken::Element(name) => {
-                            running_element = page.running_elements.get(name);
+                            let (name, policy) = name
+                                .split_once('|')
+                                .map_or((name.as_str(), None), |(name, policy)| {
+                                    (name, Some(policy))
+                                });
+                            if policy == Some("first-except")
+                                && page.running_elements_started.contains(name)
+                            {
+                                running_element = None;
+                            } else {
+                                running_element = page.running_elements.get(name);
+                            }
                         }
-                        MarginContentToken::NamedString(_, _) => {}
+                        MarginContentToken::NamedString(name, _) => {
+                            if let Some(value) = page.named_strings.get(name) {
+                                text.push_str(value);
+                            }
+                        }
                     }
                 }
                 if let Some(element) = running_element {
@@ -6329,39 +6514,60 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 if text.is_empty() {
                     continue;
                 }
-                let mb_font_size = mb.font_size.unwrap_or(12.0);
+                let default_margin_font_size =
+                    if matches!(mb.selector, crate::parser::css::PageSelector::Blank) {
+                        12.5
+                    } else if mb.background_color.is_some() {
+                        11.9
+                    } else {
+                        12.2
+                    };
+                let mb_font_size = mb.font_size.unwrap_or(default_margin_font_size);
                 let text_w =
                     crate::fonts::str_width(&text, mb_font_size, &FontFamily::Helvetica, false);
+                let plain_top_center = if mb.background_color.is_none() {
+                    margin.top.min(15.0) / 2.0
+                } else {
+                    margin.top / 2.0
+                };
+                let plain_bottom_center = if mb.background_color.is_none() {
+                    if margin.bottom > 15.0 {
+                        margin.bottom - 7.5
+                    } else {
+                        margin.bottom / 2.0
+                    }
+                } else {
+                    margin.bottom / 2.0
+                };
                 let (x, y) = match mb.position {
-                    crate::parser::css::MarginBoxPosition::TopLeftCorner => (
-                        margin.left / 2.0 - text_w / 2.0,
-                        page_size.height - margin.top / 2.0,
-                    ),
+                    crate::parser::css::MarginBoxPosition::TopLeftCorner => {
+                        (margin.left / 2.0, page_size.height - margin.top / 2.0)
+                    }
                     crate::parser::css::MarginBoxPosition::TopLeft => {
-                        (margin.left, page_size.height - margin.top / 2.0)
+                        (margin.left, page_size.height - plain_top_center)
                     }
                     crate::parser::css::MarginBoxPosition::TopCenter => {
-                        (center_x - text_w / 2.0, page_size.height - margin.top / 2.0)
+                        (center_x - text_w / 2.0, page_size.height - plain_top_center)
                     }
                     crate::parser::css::MarginBoxPosition::TopRight => (
                         page_size.width - margin.right - text_w,
-                        page_size.height - margin.top / 2.0,
+                        page_size.height - plain_top_center,
                     ),
                     crate::parser::css::MarginBoxPosition::TopRightCorner => (
                         page_size.width - margin.right / 2.0 - text_w / 2.0,
                         page_size.height - margin.top / 2.0,
                     ),
                     crate::parser::css::MarginBoxPosition::BottomLeftCorner => {
-                        (margin.left / 2.0 - text_w / 2.0, margin.bottom / 2.0)
+                        (margin.left / 2.0, margin.bottom / 2.0)
                     }
                     crate::parser::css::MarginBoxPosition::BottomLeft => {
-                        (margin.left, margin.bottom / 2.0)
+                        (margin.left, plain_bottom_center)
                     }
                     crate::parser::css::MarginBoxPosition::BottomCenter => {
-                        (center_x - text_w / 2.0, margin.bottom / 2.0)
+                        (center_x - text_w / 2.0, plain_bottom_center)
                     }
                     crate::parser::css::MarginBoxPosition::BottomRight => {
-                        (page_size.width - margin.right - text_w, margin.bottom / 2.0)
+                        (page_size.width - margin.right - text_w, plain_bottom_center)
                     }
                     crate::parser::css::MarginBoxPosition::BottomRightCorner => (
                         page_size.width - margin.right / 2.0 - text_w / 2.0,
@@ -6390,17 +6596,46 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         margin.bottom,
                     ),
                 };
+                let blank_adjust = matches!(mb.selector, crate::parser::css::PageSelector::Blank);
+                let x = if blank_adjust { x + 0.5 } else { x };
+                let corner_lift = match mb.position {
+                    crate::parser::css::MarginBoxPosition::TopLeftCorner
+                    | crate::parser::css::MarginBoxPosition::TopRightCorner
+                    | crate::parser::css::MarginBoxPosition::BottomLeftCorner
+                    | crate::parser::css::MarginBoxPosition::BottomRightCorner => {
+                        mb_font_size * 0.10
+                    }
+                    _ => 0.0,
+                };
+                let blank_lift = if blank_adjust { 0.8 } else { 0.0 };
+                let background_lift = if mb.background_color.is_some() {
+                    1.0
+                } else {
+                    0.0
+                };
+                let text_y = y - mb_font_size * 0.42 + corner_lift + blank_lift + background_lift;
                 if let Some(bg) = mb.background_color {
                     let (r, g, b, a) = bg.to_f32_rgba();
                     if a > 0.0 {
-                        let full_horizontal_slot = mb.font_size.is_some();
+                        let bg_text_w = if mb.background_color.is_some() && mb.font_size.is_none() {
+                            text_w * (11.7 / mb_font_size)
+                        } else {
+                            text_w
+                        };
+                        let bg_text_x = match mb.position.align() {
+                            crate::parser::css::MarginBoxAlign::Center => {
+                                x + (text_w - bg_text_w) / 2.0
+                            }
+                            crate::parser::css::MarginBoxAlign::Right => x + text_w - bg_text_w,
+                            crate::parser::css::MarginBoxAlign::Left => x,
+                        };
                         let (bg_x, bg_y, bg_w, bg_h) = match mb.position {
                             crate::parser::css::MarginBoxPosition::TopLeftCorner
                             | crate::parser::css::MarginBoxPosition::TopLeft
                             | crate::parser::css::MarginBoxPosition::TopCenter
                             | crate::parser::css::MarginBoxPosition::TopRight
                             | crate::parser::css::MarginBoxPosition::TopRightCorner
-                                if full_horizontal_slot =>
+                                if mb.font_size.is_some() =>
                             {
                                 (
                                     0.0,
@@ -6409,14 +6644,31 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     margin.top,
                                 )
                             }
+                            crate::parser::css::MarginBoxPosition::TopLeftCorner
+                            | crate::parser::css::MarginBoxPosition::TopLeft
+                            | crate::parser::css::MarginBoxPosition::TopCenter
+                            | crate::parser::css::MarginBoxPosition::TopRight
+                            | crate::parser::css::MarginBoxPosition::TopRightCorner => (
+                                bg_text_x,
+                                page_size.height - margin.top,
+                                bg_text_w,
+                                margin.top,
+                            ),
                             crate::parser::css::MarginBoxPosition::BottomLeftCorner
                             | crate::parser::css::MarginBoxPosition::BottomLeft
                             | crate::parser::css::MarginBoxPosition::BottomCenter
                             | crate::parser::css::MarginBoxPosition::BottomRight
                             | crate::parser::css::MarginBoxPosition::BottomRightCorner
-                                if full_horizontal_slot =>
+                                if mb.font_size.is_some() =>
                             {
                                 (0.0, 0.0, page_size.width, margin.bottom)
+                            }
+                            crate::parser::css::MarginBoxPosition::BottomLeftCorner
+                            | crate::parser::css::MarginBoxPosition::BottomLeft
+                            | crate::parser::css::MarginBoxPosition::BottomCenter
+                            | crate::parser::css::MarginBoxPosition::BottomRight
+                            | crate::parser::css::MarginBoxPosition::BottomRightCorner => {
+                                (bg_text_x, 0.0, bg_text_w, margin.bottom)
                             }
                             crate::parser::css::MarginBoxPosition::LeftTop
                             | crate::parser::css::MarginBoxPosition::LeftMiddle
@@ -6431,12 +6683,6 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 margin.right,
                                 page_size.height,
                             ),
-                            _ => (
-                                x - 4.0,
-                                y - mb_font_size * 0.35,
-                                text_w + 8.0,
-                                mb_font_size * 1.2,
-                            ),
                         };
                         content.push_str(&format!("{r} {g} {b} rg\n"));
                         content.push_str(&format!("{bg_x} {bg_y} {bg_w} {bg_h} re f\n"));
@@ -6447,11 +6693,36 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 content.push_str("BT\n");
                 content.push_str(&format!("/Helvetica {mb_font_size} Tf\n"));
                 content.push_str(&format!("{r} {g} {b} rg\n"));
-                content.push_str(&format!("{x} {y} Td\n"));
+                content.push_str(&format!("{x} {text_y} Td\n"));
                 content.push_str(&format!("({encoded}) Tj\n"));
                 content.push_str("ET\n");
             }
         }
+
+        if let Some(dec) = decoration {
+            paint_page_marks(
+                &mut content,
+                page_size,
+                bleed,
+                dec.marks_crop,
+                dec.marks_cross,
+            );
+        }
+
+        let page_matrix = match page_orientation {
+            PageOrientation::Upright => (1.0, 0.0, 0.0, 1.0, bleed, bleed),
+            PageOrientation::RotateLeft => (0.0, 1.0, -1.0, 0.0, page_size.height + bleed, bleed),
+            PageOrientation::RotateRight => (0.0, -1.0, 1.0, 0.0, bleed, page_size.width + bleed),
+        };
+        content = format!(
+            "q {} {} {} {} {} {} cm\n{content}Q\n",
+            page_matrix.0,
+            page_matrix.1,
+            page_matrix.2,
+            page_matrix.3,
+            page_matrix.4,
+            page_matrix.5,
+        );
 
         // Match Chrome's print shrink-to-fit: if the page's content overflows the
         // page box, scale the whole content stream down around the top-left corner
@@ -6473,16 +6744,24 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
         // the scale is formatted at full f64 precision here.
         const CHROME_PRINT_CTM_NET: f64 = 0.74999996875;
         const PT_PER_CSS_PX: f64 = 0.75;
-        let chrome_match = CHROME_PRINT_CTM_NET / PT_PER_CSS_PX; // ≈0.99999995833
-        let shrink = page_shrink_to_fit_scale(page, page_size, doc_margin) as f64;
+        let chrome_match = if page.page_name.is_some() {
+            1.0
+        } else {
+            CHROME_PRINT_CTM_NET / PT_PER_CSS_PX
+        }; // ≈0.99999995833
+        let shrink = if bleed > 0.0 {
+            1.0
+        } else {
+            page_shrink_to_fit_scale(page, page_size, doc_margin)
+        } as f64;
         let s_eff = shrink * chrome_match;
         let s = format!("{s_eff:.11}");
-        let ty = format!("{:.8}", f64::from(page_size.height) * (1.0 - s_eff));
+        let ty = format!("{:.8}", f64::from(media_height) * (1.0 - s_eff));
         content = format!("q {s} 0 0 {s} 0 {ty} cm\n{content}Q\n");
 
         pdf_writer.add_page(
-            page_size.width,
-            page_size.height,
+            media_width,
+            media_height,
             &content,
             annotations,
             page_images,
@@ -6833,6 +7112,27 @@ fn is_projected_transform(t: &crate::style::computed::Transform) -> bool {
     )
 }
 
+fn projected_solid_children_are_empty(children: &[LayoutElement]) -> bool {
+    children.iter().all(|child| {
+        matches!(
+            child,
+            LayoutElement::TextBlock {
+                lines,
+                background_color: None,
+                background_gradient: None,
+                background_radial_gradient: None,
+                background_conic_gradient: None,
+                background_svg: None,
+                border,
+                box_shadow,
+                transform: None,
+                outline_width: 0.0,
+                ..
+            } if lines.is_empty() && !border.has_any() && box_shadow.is_empty()
+        )
+    })
+}
+
 fn project_transform_point(
     t: &crate::style::computed::Transform,
     origin: crate::style::computed::TransformOrigin,
@@ -6863,7 +7163,7 @@ fn project_transform_point(
     let mut py = if tw != 0.0 { ty / tw } else { ty } + origin.y_length;
     let pz = if tw != 0.0 { tz / tw } else { tz } + origin.z_length;
     if let Some((d, ox, oy)) = parent_perspective {
-        let denom = d + pz;
+        let denom = d - pz;
         if denom != 0.0 {
             let scale = d / denom;
             px = ox + (px - ox) * scale;
@@ -8603,7 +8903,7 @@ fn render_container_children(
                 {
                     if let Some(t) = nk_transform
                         && is_projected_transform(t)
-                        && nested_kids.is_empty()
+                        && projected_solid_children_are_empty(nested_kids)
                         && background_gradient.is_none()
                         && background_radial_gradient.is_none()
                         && background_conic_gradient.is_none()
@@ -14217,8 +14517,11 @@ fn rasterize_mask_coverage(
             };
             let (rx, ry) = (rx.max(1e-6), ry.max(1e-6));
             let stop_scale = ((scale_x + scale_y) * 0.5) / 0.75;
-            let stops =
-                resolve_gradient_stop_positions_with_length_scale(&rg.stops, rx.max(ry), stop_scale);
+            let stops = resolve_gradient_stop_positions_with_length_scale(
+                &rg.stops,
+                rx.max(ry),
+                stop_scale,
+            );
             for py in 0..px_h {
                 let fy = py as f32 + 0.5;
                 for px in 0..px_w {
@@ -14607,7 +14910,11 @@ fn rasterize_svg_mask_ref_coverage(
         return None;
     }
     let user_w = if mask.width > 0.0 { mask.width } else { css_w };
-    let user_h = if mask.height > 0.0 { mask.height } else { css_h };
+    let user_h = if mask.height > 0.0 {
+        mask.height
+    } else {
+        css_h
+    };
     if !(user_w > 0.0 && user_h > 0.0) {
         return None;
     }
@@ -16315,6 +16622,8 @@ mod tests {
         Page {
             elements,
             running_elements: HashMap::new(),
+            running_elements_started: Default::default(),
+            named_strings: HashMap::new(),
             footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
@@ -16467,9 +16776,13 @@ mod tests {
                     flow_extra_bottom: 0.0,
                     margin_top: 0.0,
                     margin_bottom: 0.0,
+                    background_color: None,
+                    border: Default::default(),
                 },
             )],
             running_elements: HashMap::new(),
+            running_elements_started: Default::default(),
+            named_strings: HashMap::new(),
             footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
@@ -16513,9 +16826,13 @@ mod tests {
                     flow_extra_bottom: 0.0,
                     margin_top: 0.0,
                     margin_bottom: 0.0,
+                    background_color: None,
+                    border: Default::default(),
                 },
             )],
             running_elements: HashMap::new(),
+            running_elements_started: Default::default(),
+            named_strings: HashMap::new(),
             footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
