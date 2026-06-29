@@ -1423,7 +1423,7 @@
     "description": "A display:contents child of a flex container is box-suppressed so its element children become flex items; catches wrappers that incorrectly become one flex item.",
     "file": "cases/flexbox/flexbox-display-contents-items.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

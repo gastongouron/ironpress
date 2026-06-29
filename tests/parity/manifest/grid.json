@@ -485,7 +485,7 @@
     "description": "An item placed in column 3 creates implicit columns sized by grid-auto-columns; catches engines that collapse implicit columns to zero width.",
     "file": "cases/grid/grid-auto-columns-implicit.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -519,7 +519,7 @@
     "description": "Grid auto-placement follows order-modified document order, yielding yellow-green-red instead of source order; catches engines that ignore order on grid items.",
     "file": "cases/grid/grid-order-auto-placement.html",
     "kind": "interaction",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -640,7 +640,7 @@
     "description": "Direct text between element children in a grid container should occupy its own anonymous grid item and shift later cells; catches a grid implementation that filters out text nodes passes element-only grid fixtures.",
     "file": "cases/grid/grid-direct-text-creates-anonymous-grid-items.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -659,7 +659,7 @@
     "description": "A display:contents wrapper should not consume a grid cell; its two children should become separate grid items; catches treating the wrapper as a normal grid item passes direct-child grid fixtures but stacks both grandchildren inside one cell.",
     "file": "cases/grid/grid-display-contents-flattens-children-into-grid.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -696,7 +696,7 @@
     "description": "A grid item with margins should paint inset from its grid area and leave white space around the item background; catches ignoring grid item margins passes current padding/border/alignment fixtures.",
     "file": "cases/grid/grid-item-margins-inset-the-item-box.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -714,7 +714,7 @@
     "description": "A 10% left/right margin on a 200px grid area should create 20px side insets, independent of page width; catches resolving percentages against the page or ignoring margins can pass fixed-margin tests.",
     "file": "cases/grid/grid-item-percentage-margins-use-grid-area-inline-size.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -898,7 +898,7 @@
     "description": "grid-column: 2 col / 3 col should select later occurrences of the repeated line name; catches resolving every named line to its first occurrence passes basic named-line fixtures.",
     "file": "cases/grid/grid-repeated-named-lines-resolve-nth-occurrence.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1006,7 +1006,7 @@
     "description": "Implicit columns created by explicit placement should cycle through grid-auto-columns values; catches having no grid-auto-columns model or only a single value passes simple explicit-column fixtures.",
     "file": "cases/grid/grid-auto-columns-repeats-a-track-size-pattern.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1042,7 +1042,7 @@
     "description": "Items pinned to row 2 but with auto columns should fill row 2 columns in order without consuming row 1; catches a simplistic auto-placement implementation can pass fully-auto and fully-definite fixtures while ignoring one-axis definite placement.",
     "file": "cases/grid/grid-auto-placement-handles-definite-row-only.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1060,7 +1060,7 @@
     "description": "Items pinned to column 3 but with auto rows should stack down column 3 without occupying earlier columns; catches a row-major-only auto placer can pass default placement while mishandling one-axis definite column placement.",
     "file": "cases/grid/grid-auto-placement-handles-definite-column-only.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1096,7 +1096,7 @@
     "description": "Dense auto-placement must process items in order-modified document order before deciding which holes to backfill; catches a simple order test can fail, but an implementation might sort painting only and still pack dense holes in source order.",
     "file": "cases/grid/grid-order-modified-placement-also-applies-to-dense-packing.html",
     "kind": "interaction",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1114,7 +1114,7 @@
     "description": "grid-column: -3 / -1 should span the last two columns of a four-column explicit grid; catches positive-only line fixtures cannot catch engines that parse negative lines as auto or zero.",
     "file": "cases/grid/grid-negative-grid-line-numbers-count-from-the-end.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1276,7 +1276,7 @@
     "description": "align-items:baseline should align text baselines of differently sized grid items rather than stretching or top-aligning them; catches mapping baseline to stretch passes start/end/center/stretch alignment fixtures.",
     "file": "cases/grid/grid-items-baseline-align-across-a-row.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1295,7 +1295,7 @@
     "description": "A grid narrower than its container should be centered along the inline axis by justify-content:center; catches ignoring grid content distribution passes item-level justify-items fixtures.",
     "file": "cases/grid/grid-justify-content-centers-the-grid-tracks.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1313,7 +1313,7 @@
     "description": "space-between should put the first track at the left edge and the second at the right edge of a wider grid container; catches implementing only start/center or item alignment passes simpler alignment fixtures.",
     "file": "cases/grid/grid-justify-content-distributes-free-space-between-tracks.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1331,7 +1331,7 @@
     "description": "align-content:end should pack fixed-height rows at the block-end of a taller grid container; catches only stretching auto rows for normal alignment misses explicit align-content values.",
     "file": "cases/grid/grid-align-content-positions-grid-rows-in-a-tall-container.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1349,7 +1349,7 @@
     "description": "place-content:end center should set align-content:end and justify-content:center for the grid tracks; catches engines with place-items but no place-content pass item-alignment shorthand fixtures.",
     "file": "cases/grid/grid-place-content-sets-block-and-inline-grid-distribution.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1367,7 +1367,7 @@
     "description": "A grid item with margin-left:auto should absorb free inline space and move to the right edge of its grid area; catches ignoring grid item margins and relying only on justify-self passes explicit justify-self tests.",
     "file": "cases/grid/grid-auto-margins-align-grid-items-before-self-alignment.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1385,7 +1385,7 @@
     "description": "With direction:rtl, grid-column:1 / 2 should address the rightmost column line interval; catches physical left-to-right line numbering passes all LTR placement fixtures.",
     "file": "cases/grid/grid-rtl-direction-reverses-grid-column-line-start.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1547,7 +1547,7 @@
     "description": "A grid container's ::before generated box should participate as the first grid item before DOM children; catches ignoring generated grid items passes DOM-child-only auto-placement fixtures.",
     "file": "cases/grid/grid-container-pseudo-elements-are-grid-items.html",
     "kind": "interaction",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",

@@ -1,4 +1,4 @@
-use crate::parser::css::{CssRule, SelectorContext};
+use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
@@ -8,6 +8,231 @@ use crate::style::computed::{
     Visibility, compute_style_with_context,
 };
 use std::collections::HashMap;
+
+pub(crate) fn authored_keyword_property(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+    property: &str,
+) -> Option<String> {
+    match authored_property_value(el, rules, ancestors, selector_ctx, property)? {
+        CssValue::Keyword(value) => Some(value.to_ascii_lowercase()),
+        _ => None,
+    }
+}
+
+pub(crate) fn authored_property_value(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+    property: &str,
+) -> Option<CssValue> {
+    let mut winner: Option<(bool, u8, u32, usize, CssValue)> = None;
+    let classes = el.class_list();
+    let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+
+    for (source_idx, rule) in rules.iter().enumerate() {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
+        if !crate::parser::css::selector_matches_with_context(
+            &rule.selector,
+            el.tag_name(),
+            &class_refs,
+            el.id(),
+            &el.attributes,
+            selector_ctx,
+        ) {
+            continue;
+        }
+        let Some(value) = rule.declarations.get(property) else {
+            continue;
+        };
+        let candidate = (
+            rule.declarations.is_important(property),
+            0,
+            crate::parser::css::specificity(&rule.selector),
+            source_idx,
+            value.clone(),
+        );
+        if winner
+            .as_ref()
+            .is_none_or(|current| candidate_key(&candidate) >= candidate_key(current))
+        {
+            winner = Some(candidate);
+        }
+    }
+
+    if let Some(style_attr) = el.style_attr() {
+        let inline = crate::parser::css::parse_inline_style(style_attr);
+        if let Some(value) = inline.get(property) {
+            let candidate = (
+                inline.is_important(property),
+                1,
+                u32::MAX,
+                usize::MAX,
+                value.clone(),
+            );
+            if winner
+                .as_ref()
+                .is_none_or(|current| candidate_key(&candidate) >= candidate_key(current))
+            {
+                winner = Some(candidate);
+            }
+        }
+    }
+
+    let _ = ancestors;
+    winner.map(|(_, _, _, _, value)| value)
+}
+
+fn candidate_key<T>(candidate: &(bool, u8, u32, usize, T)) -> (bool, u8, u32, usize) {
+    (candidate.0, candidate.1, candidate.2, candidate.3)
+}
+
+pub(crate) fn selector_context_from_ancestors<'a>(
+    ancestors: &[AncestorInfo<'a>],
+    el: &'a ElementNode,
+) -> SelectorContext<'a> {
+    if let Some(current) = ancestors.last().filter(|info| std::ptr::eq(info.element, el)) {
+        SelectorContext {
+            ancestors: ancestors[..ancestors.len().saturating_sub(1)].to_vec(),
+            child_index: current.child_index,
+            sibling_count: current.sibling_count,
+            preceding_siblings: current.preceding_siblings.clone(),
+            following_siblings: current.following_siblings.clone(),
+            is_empty: current.is_empty,
+        }
+    } else {
+        SelectorContext {
+            ancestors: ancestors.to_vec(),
+            ..SelectorContext::default()
+        }
+    }
+}
+
+pub(crate) fn authored_intrinsic_width_keyword(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    property: &str,
+) -> Option<IntrinsicWidthKeyword> {
+    let selector_ctx = selector_context_from_ancestors(ancestors, el);
+    match authored_keyword_property(el, rules, ancestors, &selector_ctx, property)?.as_str() {
+        "min-content" => Some(IntrinsicWidthKeyword::MinContent),
+        "max-content" => Some(IntrinsicWidthKeyword::MaxContent),
+        "fit-content" => Some(IntrinsicWidthKeyword::FitContent),
+        _ => None,
+    }
+}
+
+pub(crate) fn authored_display_contents(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) -> bool {
+    authored_keyword_property(el, rules, ancestors, selector_ctx, "display")
+        .is_some_and(|value| value == "contents")
+}
+
+pub(crate) fn authored_position_fixed(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) -> bool {
+    authored_keyword_property(el, rules, ancestors, selector_ctx, "position")
+        .is_some_and(|value| value == "fixed")
+}
+
+pub(crate) fn apply_authored_insets(
+    style: &mut ComputedStyle,
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+) {
+    if let Some(value) = authored_property_value(el, rules, ancestors, selector_ctx, "inset") {
+        let values = match value {
+            CssValue::Keyword(raw) => raw
+                .split_whitespace()
+                .filter_map(parse_inset_component)
+                .collect::<Vec<_>>(),
+            CssValue::Length(_) | CssValue::Percentage(_) => vec![value],
+            _ => Vec::new(),
+        };
+        if !values.is_empty() {
+            let top = values[0].clone();
+            let right = values.get(1).cloned().unwrap_or_else(|| top.clone());
+            let bottom = values.get(2).cloned().unwrap_or_else(|| top.clone());
+            let left = values.get(3).cloned().unwrap_or_else(|| right.clone());
+            set_inset_side(style, "top", &top);
+            set_inset_side(style, "right", &right);
+            set_inset_side(style, "bottom", &bottom);
+            set_inset_side(style, "left", &left);
+        }
+    }
+
+    for (property, side) in [
+        ("top", "top"),
+        ("right", "right"),
+        ("bottom", "bottom"),
+        ("left", "left"),
+        ("inset-block-start", "top"),
+        ("inset-inline-end", "right"),
+        ("inset-block-end", "bottom"),
+        ("inset-inline-start", "left"),
+    ] {
+        if let Some(value) = authored_property_value(el, rules, ancestors, selector_ctx, property) {
+            set_inset_side(style, side, &value);
+        }
+    }
+}
+
+fn parse_inset_component(raw: &str) -> Option<CssValue> {
+    crate::parser::css::parse_length(raw)
+}
+
+fn set_inset_side(style: &mut ComputedStyle, side: &str, value: &CssValue) {
+    match (side, value) {
+        ("top", CssValue::Length(v)) => {
+            style.top = Some(*v);
+            style.percentage_insets.top = None;
+        }
+        ("right", CssValue::Length(v)) => {
+            style.right = Some(*v);
+            style.percentage_insets.right = None;
+        }
+        ("bottom", CssValue::Length(v)) => {
+            style.bottom = Some(*v);
+            style.percentage_insets.bottom = None;
+        }
+        ("left", CssValue::Length(v)) => {
+            style.left = Some(*v);
+            style.percentage_insets.left = None;
+        }
+        ("top", CssValue::Percentage(v)) => {
+            style.top = None;
+            style.percentage_insets.top = Some(*v);
+        }
+        ("right", CssValue::Percentage(v)) => {
+            style.right = None;
+            style.percentage_insets.right = Some(*v);
+        }
+        ("bottom", CssValue::Percentage(v)) => {
+            style.bottom = None;
+            style.percentage_insets.bottom = Some(*v);
+        }
+        ("left", CssValue::Percentage(v)) => {
+            style.left = None;
+            style.percentage_insets.left = Some(*v);
+        }
+        _ => {}
+    }
+}
 
 use super::context::ContainingBlock;
 use super::engine::{CounterState, InlineBox, LayoutBorder, LayoutElement, TextLine, TextRun};
@@ -1794,9 +2019,19 @@ pub(crate) fn layout_element_paint_order(element: &LayoutElement) -> (i32, i32) 
     match element {
         LayoutElement::TextBlock {
             repeat_on_each_page: true,
+            z_index,
             ..
-        } => (i32::MIN, 0),
-        LayoutElement::TextBlock { z_index, .. } => (0, *z_index),
+        } if *z_index < 0 => (i32::MIN, 0),
+        LayoutElement::TextBlock {
+            position: _,
+            z_index,
+            ..
+        }
+        | LayoutElement::Container {
+            position: _,
+            z_index,
+            ..
+        } => (0, *z_index),
         _ => (0, 0),
     }
 }
@@ -1896,6 +2131,26 @@ pub(crate) fn resolve_abs_containing_block(
     };
 
     (Some(cb), resolved_top, resolved_left)
+}
+
+pub(crate) fn resolve_relative_offsets(
+    style: &ComputedStyle,
+    width_reference: f32,
+    height_reference: f32,
+) -> (f32, f32) {
+    let top = resolve_inset(style.top, style.percentage_insets.top, height_reference)
+        .or_else(|| {
+            resolve_inset(style.bottom, style.percentage_insets.bottom, height_reference)
+                .map(|bottom| -bottom)
+        })
+        .unwrap_or(0.0);
+    let left = resolve_inset(style.left, style.percentage_insets.left, width_reference)
+        .or_else(|| {
+            resolve_inset(style.right, style.percentage_insets.right, width_reference)
+                .map(|right| -right)
+        })
+        .unwrap_or(0.0);
+    (top, left)
 }
 
 /// Patch absolute-positioned children in a flattened element list with

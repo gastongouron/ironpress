@@ -1909,6 +1909,10 @@ pub(crate) fn flatten_element(
         &el.attributes,
         &selector_ctx,
     );
+    let authored_display_contents =
+        authored_display_contents(el, env.rules, ancestors, &selector_ctx);
+    let authored_fixed = authored_position_fixed(el, env.rules, ancestors, &selector_ctx);
+    apply_authored_insets(&mut style, el, env.rules, ancestors, &selector_ctx);
 
     // Resolve `filter: url(#id)` (css-filter-effects-1 §3): look up the inline
     // SVG `<filter>` element by id and translate its `feColorMatrix` primitives
@@ -2577,6 +2581,21 @@ pub(crate) fn flatten_element(
         is_empty: false,
     });
 
+    if authored_display_contents {
+        flatten_nodes(
+            &el.children,
+            &style,
+            &layout_ctx,
+            output,
+            list_ctx,
+            &child_ancestors,
+            positioned_ancestor_depth,
+            env,
+        );
+        env.counter_state.pop_resets(&style.counter_reset);
+        return;
+    }
+
     // List handling — Ul/Ol pass context to Li children
     if el.tag == HtmlTag::Ul || el.tag == HtmlTag::Ol {
         let list_indent = style.padding.left + style.margin.left;
@@ -3172,6 +3191,7 @@ pub(crate) fn flatten_element(
         PseudoElement::FirstLetter,
     );
 
+    let fixed_output_start = output.len();
     route_element(
         el,
         &mut style,
@@ -3186,6 +3206,134 @@ pub(crate) fn flatten_element(
         first_letter_style,
         env,
     );
+    if authored_fixed && style.z_index != 0 {
+        mark_fixed_repeat(&mut output[fixed_output_start..]);
+    }
+}
+
+fn mark_fixed_repeat(elements: &mut [LayoutElement]) {
+    for element in elements {
+        match element {
+            LayoutElement::TextBlock {
+                repeat_on_each_page,
+                ..
+            } => *repeat_on_each_page = true,
+            LayoutElement::Container { children, .. } if children.is_empty() => {
+                *element = fixed_empty_container_as_text_block(element);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn fixed_empty_container_as_text_block(element: &LayoutElement) -> LayoutElement {
+    if let LayoutElement::Container {
+        background_color,
+        border,
+        border_radius,
+        border_radii,
+        border_radii_y,
+        padding_top,
+        padding_bottom,
+        padding_left,
+        padding_right,
+        margin_top,
+        margin_bottom,
+        block_width,
+        block_height,
+        opacity,
+        mix_blend_mode,
+        background_blend_mode,
+        visible,
+        float,
+        clear,
+        position,
+        offset_top,
+        offset_left,
+        transform,
+        transform_origin,
+        box_shadow,
+        background_gradient,
+        background_radial_gradient,
+        background_conic_gradient,
+        background_svg,
+        background_blur_radius,
+        background_size,
+        background_position,
+        background_repeat,
+        background_origin,
+        background_clip,
+        outline_width,
+        outline_color,
+        outline_offset,
+        z_index,
+        positioned_depth,
+        containing_block,
+        ..
+    } = element
+    {
+        LayoutElement::TextBlock {
+            box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+            orphans: 2,
+            widows: 2,
+            lines: Vec::new(),
+            margin_top: *margin_top,
+            margin_bottom: *margin_bottom,
+            text_align: TextAlign::Left,
+            writing_mode: crate::style::computed::WritingMode::HorizontalTb,
+            background_color: *background_color,
+            padding_top: *padding_top,
+            padding_bottom: *padding_bottom,
+            padding_left: *padding_left,
+            padding_right: *padding_right,
+            border: *border,
+            block_width: *block_width,
+            block_height: *block_height,
+            opacity: *opacity,
+            mix_blend_mode: *mix_blend_mode,
+            background_blend_mode: *background_blend_mode,
+            float: *float,
+            clear: *clear,
+            position: *position,
+            offset_top: *offset_top,
+            offset_left: *offset_left,
+            offset_bottom: 0.0,
+            offset_right: 0.0,
+            containing_block: *containing_block,
+            clip_children_count: 0,
+            box_shadow: box_shadow.clone(),
+            visible: *visible,
+            clip_rect: None,
+            transform: *transform,
+            transform_origin: *transform_origin,
+            border_radius: *border_radius,
+            border_radii: *border_radii,
+            border_radii_y: *border_radii_y,
+            outline_offset: *outline_offset,
+            outline_width: *outline_width,
+            outline_color: *outline_color,
+            text_indent: 0.0,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            vertical_align: VerticalAlign::Baseline,
+            background_gradient: background_gradient.clone(),
+            background_radial_gradient: background_radial_gradient.clone(),
+            background_conic_gradient: background_conic_gradient.clone(),
+            background_svg: background_svg.clone(),
+            background_blur_radius: *background_blur_radius,
+            background_size: *background_size,
+            background_position: *background_position,
+            background_repeat: *background_repeat,
+            background_origin: *background_origin,
+            background_clip: *background_clip,
+            z_index: *z_index,
+            repeat_on_each_page: true,
+            positioned_depth: *positioned_depth,
+            heading_level: None,
+        }
+    } else {
+        element.clone()
+    }
 }
 
 /// Extracted helper for the loose-list fix (#140): when an `<li>` has no
@@ -3277,8 +3425,17 @@ fn route_element(
 
     // Flex container handling
     if style.display == Display::Flex {
+        let expanded_flex_el;
+        let flex_el = if let Some(expanded) =
+            flex_element_with_display_contents_children(el, child_ancestors, env)
+        {
+            expanded_flex_el = expanded;
+            &expanded_flex_el
+        } else {
+            el
+        };
         layout_flex_container(
-            el,
+            flex_el,
             style,
             &layout_ctx,
             output,
@@ -3385,6 +3542,52 @@ fn route_element(
 
     // Pop any counters that were pushed by counter-reset on this element.
     env.counter_state.pop_resets(&style.counter_reset);
+}
+
+fn flex_element_with_display_contents_children(
+    el: &ElementNode,
+    ancestors: &[AncestorInfo],
+    env: &LayoutEnv,
+) -> Option<ElementNode> {
+    let sibling_list = element_sibling_list(&el.children);
+    let element_count = sibling_list.len();
+    let mut element_index = 0usize;
+    let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
+    let mut changed = false;
+    let mut children = Vec::with_capacity(el.children.len());
+
+    for child in &el.children {
+        match child {
+            DomNode::Element(child_el) => {
+                let selector_ctx = SelectorContext {
+                    ancestors: ancestors.to_vec(),
+                    child_index: element_index,
+                    sibling_count: element_count,
+                    preceding_siblings: preceding_siblings.clone(),
+                    following_siblings: forward_siblings(&sibling_list, element_index).to_vec(),
+                    is_empty: element_is_empty(child_el),
+                };
+                if authored_display_contents(child_el, env.rules, ancestors, &selector_ctx) {
+                    changed = true;
+                    children.extend(child_el.children.iter().cloned());
+                } else {
+                    children.push(child.clone());
+                }
+                preceding_siblings.push((
+                    child_el.tag_name().to_string(),
+                    child_el.class_list().iter().map(|s| s.to_string()).collect(),
+                ));
+                element_index += 1;
+            }
+            DomNode::Text(_) => children.push(child.clone()),
+        }
+    }
+
+    changed.then(|| {
+        let mut expanded = el.clone();
+        expanded.children = children;
+        expanded
+    })
 }
 
 // Grid layout functions have been moved to `super::grid`.

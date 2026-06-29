@@ -279,7 +279,7 @@
     "description": "position:fixed header repeats at the top of each printed page; catches treating fixed as a one-page absolute box.",
     "file": "cases/positioning/positioning-fixed-repeats-pages.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -315,7 +315,7 @@
     "file": "cases/positioning/positioning-logical-insets-horizontal.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

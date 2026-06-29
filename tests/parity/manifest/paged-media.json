@@ -586,7 +586,7 @@
     "file": "cases/paged-media/paged-break-precedence-before-wins.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -781,7 +781,7 @@
     "file": "cases/paged-media/paged-break-precedence-before-left-wins.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -799,7 +799,7 @@
     "file": "cases/paged-media/paged-break-after-avoid-keep-next.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -818,7 +818,7 @@
     "file": "cases/paged-media/paged-break-before-avoid-page-keep-prev.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -911,7 +911,7 @@
     "file": "cases/paged-media/paged-tall-image-object-fit-fill-fragment.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-image-render",
       "probe-fill-box"
@@ -947,7 +947,7 @@
     "file": "cases/paged-media/paged-named-page-continuation.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

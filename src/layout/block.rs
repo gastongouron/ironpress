@@ -14,11 +14,12 @@ use super::engine::{
     forward_siblings,
 };
 use super::helpers::{
-    BackgroundFields, append_pseudo_inline_run, aspect_ratio_height, build_pseudo_block,
-    collects_as_inline_text, has_background_paint, heading_level,
+    BackgroundFields, append_pseudo_inline_run, aspect_ratio_height,
+    authored_intrinsic_width_keyword, build_pseudo_block, collects_as_inline_text,
+    has_background_paint, heading_level,
     patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
     recurses_as_layout_child, resolve_abs_containing_block, resolve_content_box_height,
-    resolve_inset, resolve_padding_box_height,
+    resolve_inset, resolve_padding_box_height, resolve_relative_offsets,
 };
 use super::inline::{
     element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
@@ -125,16 +126,39 @@ pub(crate) fn layout_block_element(
     } else if margin_h > 0.0 {
         block_w = (available_width - margin_h).max(0.0);
     }
+    let authored_max_width_keyword =
+        authored_intrinsic_width_keyword(el, env.rules, child_ancestors, "max-width");
+    let authored_min_width_keyword =
+        authored_intrinsic_width_keyword(el, env.rules, child_ancestors, "min-width");
+
     // CSS 2.1 § 10.4: percentage min-/max-width also resolve against the
     // containing block content width. Min wins over max (the floor is applied
     // last) per css-sizing-3 — `max(min, min(value, max))`.
     if let Some(pct) = style.percentage_sizing.max_width {
         block_w = block_w.min(pct / 100.0 * percent_width_basis);
+    } else if let Some(keyword) = authored_max_width_keyword {
+        block_w = block_w.min(crate::layout::helpers::resolve_intrinsic_keyword_width(
+            el,
+            style,
+            keyword,
+            available_width,
+            env.rules,
+            env.fonts,
+        ));
     } else if let Some(mw) = style.max_width {
         block_w = block_w.min(mw);
     }
     if let Some(pct) = style.percentage_sizing.min_width {
         block_w = block_w.max(pct / 100.0 * percent_width_basis);
+    } else if let Some(keyword) = authored_min_width_keyword {
+        block_w = block_w.max(crate::layout::helpers::resolve_intrinsic_keyword_width(
+            el,
+            style,
+            keyword,
+            available_width,
+            env.rules,
+            env.fonts,
+        ));
     } else if let Some(mw) = style.min_width {
         block_w = block_w.max(mw);
     }
@@ -1371,12 +1395,17 @@ pub(crate) fn layout_block_element(
         // border-box edge (`cb.height - elem_height - bottom`), so pass the
         // *border-box* height/width — `total_h` is the padding box, so add the
         // vertical border back (width `block_w` is already border-box).
-        let (elem_cb, resolved_top, resolved_left) = resolve_abs_containing_block(
+        let (elem_cb, mut resolved_top, mut resolved_left) = resolve_abs_containing_block(
             style,
             abs_containing_block,
             total_h + style.border.vertical_width(),
             explicit_width.unwrap_or(block_w),
         );
+        if style.position == Position::Relative {
+            let height_reference = percent_height_cb.map_or(available_height, |cb| cb.height);
+            (resolved_top, resolved_left) =
+                resolve_relative_offsets(style, percent_width_basis, height_reference);
+        }
 
         // When this block has visual properties AND block children,
         // save the inline text for inclusion inside the wrapper instead
@@ -1946,12 +1975,17 @@ pub(crate) fn layout_block_element(
         // Pass the border-box height (`container_h` is the padding box) so a
         // bottom-anchored absolute box measures to its border edge, not 1 border
         // width too low.
-        let (wrapper_cb, wrapper_top, wrapper_left) = resolve_abs_containing_block(
+        let (wrapper_cb, mut wrapper_top, mut wrapper_left) = resolve_abs_containing_block(
             style,
             abs_containing_block,
             container_h + style.border.vertical_width(),
             block_w,
         );
+        if style.position == Position::Relative {
+            let height_reference = percent_height_cb.map_or(available_height, |cb| cb.height);
+            (wrapper_top, wrapper_left) =
+                resolve_relative_offsets(style, percent_width_basis, height_reference);
+        }
         // Emit a Container element with true parent-child nesting.
         // The renderer draws background/border, then renders children inside.
         output.push(LayoutElement::Container {

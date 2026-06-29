@@ -658,7 +658,7 @@
     "description": "background-origin:border-box positions a tile from the outer border edge; catches implementations that always use padding-box.",
     "file": "cases/backgrounds-borders/background-origin-border-box.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",
@@ -1129,7 +1129,7 @@
       "background-image",
       "border-radius"
     ],
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",

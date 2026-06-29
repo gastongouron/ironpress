@@ -5203,7 +5203,10 @@ fn parse_list_style_type(k: &str) -> ListStyleType {
         "lower-roman" => ListStyleType::LowerRoman,
         "upper-roman" => ListStyleType::UpperRoman,
         "none" => ListStyleType::None,
-        _ => ListStyleType::Disc,
+        // CSS Counter Styles Level 3: an unresolved <counter-style-name> acts
+        // like `decimal` (without computing to it). Until custom styles are
+        // represented separately, decimal is the closest spec-correct fallback.
+        _ => ListStyleType::Decimal,
     }
 }
 
@@ -14632,10 +14635,10 @@ mod tests {
     // --- Coverage: parse_list_style_type unknown default (line 1479) ---
 
     #[test]
-    fn list_style_type_unknown_defaults_to_disc() {
+    fn list_style_type_unknown_defaults_to_decimal() {
         let parent = ComputedStyle::default();
         let s = compute_style(HtmlTag::Div, Some("list-style-type: foobar"), &parent);
-        assert_eq!(s.list_style_type, ListStyleType::Disc);
+        assert_eq!(s.list_style_type, ListStyleType::Decimal);
     }
 
     // --- Coverage: parse_content_value branches (lines 1497-1546) ---

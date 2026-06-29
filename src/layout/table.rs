@@ -1,4 +1,6 @@
-use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
+use crate::parser::css::{
+    selector_matches_with_context, specificity, AncestorInfo, CssRule, CssValue, SelectorContext,
+};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
@@ -10,7 +12,7 @@ use std::collections::HashMap;
 use super::context::{LayoutContext, LayoutEnv, ParentBox, Viewport};
 use super::engine::{
     collects_as_inline_text, flatten_element, has_background_paint, recurses_as_layout_child,
-    CounterState, LayoutBorder, LayoutElement, TextLine, TextRun,
+    CounterState, LayoutBorder, LayoutBorderSide, LayoutElement, TextLine, TextRun,
 };
 use super::paginate::{estimate_element_height, table_row_content_width};
 use super::text::{
@@ -137,11 +139,290 @@ enum TableTrackWidth {
     Percent(f32),
 }
 
+#[derive(Debug, Clone, Default)]
+struct TableColumnInfo {
+    background_color: Option<(f32, f32, f32, f32)>,
+    collapsed: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct HiddenBorderSides {
+    top: bool,
+    right: bool,
+    bottom: bool,
+    left: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum BorderSideName {
+    Right,
+    Left,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct BorderCandidate {
+    side: LayoutBorderSide,
+    hidden: bool,
+}
+
 fn resolve_table_percentage_width(table_width: f32, percent: f32) -> f32 {
     // Percentage `<col>` and `<colgroup>` widths resolve against the table
     // width itself. Border-spacing is applied later when laying out the cells
     // so it must not shrink the percentage basis.
     table_width * percent
+}
+
+fn style_background_rgba(style: &ComputedStyle) -> Option<(f32, f32, f32, f32)> {
+    style.background_color.map(|c| c.to_f32_rgba())
+}
+
+fn table_cell_is_hidden(style: &ComputedStyle) -> bool {
+    style.visibility != Visibility::Visible
+}
+
+fn hide_table_cell_paint(cell: &mut TableCell) {
+    cell.min_content_height = cell.min_content_height.max(table_cell_content_height(cell));
+    cell.lines.clear();
+    cell.nested_rows.clear();
+    cell.background_color = None;
+    cell.border = LayoutBorder::default();
+    cell.background_gradient = None;
+    cell.background_radial_gradient = None;
+    cell.background_conic_gradient = None;
+}
+
+fn css_value_contains_hidden(value: &CssValue) -> bool {
+    match value {
+        CssValue::Keyword(raw) => raw
+            .split(|ch: char| ch.is_ascii_whitespace() || matches!(ch, '/' | ','))
+            .any(|token| token.eq_ignore_ascii_case("hidden")),
+        _ => false,
+    }
+}
+
+fn mark_hidden_border_property(sides: &mut HiddenBorderSides, property: &str, value: &CssValue) {
+    if !css_value_contains_hidden(value) {
+        return;
+    }
+    match property {
+        "border" | "border-style" => {
+            sides.top = true;
+            sides.right = true;
+            sides.bottom = true;
+            sides.left = true;
+        }
+        "border-top" | "border-top-style" => sides.top = true,
+        "border-right" | "border-right-style" => sides.right = true,
+        "border-bottom" | "border-bottom-style" => sides.bottom = true,
+        "border-left" | "border-left-style" => sides.left = true,
+        _ => {}
+    }
+}
+
+fn declared_hidden_borders(
+    el: &ElementNode,
+    rules: &[CssRule],
+    selector_ctx: &SelectorContext,
+) -> HiddenBorderSides {
+    let classes = el.class_list();
+    let mut sides = HiddenBorderSides::default();
+    let mut best_specificity: HashMap<&'static str, u32> = HashMap::new();
+    for rule in rules.iter().filter(|rule| rule.pseudo_element.is_none()) {
+        if !selector_matches_with_context(
+            &rule.selector,
+            el.tag_name(),
+            &classes,
+            el.id(),
+            &el.attributes,
+            selector_ctx,
+        ) {
+            continue;
+        }
+        let rule_specificity = specificity(&rule.selector);
+        for (property, value) in &rule.declarations.properties {
+            let side_key = match property.as_str() {
+                "border" | "border-style" => "all",
+                "border-top" | "border-top-style" => "top",
+                "border-right" | "border-right-style" => "right",
+                "border-bottom" | "border-bottom-style" => "bottom",
+                "border-left" | "border-left-style" => "left",
+                _ => continue,
+            };
+            if rule_specificity >= best_specificity.get(side_key).copied().unwrap_or(0) {
+                best_specificity.insert(side_key, rule_specificity);
+                mark_hidden_border_property(&mut sides, property, value);
+            }
+        }
+    }
+    if let Some(inline) = el.style_attr().map(crate::parser::css::parse_inline_style) {
+        for (property, value) in &inline.properties {
+            mark_hidden_border_property(&mut sides, property, value);
+        }
+    }
+    sides
+}
+
+fn hidden_for_side(hidden: HiddenBorderSides, side: BorderSideName) -> bool {
+    match side {
+        BorderSideName::Right => hidden.right,
+        BorderSideName::Left => hidden.left,
+    }
+}
+
+fn border_side(border: &LayoutBorder, side: BorderSideName) -> LayoutBorderSide {
+    match side {
+        BorderSideName::Right => border.right,
+        BorderSideName::Left => border.left,
+    }
+}
+
+fn border_side_mut(border: &mut LayoutBorder, side: BorderSideName) -> &mut LayoutBorderSide {
+    match side {
+        BorderSideName::Right => &mut border.right,
+        BorderSideName::Left => &mut border.left,
+    }
+}
+
+fn collapsed_style_rank(style: BorderStyle) -> u8 {
+    match style {
+        BorderStyle::Double => 4,
+        BorderStyle::Solid => 3,
+        BorderStyle::Dashed => 2,
+        BorderStyle::Dotted => 1,
+        BorderStyle::None => 0,
+    }
+}
+
+fn collapsed_border_winner(first: BorderCandidate, second: BorderCandidate) -> Option<usize> {
+    if first.hidden || second.hidden {
+        return None;
+    }
+    let first_paints = first.side.width > 0.0 && first.side.style != BorderStyle::None;
+    let second_paints = second.side.width > 0.0 && second.side.style != BorderStyle::None;
+    match (first_paints, second_paints) {
+        (false, false) => return None,
+        (true, false) => return Some(0),
+        (false, true) => return Some(1),
+        (true, true) => {}
+    }
+    let width_cmp = first
+        .side
+        .width
+        .partial_cmp(&second.side.width)
+        .unwrap_or(std::cmp::Ordering::Equal);
+    match width_cmp {
+        std::cmp::Ordering::Greater => Some(0),
+        std::cmp::Ordering::Less => Some(1),
+        std::cmp::Ordering::Equal => {
+            let first_rank = collapsed_style_rank(first.side.style);
+            let second_rank = collapsed_style_rank(second.side.style);
+            if first_rank > second_rank {
+                Some(0)
+            } else if second_rank > first_rank {
+                Some(1)
+            } else {
+                Some(0)
+            }
+        }
+    }
+}
+
+fn resolve_collapsed_border_pair(
+    first_border: &mut LayoutBorder,
+    first_hidden: HiddenBorderSides,
+    first_side: BorderSideName,
+    second_border: &mut LayoutBorder,
+    second_hidden: HiddenBorderSides,
+    second_side: BorderSideName,
+) {
+    let first = BorderCandidate {
+        side: border_side(first_border, first_side),
+        hidden: hidden_for_side(first_hidden, first_side),
+    };
+    let second = BorderCandidate {
+        side: border_side(second_border, second_side),
+        hidden: hidden_for_side(second_hidden, second_side),
+    };
+    match collapsed_border_winner(first, second) {
+        Some(0) => {
+            *border_side_mut(first_border, first_side) = LayoutBorderSide::default();
+            *border_side_mut(second_border, second_side) = first.side;
+        }
+        Some(1) => {
+            *border_side_mut(first_border, first_side) = LayoutBorderSide::default();
+            *border_side_mut(second_border, second_side) = second.side;
+        }
+        _ => {
+            *border_side_mut(first_border, first_side) = LayoutBorderSide::default();
+            *border_side_mut(second_border, second_side) = LayoutBorderSide::default();
+        }
+    }
+}
+
+fn apply_table_winning_side(cell_side: &mut LayoutBorderSide, table_side: LayoutBorderSide) {
+    if table_side.width > 0.0
+        && table_side.style != BorderStyle::None
+        && table_side.width >= cell_side.width
+    {
+        *cell_side = table_side;
+        cell_side.width *= 2.0;
+        cell_side.alpha = 0.0;
+    }
+}
+
+fn table_side_wins(cell_side: LayoutBorderSide, table_side: LayoutBorderSide) -> bool {
+    table_side.width > 0.0
+        && table_side.style != BorderStyle::None
+        && table_side.width >= cell_side.width
+}
+
+fn resolve_collapsed_outer_table_borders(rows: &mut [LayoutElement], table_border: LayoutBorder) {
+    if !table_border.has_any() {
+        return;
+    }
+    let mut first_row_idx = None;
+    let mut last_row_idx = None;
+    for (idx, row) in rows.iter().enumerate() {
+        if matches!(row, LayoutElement::TableRow { cells, .. } if !cells.is_empty()) {
+            first_row_idx.get_or_insert(idx);
+            last_row_idx = Some(idx);
+        }
+    }
+    for row in rows.iter_mut() {
+        let LayoutElement::TableRow { cells, .. } = row else {
+            continue;
+        };
+        if let Some(first_cell) = cells.iter_mut().find(|cell| cell.rowspan != 0) {
+            apply_table_winning_side(&mut first_cell.border.left, table_border.left);
+        }
+        if let Some(last_cell) = cells.iter_mut().rev().find(|cell| cell.rowspan != 0) {
+            apply_table_winning_side(&mut last_cell.border.right, table_border.right);
+        }
+    }
+    if let Some(idx) = first_row_idx {
+        if let LayoutElement::TableRow { cells, .. } = &mut rows[idx] {
+            for cell in cells.iter_mut().filter(|cell| cell.rowspan != 0) {
+                let top_wins = table_side_wins(cell.border.top, table_border.top);
+                apply_table_winning_side(&mut cell.border.top, table_border.top);
+                if top_wins {
+                    cell.min_content_height =
+                        (cell.min_content_height - table_border.top.width / 2.0).max(0.0);
+                }
+            }
+        }
+    }
+    if let Some(idx) = last_row_idx {
+        if let LayoutElement::TableRow { cells, .. } = &mut rows[idx] {
+            for cell in cells.iter_mut().filter(|cell| cell.rowspan != 0) {
+                let bottom_wins = table_side_wins(cell.border.bottom, table_border.bottom);
+                apply_table_winning_side(&mut cell.border.bottom, table_border.bottom);
+                if bottom_wins {
+                    cell.min_content_height =
+                        (cell.min_content_height - table_border.bottom.width / 2.0).max(0.0);
+                }
+            }
+        }
+    }
 }
 
 impl TableTrackWidth {
@@ -972,7 +1253,10 @@ fn collapse_outer_horizontal_borders(
     };
     let first = cell_border(0, cells[0]);
     let last = cell_border(cell_count - 1, cells[cell_count - 1]);
-    (first.border.left.width, last.border.right.width)
+    (
+        first.border.left.width.max(table_style.border.left.width),
+        last.border.right.width.max(table_style.border.right.width),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1161,8 +1445,9 @@ pub(crate) fn flatten_table(
     let mut column_parent_style = style.clone();
     column_parent_style.width = Some(inner_width);
 
-    // --- Extract explicit column widths from <colgroup>/<col> elements ---
+    // --- Extract explicit column widths/backgrounds from <colgroup>/<col> elements ---
     let mut explicit_col_widths: Vec<Option<TableTrackWidth>> = vec![None; num_cols];
+    let mut column_info: Vec<TableColumnInfo> = vec![TableColumnInfo::default(); num_cols];
     {
         let mut col_idx = 0usize;
         for (section_child_idx, child) in el.children.iter().enumerate() {
@@ -1185,6 +1470,7 @@ pub(crate) fn flatten_table(
                             section_child_idx,
                             section_count,
                         );
+                        let colgroup_bg = style_background_rgba(&colgroup_style);
                         if !cols.is_empty() {
                             let mut colgroup_basis_style = colgroup_style.clone();
                             colgroup_basis_style.width = Some(inner_width);
@@ -1199,26 +1485,48 @@ pub(crate) fn flatten_table(
                             });
                             let col_sibling_count = cols.len();
                             for (col_child_idx, col_el) in cols.into_iter().enumerate() {
+                                let span = parse_col_span(col_el);
+                                let col_style = compute_column_style(
+                                    col_el,
+                                    &colgroup_basis_style,
+                                    rules,
+                                    &colgroup_ancestors,
+                                    col_child_idx,
+                                    col_sibling_count,
+                                );
+                                let col_bg = style_background_rgba(&col_style).or(colgroup_bg);
+                                let collapsed = col_style.visibility == Visibility::Collapse;
+                                for info in column_info.iter_mut().skip(col_idx).take(span) {
+                                    info.background_color = col_bg;
+                                    info.collapsed = collapsed;
+                                }
                                 assign_explicit_col_widths(
                                     &mut explicit_col_widths,
                                     &mut col_idx,
-                                    parse_col_span(col_el),
-                                    parse_col_width(
-                                        col_el,
-                                        &colgroup_basis_style,
-                                        rules,
-                                        &colgroup_ancestors,
-                                        col_child_idx,
-                                        col_sibling_count,
-                                    ),
+                                    span,
+                                    parse_column_inline_width(col_el, col_style.width)
+                                        .unwrap_or_else(|| {
+                                            col_style.width.map(TableTrackWidth::Points).or_else(
+                                                || {
+                                                    col_el.attributes.get("width").and_then(|val| {
+                                                        parse_table_track_width(val)
+                                                    })
+                                                },
+                                            )
+                                        }),
                                 );
                             }
                             continue;
                         }
+                        let span = parse_col_span(child_el);
+                        for info in column_info.iter_mut().skip(col_idx).take(span) {
+                            info.background_color = colgroup_bg;
+                            info.collapsed = colgroup_style.visibility == Visibility::Collapse;
+                        }
                         assign_explicit_col_widths(
                             &mut explicit_col_widths,
                             &mut col_idx,
-                            parse_col_span(child_el),
+                            span,
                             parse_col_width(
                                 child_el,
                                 &column_parent_style,
@@ -1230,17 +1538,34 @@ pub(crate) fn flatten_table(
                         );
                     }
                     HtmlTag::Col => {
+                        let span = parse_col_span(child_el);
+                        let col_style = compute_column_style(
+                            child_el,
+                            &column_parent_style,
+                            rules,
+                            &table_ancestors,
+                            section_child_idx,
+                            section_count,
+                        );
+                        let col_bg = style_background_rgba(&col_style);
+                        let collapsed = col_style.visibility == Visibility::Collapse;
+                        for info in column_info.iter_mut().skip(col_idx).take(span) {
+                            info.background_color = col_bg;
+                            info.collapsed = collapsed;
+                        }
                         assign_explicit_col_widths(
                             &mut explicit_col_widths,
                             &mut col_idx,
-                            parse_col_span(child_el),
-                            parse_col_width(
-                                child_el,
-                                &column_parent_style,
-                                rules,
-                                &table_ancestors,
-                                section_child_idx,
-                                section_count,
+                            span,
+                            parse_column_inline_width(child_el, col_style.width).unwrap_or_else(
+                                || {
+                                    col_style.width.map(TableTrackWidth::Points).or_else(|| {
+                                        child_el
+                                            .attributes
+                                            .get("width")
+                                            .and_then(|val| parse_table_track_width(val))
+                                    })
+                                },
                             ),
                         );
                     }
@@ -1331,6 +1656,19 @@ pub(crate) fn flatten_table(
                     is_empty: false,
                 });
             }
+            let sizing_row_parent_style = row_section_elements[sizing_row_idx].map(|section_el| {
+                compute_column_style(
+                    section_el,
+                    style,
+                    rules,
+                    &table_ancestors,
+                    row_section_child_indices[sizing_row_idx],
+                    row_section_sibling_counts[sizing_row_idx],
+                )
+            });
+            let sizing_section_collapsed = sizing_row_parent_style
+                .as_ref()
+                .is_some_and(|section_style| section_style.visibility == Visibility::Collapse);
             let sizing_row_ctx = SelectorContext {
                 ancestors: sizing_row_ancestors,
                 child_index: row_section_indices[sizing_row_idx],
@@ -1342,7 +1680,7 @@ pub(crate) fn flatten_table(
             let mut row_style = compute_style_with_context(
                 row.tag,
                 row.style_attr(),
-                style,
+                sizing_row_parent_style.as_ref().unwrap_or(style),
                 rules,
                 row.tag_name(),
                 &row_classes,
@@ -1353,6 +1691,9 @@ pub(crate) fn flatten_table(
             // `display: none` and `visibility: collapse` rows are removed from the
             // table entirely (no cells, no reserved height), so skip measuring them.
             if row_style.display == Display::None || row_style.visibility == Visibility::Collapse {
+                continue;
+            }
+            if sizing_section_collapsed {
                 continue;
             }
             row_style.width = Some(inner_width);
@@ -1644,6 +1985,11 @@ pub(crate) fn flatten_table(
             }
         }
     };
+    for (width, info) in col_widths.iter_mut().zip(column_info.iter()) {
+        if info.collapsed {
+            *width = 0.0;
+        }
+    }
     let current_table_width = col_widths.iter().sum::<f32>()
         + if style.border_collapse == BorderCollapse::Separate {
             effective_border_spacing * (col_widths.len().saturating_add(1) as f32)
@@ -1659,6 +2005,7 @@ pub(crate) fn flatten_table(
     let mut occupied: Vec<usize> = vec![0; num_cols];
     let mut occupied_min_heights: Vec<f32> = vec![0.0; num_cols];
     let mut layout_section = None;
+    let mut collapsed_section_spacers = Vec::new();
     // Remember where this table's rows start so a table-level background/border
     // box can be inserted ahead of them once the total height is known.
     let table_output_start = output.len();
@@ -1689,6 +2036,19 @@ pub(crate) fn flatten_table(
                 is_empty: false,
             });
         }
+        let row_parent_style = row_section_elements[row_idx].map(|section_el| {
+            compute_column_style(
+                section_el,
+                style,
+                rules,
+                &table_ancestors,
+                row_section_child_indices[row_idx],
+                row_section_sibling_counts[row_idx],
+            )
+        });
+        let section_collapsed = row_parent_style
+            .as_ref()
+            .is_some_and(|section_style| section_style.visibility == Visibility::Collapse);
         let row_selector_ctx = SelectorContext {
             ancestors: row_ancestors,
             child_index: section_idx,
@@ -1700,7 +2060,7 @@ pub(crate) fn flatten_table(
         let mut row_style = compute_style_with_context(
             row.tag,
             row.style_attr(),
-            style,
+            row_parent_style.as_ref().unwrap_or(style),
             rules,
             row.tag_name(),
             &row_classes,
@@ -1712,7 +2072,7 @@ pub(crate) fn flatten_table(
         if row_style.display == Display::None {
             continue;
         }
-        if row_style.visibility == Visibility::Collapse {
+        if row_style.visibility == Visibility::Collapse || section_collapsed {
             // CSS Tables collapses the row's content and height, but in the
             // collapsed-border model the row's own cell borders still
             // participate in border conflict resolution. Represent that as a
@@ -1821,11 +2181,57 @@ pub(crate) fn flatten_table(
                         break_inside_avoid: style.break_inside_avoid,
                     });
                 }
+            } else {
+                let spacer_height = if section_collapsed {
+                    let section_key = table_section_key(
+                        row_section_elements[row_idx],
+                        row_section_child_indices[row_idx],
+                    );
+                    if collapsed_section_spacers.contains(&section_key) {
+                        continue;
+                    }
+                    collapsed_section_spacers.push(section_key);
+                    row_style.font_size * 0.75
+                } else {
+                    effective_border_spacing_vertical * 0.75
+                };
+                if spacer_height <= 0.0 {
+                    continue;
+                }
+                let first_emitted_row = output.len() == table_output_start;
+                let mut row_col_widths = col_widths.clone();
+                if style.direction_rtl {
+                    row_col_widths.reverse();
+                }
+                let is_header = row_section_elements[row_idx]
+                    .map(|s| s.tag == HtmlTag::Thead)
+                    .unwrap_or(false);
+                let is_footer = row_section_elements[row_idx]
+                    .map(|s| s.tag == HtmlTag::Tfoot)
+                    .unwrap_or(false);
+                output.push(LayoutElement::TableRow {
+                    cells: Vec::new(),
+                    col_widths: row_col_widths,
+                    margin_top: spacer_height
+                        + if first_emitted_row {
+                            table_grid_inset
+                        } else {
+                            0.0
+                        },
+                    margin_bottom: 0.0,
+                    border_collapse: style.border_collapse,
+                    border_spacing: effective_border_spacing,
+                    is_header,
+                    is_footer,
+                    offset_left: style.margin.left.max(0.0) + table_grid_inset,
+                    break_inside_avoid: style.break_inside_avoid,
+                });
             }
             continue;
         }
         row_style.width = Some(inner_width);
         let mut cells = Vec::new();
+        let mut cell_hidden_borders = Vec::new();
 
         // Current logical column position in the grid
         let mut col_pos: usize = 0;
@@ -1880,6 +2286,7 @@ pub(crate) fn flatten_table(
                     background_radial_gradient: None,
                     background_conic_gradient: None,
                 });
+                cell_hidden_borders.push(HiddenBorderSides::default());
                 for i in 0..span_cols {
                     occupied[col_pos + i] -= 1;
                     if occupied[col_pos + i] == 0 {
@@ -1934,6 +2341,7 @@ pub(crate) fn flatten_table(
                 table_attr_cellpadding,
                 table_attr_border_width,
             );
+            let hidden_borders = declared_hidden_borders(cell_el, rules, &cell_selector_ctx);
             // Compute effective width from auto-sized column widths. Cell borders
             // are painted INSIDE the cell box (CSS2 §17.6: the border-box is the
             // column width), so the content box is inset by the border and the
@@ -2029,10 +2437,15 @@ pub(crate) fn flatten_table(
                 clip_text_lines_to_width(&mut lines, cell_inner.max(0.0), fonts);
             }
 
-            let bg = cell_style
-                .background_color
-                .or(row_style.background_color)
-                .map(|c: crate::types::Color| c.to_f32_rgba());
+            let column_bg = column_info
+                .iter()
+                .skip(col_pos)
+                .take(colspan)
+                .find_map(|info| info.background_color);
+            let bg = style_background_rgba(&cell_style)
+                .or_else(|| style_background_rgba(&row_style))
+                .or_else(|| row_parent_style.as_ref().and_then(style_background_rgba))
+                .or(column_bg);
 
             // An explicit cell height is a minimum on the cell's rendered box.
             // The intrinsic content height now folds the cell border into its top/
@@ -2050,14 +2463,15 @@ pub(crate) fn flatten_table(
             // border and background suppressed so the table background shows
             // through. Emptiness is decided from the DOM, not the collapsed
             // text, because `&nbsp;` is content yet whitespace-collapses away.
-            let hide_if_empty = cell_style.empty_cells == crate::style::computed::EmptyCells::Hide
+            let hide_if_empty = style.border_collapse == BorderCollapse::Separate
+                && cell_style.empty_cells == crate::style::computed::EmptyCells::Hide
                 && cell_has_no_content(cell_el);
             let row_span_share = if rowspan > 1 {
                 (min_content_height / rowspan as f32).max(0.0)
             } else {
                 min_content_height
             };
-            cells.push(TableCell {
+            let mut table_cell = TableCell {
                 lines,
                 nested_rows,
                 bold: cell_style.font_weight == FontWeight::Bold,
@@ -2080,7 +2494,17 @@ pub(crate) fn flatten_table(
                 background_gradient: None,
                 background_radial_gradient: None,
                 background_conic_gradient: None,
-            });
+            };
+            let collapsed_columns = column_info
+                .iter()
+                .skip(col_pos)
+                .take(colspan)
+                .all(|info| info.collapsed);
+            if table_cell_is_hidden(&cell_style) || collapsed_columns {
+                hide_table_cell_paint(&mut table_cell);
+            }
+            cells.push(table_cell);
+            cell_hidden_borders.push(hidden_borders);
 
             // Mark subsequent rows as occupied if rowspan > 1
             if rowspan > 1 {
@@ -2096,6 +2520,19 @@ pub(crate) fn flatten_table(
         }
 
         if !cells.is_empty() {
+            if style.border_collapse == BorderCollapse::Collapse {
+                for idx in 0..cells.len().saturating_sub(1) {
+                    let (left, right) = cells.split_at_mut(idx + 1);
+                    resolve_collapsed_border_pair(
+                        &mut left[idx].border,
+                        cell_hidden_borders[idx],
+                        BorderSideName::Right,
+                        &mut right[0].border,
+                        cell_hidden_borders[idx + 1],
+                        BorderSideName::Left,
+                    );
+                }
+            }
             let first_emitted_row = output.len() == table_output_start;
             if let Some(row_height) = row_style.height.or(row_style.min_height) {
                 enforce_row_min_height(&mut cells, row_height);
@@ -2148,6 +2585,13 @@ pub(crate) fn flatten_table(
         return;
     }
 
+    let mut table_border = LayoutBorder::from_computed(&style.border);
+    if !table_border.has_any() {
+        if let Some(width) = table_attr_border_width {
+            table_border = attr_border(width, true);
+        }
+    }
+
     let separate = matches!(style.border_collapse, BorderCollapse::Separate);
     // Horizontal spacing applies to column gaps + left/right outer edges;
     // vertical spacing applies to row gaps + top/bottom outer edges. They differ
@@ -2170,6 +2614,9 @@ pub(crate) fn flatten_table(
             edge_spacing_v,
         );
     }
+    if style.border_collapse == BorderCollapse::Collapse {
+        resolve_collapsed_outer_table_borders(&mut output[table_output_start..], table_border);
+    }
 
     // Height of the table content box: the rows plus, for `separate` collapse,
     // the vertical `border-spacing` above the first row, below the last row, and
@@ -2178,7 +2625,14 @@ pub(crate) fn flatten_table(
     let mut emitted_rows = 0usize;
     let mut rows_height = 0.0f32;
     for elem in &output[table_output_start..] {
-        if let LayoutElement::TableRow { cells, .. } = elem {
+        if let LayoutElement::TableRow {
+            cells, margin_top, ..
+        } = elem
+        {
+            if cells.is_empty() {
+                rows_height += *margin_top;
+                continue;
+            }
             emitted_rows += 1;
             rows_height += cells
                 .iter()
@@ -2243,12 +2697,6 @@ pub(crate) fn flatten_table(
     // zero-flow box: its `margin-top` carries the table's own top margin (unless
     // a caption above already does) while a matching negative `margin-bottom`
     // cancels its height so the rows that follow render on top of it.
-    let mut table_border = LayoutBorder::from_computed(&style.border);
-    if !table_border.has_any() {
-        if let Some(width) = table_attr_border_width {
-            table_border = attr_border(width, true);
-        }
-    }
     if has_background_paint(style) || table_border.has_any() {
         let bg_margin_top = if has_top_caption {
             0.0

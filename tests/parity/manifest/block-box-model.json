@@ -872,7 +872,7 @@
     "description": "display:contents suppresses the wrapper box, paint, and padding while keeping children in flow; catches treating contents as block.",
     "file": "cases/block-box-model/block-display-contents.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

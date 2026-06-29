@@ -79,14 +79,103 @@ fn background_clip_rect(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
+fn background_reference_rect(
+    origin: BackgroundOrigin,
+    bx: f32,
+    by: f32,
+    bw: f32,
+    bh: f32,
+    border_left: f32,
+    border_right: f32,
+    border_top: f32,
+    border_bottom: f32,
+    padding_left: f32,
+    padding_right: f32,
+    padding_top: f32,
+    padding_bottom: f32,
+) -> (f32, f32, f32, f32) {
+    let (inset_left, inset_right, inset_top, inset_bottom) = match origin {
+        BackgroundOrigin::Border => (0.0, 0.0, 0.0, 0.0),
+        BackgroundOrigin::Padding => (border_left, border_right, border_top, border_bottom),
+        BackgroundOrigin::Content => (
+            border_left + padding_left,
+            border_right + padding_right,
+            border_top + padding_top,
+            border_bottom + padding_bottom,
+        ),
+    };
+    (
+        bx + inset_left,
+        by + inset_bottom,
+        (bw - inset_left - inset_right).max(0.0),
+        (bh - inset_top - inset_bottom).max(0.0),
+    )
+}
+
+fn background_clip_radii(
+    clip: BackgroundClip,
+    border: [f32; 4],
+    padding: [f32; 4],
+    rx: [f32; 4],
+    ry: [f32; 4],
+) -> ([f32; 4], [f32; 4]) {
+    let [left, right, top, bottom] = border;
+    let [padding_left, padding_right, padding_top, padding_bottom] = padding;
+    let (ix_left, ix_right, iy_top, iy_bottom) = match clip {
+        BackgroundClip::Border => (0.0, 0.0, 0.0, 0.0),
+        BackgroundClip::Padding => (left, right, top, bottom),
+        BackgroundClip::Content => (
+            left + padding_left,
+            right + padding_right,
+            top + padding_top,
+            bottom + padding_bottom,
+        ),
+    };
+    (
+        [
+            (rx[0] - ix_left).max(0.0),
+            (rx[1] - ix_right).max(0.0),
+            (rx[2] - ix_right).max(0.0),
+            (rx[3] - ix_left).max(0.0),
+        ],
+        [
+            (ry[0] - iy_top).max(0.0),
+            (ry[1] - iy_top).max(0.0),
+            (ry[2] - iy_bottom).max(0.0),
+            (ry[3] - iy_bottom).max(0.0),
+        ],
+    )
+}
+
 /// Emit a clip path (`q` + path + `W n`) for a background-clip box. Uses a
 /// rounded-rect path when `border_radius` is set, otherwise a plain rectangle.
 /// The caller is responsible for the matching `Q`. Returns `true` if a clip was
 /// pushed (always, but kept for symmetry with conditional callers).
 fn push_background_clip(content: &mut String, x: f32, y: f32, w: f32, h: f32, border_radius: f32) {
+    push_background_clip_box(
+        content,
+        x,
+        y,
+        w,
+        h,
+        [border_radius; 4],
+        [border_radius; 4],
+    );
+}
+
+fn push_background_clip_box(
+    content: &mut String,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    rx: [f32; 4],
+    ry: [f32; 4],
+) {
     content.push_str("q\n");
-    if border_radius > 0.0 {
-        content.push_str(&rounded_rect_path(x, y, w, h, border_radius));
+    if let Some(path) = rounded_box_path(x, y, w, h, rx, ry) {
+        content.push_str(&path);
         content.push_str("W n\n");
     } else {
         content.push_str(&format!("{x} {y} {w} {h} re W n\n"));
@@ -1844,8 +1933,40 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         *padding_top,
                         *padding_bottom,
                     );
+                    let (tb_ref_x, tb_ref_y, tb_ref_w, tb_ref_h) = background_reference_rect(
+                        *background_origin,
+                        block_x,
+                        block_bottom,
+                        render_width,
+                        border_box_h,
+                        tb_bl,
+                        tb_br,
+                        tb_bt,
+                        tb_bb,
+                        *padding_left,
+                        *padding_right,
+                        *padding_top,
+                        *padding_bottom,
+                    );
                     let tb_needs_clip = *background_clip != BackgroundClip::Border;
                     let tb_gradient_clip = *border_radius > 0.0 || tb_needs_clip;
+                    let tb_layer_box = background_layer_box(
+                        *background_size,
+                        *background_position,
+                        *background_repeat,
+                    );
+                    let (tb_clip_rx, tb_clip_ry) = background_clip_radii(
+                        *background_clip,
+                        [tb_bl, tb_br, tb_bt, tb_bb],
+                        [
+                            *padding_left,
+                            *padding_right,
+                            *padding_top,
+                            *padding_bottom,
+                        ],
+                        *tb_radii,
+                        *tb_radii_y,
+                    );
 
                     // Draw background if specified
                     if let Some((r, g, b, a)) = background_color {
@@ -1859,13 +1980,14 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         }
                         content.push_str(&format!("{r} {g} {b} rg\n"));
                         if tb_needs_clip {
-                            push_background_clip(
+                            push_background_clip_box(
                                 &mut content,
                                 tb_clip_x,
                                 tb_clip_y,
                                 tb_clip_w,
                                 tb_clip_h,
-                                *border_radius,
+                                tb_clip_rx,
+                                tb_clip_ry,
                             );
                             content.push_str(&format!(
                                 "{tb_clip_x} {tb_clip_y} {tb_clip_w} {tb_clip_h} re\n"
@@ -1906,27 +2028,30 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     // Draw linear gradient if specified
                     if let Some(gradient) = background_gradient {
-                        let bg_y = block_bottom;
+                        let gradient = linear_with_background_layer(gradient, tb_layer_box);
                         // Clip to the background-clip box (rounded if needed).
                         if tb_gradient_clip {
-                            push_background_clip(
+                            push_background_clip_box(
                                 &mut content,
                                 tb_clip_x,
                                 tb_clip_y,
                                 tb_clip_w,
                                 tb_clip_h,
-                                *border_radius,
+                                tb_clip_rx,
+                                tb_clip_ry,
                             );
                         }
                         render_linear_gradient(
                             &mut content,
-                            gradient,
-                            block_x,
-                            bg_y,
-                            render_width,
-                            border_box_h,
+                            &gradient,
+                            tb_ref_x,
+                            tb_ref_y,
+                            tb_ref_w,
+                            tb_ref_h,
                             &mut page_shadings,
                             &mut shading_counter,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
                         if tb_gradient_clip {
                             content.push_str("Q\n");
@@ -1935,26 +2060,29 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     // Draw radial gradient if specified
                     if let Some(gradient) = background_radial_gradient {
-                        let bg_y = block_bottom;
+                        let gradient = radial_with_background_layer(gradient, tb_layer_box);
                         if tb_gradient_clip {
-                            push_background_clip(
+                            push_background_clip_box(
                                 &mut content,
                                 tb_clip_x,
                                 tb_clip_y,
                                 tb_clip_w,
                                 tb_clip_h,
-                                *border_radius,
+                                tb_clip_rx,
+                                tb_clip_ry,
                             );
                         }
                         render_radial_gradient(
                             &mut content,
-                            gradient,
-                            block_x,
-                            bg_y,
-                            render_width,
-                            border_box_h,
+                            &gradient,
+                            tb_ref_x,
+                            tb_ref_y,
+                            tb_ref_w,
+                            tb_ref_h,
                             &mut page_shadings,
                             &mut shading_counter,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
                         if tb_gradient_clip {
                             content.push_str("Q\n");
@@ -1963,24 +2091,27 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     // Draw conic gradient if specified
                     if let Some(gradient) = background_conic_gradient {
-                        let bg_y = block_bottom;
+                        let gradient = conic_with_background_layer(gradient, tb_layer_box);
                         if tb_gradient_clip {
-                            push_background_clip(
+                            push_background_clip_box(
                                 &mut content,
                                 tb_clip_x,
                                 tb_clip_y,
                                 tb_clip_w,
                                 tb_clip_h,
-                                *border_radius,
+                                tb_clip_rx,
+                                tb_clip_ry,
                             );
                         }
                         render_conic_gradient(
                             &mut content,
-                            gradient,
-                            block_x,
-                            bg_y,
-                            render_width,
-                            border_box_h,
+                            &gradient,
+                            tb_ref_x,
+                            tb_ref_y,
+                            tb_ref_w,
+                            tb_ref_h,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
                         if tb_gradient_clip {
                             content.push_str("Q\n");
@@ -2051,7 +2182,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 *background_size,
                                 *background_position,
                                 *background_repeat,
-                            ),
+                            )
+                            .with_border_radii(tb_clip_rx, tb_clip_ry),
                         );
                     }
 
@@ -3037,6 +3169,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             cell_content_h,
                             &mut page_shadings,
                             &mut shading_counter,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
 
                         // Render cell text
@@ -3167,6 +3301,10 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     // Draw container linear gradient
                     if let Some(gradient) = background_gradient {
+                        let gradient = linear_with_background_layer(
+                            gradient,
+                            background_layer_box(*flex_bg_size, *flex_bg_pos, *flex_bg_repeat),
+                        );
                         let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         if *border_radius > 0.0 {
@@ -3182,13 +3320,15 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         }
                         render_linear_gradient(
                             &mut content,
-                            gradient,
+                            &gradient,
                             bg_x,
                             bg_y,
                             *container_width,
                             full_height,
                             &mut page_shadings,
                             &mut shading_counter,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
                         if *border_radius > 0.0 {
                             content.push_str("Q\n");
@@ -3197,6 +3337,10 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     // Draw container radial gradient
                     if let Some(gradient) = background_radial_gradient {
+                        let gradient = radial_with_background_layer(
+                            gradient,
+                            background_layer_box(*flex_bg_size, *flex_bg_pos, *flex_bg_repeat),
+                        );
                         let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         if *border_radius > 0.0 {
@@ -3212,13 +3356,15 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         }
                         render_radial_gradient(
                             &mut content,
-                            gradient,
+                            &gradient,
                             bg_x,
                             bg_y,
                             *container_width,
                             full_height,
                             &mut page_shadings,
                             &mut shading_counter,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
                         if *border_radius > 0.0 {
                             content.push_str("Q\n");
@@ -3227,6 +3373,10 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                     // Draw container conic gradient
                     if let Some(gradient) = background_conic_gradient {
+                        let gradient = conic_with_background_layer(
+                            gradient,
+                            background_layer_box(*flex_bg_size, *flex_bg_pos, *flex_bg_repeat),
+                        );
                         let bg_x = flex_left;
                         let bg_y = row_y - full_height;
                         if *border_radius > 0.0 {
@@ -3242,11 +3392,13 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         }
                         render_conic_gradient(
                             &mut content,
-                            gradient,
+                            &gradient,
                             bg_x,
                             bg_y,
                             *container_width,
                             full_height,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
                         if *border_radius > 0.0 {
                             content.push_str("Q\n");
@@ -3795,6 +3947,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 cell_render_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                             if cell.border_radius > 0.0 {
                                 content.push_str("Q\n");
@@ -3825,6 +3979,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 cell_render_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                             if cell.border_radius > 0.0 {
                                 content.push_str("Q\n");
@@ -3853,6 +4009,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 bg_y,
                                 cell.width,
                                 cell_render_h,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                             if cell.border_radius > 0.0 {
                                 content.push_str("Q\n");
@@ -4777,6 +4935,28 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             *c_pt,
                             *c_pb,
                         );
+                        let (c_clip_rx, c_clip_ry) = background_clip_radii(
+                            *c_bg_clip,
+                            [c_bl, c_br, c_bt, c_bb],
+                            [*c_pl, *c_pr, *c_pt, *c_pb],
+                            *c_border_radii,
+                            *c_border_radii_y,
+                        );
+                        let (c_ref_x, c_ref_y, c_ref_w, c_ref_h) = background_reference_rect(
+                            *c_bg_origin,
+                            container_x,
+                            c_bg_y,
+                            container_w,
+                            total_h,
+                            c_bl,
+                            c_br,
+                            c_bt,
+                            c_bb,
+                            *c_pl,
+                            *c_pr,
+                            *c_pt,
+                            *c_pb,
+                        );
                         let c_clip_radius = *c_border_radius;
                         let c_needs_clip = *c_bg_clip != BackgroundClip::Border;
 
@@ -4832,32 +5012,36 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             }
                         }
 
-                        // Gradients paint over the background-clip box. The
-                        // gradient ramp itself is anchored to the (border) box;
-                        // clipping just confines where it shows.
-                        let bg_y = c_bg_y;
+                        // Gradients are positioned in the background-origin box;
+                        // background-clip only confines where that paint shows.
                         let gradient_clip = *c_border_radius > 0.0 || c_needs_clip;
+                        let c_layer_box =
+                            background_layer_box(*c_bg_size, *c_bg_position, *c_bg_repeat);
                         // Draw container linear gradient
                         if let Some(gradient) = c_bg_gradient {
+                            let gradient = linear_with_background_layer(gradient, c_layer_box);
                             if gradient_clip {
-                                push_background_clip(
+                                push_background_clip_box(
                                     &mut content,
                                     c_clip_x,
                                     c_clip_y,
                                     c_clip_w,
                                     c_clip_h,
-                                    c_clip_radius,
+                                    c_clip_rx,
+                                    c_clip_ry,
                                 );
                             }
                             render_linear_gradient(
                                 &mut content,
-                                gradient,
-                                container_x,
-                                bg_y,
-                                container_w,
-                                total_h,
+                                &gradient,
+                                c_ref_x,
+                                c_ref_y,
+                                c_ref_w,
+                                c_ref_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                             if gradient_clip {
                                 content.push_str("Q\n");
@@ -4866,25 +5050,29 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                         // Draw container radial gradient
                         if let Some(gradient) = c_bg_radial {
+                            let gradient = radial_with_background_layer(gradient, c_layer_box);
                             if gradient_clip {
-                                push_background_clip(
+                                push_background_clip_box(
                                     &mut content,
                                     c_clip_x,
                                     c_clip_y,
                                     c_clip_w,
                                     c_clip_h,
-                                    c_clip_radius,
+                                    c_clip_rx,
+                                    c_clip_ry,
                                 );
                             }
                             render_radial_gradient(
                                 &mut content,
-                                gradient,
-                                container_x,
-                                bg_y,
-                                container_w,
-                                total_h,
+                                &gradient,
+                                c_ref_x,
+                                c_ref_y,
+                                c_ref_w,
+                                c_ref_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                             if gradient_clip {
                                 content.push_str("Q\n");
@@ -4893,23 +5081,27 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                         // Draw container conic gradient
                         if let Some(gradient) = c_bg_conic {
+                            let gradient = conic_with_background_layer(gradient, c_layer_box);
                             if gradient_clip {
-                                push_background_clip(
+                                push_background_clip_box(
                                     &mut content,
                                     c_clip_x,
                                     c_clip_y,
                                     c_clip_w,
                                     c_clip_h,
-                                    c_clip_radius,
+                                    c_clip_rx,
+                                    c_clip_ry,
                                 );
                             }
                             render_conic_gradient(
                                 &mut content,
-                                gradient,
-                                container_x,
-                                bg_y,
-                                container_w,
-                                total_h,
+                                &gradient,
+                                c_ref_x,
+                                c_ref_y,
+                                c_ref_w,
+                                c_ref_h,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                             if gradient_clip {
                                 content.push_str("Q\n");
@@ -4922,6 +5114,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         // insetting the border (padding box) and border+padding
                         // (content box).
                         if let Some(svg_tree) = c_bg_svg {
+                            let bg_y = c_bg_y;
                             let (ref_x, ref_y, ref_w, ref_h) = match c_bg_origin {
                                 BackgroundOrigin::Border => {
                                     (container_x, bg_y, container_w, total_h)
@@ -4947,16 +5140,17 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 &mut page_shadings,
                                 &mut shading_counter,
                                 Some(&mut page_ext_gstates),
-                                BackgroundPaintContext::new(
-                                    SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
-                                    SvgViewportBox::new(c_clip_x, c_clip_y, c_clip_w, c_clip_h),
-                                    *c_border_radius,
+                            BackgroundPaintContext::new(
+                                SvgViewportBox::new(ref_x, ref_y, ref_w, ref_h),
+                                SvgViewportBox::new(c_clip_x, c_clip_y, c_clip_w, c_clip_h),
+                                *c_border_radius,
                                     *c_bg_blur,
                                     *c_bg_size,
-                                    *c_bg_position,
-                                    *c_bg_repeat,
-                                ),
-                            );
+                                *c_bg_position,
+                                *c_bg_repeat,
+                            )
+                            .with_border_radii(c_clip_rx, c_clip_ry),
+                        );
                         }
 
                         // Draw inset box-shadow (after container background, before borders).
@@ -6934,6 +7128,8 @@ fn render_container_children(
                         child_h,
                         page_shadings,
                         shading_counter,
+                        pdf_writer,
+                        page_images,
                     );
                     if *tb_border_radius > 0.0 {
                         content.push_str("Q\n");
@@ -6971,6 +7167,8 @@ fn render_container_children(
                         child_h,
                         page_shadings,
                         shading_counter,
+                        pdf_writer,
+                        page_images,
                     );
                     if *tb_border_radius > 0.0 {
                         content.push_str("Q\n");
@@ -6999,7 +7197,16 @@ fn render_container_children(
                         ));
                         content.push_str("W n\n");
                     }
-                    render_conic_gradient(content, gradient, bg_x, bg_y, render_w, child_h);
+                    render_conic_gradient(
+                        content,
+                        gradient,
+                        bg_x,
+                        bg_y,
+                        render_w,
+                        child_h,
+                        pdf_writer,
+                        page_images,
+                    );
                     if *tb_border_radius > 0.0 {
                         content.push_str("Q\n");
                     }
@@ -7607,9 +7814,12 @@ fn render_container_children(
                         // blend gstate to a `q`..`Q` around each background-image paint.
                         let nk_bg_blended =
                             *nk_bg_blend != crate::style::computed::BlendMode::Normal;
+                        let nk_layer_box =
+                            background_layer_box(*nk_bg_size, *nk_bg_position, *nk_bg_repeat);
 
                         // Draw linear gradient
                         if let Some(gradient) = background_gradient {
+                            let gradient = linear_with_background_layer(gradient, nk_layer_box);
                             let bg_x = nk_x;
                             let bg_y = nk_top_y - nk_total_h;
                             if nk_bg_blended {
@@ -7625,13 +7835,15 @@ fn render_container_children(
                             }
                             render_linear_gradient(
                                 content,
-                                gradient,
+                                &gradient,
                                 bg_x,
                                 bg_y,
                                 nk_w,
                                 nk_total_h,
                                 page_shadings,
                                 shading_counter,
+                                pdf_writer,
+                                page_images,
                             );
                             if *cont_br > 0.0 {
                                 content.push_str("Q\n");
@@ -7643,6 +7855,7 @@ fn render_container_children(
 
                         // Draw radial gradient
                         if let Some(gradient) = background_radial_gradient {
+                            let gradient = radial_with_background_layer(gradient, nk_layer_box);
                             let bg_x = nk_x;
                             let bg_y = nk_top_y - nk_total_h;
                             if nk_bg_blended {
@@ -7658,13 +7871,15 @@ fn render_container_children(
                             }
                             render_radial_gradient(
                                 content,
-                                gradient,
+                                &gradient,
                                 bg_x,
                                 bg_y,
                                 nk_w,
                                 nk_total_h,
                                 page_shadings,
                                 shading_counter,
+                                pdf_writer,
+                                page_images,
                             );
                             if *cont_br > 0.0 {
                                 content.push_str("Q\n");
@@ -7676,6 +7891,7 @@ fn render_container_children(
 
                         // Draw conic gradient
                         if let Some(gradient) = background_conic_gradient {
+                            let gradient = conic_with_background_layer(gradient, nk_layer_box);
                             let bg_x = nk_x;
                             let bg_y = nk_top_y - nk_total_h;
                             if nk_bg_blended {
@@ -7689,7 +7905,16 @@ fn render_container_children(
                                 ));
                                 content.push_str("W n\n");
                             }
-                            render_conic_gradient(content, gradient, bg_x, bg_y, nk_w, nk_total_h);
+                            render_conic_gradient(
+                                content,
+                                &gradient,
+                                bg_x,
+                                bg_y,
+                                nk_w,
+                                nk_total_h,
+                                pdf_writer,
+                                page_images,
+                            );
                             if *cont_br > 0.0 {
                                 content.push_str("Q\n");
                             }
@@ -9239,6 +9464,8 @@ fn render_nested_table_rows(
                         box_h,
                         page_shadings,
                         shading_counter,
+                        pdf_writer,
+                        page_images,
                     );
 
                     // Draw per-cell border around the painted box. Use the
@@ -10503,6 +10730,331 @@ fn gradient_layer_tiles(
     tiles
 }
 
+fn gradient_requires_raster(stops: &[crate::style::computed::GradientStop]) -> bool {
+    stops.iter().any(|stop| stop.color.a < 255)
+}
+
+fn background_layer_box(
+    size: BackgroundSize,
+    position: BackgroundPosition,
+    repeat: BackgroundRepeat,
+) -> crate::style::computed::GradientLayerBox {
+    crate::style::computed::GradientLayerBox {
+        size: Some(size),
+        position: Some(position),
+        repeat: Some(repeat),
+    }
+}
+
+fn merge_background_layer_box(
+    mut layer_box: crate::style::computed::GradientLayerBox,
+    fallback: crate::style::computed::GradientLayerBox,
+) -> crate::style::computed::GradientLayerBox {
+    if layer_box.size.is_none() {
+        layer_box.size = fallback.size;
+    }
+    if layer_box.position.is_none() {
+        layer_box.position = fallback.position;
+    }
+    if layer_box.repeat.is_none() {
+        layer_box.repeat = fallback.repeat;
+    }
+    layer_box
+}
+
+fn linear_with_background_layer(
+    gradient: &LinearGradient,
+    fallback: crate::style::computed::GradientLayerBox,
+) -> LinearGradient {
+    let mut gradient = gradient.clone();
+    gradient.layer_box = merge_background_layer_box(gradient.layer_box, fallback);
+    gradient
+}
+
+fn radial_with_background_layer(
+    gradient: &RadialGradient,
+    fallback: crate::style::computed::GradientLayerBox,
+) -> RadialGradient {
+    let mut gradient = gradient.clone();
+    gradient.layer_box = merge_background_layer_box(gradient.layer_box, fallback);
+    gradient
+}
+
+fn conic_with_background_layer(
+    gradient: &ConicGradient,
+    fallback: crate::style::computed::GradientLayerBox,
+) -> ConicGradient {
+    let mut gradient = gradient.clone();
+    gradient.layer_box = merge_background_layer_box(gradient.layer_box, fallback);
+    gradient
+}
+
+fn gradient_raster_dimensions(width: f32, height: f32) -> Option<(u32, u32)> {
+    if width <= 0.0 || height <= 0.0 {
+        return None;
+    }
+    let px_w = (width / 0.75).round().clamp(1.0, 2048.0) as u32;
+    let px_h = (height / 0.75).round().clamp(1.0, 2048.0) as u32;
+    Some((px_w, px_h))
+}
+
+fn encode_gradient_png(image: &image::RgbaImage) -> Option<Vec<u8>> {
+    let mut encoded = Vec::new();
+    image::DynamicImage::ImageRgba8(image.clone())
+        .write_to(
+            &mut std::io::Cursor::new(&mut encoded),
+            image::ImageFormat::Png,
+        )
+        .ok()?;
+    Some(encoded)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_gradient_png(
+    content: &mut String,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+    image: &image::RgbaImage,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+) {
+    let Some(encoded) = encode_gradient_png(image) else {
+        return;
+    };
+    let metadata = PngMetadata {
+        channels: 4,
+        bit_depth: 8,
+    };
+    let obj_id = pdf_writer.add_image_object(
+        &encoded,
+        image.width(),
+        image.height(),
+        ImageFormat::PngAlpha,
+        Some(&metadata),
+    );
+    let name = format!("Im{obj_id}");
+    content.push_str(&format!(
+        "q\n{width} 0 0 {height} {x} {y} cm\n/{name} Do\nQ\n"
+    ));
+    page_images.push(ImageRef { name, obj_id });
+}
+
+fn gradient_stop_rgba(stop: crate::style::computed::GradientStop) -> (f32, f32, f32, f32) {
+    (
+        f32::from(stop.color.r) / 255.0,
+        f32::from(stop.color.g) / 255.0,
+        f32::from(stop.color.b) / 255.0,
+        f32::from(stop.color.a) / 255.0,
+    )
+}
+
+fn sample_rgba_gradient_stops(
+    stops: &[crate::style::computed::GradientStop],
+    mut t: f32,
+    repeating: bool,
+) -> (f32, f32, f32, f32) {
+    if stops.is_empty() {
+        return (0.0, 0.0, 0.0, 0.0);
+    }
+    if repeating && stops.len() > 1 {
+        let first = stops[0].position;
+        let last = stops[stops.len() - 1].position;
+        let period = last - first;
+        if period > 0.0001 {
+            t = first + (t - first).rem_euclid(period);
+        }
+    }
+    if t <= stops[0].position {
+        return gradient_stop_rgba(stops[0]);
+    }
+    let last_idx = stops.len() - 1;
+    if t >= stops[last_idx].position {
+        return gradient_stop_rgba(stops[last_idx]);
+    }
+    for pair in stops.windows(2) {
+        let a = pair[0];
+        let b = pair[1];
+        if t >= a.position && t <= b.position {
+            let span = b.position - a.position;
+            if span <= 0.00001 {
+                return gradient_stop_rgba(b);
+            }
+            let f = ((t - a.position) / span).clamp(0.0, 1.0);
+            let (ar, ag, ab, aa) = gradient_stop_rgba(a);
+            let (br, bg, bb, ba) = gradient_stop_rgba(b);
+            return (
+                ar + (br - ar) * f,
+                ag + (bg - ag) * f,
+                ab + (bb - ab) * f,
+                aa + (ba - aa) * f,
+            );
+        }
+    }
+    gradient_stop_rgba(stops[last_idx])
+}
+
+fn rgba_to_pixel((r, g, b, a): (f32, f32, f32, f32)) -> image::Rgba<u8> {
+    image::Rgba([
+        (r.clamp(0.0, 1.0) * 255.0).round() as u8,
+        (g.clamp(0.0, 1.0) * 255.0).round() as u8,
+        (b.clamp(0.0, 1.0) * 255.0).round() as u8,
+        (a.clamp(0.0, 1.0) * 255.0).round() as u8,
+    ])
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_linear_gradient_tile_raster(
+    content: &mut String,
+    gradient: &LinearGradient,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) {
+    let Some((px_w, px_h)) = gradient_raster_dimensions(width, height) else {
+        return;
+    };
+    let theta = gradient.angle.to_radians();
+    let dx = theta.sin();
+    let dy = -theta.cos();
+    let half = (width * 0.5 * dx.abs() + height * 0.5 * dy.abs()).max(1e-6);
+    let (cx, cy) = (width * 0.5, height * 0.5);
+    let mut image = image::RgbaImage::new(px_w, px_h);
+    for py in 0..px_h {
+        let fy = (py as f32 + 0.5) * height / px_h as f32;
+        for px in 0..px_w {
+            let fx = (px as f32 + 0.5) * width / px_w as f32;
+            let proj = (fx - cx) * dx + (fy - cy) * dy;
+            let t = (proj + half) / (2.0 * half);
+            image.put_pixel(
+                px,
+                py,
+                rgba_to_pixel(sample_rgba_gradient_stops(
+                    &gradient.stops,
+                    t,
+                    gradient.repeating,
+                )),
+            );
+        }
+    }
+    draw_gradient_png(content, pdf_writer, page_images, &image, x, y, width, height);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_radial_gradient_tile_raster(
+    content: &mut String,
+    gradient: &RadialGradient,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) {
+    let Some((px_w, px_h)) = gradient_raster_dimensions(width, height) else {
+        return;
+    };
+    let (cx_pos, cy_pos) = gradient.center;
+    let cx = cx_pos.resolve(width);
+    let cy = cy_pos.resolve(height);
+    let near_x = cx.min(width - cx).abs();
+    let far_x = cx.max(width - cx).abs();
+    let near_y = cy.min(height - cy).abs();
+    let far_y = cy.max(height - cy).abs();
+    let (rx, ry) = match gradient.shape {
+        RadialShape::Circle => {
+            let r = gradient.radius.unwrap_or_else(|| match gradient.extent {
+                RadialExtent::ClosestSide => near_x.min(near_y),
+                RadialExtent::FarthestSide => far_x.max(far_y),
+                RadialExtent::ClosestCorner => (near_x * near_x + near_y * near_y).sqrt(),
+                RadialExtent::FarthestCorner => (far_x * far_x + far_y * far_y).sqrt(),
+            });
+            (r, r)
+        }
+        RadialShape::Ellipse => {
+            if let Some((rxp, ryp)) = gradient.radii {
+                (rxp.resolve(width), ryp.resolve(height))
+            } else {
+                match gradient.extent {
+                    RadialExtent::ClosestSide => (near_x, near_y),
+                    RadialExtent::FarthestSide => (far_x, far_y),
+                    RadialExtent::ClosestCorner => {
+                        corner_ellipse_radii(near_x, near_y, near_x, near_y)
+                    }
+                    RadialExtent::FarthestCorner => {
+                        corner_ellipse_radii(far_x, far_y, far_x, far_y)
+                    }
+                }
+            }
+        }
+    };
+    let (rx, ry) = (rx.max(1e-6), ry.max(1e-6));
+    let mut image = image::RgbaImage::new(px_w, px_h);
+    for py in 0..px_h {
+        let fy = (py as f32 + 0.5) * height / px_h as f32;
+        for px in 0..px_w {
+            let fx = (px as f32 + 0.5) * width / px_w as f32;
+            let nx = (fx - cx) / rx;
+            let ny = (fy - cy) / ry;
+            let t = (nx * nx + ny * ny).sqrt();
+            image.put_pixel(
+                px,
+                py,
+                rgba_to_pixel(sample_rgba_gradient_stops(
+                    &gradient.stops,
+                    t,
+                    gradient.repeating,
+                )),
+            );
+        }
+    }
+    draw_gradient_png(content, pdf_writer, page_images, &image, x, y, width, height);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_conic_gradient_tile_raster(
+    content: &mut String,
+    gradient: &ConicGradient,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) {
+    let Some((px_w, px_h)) = gradient_raster_dimensions(width, height) else {
+        return;
+    };
+    let cx = gradient.center.0.resolve(width);
+    let cy = gradient.center.1.resolve(height);
+    let from = gradient.from_angle.to_radians();
+    let mut image = image::RgbaImage::new(px_w, px_h);
+    for py in 0..px_h {
+        let fy = (py as f32 + 0.5) * height / px_h as f32;
+        for px in 0..px_w {
+            let fx = (px as f32 + 0.5) * width / px_w as f32;
+            let dx = fx - cx;
+            let dy = fy - cy;
+            let angle = (dx.atan2(-dy) - from).rem_euclid(std::f32::consts::TAU);
+            let t = angle / std::f32::consts::TAU;
+            image.put_pixel(
+                px,
+                py,
+                rgba_to_pixel(sample_rgba_gradient_stops(
+                    &gradient.stops,
+                    t,
+                    gradient.repeating,
+                )),
+            );
+        }
+    }
+    draw_gradient_png(content, pdf_writer, page_images, &image, x, y, width, height);
+}
+
 /// Paint a grid/table cell's gradient backgrounds over its painted box.
 ///
 /// A grid item (and a table cell) is a block container, so a `background` with a
@@ -10521,6 +11073,8 @@ fn paint_cell_gradient_backgrounds(
     box_h: f32,
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     if box_w <= 0.0 || box_h <= 0.0 {
         return;
@@ -10537,6 +11091,8 @@ fn paint_cell_gradient_backgrounds(
             box_h,
             shadings,
             shading_counter,
+            pdf_writer,
+            page_images,
         );
         content.push_str("Q\n");
     }
@@ -10552,13 +11108,24 @@ fn paint_cell_gradient_backgrounds(
             box_h,
             shadings,
             shading_counter,
+            pdf_writer,
+            page_images,
         );
         content.push_str("Q\n");
     }
     if let Some(gradient) = &cell.background_conic_gradient {
         content.push_str("q\n");
         content.push_str(&format!("{box_x} {box_y} {box_w} {box_h} re\nW n\n"));
-        render_conic_gradient(content, gradient, box_x, box_y, box_w, box_h);
+        render_conic_gradient(
+            content,
+            gradient,
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            pdf_writer,
+            page_images,
+        );
         content.push_str("Q\n");
     }
 }
@@ -10573,6 +11140,8 @@ fn render_linear_gradient(
     height: f32,
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     let base_stops: Vec<(f32, (f32, f32, f32))> = gradient
         .stops
@@ -10586,6 +11155,19 @@ fn render_linear_gradient(
     };
 
     for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
+        if gradient_requires_raster(&gradient.stops) {
+            render_linear_gradient_tile_raster(
+                content,
+                gradient,
+                tile.x,
+                tile.y,
+                tile.width,
+                tile.height,
+                pdf_writer,
+                page_images,
+            );
+            continue;
+        }
         *shading_counter += 1;
         render_linear_gradient_tile(
             content,
@@ -10658,6 +11240,8 @@ fn render_radial_gradient(
     height: f32,
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     let stops: Vec<(f32, (f32, f32, f32))> = gradient
         .stops
@@ -10666,6 +11250,19 @@ fn render_radial_gradient(
         .collect();
 
     for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
+        if gradient_requires_raster(&gradient.stops) {
+            render_radial_gradient_tile_raster(
+                content,
+                gradient,
+                tile.x,
+                tile.y,
+                tile.width,
+                tile.height,
+                pdf_writer,
+                page_images,
+            );
+            continue;
+        }
         render_radial_gradient_tile(
             content,
             gradient,
@@ -10855,6 +11452,8 @@ fn render_conic_gradient(
     y: f32,
     width: f32,
     height: f32,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     let stops: Vec<(f32, (f32, f32, f32))> = gradient
         .stops
@@ -10866,15 +11465,28 @@ fn render_conic_gradient(
     }
 
     for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
-        render_conic_gradient_tile(
-            content,
-            gradient,
-            &stops,
-            tile.x,
-            tile.y,
-            tile.width,
-            tile.height,
-        );
+        if gradient_requires_raster(&gradient.stops) {
+            render_conic_gradient_tile_raster(
+                content,
+                gradient,
+                tile.x,
+                tile.y,
+                tile.width,
+                tile.height,
+                pdf_writer,
+                page_images,
+            );
+        } else {
+            render_conic_gradient_tile(
+                content,
+                gradient,
+                &stops,
+                tile.x,
+                tile.y,
+                tile.width,
+                tile.height,
+            );
+        }
     }
 }
 
@@ -11205,7 +11817,17 @@ fn render_svg_background(
     // Clip to the element box.
     content.push_str("q\n");
     let expanded_clip_box = viewport_box_from_overflow(paint.clip_box, visual_overflow);
-    if paint.border_radius > 0.0 {
+    if let Some(path) = rounded_box_path(
+        expanded_clip_box.x,
+        expanded_clip_box.y,
+        expanded_clip_box.width,
+        expanded_clip_box.height,
+        paint.border_radii,
+        paint.border_radii_y,
+    ) {
+        content.push_str(&path);
+        content.push_str("W n\n");
+    } else if paint.border_radius > 0.0 {
         content.push_str(&rounded_rect_path(
             expanded_clip_box.x,
             expanded_clip_box.y,

@@ -560,7 +560,7 @@
     "description": "Collapsed-border conflict where a hidden right border must suppress the neighboring solid left border; catches engines that parse hidden as none or paint both cell edges.",
     "file": "cases/tables/tables-border-hidden-conflict.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -577,7 +577,7 @@
     "description": "Collapsed-border conflict where the wider blue shared border wins over a narrower red neighbor; catches DOM-order overpainting instead of width precedence.",
     "file": "cases/tables/tables-border-width-conflict.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -628,7 +628,7 @@
     "description": "empty-cells:hide treats visibility:hidden cell content as no visible content and removes an all-empty row; catches DOM-presence emptiness tests.",
     "file": "cases/tables/tables-empty-cells-hidden-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -868,7 +868,7 @@
     "description": "A tbody has a blue background, cells are transparent, and the table background is yellow. Catches wrong implementations where a renderer that only falls back to direct row backgrounds shows yellow table background through the cells instead of the tbody layer.",
     "file": "cases/tables/tables-row-group-background.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -885,7 +885,7 @@
     "description": "Two col elements provide red and green backgrounds while all cells are transparent. Catches wrong implementations where a width-only col implementation passes col sizing tests but leaves transparent cells showing the table background.",
     "file": "cases/tables/tables-column-background.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -902,7 +902,7 @@
     "description": "A colgroup with span=2 has a blue background under two transparent columns and a third column remains yellow table background. Catches wrong implementations where a renderer that ignores colgroup backgrounds shows all three columns as yellow or only applies widths.",
     "file": "cases/tables/tables-colgroup-background.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -936,7 +936,7 @@
     "description": "A collapsed-border table sets empty-cells:hide on an empty red cell next to a filled green cell. Catches wrong implementations where a renderer that applies empty-cells in collapsed mode suppresses the empty cell background/border, even though existing separated-mode hide tests pass.",
     "file": "cases/tables/tables-empty-cells-collapse-ignored.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -953,7 +953,7 @@
     "description": "The middle row is visibility:collapse in a separated table with vertical border-spacing. Catches wrong implementations where a renderer that hides content but leaves the row height or both adjacent spacings would still pass ordinary visibility:hidden tests.",
     "file": "cases/tables/tables-visibility-collapse-row.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -970,7 +970,7 @@
     "description": "The tbody is visibility:collapse and should remove all body rows while leaving the footer row directly below the header. Catches wrong implementations where a row-only collapse implementation ignores section visibility and still renders the red tbody rows.",
     "file": "cases/tables/tables-visibility-collapse-row-group.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -987,7 +987,7 @@
     "description": "The middle col is visibility:collapse in a three-column fixed table. Catches wrong implementations where a renderer without column collapse leaves the red middle column visible and keeps the full three-column width.",
     "file": "cases/tables/tables-visibility-collapse-column.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1004,7 +1004,7 @@
     "description": "A two-column colgroup is collapsed, leaving only the trailing green column visible. Catches wrong implementations where a renderer that ignores colgroup collapse renders the blue and red grouped columns as normal.",
     "file": "cases/tables/tables-visibility-collapse-colgroup.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1021,7 +1021,7 @@
     "description": "One cell in a two-cell row is visibility:collapse; its grid slot remains but its red paint and text disappear. Catches wrong implementations where a renderer that ignores cell visibility paints the red cell, while a renderer that removes the slot shifts the green cell left.",
     "file": "cases/tables/tables-visibility-collapse-cell.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1157,7 +1157,7 @@
     "description": "Equal-width equal-style borders of different colors meet at a collapsed shared vertical edge; the directional tie-break determines the winner. Catches wrong implementations where a renderer that uses DOM paint order can pass width/style conflict tests but choose the opposite color in exact ties.",
     "file": "cases/tables/tables-collapse-directional-tie.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

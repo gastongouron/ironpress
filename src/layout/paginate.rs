@@ -1,6 +1,6 @@
 use super::engine::{
-    FootnoteItem, LayoutElement, Page, PageBreakSide, decode_footnote_link,
-    layout_element_paint_order, table_cell_content_height, FOOTNOTE_CALL_FONT_SCALE,
+    decode_footnote_link, layout_element_paint_order, table_cell_content_height, FootnoteItem,
+    LayoutElement, Page, PageBreakSide, FOOTNOTE_CALL_FONT_SCALE,
 };
 use crate::style::computed::{
     BorderCollapse, BoxDecorationBreak, Clear, Float, ObjectFit, Position,
@@ -22,7 +22,8 @@ fn collect_footnotes_from_element(element: &LayoutElement, out: &mut Vec<Footnot
         LayoutElement::TextBlock { lines, .. } => {
             for line in lines {
                 for run in &line.runs {
-                    let Some((marker, text)) = run.link_url.as_deref().and_then(decode_footnote_link)
+                    let Some((marker, text)) =
+                        run.link_url.as_deref().and_then(decode_footnote_link)
                     else {
                         continue;
                     };
@@ -660,6 +661,122 @@ fn split_text_block(
     Some((first, rest))
 }
 
+/// Slice a definite-height in-flow text block at the fragmentainer edge. Unlike
+/// [`split_text_block`], this handles boxes whose own height is monolithic and
+/// taller than the page; the box background/border must continue on following
+/// pages instead of overflowing and being clipped. Text lines that fit in the
+/// first fragment stay there, and later lines move to the continuation.
+fn split_fixed_height_text_block(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::TextBlock {
+        lines,
+        block_height,
+        clip_rect,
+        position,
+        float,
+        border,
+        padding_top,
+        padding_bottom,
+        box_decoration_break,
+        ..
+    } = element
+    else {
+        return None;
+    };
+    let block_height = (*block_height)?;
+    if clip_rect.is_some()
+        || *position != Position::Static
+        || *float != Float::None
+        || block_height <= 0.0
+    {
+        return None;
+    }
+
+    let clone = *box_decoration_break == BoxDecorationBreak::Clone;
+    let first_border_h = if clone {
+        border.vertical_width()
+    } else {
+        border.top.width
+    };
+    let first_content_h = (avail_below_box_top - first_border_h).min(block_height);
+    if first_content_h <= MIN_IMAGE_SLICE || block_height - first_content_h <= MIN_IMAGE_SLICE {
+        return None;
+    }
+
+    let first_line_space = if clone {
+        first_content_h - padding_top - padding_bottom
+    } else {
+        first_content_h - padding_top
+    };
+    let mut acc = 0.0f32;
+    let mut idx = 0usize;
+    for (i, line) in lines.iter().enumerate() {
+        let next = acc + line.height;
+        if i > 0 && next > first_line_space {
+            break;
+        }
+        if next > first_line_space && i == 0 {
+            break;
+        }
+        acc = next;
+        idx = i + 1;
+    }
+
+    let mut first = element.clone();
+    if let LayoutElement::TextBlock {
+        lines: f_lines,
+        margin_bottom: f_mb,
+        padding_bottom: f_pb,
+        border: f_border,
+        border_radii: f_radii,
+        border_radii_y: f_radii_y,
+        block_height: f_bh,
+        ..
+    } = &mut first
+    {
+        *f_lines = lines[..idx.min(lines.len())].to_vec();
+        *f_bh = Some(first_content_h.max(0.0));
+        if !clone {
+            *f_mb = 0.0;
+            *f_pb = 0.0;
+            f_border.bottom.width = 0.0;
+            f_radii[2] = 0.0;
+            f_radii[3] = 0.0;
+            f_radii_y[2] = 0.0;
+            f_radii_y[3] = 0.0;
+        }
+    }
+
+    let mut rest = element.clone();
+    if let LayoutElement::TextBlock {
+        lines: r_lines,
+        margin_top: r_mt,
+        padding_top: r_pt,
+        border: r_border,
+        border_radii: r_radii,
+        border_radii_y: r_radii_y,
+        block_height: r_bh,
+        ..
+    } = &mut rest
+    {
+        *r_lines = lines[idx.min(lines.len())..].to_vec();
+        *r_bh = Some((block_height - first_content_h).max(0.0));
+        if !clone {
+            *r_mt = 0.0;
+            *r_pt = 0.0;
+            r_border.top.width = 0.0;
+            r_radii[0] = 0.0;
+            r_radii[1] = 0.0;
+            r_radii_y[0] = 0.0;
+            r_radii_y[1] = 0.0;
+        }
+    }
+
+    Some((first, rest))
+}
+
 /// Minimum slice height (pt) below which a too-tall raster image is not sliced —
 /// keeps a fragment from being a sliver and guarantees forward progress.
 const MIN_IMAGE_SLICE: f32 = 1.0;
@@ -759,6 +876,96 @@ fn split_image_block(
     Some((first, rest))
 }
 
+fn svg_source_box(tree: &crate::parser::svg::SvgTree) -> Option<crate::parser::svg::ViewBox> {
+    if let Some(view_box) = tree.view_box {
+        if view_box.width > 0.0 && view_box.height > 0.0 {
+            return Some(view_box);
+        }
+    }
+    let width = tree
+        .width_attr
+        .as_deref()
+        .and_then(crate::parser::svg::parse_absolute_length)
+        .unwrap_or(tree.width);
+    let height = tree
+        .height_attr
+        .as_deref()
+        .and_then(crate::parser::svg::parse_absolute_length)
+        .unwrap_or(tree.height);
+    if width > 0.0 && height > 0.0 {
+        Some(crate::parser::svg::ViewBox {
+            min_x: 0.0,
+            min_y: 0.0,
+            width,
+            height,
+        })
+    } else {
+        None
+    }
+}
+
+/// Slice a too-tall SVG replaced element by narrowing its source viewBox to the
+/// rows that belong on each page. This is the SVG analogue of raster `src_crop`:
+/// each fragment maps the relevant source slice into that page's fragment box.
+fn split_svg_block(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::Svg { tree, height, .. } = element else {
+        return None;
+    };
+    if *height <= 0.0 {
+        return None;
+    }
+
+    let first_h = avail_below_box_top.min(*height);
+    if first_h <= MIN_IMAGE_SLICE || *height - first_h <= MIN_IMAGE_SLICE {
+        return None;
+    }
+    let source = svg_source_box(tree)?;
+    let slice_src_h = source.height * (first_h / *height);
+
+    let mut first = element.clone();
+    if let LayoutElement::Svg {
+        tree: f_tree,
+        height: f_h,
+        flow_extra_bottom: f_fe,
+        margin_bottom: f_mb,
+        ..
+    } = &mut first
+    {
+        *f_h = first_h;
+        *f_fe = 0.0;
+        *f_mb = 0.0;
+        f_tree.view_box = Some(crate::parser::svg::ViewBox {
+            min_x: source.min_x,
+            min_y: source.min_y,
+            width: source.width,
+            height: slice_src_h,
+        });
+    }
+
+    let mut rest = element.clone();
+    if let LayoutElement::Svg {
+        tree: r_tree,
+        height: r_h,
+        margin_top: r_mt,
+        ..
+    } = &mut rest
+    {
+        *r_h = *height - first_h;
+        *r_mt = 0.0;
+        r_tree.view_box = Some(crate::parser::svg::ViewBox {
+            min_x: source.min_x,
+            min_y: source.min_y + slice_src_h,
+            width: source.width,
+            height: source.height - slice_src_h,
+        });
+    }
+
+    Some((first, rest))
+}
+
 /// Dispatch a too-tall in-flow element to the right splitter: a `TextBlock`
 /// splits at a line boundary, a raster `Image` slices at the page edge, a
 /// `Container` splits between (or recurses into) its children. Returns `None`
@@ -768,8 +975,10 @@ fn split_element(
     element: &LayoutElement,
     avail_below_box_top: f32,
 ) -> Option<(LayoutElement, LayoutElement)> {
-    split_text_block(element, avail_below_box_top)
+    split_fixed_height_text_block(element, avail_below_box_top)
+        .or_else(|| split_text_block(element, avail_below_box_top))
         .or_else(|| split_image_block(element, avail_below_box_top))
+        .or_else(|| split_svg_block(element, avail_below_box_top))
         .or_else(|| split_table_row(element, avail_below_box_top))
         .or_else(|| split_container(element, avail_below_box_top))
 }
@@ -1470,6 +1679,18 @@ pub(crate) fn paginate_with_first_page(
         // Returns (content_height_without_margins, margin_top, margin_bottom)
         let (content_h_val, margin_top_val, margin_bottom_val) = match &element {
             LayoutElement::PageBreak(side, name) => {
+                let mut side = *side;
+                let mut name = name.clone();
+                // CSS Fragmentation 3 break precedence is resolved at the
+                // shared class-A break point. The layout flattener emits
+                // `break-after` followed by `break-before`; coalesce adjacent
+                // forced breaks here so the later-in-flow `break-before` value
+                // wins instead of being ignored on the empty page just created.
+                while let Some(LayoutElement::PageBreak(next_side, next_name)) = work.front() {
+                    side = *next_side;
+                    name = next_name.clone();
+                    work.pop_front();
+                }
                 // A forced break before any real content on the current page is
                 // ignored (CSS Fragmentation 3: a forced break at the very start
                 // of the fragmentation flow produces no leading blank page).
@@ -1717,8 +1938,8 @@ pub(crate) fn paginate_with_first_page(
         let element_height = margin_top_val + content_h_val + margin_bottom_val;
         let mut pending_footnotes = Vec::new();
         collect_footnotes_from_element(&element, &mut pending_footnotes);
-        let footnote_reserve =
-            footnote_reserved_height(&current_footnotes) + footnote_reserved_height(&pending_footnotes);
+        let footnote_reserve = footnote_reserved_height(&current_footnotes)
+            + footnote_reserved_height(&pending_footnotes);
         let effective_content_height = (content_height - footnote_reserve).max(0.0);
 
         // Handle position: absolute -- place at fixed position, don't affect flow
@@ -1767,9 +1988,86 @@ pub(crate) fn paginate_with_first_page(
             None => (element_height, footer_reserve),
         };
         const PAGE_BREAK_EPSILON: f32 = 1.0;
-        let page_broke_mid_loop = y + break_decision_height + break_footer_reserve
+        let mut page_broke_mid_loop = y + break_decision_height + break_footer_reserve
             > effective_content_height + PAGE_BREAK_EPSILON
             && y > 0.0;
+        if page_broke_mid_loop
+            && current_footnotes.is_empty()
+            && pending_footnotes.is_empty()
+            && elem_position == Position::Static
+            && elem_float == Float::None
+            && !in_table_body
+        {
+            let movable = current_elements
+                .iter()
+                .enumerate()
+                .rev()
+                .find(|(_, (_, el))| {
+                    !matches!(
+                        el,
+                        LayoutElement::TextBlock {
+                            repeat_on_each_page: true,
+                            ..
+                        }
+                    ) && !element_is_absolute(el)
+                });
+            if let Some((idx, (last_y, last_element))) = movable {
+                let earlier_real_content = current_elements[..idx].iter().any(|(_, el)| {
+                    !matches!(
+                        el,
+                        LayoutElement::TextBlock {
+                            repeat_on_each_page: true,
+                            ..
+                        }
+                    )
+                });
+                let moved_flow_height = (y - *last_y).max(0.0);
+                let moved_footnote_free = {
+                    let mut notes = Vec::new();
+                    collect_footnotes_from_element(last_element, &mut notes);
+                    notes.is_empty()
+                };
+                if earlier_real_content
+                    && moved_footnote_free
+                    && moved_flow_height > 0.0
+                    && moved_flow_height < element_height * 0.9
+                    && moved_flow_height <= effective_content_height * 0.35
+                    && moved_flow_height + element_height
+                        <= effective_content_height + PAGE_BREAK_EPSILON
+                {
+                    let (moved_y, moved_element) = current_elements.remove(idx);
+                    y = moved_y;
+                    let consumed_height = y;
+                    let margin_override = pending_named_page
+                        .map(|geom| geom.margin)
+                        .or_else(|| page_margin_override(pages.len()));
+                    let page_size_override = pending_named_page.map(|geom| geom.page_size);
+                    pages.push(Page {
+                        elements: std::mem::take(&mut current_elements),
+                        running_elements: current_running_elements.clone(),
+                        footnotes: std::mem::take(&mut current_footnotes),
+                        margin_override,
+                        page_size_override,
+                    });
+                    content_height = pending_named_page
+                        .map(|geom| geom.content_height)
+                        .unwrap_or(default_content_height);
+                    for bg in &absolute_backgrounds {
+                        current_elements.push(bg.clone());
+                    }
+                    current_elements.push((0.0, moved_element.clone()));
+                    y = moved_flow_height;
+                    on_first_page = false;
+                    left_floats.clear();
+                    right_floats.clear();
+                    advance_positioned_ancestors_after_page_break(
+                        &mut positioned_y_by_depth,
+                        consumed_height,
+                    );
+                    page_broke_mid_loop = false;
+                }
+            }
+        }
         if page_broke_mid_loop {
             // Repeat the running footer at the bottom of the page being closed,
             // directly after the last body row (matching Chrome: the footer is

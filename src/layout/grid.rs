@@ -1,15 +1,19 @@
-use crate::parser::css::{AncestorInfo, SelectorContext};
+use crate::parser::css::{
+    parse_inline_style, parse_length, selector_matches_with_context, specificity, AncestorInfo,
+    CssRule, CssValue, PseudoElement, SelectorContext,
+};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{
-    BoxSizing, ComputedStyle, FontWeight, GridAlign, GridLine, GridTrack, Position, TextAlign,
-    VerticalAlign, Visibility, compute_style_with_context,
+    compute_pseudo_element_style, compute_style_with_context, AlignContent, AlignItems, BoxSizing,
+    ComputedStyle, ContentItem, Display, FontWeight, GridAlign, GridLine, GridTrack,
+    JustifyContent, Position, TextAlign, VerticalAlign, Visibility,
 };
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
-use super::engine::{BackgroundFields, LayoutBorder, LayoutElement, flatten_element};
+use super::engine::{flatten_element, BackgroundFields, LayoutBorder, LayoutElement};
 use super::table::{GridInset, TableCell};
 use super::text::{
-    FlexTextRunCollector, TextWrapOptions, resolved_line_height_factor, wrap_text_runs,
+    resolved_line_height_factor, wrap_text_runs, FlexTextRunCollector, TextWrapOptions,
 };
 
 /// Resolve grid column widths from track definitions.
@@ -237,6 +241,272 @@ fn grid_track_fixed_height(track: &GridTrack) -> Option<f32> {
     }
 }
 
+fn fixed_track_pattern_from_value(value: &CssValue) -> Vec<f32> {
+    match value {
+        CssValue::Length(v) => vec![*v],
+        CssValue::Keyword(raw) => raw
+            .split_whitespace()
+            .filter_map(|token| match parse_length(token) {
+                Some(CssValue::Length(v)) => Some(v),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn matched_grid_track_pattern(
+    el: &ElementNode,
+    style_attr: Option<&str>,
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    property: &str,
+) -> Vec<f32> {
+    let classes = el.class_list();
+    let selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        child_index: 0,
+        sibling_count: 0,
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    };
+    let mut matched: Vec<(u32, usize, &CssRule)> = Vec::new();
+    for (source_idx, rule) in rules.iter().enumerate() {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
+        if selector_matches_with_context(
+            &rule.selector,
+            el.tag_name(),
+            &classes,
+            el.id(),
+            &el.attributes,
+            &selector_ctx,
+        ) {
+            matched.push((specificity(&rule.selector), source_idx, rule));
+        }
+    }
+    matched.sort_by_key(|(spec, source_idx, _)| (*spec, *source_idx));
+
+    let mut normal = Vec::new();
+    let mut important = Vec::new();
+    for (_, _, rule) in matched {
+        if let Some(value) = rule.declarations.get(property) {
+            if rule.declarations.is_important(property) {
+                important = fixed_track_pattern_from_value(value);
+            } else {
+                normal = fixed_track_pattern_from_value(value);
+            }
+        }
+    }
+
+    if let Some(inline) = style_attr.map(parse_inline_style) {
+        if let Some(value) = inline.get(property) {
+            if inline.is_important(property) {
+                important = fixed_track_pattern_from_value(value);
+            } else {
+                normal = fixed_track_pattern_from_value(value);
+            }
+        }
+    }
+
+    if !important.is_empty() {
+        important
+    } else if !normal.is_empty() {
+        normal
+    } else if property == "grid-auto-rows" {
+        parent_style.grid_auto_rows.into_iter().collect()
+    } else {
+        Vec::new()
+    }
+}
+
+fn matched_display_contents(
+    el: &ElementNode,
+    style_attr: Option<&str>,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+) -> bool {
+    let classes = el.class_list();
+    let selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        child_index: 0,
+        sibling_count: 0,
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    };
+    let mut matched: Vec<(u32, usize, &CssRule)> = Vec::new();
+    for (source_idx, rule) in rules.iter().enumerate() {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
+        if selector_matches_with_context(
+            &rule.selector,
+            el.tag_name(),
+            &classes,
+            el.id(),
+            &el.attributes,
+            &selector_ctx,
+        ) {
+            matched.push((specificity(&rule.selector), source_idx, rule));
+        }
+    }
+    matched.sort_by_key(|(spec, source_idx, _)| (*spec, *source_idx));
+
+    let mut normal = false;
+    let mut important = false;
+    for (_, _, rule) in matched {
+        if let Some(CssValue::Keyword(value)) = rule.declarations.get("display") {
+            let is_contents = value.eq_ignore_ascii_case("contents");
+            if rule.declarations.is_important("display") {
+                important = is_contents;
+            } else {
+                normal = is_contents;
+            }
+        }
+    }
+    if let Some(inline) = style_attr.map(parse_inline_style) {
+        if let Some(CssValue::Keyword(value)) = inline.get("display") {
+            let is_contents = value.eq_ignore_ascii_case("contents");
+            if inline.is_important("display") {
+                important = is_contents;
+            } else {
+                normal = is_contents;
+            }
+        }
+    }
+
+    important || normal
+}
+
+fn anonymous_grid_item_style(parent: &ComputedStyle) -> ComputedStyle {
+    let mut style = parent.clone();
+    style.display = Display::Block;
+    style.margin = Default::default();
+    style.margin_left_auto = false;
+    style.margin_right_auto = false;
+    style.margin_top_auto = false;
+    style.margin_bottom_auto = false;
+    style.padding = Default::default();
+    style.border = Default::default();
+    style.background_color = None;
+    style.width = None;
+    style.height = None;
+    style.position = Position::Static;
+    style.order = 0;
+    style.grid_column_start = GridLine::Auto;
+    style.grid_column_end = GridLine::Auto;
+    style.grid_row_start = GridLine::Auto;
+    style.grid_row_end = GridLine::Auto;
+    style.grid_area_name = None;
+    style.grid_justify_self = None;
+    style.grid_align_self = None;
+    style
+}
+
+fn pseudo_element_node(style: &ComputedStyle) -> ElementNode {
+    let text = style
+        .content
+        .iter()
+        .filter_map(|item| match item {
+            ContentItem::String(value) => Some(value.as_str()),
+            _ => None,
+        })
+        .collect::<String>();
+    let children = if text.is_empty() {
+        Vec::new()
+    } else {
+        vec![DomNode::Text(text)]
+    };
+    ElementNode {
+        tag: crate::parser::dom::HtmlTag::Span,
+        raw_tag_name: "span".to_string(),
+        attributes: Default::default(),
+        children,
+    }
+}
+
+fn shift_absolute_offsets(elements: &mut [LayoutElement], delta_x: f32, delta_y: f32) {
+    for element in elements {
+        match element {
+            LayoutElement::TextBlock {
+                position,
+                offset_left,
+                offset_top,
+                ..
+            }
+            | LayoutElement::Container {
+                position,
+                offset_left,
+                offset_top,
+                ..
+            } if *position == Position::Absolute => {
+                *offset_left += delta_x;
+                *offset_top += delta_y;
+            }
+            LayoutElement::Container { children, .. } => {
+                shift_absolute_offsets(children, delta_x, delta_y);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn distribute_tracks(
+    sizes: &[f32],
+    base_gap: f32,
+    available: f32,
+    justify: JustifyContent,
+) -> (f32, f32) {
+    let track_total = sizes.iter().sum::<f32>();
+    let gap_count = sizes.len().saturating_sub(1) as f32;
+    let natural = track_total + base_gap * gap_count;
+    let free = (available - natural).max(0.0);
+    match justify {
+        JustifyContent::FlexEnd => (free, base_gap),
+        JustifyContent::Center => (free / 2.0, base_gap),
+        JustifyContent::SpaceBetween if sizes.len() > 1 => (0.0, base_gap + free / gap_count),
+        JustifyContent::SpaceAround if !sizes.is_empty() => {
+            let extra = free / sizes.len() as f32;
+            (extra / 2.0, base_gap + extra)
+        }
+        JustifyContent::SpaceEvenly if !sizes.is_empty() => {
+            let extra = free / (sizes.len() as f32 + 1.0);
+            (extra, base_gap + extra)
+        }
+        _ => (0.0, base_gap),
+    }
+}
+
+fn distribute_rows(
+    heights: &[f32],
+    base_gap: f32,
+    available: f32,
+    align: AlignContent,
+) -> (f32, f32) {
+    let track_total = heights.iter().sum::<f32>();
+    let gap_count = heights.len().saturating_sub(1) as f32;
+    let natural = track_total + base_gap * gap_count;
+    let free = (available - natural).max(0.0);
+    match align {
+        AlignContent::FlexEnd => (free, base_gap),
+        AlignContent::Center => (free / 2.0, base_gap),
+        AlignContent::SpaceBetween if heights.len() > 1 => (0.0, base_gap + free / gap_count),
+        AlignContent::SpaceAround if !heights.is_empty() => {
+            let extra = free / heights.len() as f32;
+            (extra / 2.0, base_gap + extra)
+        }
+        AlignContent::SpaceEvenly if !heights.is_empty() => {
+            let extra = free / (heights.len() as f32 + 1.0);
+            (extra, base_gap + extra)
+        }
+        _ => (0.0, base_gap),
+    }
+}
+
 /// The outer height a grid item wants: an explicit `height` (border-box) or
 /// the measured text height plus vertical padding.
 fn grid_item_outer_height(
@@ -261,6 +531,15 @@ fn grid_item_outer_height(
     // reserves its border thickness. Without it, the implicit auto track sizes to
     // 0 and a later border stroke emits a negative-height rect.
     text_h + cs.padding.top + cs.padding.bottom + cs.border.top.width + cs.border.bottom.width
+}
+
+fn grid_item_first_baseline(cs: &ComputedStyle, has_text: bool, env: &LayoutEnv) -> Option<f32> {
+    if !has_text {
+        return None;
+    }
+    let line_h = cs.font_size * resolved_line_height_factor(cs, env.fonts);
+    let half_leading = ((line_h - cs.font_size) / 2.0).max(0.0);
+    Some(cs.border.top.width + cs.padding.top + half_leading + cs.font_size * 0.8)
 }
 
 /// Lay out a grid item's block-level children into nested layout elements,
@@ -463,33 +742,68 @@ fn compute_grid_inset(
     let justify = cs.grid_justify_self.unwrap_or(container.justify_items);
     let align = cs.grid_align_self.unwrap_or(container.grid_align_items);
 
-    // Stretch on both axes with no explicit size → fill the track (no inset).
+    let margin_left = if cs.margin_left_auto {
+        0.0
+    } else {
+        cs.margin.left
+    };
+    let margin_right = if cs.margin_right_auto {
+        0.0
+    } else {
+        cs.margin.right
+    };
+    let margin_top = if cs.margin_top_auto {
+        0.0
+    } else {
+        cs.margin.top
+    };
+    let margin_bottom = if cs.margin_bottom_auto {
+        0.0
+    } else {
+        cs.margin.bottom
+    };
+    let margin_w = margin_left + margin_right;
+    let margin_h = margin_top + margin_bottom;
+    let align_w = (track_w - margin_w).max(0.0);
+    let align_h = (track_h - margin_h).max(0.0);
+
+    // Stretch on both axes with no explicit size and no margins → fill the
+    // track (no inset).
     let stretch_w = item_w.is_none() && justify == GridAlign::Stretch;
     let stretch_h = item_h.is_none() && align == GridAlign::Stretch;
-    if stretch_w && stretch_h {
+    if stretch_w && stretch_h && margin_w == 0.0 && margin_h == 0.0 {
         return None;
     }
 
-    let box_w = item_w.unwrap_or(track_w).min(track_w);
-    let box_h = item_h.unwrap_or(track_h).min(track_h);
+    let box_w = item_w.unwrap_or(align_w).min(align_w);
+    let box_h = item_h.unwrap_or(align_h).min(align_h);
+
+    let free_x = (align_w - box_w).max(0.0);
+    let free_y = (align_h - box_h).max(0.0);
+    let (auto_left, auto_right) = (cs.margin_left_auto, cs.margin_right_auto);
+    let (auto_top, auto_bottom) = (cs.margin_top_auto, cs.margin_bottom_auto);
 
     let offset_x = match justify {
+        _ if auto_left && auto_right => free_x / 2.0,
+        _ if auto_left => free_x,
         GridAlign::Start | GridAlign::Stretch => 0.0,
-        GridAlign::End => (track_w - box_w).max(0.0),
-        GridAlign::Center => ((track_w - box_w) / 2.0).max(0.0),
+        GridAlign::End => free_x,
+        GridAlign::Center => free_x / 2.0,
     };
     let offset_y = match align {
+        _ if auto_top && auto_bottom => free_y / 2.0,
+        _ if auto_top => free_y,
         GridAlign::Start | GridAlign::Stretch => 0.0,
-        GridAlign::End => (track_h - box_h).max(0.0),
-        GridAlign::Center => ((track_h - box_h) / 2.0).max(0.0),
+        GridAlign::End => free_y,
+        GridAlign::Center => free_y / 2.0,
     };
     // When stretching one axis, use the full track extent on that axis.
-    let final_w = if stretch_w { track_w } else { box_w };
-    let final_h = if stretch_h { track_h } else { box_h };
+    let final_w = if stretch_w { align_w } else { box_w };
+    let final_h = if stretch_h { align_h } else { box_h };
 
     Some(GridInset {
-        offset_x,
-        offset_y,
+        offset_x: margin_left + offset_x,
+        offset_y: margin_top + offset_y,
         width: final_w,
         height: final_h,
     })
@@ -692,6 +1006,8 @@ fn place_grid_items(
         );
         resolved.push(Resolved { idx, col, row });
     }
+    let mut order_modified: Vec<usize> = (0..resolved.len()).collect();
+    order_modified.sort_by_key(|&i| (child_styles[resolved[i].idx].order, resolved[i].idx));
 
     // Occupancy grid (row-major, grown on demand).
     let mut occupied: Vec<Vec<bool>> = Vec::new();
@@ -728,7 +1044,8 @@ fn place_grid_items(
     let mut max_cols = num_cols;
 
     // Phase 1: items definite on BOTH axes → fixed position.
-    for r in &resolved {
+    for &resolved_idx in &order_modified {
+        let r = &resolved[resolved_idx];
         if let (Some((c, cspan)), Some((rw, rspan))) = (r.col, r.row) {
             mark(&mut occupied, rw, c, rspan, cspan);
             max_cols = max_cols.max(c + cspan);
@@ -749,7 +1066,8 @@ fn place_grid_items(
     let mut cursor_major = 0usize; // row (row-flow) or col (column-flow)
     let mut cursor_minor = 0usize; // col (row-flow) or row (column-flow)
 
-    for r in &resolved {
+    for &resolved_idx in &order_modified {
+        let r = &resolved[resolved_idx];
         if placed.iter().any(|p| p.idx == r.idx) {
             continue; // already placed in phase 1
         }
@@ -771,16 +1089,27 @@ fn place_grid_items(
                 cursor_major = 0;
                 cursor_minor = 0;
             }
+            let mut local_major = if r.row.is_some() && r.col.is_none() {
+                0
+            } else {
+                cursor_major
+            };
+            let mut local_minor = if r.col.is_some() && r.row.is_none() {
+                0
+            } else {
+                cursor_minor
+            };
+            let mut definite_row_collision = false;
             loop {
                 let row_pos = match r.row {
                     Some((rw, _)) => rw,
-                    None => cursor_minor,
+                    None => local_minor,
                 };
-                let col_pos = col_known.unwrap_or(cursor_major);
+                let col_pos = col_known.unwrap_or(local_major);
                 // Wrap rows within the bound when row is auto.
-                if r.row.is_none() && cursor_minor + rspan > num_rows_bound {
-                    cursor_minor = 0;
-                    cursor_major += 1;
+                if r.row.is_none() && local_minor + rspan > num_rows_bound {
+                    local_minor = 0;
+                    local_major += 1;
                     continue;
                 }
                 ensure(&mut occupied, row_pos + rspan - 1, col_pos + cspan);
@@ -794,15 +1123,22 @@ fn place_grid_items(
                         col_span: cspan,
                         row_span: rspan,
                     });
-                    if r.row.is_none() {
+                    if r.row.is_none() && r.col.is_none() {
                         cursor_minor = row_pos + rspan;
+                        cursor_major = col_pos;
+                    } else if r.row.is_none() && definite_row_collision {
+                        cursor_major = cursor_major.max(col_pos + cspan);
+                    } else {
+                        // A definite row is packed independently and does not
+                        // advance the sparse auto-placement cursor.
                     }
                     break;
                 }
                 if r.row.is_none() {
-                    cursor_minor += 1;
+                    local_minor += 1;
                 } else {
-                    cursor_major += 1;
+                    definite_row_collision = true;
+                    local_major += 1;
                 }
             }
         } else {
@@ -820,19 +1156,29 @@ fn place_grid_items(
                 cursor_major = 0;
                 cursor_minor = 0;
             }
+            let mut local_major = if r.col.is_some() && r.row.is_none() {
+                0
+            } else {
+                cursor_major
+            };
+            let mut local_minor = if r.row.is_some() && r.col.is_none() {
+                0
+            } else {
+                cursor_minor
+            };
             loop {
                 let col_pos = match r.col {
                     Some((c, _)) => c,
-                    None => cursor_minor,
+                    None => local_minor,
                 };
                 let row_pos = match r.row {
                     Some((rw, _)) => rw,
-                    None => cursor_major,
+                    None => local_major,
                 };
                 // Wrap columns when column is auto.
                 if r.col.is_none() && col_pos + cspan > num_cols {
-                    cursor_minor = 0;
-                    cursor_major += 1;
+                    local_minor = 0;
+                    local_major += 1;
                     continue;
                 }
                 ensure(&mut occupied, row_pos + rspan - 1, num_cols);
@@ -846,15 +1192,22 @@ fn place_grid_items(
                         col_span: cspan,
                         row_span: rspan,
                     });
-                    if r.col.is_none() {
+                    if r.col.is_none() && r.row.is_none() {
                         cursor_minor = col_pos + cspan;
+                        cursor_major = row_pos;
+                    } else if r.col.is_none() {
+                        // A definite row is packed independently and does not
+                        // advance the sparse auto-placement cursor.
+                    } else {
+                        cursor_minor = col_pos + cspan;
+                        cursor_major = row_pos;
                     }
                     break;
                 }
                 if r.col.is_none() {
-                    cursor_minor += 1;
+                    local_minor += 1;
                 } else {
-                    cursor_major += 1;
+                    local_major += 1;
                 }
             }
         }
@@ -987,23 +1340,146 @@ pub(crate) fn layout_grid_container(
     let abs_child_indices: Vec<usize> = (0..total_child_count)
         .filter(|&i| all_child_styles[i].position == Position::Absolute)
         .collect();
-    let element_children: Vec<&ElementNode> = (0..total_child_count)
-        .filter(|i| all_child_styles[*i].position != Position::Absolute)
-        .map(|i| all_element_children[i])
-        .collect();
-    let child_styles: Vec<ComputedStyle> = (0..total_child_count)
-        .filter(|i| all_child_styles[*i].position != Position::Absolute)
-        .map(|i| all_child_styles[i].clone())
-        .collect();
+    let mut element_children: Vec<ElementNode> = Vec::new();
+    let mut child_styles: Vec<ComputedStyle> = Vec::new();
+
+    let container_classes = el.class_list();
+    let container_selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        child_index: 0,
+        sibling_count: 0,
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    };
+    if let Some(before_style) = compute_pseudo_element_style(
+        style,
+        env.rules,
+        el.tag_name(),
+        &container_classes,
+        el.id(),
+        &el.attributes,
+        &container_selector_ctx,
+        PseudoElement::Before,
+    ) {
+        element_children.push(pseudo_element_node(&before_style));
+        child_styles.push(before_style);
+    }
+
+    let mut element_idx = 0usize;
+    for child in &el.children {
+        match child {
+            DomNode::Text(text) => {
+                if !text.trim().is_empty() {
+                    let mut node = ElementNode::new(crate::parser::dom::HtmlTag::Span);
+                    node.children.push(DomNode::Text(text.clone()));
+                    element_children.push(node);
+                    child_styles.push(anonymous_grid_item_style(style));
+                }
+            }
+            DomNode::Element(child_el) => {
+                let direct_idx = element_idx;
+                element_idx += 1;
+                let direct_style = &all_child_styles[direct_idx];
+                if direct_style.position == Position::Absolute {
+                    continue;
+                }
+
+                if matched_display_contents(child_el, child_el.style_attr(), env.rules, ancestors) {
+                    let mut wrapper_ancestors = child_ancestors.clone();
+                    wrapper_ancestors.push(AncestorInfo {
+                        element: child_el,
+                        child_index: direct_idx,
+                        sibling_count: total_child_count,
+                        preceding_siblings: Vec::new(),
+                        following_siblings: Vec::new(),
+                        is_empty: false,
+                    });
+                    let flattened: Vec<&ElementNode> = child_el
+                        .children
+                        .iter()
+                        .filter_map(|node| match node {
+                            DomNode::Element(el) => Some(el),
+                            DomNode::Text(_) => None,
+                        })
+                        .collect();
+                    let flattened_count = flattened.len();
+                    for (flat_idx, flat_el) in flattened.into_iter().enumerate() {
+                        let flat_classes = flat_el.class_list();
+                        let flat_style = compute_style_with_context(
+                            flat_el.tag,
+                            flat_el.style_attr(),
+                            direct_style,
+                            env.rules,
+                            flat_el.tag_name(),
+                            &flat_classes,
+                            flat_el.id(),
+                            &flat_el.attributes,
+                            &SelectorContext {
+                                ancestors: wrapper_ancestors.clone(),
+                                child_index: flat_idx,
+                                sibling_count: flattened_count,
+                                preceding_siblings: Vec::new(),
+                                following_siblings: Vec::new(),
+                                is_empty: false,
+                            },
+                        );
+                        if flat_style.position != Position::Absolute {
+                            element_children.push(flat_el.clone());
+                            child_styles.push(flat_style);
+                        }
+                    }
+                } else {
+                    element_children.push((*child_el).clone());
+                    child_styles.push(direct_style.clone());
+                }
+            }
+        }
+    }
+
+    if let Some(after_style) = compute_pseudo_element_style(
+        style,
+        env.rules,
+        el.tag_name(),
+        &container_classes,
+        el.id(),
+        &el.attributes,
+        &container_selector_ctx,
+        PseudoElement::After,
+    ) {
+        element_children.push(pseudo_element_node(&after_style));
+        child_styles.push(after_style);
+    }
+    let auto_column_pattern = matched_grid_track_pattern(
+        el,
+        el.style_attr(),
+        style,
+        env.rules,
+        ancestors,
+        "grid-auto-columns",
+    );
+    let auto_row_pattern = matched_grid_track_pattern(
+        el,
+        el.style_attr(),
+        style,
+        env.rules,
+        ancestors,
+        "grid-auto-rows",
+    );
 
     // ---- Item placement (CSS Grid §8) -----------------------------------
     // Resolve each item's definite placement from grid-column / grid-row /
     // grid-area (line numbers, named lines, spans, named areas), then run the
     // §8.5 auto-placement algorithm for items left auto on either axis.
     let placement = place_grid_items(style, &child_styles, num_cols);
-    let placed = placement.placed;
+    let mut placed = placement.placed;
     let num_cols = placement.num_cols;
     let num_rows = placement.num_rows;
+    if style.direction_rtl {
+        for p in &mut placed {
+            p.col = num_cols.saturating_sub(p.col + p.col_span);
+        }
+    }
 
     // ---- Track sizing ---------------------------------------------------
     // Columns: existing resolver (auto tracks measure max-content width of
@@ -1016,7 +1492,7 @@ pub(crate) fn layout_grid_container(
         let mut max_w: f32 = 0.0;
         for p in placed.iter().filter(|p| p.col == i && p.col_span == 1) {
             let cs = &child_styles[p.idx];
-            let child_el = element_children[p.idx];
+            let child_el = &element_children[p.idx];
             let mut runs = Vec::new();
             FlexTextRunCollector {
                 runs: &mut runs,
@@ -1035,34 +1511,68 @@ pub(crate) fn layout_grid_container(
         auto_intrinsic_widths[i] = max_w;
     }
 
-    let mut col_widths = resolve_grid_columns(
-        &style.grid_template_columns,
-        inner_width,
-        column_gap,
-        &auto_intrinsic_widths,
-    );
+    let mut col_widths =
+        if style.grid_template_columns.is_empty() && !auto_column_pattern.is_empty() {
+            Vec::new()
+        } else {
+            resolve_grid_columns(
+                &style.grid_template_columns,
+                inner_width,
+                column_gap,
+                &auto_intrinsic_widths,
+            )
+        };
     // Placement may reference implicit columns beyond the explicit track list
-    // (line numbers / areas past the declared columns). `grid-auto-columns` is
-    // not modelled, so implicit tracks collapse to 0 width.
+    // (line numbers / areas past the declared columns). Size those tracks from
+    // the author-specified `grid-auto-columns` pattern, cycling it per CSS Grid
+    // implicit-track rules.
     while col_widths.len() < num_cols {
-        col_widths.push(0.0);
+        let implicit_idx = col_widths
+            .len()
+            .saturating_sub(style.grid_template_columns.len());
+        let width = if auto_column_pattern.is_empty() {
+            0.0
+        } else {
+            auto_column_pattern[implicit_idx % auto_column_pattern.len()]
+        };
+        col_widths.push(width);
     }
 
     // Rows: explicit template-rows first, then grid-auto-rows for implicit
     // rows, then content height as a final fallback.
     let mut row_heights = vec![0.0_f32; num_rows];
+    let rows_synthesized_from_areas = !style.grid_template_areas.is_empty()
+        && !style.grid_template_rows.is_empty()
+        && style
+            .grid_template_rows
+            .iter()
+            .all(|track| matches!(track, GridTrack::Auto));
     for (r, h) in row_heights.iter_mut().enumerate() {
         let explicit = style
             .grid_template_rows
             .get(r)
             .and_then(grid_track_fixed_height);
-        *h = explicit.or(style.grid_auto_rows).unwrap_or(0.0);
+        let implicit = if (!style.grid_template_rows.is_empty()
+            && rows_synthesized_from_areas
+            && !auto_row_pattern.is_empty())
+            || (r >= style.grid_template_rows.len() && !auto_row_pattern.is_empty())
+        {
+            let implicit_idx = if rows_synthesized_from_areas {
+                r
+            } else {
+                r - style.grid_template_rows.len()
+            };
+            Some(auto_row_pattern[implicit_idx % auto_row_pattern.len()])
+        } else {
+            None
+        };
+        *h = explicit.or(implicit).unwrap_or(0.0);
     }
     // Grow rows to fit any item content / explicit item height that exceeds
     // the track height (auto rows, or items taller than their fixed track).
     for p in &placed {
         let cs = &child_styles[p.idx];
-        let item_h = grid_item_outer_height(cs, env, element_children[p.idx], &child_ancestors);
+        let item_h = grid_item_outer_height(cs, env, &element_children[p.idx], &child_ancestors);
         if p.row_span == 1 {
             let r = p.row;
             if r < row_heights.len() && item_h > row_heights[r] {
@@ -1078,19 +1588,21 @@ pub(crate) fn layout_grid_container(
     // size (their surplus, if any, stays as free space — `align-content: start`).
     // Without this, empty cells in a fixed-height container collapse to 0 and
     // vanish, whereas Chrome stretches the single auto row to fill the box.
-    if let Some(h) = style.height {
-        let content_box_target = if style.box_sizing == BoxSizing::BorderBox {
+    let explicit_content_height = style.height.map(|h| {
+        if style.box_sizing == BoxSizing::BorderBox {
             (h - (style.border.top.width + style.border.bottom.width)
                 - style.padding.top
                 - style.padding.bottom)
                 .max(0.0)
         } else {
             h
-        };
+        }
+    });
+    if let Some(content_box_target) = explicit_content_height {
         let natural: f32 =
             row_heights.iter().sum::<f32>() + row_gap * num_rows.saturating_sub(1) as f32;
         let surplus = content_box_target - natural;
-        if surplus > 0.0 {
+        if surplus > 0.0 && style.align_content == AlignContent::Stretch {
             // Stretchable rows: those not pinned by a fixed-length template track.
             let stretchable: Vec<usize> = (0..num_rows)
                 .filter(|&r| {
@@ -1110,14 +1622,30 @@ pub(crate) fn layout_grid_container(
         }
     }
 
+    let (grid_block_offset, effective_row_gap) = explicit_content_height
+        .map(|target| distribute_rows(&row_heights, row_gap, target, style.align_content))
+        .unwrap_or((0.0, row_gap));
+    let (mut grid_inline_offset, effective_column_gap) =
+        distribute_tracks(&col_widths, column_gap, inner_width, style.justify_content);
+    if style.direction_rtl {
+        let natural_inline = col_widths.iter().sum::<f32>()
+            + effective_column_gap * num_cols.saturating_sub(1) as f32;
+        grid_inline_offset = match style.justify_content {
+            JustifyContent::FlexStart => inner_width - natural_inline,
+            JustifyContent::FlexEnd => 0.0,
+            _ => grid_inline_offset,
+        };
+    }
+
     // Natural content-box height of the grid: the resolved row tracks plus the
     // row gaps between them. With fixed row tracks (no fr/auto growth), this is
     // the height the grid rows actually occupy; any surplus from an explicit
     // container `height` stays as blank free space below the last row (Chrome's
     // default `align-content: start` for definite tracks), rather than being
     // absorbed by stretching the tracks.
-    let content_height: f32 =
-        row_heights.iter().sum::<f32>() + row_gap * num_rows.saturating_sub(1) as f32;
+    let content_height: f32 = grid_block_offset
+        + row_heights.iter().sum::<f32>()
+        + effective_row_gap * num_rows.saturating_sub(1) as f32;
     // Honour an explicit container `height` so the container's border-box ends
     // where Chrome paints it (and any free space below the last row is left
     // blank), mirroring the block-level convention where a Container's
@@ -1137,11 +1665,12 @@ pub(crate) fn layout_grid_container(
     });
 
     // Helper to compute the x-offset of a column index.
-    let col_x =
-        |c: usize| -> f32 { col_widths.iter().take(c).sum::<f32>() + column_gap * c as f32 };
+    let col_x = |c: usize| -> f32 {
+        col_widths.iter().take(c).sum::<f32>() + effective_column_gap * c as f32
+    };
     let span_width = |c: usize, cs: usize| -> f32 {
         let w: f32 = col_widths.iter().skip(c).take(cs).sum();
-        w + column_gap * cs.saturating_sub(1) as f32
+        w + effective_column_gap * cs.saturating_sub(1) as f32
     };
 
     // ---- Build one GridRow per grid row --------------------------------
@@ -1159,6 +1688,33 @@ pub(crate) fn layout_grid_container(
         // Items whose top-left lands on this row, in column order.
         let mut row_items: Vec<&Placed> = placed.iter().filter(|p| p.row == row).collect();
         row_items.sort_by_key(|p| p.col);
+        let baseline_offsets: std::collections::HashMap<usize, (f32, f32)> = if style.align_items
+            == AlignItems::Baseline
+        {
+            let mut baselines = Vec::new();
+            for p in &row_items {
+                let cs = &child_styles[p.idx];
+                let child_el = &element_children[p.idx];
+                let has_text = child_el.children.iter().any(|child| match child {
+                    DomNode::Text(t) => !t.trim().is_empty(),
+                    _ => false,
+                });
+                if let Some(baseline) = grid_item_first_baseline(cs, has_text, env) {
+                    let item_h = grid_item_outer_height(cs, env, child_el, &child_ancestors);
+                    baselines.push((p.idx, baseline, item_h));
+                }
+            }
+            let row_baseline = baselines
+                .iter()
+                .map(|(_, baseline, _)| *baseline)
+                .fold(0.0_f32, f32::max);
+            baselines
+                .into_iter()
+                .map(|(idx, baseline, item_h)| (idx, ((row_baseline - baseline).max(0.0), item_h)))
+                .collect()
+        } else {
+            std::collections::HashMap::new()
+        };
 
         for p in row_items {
             // Definite placements may overlap (two items in one cell). The
@@ -1175,7 +1731,7 @@ pub(crate) fn layout_grid_container(
                 next_col += 1;
             }
             let cs = &child_styles[p.idx];
-            let child_el = element_children[p.idx];
+            let child_el = &element_children[p.idx];
 
             let track_w = span_width(p.col, p.col_span);
             // Height the item's cell box must occupy in the flow (covers the
@@ -1183,7 +1739,7 @@ pub(crate) fn layout_grid_container(
             let spanned_h: f32 = (row..(row + p.row_span).min(row_heights.len()))
                 .map(|r| row_heights[r])
                 .sum::<f32>()
-                + row_gap * (p.row_span.saturating_sub(1)) as f32;
+                + effective_row_gap * (p.row_span.saturating_sub(1)) as f32;
 
             let cell_inner = (track_w - cs.padding.left - cs.padding.right).max(1.0);
             let mut runs = Vec::new();
@@ -1232,7 +1788,7 @@ pub(crate) fn layout_grid_container(
             // inflating the starting row, so it always carries an explicit
             // inset covering `spanned_h` (the row keeps the single track
             // height via `min_content_height`).
-            let inset = if p.row_span > 1 {
+            let mut inset = if p.row_span > 1 {
                 Some(
                     compute_grid_inset(cs, style, track_w, spanned_h).unwrap_or(GridInset {
                         offset_x: 0.0,
@@ -1244,6 +1800,18 @@ pub(crate) fn layout_grid_container(
             } else {
                 compute_grid_inset(cs, style, track_w, spanned_h)
             };
+            if let Some((baseline_offset, item_h)) = baseline_offsets.get(&p.idx).copied() {
+                let mut baseline_inset = compute_grid_inset(cs, style, track_w, spanned_h)
+                    .unwrap_or(GridInset {
+                        offset_x: cs.margin.left,
+                        offset_y: 0.0,
+                        width: (track_w - cs.margin.left - cs.margin.right).max(0.0),
+                        height: item_h.min(spanned_h),
+                    });
+                baseline_inset.offset_y = cs.margin.top + baseline_offset;
+                baseline_inset.height = item_h.min((spanned_h - baseline_offset).max(0.0));
+                inset = Some(baseline_inset);
+            }
             let cell_min_h = if p.row_span > 1 { track_h } else { spanned_h };
 
             cells.push(TableCell {
@@ -1277,16 +1845,20 @@ pub(crate) fn layout_grid_container(
             next_col += 1;
         }
 
-        let margin_top = if row == 0 { 0.0 } else { row_gap };
+        let margin_top = if row == 0 {
+            grid_block_offset
+        } else {
+            effective_row_gap
+        };
 
         grid_children.push(LayoutElement::GridRow {
             cells,
             col_widths: col_widths.clone(),
-            gap: column_gap,
+            gap: effective_column_gap,
             margin_top,
             margin_bottom: 0.0,
             border: LayoutBorder::default(),
-            padding_left: 0.0,
+            padding_left: grid_inline_offset,
             padding_right: 0.0,
             padding_top: 0.0,
             padding_bottom: 0.0,
@@ -1337,18 +1909,57 @@ pub(crate) fn layout_grid_container(
             .unwrap_or(content_height);
         let cb_padding_height = content_box_height + style.padding.top + style.padding.bottom;
         let cb_padding_width = inner_width.max(0.0) + style.padding.left + style.padding.right;
-        let cb = ContainingBlock {
-            // Padding-box top-left, relative to the wrapping Container's content
-            // origin. The Container seeds abs_origins at its border-box inner
-            // corner (border edge), so an abs child anchored to the padding box
-            // offsets by the container's padding only (border already folded in).
-            x: style.padding.left,
-            width: cb_padding_width,
-            height: cb_padding_height,
-            depth: grid_positioned_depth,
-        };
         for &idx in &abs_child_indices {
             let child_el = all_element_children[idx];
+            let child_style = &all_child_styles[idx];
+            let has_grid_area_cb = child_style.grid_area_name.is_some()
+                || child_style.grid_column_start != GridLine::Auto
+                || child_style.grid_column_end != GridLine::Auto
+                || child_style.grid_row_start != GridLine::Auto
+                || child_style.grid_row_end != GridLine::Auto;
+            let mut abs_area_inline_offset = 0.0;
+            let mut abs_area_block_offset = 0.0;
+            let cb = if has_grid_area_cb {
+                let abs_placement =
+                    place_grid_items(style, std::slice::from_ref(child_style), num_cols);
+                if let Some(mut p) = abs_placement.placed.into_iter().next() {
+                    if style.direction_rtl {
+                        p.col = num_cols.saturating_sub(p.col + p.col_span);
+                    }
+                    let area_x = grid_inline_offset + col_x(p.col);
+                    abs_area_inline_offset = area_x;
+                    abs_area_block_offset = grid_block_offset
+                        + row_heights.iter().take(p.row).sum::<f32>()
+                        + effective_row_gap * p.row as f32;
+                    let area_h = row_heights.iter().skip(p.row).take(p.row_span).sum::<f32>()
+                        + effective_row_gap * p.row_span.saturating_sub(1) as f32;
+                    ContainingBlock {
+                        x: style.padding.left,
+                        width: span_width(p.col, p.col_span).max(0.0),
+                        height: area_h.max(0.0),
+                        depth: grid_positioned_depth,
+                    }
+                } else {
+                    ContainingBlock {
+                        x: style.padding.left,
+                        width: cb_padding_width,
+                        height: cb_padding_height,
+                        depth: grid_positioned_depth,
+                    }
+                }
+            } else {
+                ContainingBlock {
+                    // Padding-box top-left, relative to the wrapping Container's
+                    // content origin. The Container seeds abs_origins at its
+                    // border-box inner corner (border edge), so an abs child
+                    // anchored to the padding box offsets by the container's
+                    // padding only (border already folded in).
+                    x: style.padding.left,
+                    width: cb_padding_width,
+                    height: cb_padding_height,
+                    depth: grid_positioned_depth,
+                }
+            };
             let mut abs_ancestors = child_ancestors.clone();
             abs_ancestors.push(AncestorInfo {
                 element: child_el,
@@ -1382,6 +1993,9 @@ pub(crate) fn layout_grid_container(
                 env,
             );
             crate::layout::helpers::patch_absolute_children_containing_block(&mut buf, cb);
+            if abs_area_inline_offset != 0.0 || abs_area_block_offset != 0.0 {
+                shift_absolute_offsets(&mut buf, abs_area_inline_offset, abs_area_block_offset);
+            }
             grid_children.extend(buf);
         }
     }
