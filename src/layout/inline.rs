@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use super::context::{LayoutContext, LayoutEnv};
 use super::engine::{BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine};
+use super::flex::layout_flex_container;
 use super::grid::layout_grid_container;
 use super::text::{
     estimate_word_width, resolved_line_height_factor, wrap_text_runs, FlexTextRunCollector,
@@ -68,8 +69,10 @@ pub(crate) fn element_is_inline_block(
         &selector_ctx,
     );
     // SVGs need individual block layout (they use cm operator for viewBox).
-    matches!(style.display, Display::InlineBlock | Display::InlineGrid)
-        && el.tag != HtmlTag::Svg
+    matches!(
+        style.display,
+        Display::InlineBlock | Display::InlineFlex | Display::InlineGrid | Display::InlineTable
+    ) && el.tag != HtmlTag::Svg
         && !el
             .children
             .iter()
@@ -207,6 +210,15 @@ fn layout_inline_block_group_inner(
 
     let mut items: Vec<InlineBlockItem> = Vec::new();
     let child_count = elements.len();
+    let sibling_list: Vec<(String, Vec<String>)> = elements
+        .iter()
+        .map(|el| {
+            (
+                el.tag_name().to_string(),
+                el.class_list().iter().map(|s| s.to_string()).collect(),
+            )
+        })
+        .collect();
 
     for (idx, child_el) in elements.iter().enumerate() {
         let classes = child_el.class_list();
@@ -214,8 +226,8 @@ fn layout_inline_block_group_inner(
             ancestors: ancestors.to_vec(),
             child_index: idx,
             sibling_count: child_count,
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: sibling_list[..idx].to_vec(),
+            following_siblings: sibling_list[idx + 1..].to_vec(),
             is_empty: false,
         };
         let child_style = compute_style_with_context(
@@ -350,6 +362,68 @@ fn layout_inline_block_group_inner(
             });
             continue;
         }
+        if child_style.display == Display::InlineFlex && env.is_some() {
+            let env = env.as_deref_mut().expect("checked above");
+            let mut flex_style = child_style.clone();
+            flex_style.display = Display::Flex;
+            flex_style.margin = Default::default();
+            let border_box_w = child_style.width.unwrap_or(inner_width).max(0.0);
+            let border_box_h = child_style.height.unwrap_or(child_h).max(0.0);
+            let mut nested_elements = Vec::new();
+            let child_ctx = ctx.with_parent_and_basis(
+                border_box_w.max(1.0),
+                border_box_w.max(1.0),
+                Some(border_box_h.max(1.0)),
+                child_style.font_size,
+            );
+            layout_flex_container(
+                child_el,
+                &flex_style,
+                &child_ctx,
+                &mut nested_elements,
+                &child_ancestors,
+                None,
+                None,
+                0,
+                env,
+            );
+            items.push(InlineBlockItem {
+                width: border_box_w,
+                height: border_box_h,
+                lines: Vec::new(),
+                background_color: None,
+                padding_top: 0.0,
+                padding_right: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                border: LayoutBorder::default(),
+                border_radius: 0.0,
+                transform: child_style.transform,
+                transform_origin: child_style.transform_origin,
+                background_gradient: None,
+                background_radial_gradient: None,
+                background_conic_gradient: None,
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
+                text_align: child_style.text_align,
+                margin_left: child_style.margin.left,
+                margin_right: child_style.margin.right,
+                box_shadow: child_style.box_shadow.clone(),
+                nested_elements,
+                is_inline_grid: false,
+                is_positioned: matches!(
+                    child_style.position,
+                    crate::style::computed::Position::Relative
+                        | crate::style::computed::Position::Absolute
+                ),
+            });
+            continue;
+        }
         let mut runs = Vec::new();
         FlexTextRunCollector {
             runs: &mut runs,
@@ -384,7 +458,8 @@ fn layout_inline_block_group_inner(
                 .with_rtl(child_style.direction_rtl)
                 .with_bidi_override(child_style.bidi_override)
                 .with_bidi_plaintext(child_style.bidi_plaintext)
-                .with_word_break_keep_all(child_style.word_break_keep_all),
+                .with_word_break_keep_all(child_style.word_break_keep_all)
+                .with_hyphens_manual(child_style.hyphens_manual),
                 fonts,
             )
         } else {
@@ -562,7 +637,7 @@ fn layout_inline_block_group_inner(
             max_item_height = 0.0;
         }
 
-        if item.is_inline_grid && !current_cells.is_empty() {
+        if !current_cells.is_empty() && item.is_inline_grid {
             x += inline_grid_space;
         }
         x += item.margin_left;

@@ -517,7 +517,7 @@
     "description": "Individual translate and rotate properties compose around transform-box:content-box with transform-origin:0 0; catches shorthand-only and border-box-origin transform implementations.",
     "file": "cases/transforms/transforms-individual-transform-box-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -643,7 +643,7 @@
     "file": "cases/transforms/transforms-perspective-origin.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

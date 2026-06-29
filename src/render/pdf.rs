@@ -16,11 +16,11 @@ use crate::render::shading::{
 };
 use crate::render::svg_geometry::SvgViewportBox;
 use crate::style::computed::{
-    AlignItems, AlignSelf, BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
-    BackgroundSize, BorderCollapse, BorderStyle, Clear, ConicGradient, Float, FontFamily,
-    LengthPercent, LinearGradient, MaskComposite, MaskLayer, MaskLayerSource, MaskMode, MaskSource,
-    Overflow, Position, RadialExtent, RadialGradient, RadialShape, ShapeBox, TextAlign,
-    VerticalAlign,
+    AlignItems, AlignSelf, BackgroundAttachment, BackgroundClip, BackgroundOrigin,
+    BackgroundPosition, BackgroundRepeat, BackgroundSize, BorderCollapse, BorderStyle, Clear,
+    ConicGradient, Float, FontFamily, LengthPercent, LinearGradient, MaskComposite, MaskLayer,
+    MaskLayerSource, MaskMode, MaskSource, Overflow, Position, RadialExtent, RadialGradient,
+    RadialShape, ShapeBox, TextAlign, VerticalAlign,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -302,6 +302,56 @@ fn end_border_alpha(content: &mut String, applied: bool) {
     if applied {
         content.push_str("/GSDefault gs\n");
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_table_cell_border_line(
+    content: &mut String,
+    side: &crate::layout::engine::LayoutBorderSide,
+    x1: f32,
+    y1: f32,
+    x2: f32,
+    y2: f32,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    bg_alpha_counter: &mut usize,
+) {
+    if side.width <= 0.0 || side.style == BorderStyle::None {
+        return;
+    }
+    let (r, g, b) = side.color;
+    let a = begin_border_alpha(content, page_ext_gstates, bg_alpha_counter, side.alpha);
+    content.push_str(&format!("{r} {g} {b} RG\n"));
+    if side.style == BorderStyle::Double {
+        let third = side.width / 3.0;
+        content.push_str(&format!("{third} w\n"));
+        if (x1 - x2).abs() < 0.01 {
+            content.push_str(&format!(
+                "{x} {y1} m {x} {y2} l S\n",
+                x = x1 - side.width / 3.0
+            ));
+            content.push_str(&format!(
+                "{x} {y1} m {x} {y2} l S\n",
+                x = x1 + side.width / 3.0
+            ));
+        } else {
+            content.push_str(&format!(
+                "{x1} {y} m {x2} {y} l S\n",
+                y = y1 - side.width / 3.0
+            ));
+            content.push_str(&format!(
+                "{x1} {y} m {x2} {y} l S\n",
+                y = y1 + side.width / 3.0
+            ));
+        }
+    } else {
+        content.push_str(&dash_pattern_for_style(side.style, side.width));
+        content.push_str(&format!(
+            "{} w\n{x1} {y1} m {x2} {y2} l S\n",
+            side.width
+        ));
+        content.push_str(reset_dash_pattern(side.style));
+    }
+    end_border_alpha(content, a);
 }
 
 /// Emit the border-box outline path (rectangle or rounded rectangle) inset by
@@ -1958,6 +2008,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     block_width,
                     block_height,
                     opacity,
+                    mix_blend_mode,
                     float,
                     position,
                     offset_top: _,
@@ -2232,14 +2283,17 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         *padding_bottom,
                     );
                     let tb_needs_clip = *background_clip != BackgroundClip::Border;
-                    let tb_gradient_clip = *border_radius > 0.0 || tb_needs_clip;
+                    let tb_gradient_clip = *background_clip != BackgroundClip::Text;
                     let tb_layer_box = background_layer_box(
                         *background_size,
                         *background_position,
                         *background_repeat,
                     );
+                    let tb_bg_blend_mode = background_blend_mode.background_layer(0);
                     let tb_bg_blended =
-                        *background_blend_mode != crate::style::computed::BlendMode::Normal;
+                        tb_bg_blend_mode != crate::style::computed::BlendMode::Normal;
+                    let tb_mix_blended =
+                        *mix_blend_mode != crate::style::computed::BlendMode::Normal;
                     let (tb_clip_rx, tb_clip_ry) = background_clip_radii(
                         *background_clip,
                         [tb_bl, tb_br, tb_bt, tb_bb],
@@ -2251,6 +2305,10 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     // Draw background if specified
                     if let Some((r, g, b, a)) = background_color {
                         let bg_y = block_bottom;
+                        if tb_mix_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(&mut content, &mut page_ext_gstates, *mix_blend_mode);
+                        }
                         let needs_bg_alpha = *a < 1.0;
                         if needs_bg_alpha {
                             let effective_alpha = *a * *opacity;
@@ -2304,6 +2362,9 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 content.push_str("/GSDefault gs\n");
                             }
                         }
+                        if tb_mix_blended {
+                            content.push_str("Q\n");
+                        }
                     }
 
                     // Draw linear gradient if specified
@@ -2332,7 +2393,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 begin_blend_mode(
                                     &mut content,
                                     &mut page_ext_gstates,
-                                    *background_blend_mode,
+                                    tb_bg_blend_mode,
                                 );
                             }
                             // Clip to the background-clip box (rounded if needed).
@@ -2347,13 +2408,20 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     tb_clip_ry,
                                 );
                             }
+                            let (grad_x, grad_y, grad_w, grad_h) = if gradient.layer_box.attachment
+                                == Some(BackgroundAttachment::Fixed)
+                            {
+                                (0.0, 0.0, page_size.width, page_size.height)
+                            } else {
+                                (tb_ref_x, tb_ref_y, tb_ref_w, tb_ref_h)
+                            };
                             render_linear_gradient(
                                 &mut content,
                                 &gradient,
-                                tb_ref_x,
-                                tb_ref_y,
-                                tb_ref_w,
-                                tb_ref_h,
+                                grad_x,
+                                grad_y,
+                                grad_w,
+                                grad_h,
                                 &mut page_shadings,
                                 &mut shading_counter,
                                 &mut pdf_writer,
@@ -2373,11 +2441,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         let gradient = radial_with_background_layer(gradient, tb_layer_box);
                         if tb_bg_blended {
                             content.push_str("q\n");
-                            begin_blend_mode(
-                                &mut content,
-                                &mut page_ext_gstates,
-                                *background_blend_mode,
-                            );
+                            begin_blend_mode(&mut content, &mut page_ext_gstates, tb_bg_blend_mode);
                         }
                         if tb_gradient_clip {
                             push_background_clip_box(
@@ -2390,13 +2454,19 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 tb_clip_ry,
                             );
                         }
+                        let (grad_x, grad_y, grad_w, grad_h) =
+                            if gradient.layer_box.attachment == Some(BackgroundAttachment::Fixed) {
+                                (0.0, 0.0, page_size.width, page_size.height)
+                            } else {
+                                (tb_ref_x, tb_ref_y, tb_ref_w, tb_ref_h)
+                            };
                         render_radial_gradient(
                             &mut content,
                             &gradient,
-                            tb_ref_x,
-                            tb_ref_y,
-                            tb_ref_w,
-                            tb_ref_h,
+                            grad_x,
+                            grad_y,
+                            grad_w,
+                            grad_h,
                             &mut page_shadings,
                             &mut shading_counter,
                             &mut pdf_writer,
@@ -2415,11 +2485,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         let gradient = conic_with_background_layer(gradient, tb_layer_box);
                         if tb_bg_blended {
                             content.push_str("q\n");
-                            begin_blend_mode(
-                                &mut content,
-                                &mut page_ext_gstates,
-                                *background_blend_mode,
-                            );
+                            begin_blend_mode(&mut content, &mut page_ext_gstates, tb_bg_blend_mode);
                         }
                         if tb_gradient_clip {
                             push_background_clip_box(
@@ -2432,13 +2498,19 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 tb_clip_ry,
                             );
                         }
+                        let (grad_x, grad_y, grad_w, grad_h) =
+                            if gradient.layer_box.attachment == Some(BackgroundAttachment::Fixed) {
+                                (0.0, 0.0, page_size.width, page_size.height)
+                            } else {
+                                (tb_ref_x, tb_ref_y, tb_ref_w, tb_ref_h)
+                            };
                         render_conic_gradient(
                             &mut content,
                             &gradient,
-                            tb_ref_x,
-                            tb_ref_y,
-                            tb_ref_w,
-                            tb_ref_h,
+                            grad_x,
+                            grad_y,
+                            grad_w,
+                            grad_h,
                             &mut pdf_writer,
                             &mut page_images,
                         );
@@ -2459,8 +2531,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         render_width,
                         border_box_h,
                         *border_radius,
+                        *tb_radii,
+                        *tb_radii_y,
                         &mut page_ext_gstates,
                         &mut bg_alpha_counter,
+                        &mut pdf_writer,
+                        &mut page_images,
                     );
 
                     // Draw SVG background image if specified.
@@ -2500,11 +2576,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         };
                         if tb_bg_blended {
                             content.push_str("q\n");
-                            begin_blend_mode(
-                                &mut content,
-                                &mut page_ext_gstates,
-                                *background_blend_mode,
-                            );
+                            begin_blend_mode(&mut content, &mut page_ext_gstates, tb_bg_blend_mode);
                         }
                         render_svg_background(
                             &mut content,
@@ -3048,24 +3120,32 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     custom_fonts,
                                 );
                                 let desc = descender_ratio * run.font_size;
-                                let uy = text_y - desc * 0.6;
-                                let thickness = (run.font_size * 0.07).max(0.5);
-                                content.push_str(&format!(
-                                    "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {uy} m {x2} {uy} l\nS\n",
-                                    dx0 = bg_x + deco_lead,
-                                    x2 = bg_x + run_width - deco_trail,
-                                ));
+                                let uy = text_y - desc * 0.6 - decoration_offset(run);
+                                let thickness = decoration_thickness(run);
+                                push_decoration_stroke(
+                                    &mut content,
+                                    (dr, dg, db),
+                                    thickness,
+                                    bg_x + deco_lead,
+                                    bg_x + run_width - deco_trail,
+                                    uy,
+                                    decoration_is_wavy(run),
+                                );
                             }
 
                             // Draw strikethrough (line-through)
                             if run.line_through {
                                 let sy = text_y + run.font_size * 0.3;
-                                let thickness = (run.font_size * 0.07).max(0.5);
-                                content.push_str(&format!(
-                                    "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {sy} m {x2} {sy} l\nS\n",
-                                    dx0 = bg_x + deco_lead,
-                                    x2 = bg_x + run_width - deco_trail,
-                                ));
+                                let thickness = decoration_thickness(run);
+                                push_decoration_stroke(
+                                    &mut content,
+                                    (dr, dg, db),
+                                    thickness,
+                                    bg_x + deco_lead,
+                                    bg_x + run_width - deco_trail,
+                                    sy,
+                                    false,
+                                );
                             }
 
                             // Draw overline at the top of the text's em box
@@ -3073,6 +3153,18 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             // a full em above the baseline (which lands outside the
                             // line box and renders as if absent).
                             if run.overline {
+                                if decoration_is_emphasis(run) {
+                                    push_text_emphasis_dots(
+                                        &mut content,
+                                        run,
+                                        bg_x,
+                                        text_y,
+                                        (dr, dg, db),
+                                        custom_fonts,
+                                    );
+                                    bg_x += run_width;
+                                    continue;
+                                }
                                 let (ascender_ratio, _) = crate::fonts::font_metrics_ratios(
                                     &run.font_family,
                                     run.bold,
@@ -3080,12 +3172,16 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     custom_fonts,
                                 );
                                 let oy = text_y + ascender_ratio * run.font_size;
-                                let thickness = (run.font_size * 0.07).max(0.5);
-                                content.push_str(&format!(
-                                    "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {oy} m {x2} {oy} l\nS\n",
-                                    dx0 = bg_x + deco_lead,
-                                    x2 = bg_x + run_width - deco_trail,
-                                ));
+                                let thickness = decoration_thickness(run);
+                                push_decoration_stroke(
+                                    &mut content,
+                                    (dr, dg, db),
+                                    thickness,
+                                    bg_x + deco_lead,
+                                    bg_x + run_width - deco_trail,
+                                    oy,
+                                    false,
+                                );
                             }
 
                             // Track link annotation
@@ -3287,84 +3383,56 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             let y_top = row_y;
                             let y_bottom = row_y - cell_height;
                             if cell.border.top.width > 0.0 {
-                                let (r, g, b) = cell.border.top.color;
-                                let a = begin_border_alpha(
+                                let y = y_top - inset(cell.border.top.width);
+                                paint_table_cell_border_line(
                                     &mut content,
+                                    &cell.border.top,
+                                    x1,
+                                    y,
+                                    x2,
+                                    y,
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
-                                    cell.border.top.alpha,
                                 );
-                                let y = y_top - inset(cell.border.top.width);
-                                content.push_str(&dash_pattern_for_style(
-                                    cell.border.top.style,
-                                    cell.border.top.width,
-                                ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
-                                    cell.border.top.width
-                                ));
-                                content.push_str(reset_dash_pattern(cell.border.top.style));
-                                end_border_alpha(&mut content, a);
                             }
                             if cell.border.right.width > 0.0 {
-                                let (r, g, b) = cell.border.right.color;
-                                let a = begin_border_alpha(
+                                let x = x2 - inset(cell.border.right.width);
+                                paint_table_cell_border_line(
                                     &mut content,
+                                    &cell.border.right,
+                                    x,
+                                    y_top,
+                                    x,
+                                    y_bottom,
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
-                                    cell.border.right.alpha,
                                 );
-                                let x = x2 - inset(cell.border.right.width);
-                                content.push_str(&dash_pattern_for_style(
-                                    cell.border.right.style,
-                                    cell.border.right.width,
-                                ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
-                                    cell.border.right.width
-                                ));
-                                content.push_str(reset_dash_pattern(cell.border.right.style));
-                                end_border_alpha(&mut content, a);
                             }
                             if cell.border.bottom.width > 0.0 {
-                                let (r, g, b) = cell.border.bottom.color;
-                                let a = begin_border_alpha(
+                                let y = y_bottom + inset(cell.border.bottom.width);
+                                paint_table_cell_border_line(
                                     &mut content,
+                                    &cell.border.bottom,
+                                    x1,
+                                    y,
+                                    x2,
+                                    y,
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
-                                    cell.border.bottom.alpha,
                                 );
-                                let y = y_bottom + inset(cell.border.bottom.width);
-                                content.push_str(&dash_pattern_for_style(
-                                    cell.border.bottom.style,
-                                    cell.border.bottom.width,
-                                ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x1} {y} m {x2} {y} l S\n",
-                                    cell.border.bottom.width
-                                ));
-                                content.push_str(reset_dash_pattern(cell.border.bottom.style));
-                                end_border_alpha(&mut content, a);
                             }
                             if cell.border.left.width > 0.0 {
-                                let (r, g, b) = cell.border.left.color;
-                                let a = begin_border_alpha(
+                                let x = x1 + inset(cell.border.left.width);
+                                paint_table_cell_border_line(
                                     &mut content,
+                                    &cell.border.left,
+                                    x,
+                                    y_top,
+                                    x,
+                                    y_bottom,
                                     &mut page_ext_gstates,
                                     &mut bg_alpha_counter,
-                                    cell.border.left.alpha,
                                 );
-                                let x = x1 + inset(cell.border.left.width);
-                                content.push_str(&dash_pattern_for_style(
-                                    cell.border.left.style,
-                                    cell.border.left.width,
-                                ));
-                                content.push_str(&format!(
-                                    "{r} {g} {b} RG\n{} w\n{x} {y_top} m {x} {y_bottom} l S\n",
-                                    cell.border.left.width
-                                ));
-                                content.push_str(reset_dash_pattern(cell.border.left.style));
-                                end_border_alpha(&mut content, a);
                             }
                         }
 
@@ -3667,8 +3735,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         );
                         let bg_x = flex_left;
                         let bg_y = row_y - full_height;
+                        content.push_str("q\n");
                         if *border_radius > 0.0 {
-                            content.push_str("q\n");
                             content.push_str(&rounded_rect_path(
                                 bg_x,
                                 bg_y,
@@ -3677,6 +3745,11 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 *border_radius,
                             ));
                             content.push_str("W n\n");
+                        } else {
+                            content.push_str(&format!(
+                                "{bg_x} {bg_y} {} {full_height} re W n\n",
+                                *container_width
+                            ));
                         }
                         render_linear_gradient(
                             &mut content,
@@ -3690,9 +3763,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             &mut pdf_writer,
                             &mut page_images,
                         );
-                        if *border_radius > 0.0 {
-                            content.push_str("Q\n");
-                        }
+                        content.push_str("Q\n");
                     }
 
                     // Draw container radial gradient
@@ -3774,8 +3845,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         *container_width,
                         full_height,
                         *border_radius,
+                        [*border_radius; 4],
+                        [*border_radius; 4],
                         &mut page_ext_gstates,
                         &mut bg_alpha_counter,
+                        &mut pdf_writer,
+                        &mut page_images,
                     );
 
                     // Draw SVG background image for flex container
@@ -4187,8 +4262,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 cell.width,
                                 cell_render_h,
                                 cell.border_radius,
+                                [cell.border_radius; 4],
+                                [cell.border_radius; 4],
                                 &mut page_ext_gstates,
                                 &mut bg_alpha_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
                         }
 
@@ -4517,29 +4596,49 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                         custom_fonts,
                                     );
                                     let desc = descender_ratio * run.font_size;
-                                    let uy = text_y - desc * 0.6;
-                                    let thickness = (run.font_size * 0.07).max(0.5);
-                                    content.push_str(&format!(
-                                        "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {uy} m {x2} {uy} l\nS\n",
-                                        dx0 = x + deco_lead,
-                                        x2 = x + rw - deco_trail,
-                                    ));
+                                    let uy = text_y - desc * 0.6 - decoration_offset(run);
+                                    let thickness = decoration_thickness(run);
+                                    push_decoration_stroke(
+                                        &mut content,
+                                        (dr, dg, db),
+                                        thickness,
+                                        x + deco_lead,
+                                        x + rw - deco_trail,
+                                        uy,
+                                        decoration_is_wavy(run),
+                                    );
                                 }
 
                                 // Draw strikethrough (line-through)
                                 if run.line_through {
                                     let sy = text_y + run.font_size * 0.3;
-                                    let thickness = (run.font_size * 0.07).max(0.5);
-                                    content.push_str(&format!(
-                                        "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {sy} m {x2} {sy} l\nS\n",
-                                        dx0 = x + deco_lead,
-                                        x2 = x + rw - deco_trail,
-                                    ));
+                                    let thickness = decoration_thickness(run);
+                                    push_decoration_stroke(
+                                        &mut content,
+                                        (dr, dg, db),
+                                        thickness,
+                                        x + deco_lead,
+                                        x + rw - deco_trail,
+                                        sy,
+                                        false,
+                                    );
                                 }
 
                                 // Draw overline at the top of the em box (just
                                 // above the ascent), matching the TextBlock path.
                                 if run.overline {
+                                    if decoration_is_emphasis(run) {
+                                        push_text_emphasis_dots(
+                                            &mut content,
+                                            run,
+                                            x,
+                                            text_y,
+                                            (dr, dg, db),
+                                            custom_fonts,
+                                        );
+                                        x += rw;
+                                        continue;
+                                    }
                                     let (ascender_ratio, _) = crate::fonts::font_metrics_ratios(
                                         &run.font_family,
                                         run.bold,
@@ -4547,12 +4646,16 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                         custom_fonts,
                                     );
                                     let oy = text_y + ascender_ratio * run.font_size;
-                                    let thickness = (run.font_size * 0.07).max(0.5);
-                                    content.push_str(&format!(
-                                        "{dr} {dg} {db} RG\n{thickness} w\n{dx0} {oy} m {x2} {oy} l\nS\n",
-                                        dx0 = x + deco_lead,
-                                        x2 = x + rw - deco_trail,
-                                    ));
+                                    let thickness = decoration_thickness(run);
+                                    push_decoration_stroke(
+                                        &mut content,
+                                        (dr, dg, db),
+                                        thickness,
+                                        x + deco_lead,
+                                        x + rw - deco_trail,
+                                        oy,
+                                        false,
+                                    );
                                 }
 
                                 if let Some(annotation) =
@@ -4822,12 +4925,22 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                         width: svg_w,
                                         height: svg_h,
                                         margin_top: svg_mt,
+                                        mix_blend_mode,
                                         ..
                                     } => {
                                         nested_y -= svg_mt;
                                         let svg_x = nested_x;
                                         let svg_y = nested_y - svg_h;
                                         content.push_str("q\n");
+                                        if *mix_blend_mode
+                                            != crate::style::computed::BlendMode::Normal
+                                        {
+                                            begin_blend_mode(
+                                                &mut content,
+                                                &mut page_ext_gstates,
+                                                *mix_blend_mode,
+                                            );
+                                        }
                                         // Y-flip + position
                                         content.push_str(&format!(
                                             "1 0 0 -1 {svg_x} {} cm\n",
@@ -5427,10 +5540,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
 
                         // Gradients are positioned in the background-origin box;
                         // background-clip only confines where that paint shows.
-                        let gradient_clip = *c_border_radius > 0.0 || c_needs_clip;
+                        let gradient_clip = *c_bg_clip != BackgroundClip::Text;
                         let c_layer_box =
                             background_layer_box(*c_bg_size, *c_bg_position, *c_bg_repeat);
-                        let c_bg_blended = *c_bg_blend != crate::style::computed::BlendMode::Normal;
+                        let c_bg_blend_mode = c_bg_blend.background_layer(0);
+                        let c_bg_blended =
+                            c_bg_blend_mode != crate::style::computed::BlendMode::Normal;
                         // Draw container linear gradient
                         if let Some(gradient) = c_bg_gradient {
                             let gradient = linear_with_background_layer(gradient, c_layer_box);
@@ -5457,7 +5572,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     begin_blend_mode(
                                         &mut content,
                                         &mut page_ext_gstates,
-                                        *c_bg_blend,
+                                        c_bg_blend_mode,
                                     );
                                 }
                                 if gradient_clip {
@@ -5471,13 +5586,21 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                         c_clip_ry,
                                     );
                                 }
+                                let (grad_x, grad_y, grad_w, grad_h) =
+                                    if gradient.layer_box.attachment
+                                        == Some(BackgroundAttachment::Fixed)
+                                    {
+                                        (0.0, 0.0, page_size.width, page_size.height)
+                                    } else {
+                                        (c_ref_x, c_ref_y, c_ref_w, c_ref_h)
+                                    };
                                 render_linear_gradient(
                                     &mut content,
                                     &gradient,
-                                    c_ref_x,
-                                    c_ref_y,
-                                    c_ref_w,
-                                    c_ref_h,
+                                    grad_x,
+                                    grad_y,
+                                    grad_w,
+                                    grad_h,
                                     &mut page_shadings,
                                     &mut shading_counter,
                                     &mut pdf_writer,
@@ -5497,7 +5620,11 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             let gradient = radial_with_background_layer(gradient, c_layer_box);
                             if c_bg_blended {
                                 content.push_str("q\n");
-                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
+                                begin_blend_mode(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    c_bg_blend_mode,
+                                );
                             }
                             if gradient_clip {
                                 push_background_clip_box(
@@ -5535,7 +5662,11 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             let gradient = conic_with_background_layer(gradient, c_layer_box);
                             if c_bg_blended {
                                 content.push_str("q\n");
-                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
+                                begin_blend_mode(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    c_bg_blend_mode,
+                                );
                             }
                             if gradient_clip {
                                 push_background_clip_box(
@@ -5592,7 +5723,11 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             };
                             if c_bg_blended {
                                 content.push_str("q\n");
-                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
+                                begin_blend_mode(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    c_bg_blend_mode,
+                                );
                             }
                             render_svg_background(
                                 &mut content,
@@ -5627,8 +5762,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             container_w,
                             total_h,
                             *c_border_radius,
+                            *c_border_radii,
+                            *c_border_radii,
                             &mut page_ext_gstates,
                             &mut bg_alpha_counter,
+                            &mut pdf_writer,
+                            &mut page_images,
                         );
 
                         // Draw all 4 borders
@@ -6219,6 +6358,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     width,
                     height,
                     background_color,
+                    mix_blend_mode,
                     border,
                     ..
                 } => {
@@ -6251,8 +6391,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     let content_y = svg_y + border.bottom.width;
                     let content_w = (width - border.horizontal_width()).max(0.0);
                     let content_h = (height - border.vertical_width()).max(0.0);
+                    let svg_blended = *mix_blend_mode != crate::style::computed::BlendMode::Normal;
 
                     content.push_str("q\n");
+                    if svg_blended {
+                        begin_blend_mode(&mut content, &mut page_ext_gstates, *mix_blend_mode);
+                    }
                     // Position on page and flip y-axis for SVG coordinates
                     content.push_str(&format!(
                         "1 0 0 -1 {} {} cm\n",
@@ -6871,6 +7015,103 @@ fn decoration_ws_insets(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) 
         }
     };
     (measure(&lead), measure(&trail))
+}
+
+fn decoration_thickness(run: &TextRun) -> f32 {
+    if run.background_color.is_none() && run.padding.1 > 0.0 {
+        run.padding.1
+    } else {
+        (run.font_size * 0.07).max(0.5)
+    }
+}
+
+fn decoration_offset(run: &TextRun) -> f32 {
+    if run.background_color.is_some() {
+        return 0.0;
+    }
+    if run.border_radius <= -10_000.0 && run.border_radius > -20_000.0 {
+        -run.border_radius - 10_000.0
+    } else if run.border_radius < 0.0 && run.border_radius > -10_000.0 {
+        -run.border_radius
+    } else {
+        0.0
+    }
+}
+
+fn decoration_is_wavy(run: &TextRun) -> bool {
+    run.background_color.is_none() && run.border_radius <= -10_000.0 && run.border_radius > -20_000.0
+}
+
+fn decoration_is_emphasis(run: &TextRun) -> bool {
+    run.background_color.is_none() && run.border_radius <= -20_000.0
+}
+
+fn push_decoration_stroke(
+    content: &mut String,
+    color: (f32, f32, f32),
+    thickness: f32,
+    x1: f32,
+    x2: f32,
+    y: f32,
+    wavy: bool,
+) {
+    let (r, g, b) = color;
+    if !wavy || x2 <= x1 {
+        let h = thickness.max(0.5);
+        content.push_str(&format!(
+            "{r} {g} {b} rg\n{x1} {} {} {h} re\nf\n",
+            y - h / 2.0,
+            (x2 - x1).max(0.0),
+        ));
+        return;
+    }
+    content.push_str(&format!("{r} {g} {b} RG\n{thickness} w\n"));
+    let wave = (thickness * 6.0).max(4.0);
+    let amp = (thickness * 1.4).max(1.0);
+    let mut x = x1;
+    content.push_str(&format!("{x} {y} m\n"));
+    let mut up = true;
+    while x < x2 {
+        let nx = (x + wave / 2.0).min(x2);
+        let cy = if up { y + amp } else { y - amp };
+        content.push_str(&format!("{nx} {cy} l\n"));
+        x = nx;
+        up = !up;
+    }
+    content.push_str("S\n");
+}
+
+fn push_text_emphasis_dots(
+    content: &mut String,
+    run: &TextRun,
+    x: f32,
+    text_y: f32,
+    color: (f32, f32, f32),
+    custom_fonts: &HashMap<String, TtfFont>,
+) {
+    let (r, g, b) = color;
+    let (ascender_ratio, _) =
+        crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, custom_fonts);
+    let cy = text_y + ascender_ratio * run.font_size + run.font_size * 0.16;
+    let radius = (run.font_size * 0.08).max(1.0);
+    let mut cx = x;
+    content.push_str(&format!("{r} {g} {b} rg\n"));
+    for ch in run.text.chars() {
+        let chs = ch.to_string();
+        let adv = crate::layout::text::estimate_word_width(
+            &chs,
+            run.font_size,
+            &run.font_family,
+            run.bold,
+            run.italic,
+            custom_fonts,
+        );
+        if !ch.is_whitespace() {
+            emit_ellipse_path(content, cx + adv / 2.0, cy, radius, radius);
+            content.push_str("f\n");
+        }
+        cx += adv;
+    }
 }
 
 fn estimate_run_width_with_fonts(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
@@ -7736,17 +7977,21 @@ fn collapsed_children_height(children: &[LayoutElement]) -> f32 {
 /// by ascending `z_index` (stable for ties). This implements the simplified CSS
 /// stacking rule: positioned descendants paint above non-positioned in-flow ones,
 /// and among the positioned ones, lower `z_index` paints first.
-fn child_paint_order(element: &LayoutElement) -> (u8, i32) {
+fn child_paint_order(element: &LayoutElement, promote_relative: bool) -> (u8, i32) {
     match element {
         LayoutElement::TextBlock {
             position,
             z_index,
+            offset_top,
+            offset_left,
             float,
             ..
         }
         | LayoutElement::Container {
             position,
             z_index,
+            offset_top,
+            offset_left,
             float,
             ..
         } => {
@@ -7757,7 +8002,13 @@ fn child_paint_order(element: &LayoutElement) -> (u8, i32) {
             // ascending z-index). Float positions are precomputed before the
             // paint loop, so moving floats to paint last does not disturb the
             // in-flow flow cursor.
-            if *position == Position::Absolute {
+            if *z_index < 0 {
+                (0, *z_index)
+            } else if *position == Position::Absolute
+                || (promote_relative
+                    && *position == Position::Relative
+                    && (offset_top.abs() > f32::EPSILON || offset_left.abs() > f32::EPSILON))
+            {
                 (2, *z_index)
             } else if *float != Float::None {
                 (1, 0)
@@ -7860,10 +8111,26 @@ fn render_container_children(
     // identical to iterating `children` directly. Floats and absolute boxes are
     // placed from precomputed/fixed positions, so reordering their paint does not
     // disturb the flow cursor.
-    let needs_reorder = children.iter().any(|c| child_paint_order(c) != (0, 0));
+    let promote_relative = children.iter().any(|c| {
+        matches!(
+            c,
+            LayoutElement::TextBlock {
+                position: Position::Absolute,
+                z_index,
+                ..
+            } | LayoutElement::Container {
+                position: Position::Absolute,
+                z_index,
+                ..
+            } if *z_index >= 0
+        )
+    });
+    let needs_reorder = children
+        .iter()
+        .any(|c| child_paint_order(c, promote_relative) != (0, 0));
     let paint_order: Vec<(usize, &LayoutElement)> = if needs_reorder {
         let mut ordered: Vec<(usize, &LayoutElement)> = children.iter().enumerate().collect();
-        ordered.sort_by_key(|(_, c)| child_paint_order(c));
+        ordered.sort_by_key(|(_, c)| child_paint_order(c, promote_relative));
         ordered
     } else {
         children.iter().enumerate().collect()
@@ -8221,7 +8488,8 @@ fn render_container_children(
                 // `background-blend-mode`: the background image layers (gradient)
                 // blend against the background color painted above. Scope the
                 // blend gstate to a `q`..`Q` around the gradient paint.
-                let bg_blended = *tb_bg_blend != crate::style::computed::BlendMode::Normal;
+                let bg_blend_mode = tb_bg_blend.background_layer(0);
+                let bg_blended = bg_blend_mode != crate::style::computed::BlendMode::Normal;
 
                 // Draw linear gradient background
                 if let Some(gradient) = tb_bg_gradient {
@@ -8229,7 +8497,7 @@ fn render_container_children(
                     let bg_y = render_y - child_h;
                     if bg_blended {
                         content.push_str("q\n");
-                        begin_blend_mode(content, page_ext_gstates, *tb_bg_blend);
+                        begin_blend_mode(content, page_ext_gstates, bg_blend_mode);
                     }
                     if *tb_border_radius > 0.0 {
                         content.push_str("q\n");
@@ -8268,7 +8536,7 @@ fn render_container_children(
                     let bg_y = render_y - child_h;
                     if bg_blended {
                         content.push_str("q\n");
-                        begin_blend_mode(content, page_ext_gstates, *tb_bg_blend);
+                        begin_blend_mode(content, page_ext_gstates, bg_blend_mode);
                     }
                     if *tb_border_radius > 0.0 {
                         content.push_str("q\n");
@@ -8307,7 +8575,7 @@ fn render_container_children(
                     let bg_y = render_y - child_h;
                     if bg_blended {
                         content.push_str("q\n");
-                        begin_blend_mode(content, page_ext_gstates, *tb_bg_blend);
+                        begin_blend_mode(content, page_ext_gstates, bg_blend_mode);
                     }
                     if *tb_border_radius > 0.0 {
                         content.push_str("q\n");
@@ -9074,8 +9342,9 @@ fn render_container_children(
                         // `background-blend-mode`: the background image layers (gradient /
                         // SVG) blend against the background color painted above. Scope the
                         // blend gstate to a `q`..`Q` around each background-image paint.
+                        let nk_bg_blend_mode = nk_bg_blend.background_layer(0);
                         let nk_bg_blended =
-                            *nk_bg_blend != crate::style::computed::BlendMode::Normal;
+                            nk_bg_blend_mode != crate::style::computed::BlendMode::Normal;
                         let nk_layer_box =
                             background_layer_box(*nk_bg_size, *nk_bg_position, *nk_bg_repeat);
 
@@ -9086,7 +9355,7 @@ fn render_container_children(
                             let bg_y = nk_top_y - nk_total_h;
                             if nk_bg_blended {
                                 content.push_str("q\n");
-                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                                begin_blend_mode(content, page_ext_gstates, nk_bg_blend_mode);
                             }
                             if *cont_br > 0.0 {
                                 content.push_str("q\n");
@@ -9122,7 +9391,7 @@ fn render_container_children(
                             let bg_y = nk_top_y - nk_total_h;
                             if nk_bg_blended {
                                 content.push_str("q\n");
-                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                                begin_blend_mode(content, page_ext_gstates, nk_bg_blend_mode);
                             }
                             if *cont_br > 0.0 {
                                 content.push_str("q\n");
@@ -9158,7 +9427,7 @@ fn render_container_children(
                             let bg_y = nk_top_y - nk_total_h;
                             if nk_bg_blended {
                                 content.push_str("q\n");
-                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                                begin_blend_mode(content, page_ext_gstates, nk_bg_blend_mode);
                             }
                             if *cont_br > 0.0 {
                                 content.push_str("q\n");
@@ -9206,7 +9475,7 @@ fn render_container_children(
                             };
                             if nk_bg_blended {
                                 content.push_str("q\n");
-                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                                begin_blend_mode(content, page_ext_gstates, nk_bg_blend_mode);
                             }
                             render_svg_background(
                                 content,
@@ -9246,8 +9515,12 @@ fn render_container_children(
                             nk_w,
                             nk_total_h,
                             *cont_br,
+                            [*cont_br; 4],
+                            [*cont_br; 4],
                             page_ext_gstates,
                             bg_alpha_counter,
+                            pdf_writer,
+                            page_images,
                         );
 
                         // Draw all 4 borders
@@ -9730,6 +10003,7 @@ fn render_container_children(
                 width: svg_w,
                 height: svg_h,
                 margin_top: svg_mt,
+                mix_blend_mode,
                 ..
             } => {
                 cursor_y -= collapsed_margin_top_extra(*svg_mt, prev_margin_bottom);
@@ -9737,6 +10011,9 @@ fn render_container_children(
                 let svg_x = x;
                 let svg_y = y - svg_h;
                 content.push_str("q\n");
+                if *mix_blend_mode != crate::style::computed::BlendMode::Normal {
+                    begin_blend_mode(content, page_ext_gstates, *mix_blend_mode);
+                }
                 // Position on page with Y-flip (SVG y-axis is top-down, PDF is bottom-up)
                 content.push_str(&format!("1 0 0 -1 {svg_x} {} cm\n", svg_y + svg_h));
                 // Apply viewBox scaling via compute_svg_placement
@@ -11317,6 +11594,8 @@ fn render_inline_box(
         // fractions match Chromium's measured subscript/superscript offsets.
         VerticalAlign::Sub => align_baseline(baseline_y - line_font_size * SUB_SHIFT_RATIO),
         VerticalAlign::Super => align_baseline(baseline_y + line_font_size * SUPER_SHIFT_RATIO),
+        VerticalAlign::Length(v) => align_baseline(baseline_y + v),
+        VerticalAlign::Percent(p) => align_baseline(baseline_y + line_font_size * p),
         // Baseline: align the box's baseline to the line baseline.
         VerticalAlign::Baseline => align_baseline(baseline_y),
     };
@@ -11547,6 +11826,15 @@ fn run_vertical_align_shift(run: &TextRun, parent_font_size: f32) -> f32 {
     match run.vertical_align {
         VerticalAlign::Super => parent_font_size * SUPER_SHIFT_RATIO,
         VerticalAlign::Sub => -parent_font_size * SUB_SHIFT_RATIO,
+        VerticalAlign::Length(v) => v,
+        VerticalAlign::Percent(p) => {
+            let factor = if run.line_height_factor.is_finite() {
+                run.line_height_factor
+            } else {
+                1.2
+            };
+            run.font_size * factor * p
+        }
         _ => 0.0,
     }
 }
@@ -11712,7 +12000,13 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
     // `wrap_text_runs` used to size the line, keeping layout and paint consistent.
     let has_text_shift = line.runs.iter().any(|r| {
         r.inline_box.is_none()
-            && matches!(r.vertical_align, VerticalAlign::Super | VerticalAlign::Sub)
+            && matches!(
+                r.vertical_align,
+                VerticalAlign::Super
+                    | VerticalAlign::Sub
+                    | VerticalAlign::Length(_)
+                    | VerticalAlign::Percent(_)
+            )
     });
     let (mut above, mut below) = if has_text_shift {
         line_shifted_text_extents(line, parent_font_size, custom_fonts)
@@ -11740,6 +12034,8 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                 VerticalAlign::Baseline
                     | VerticalAlign::Sub
                     | VerticalAlign::Super
+                    | VerticalAlign::Length(_)
+                    | VerticalAlign::Percent(_)
                     | VerticalAlign::Middle
             )
         {
@@ -11758,6 +12054,11 @@ fn line_box_metrics(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) ->
                     box_ascent + parent_font_size * SUPER_SHIFT_RATIO,
                     box_descent - parent_font_size * SUPER_SHIFT_RATIO,
                 ),
+                VerticalAlign::Length(v) => (box_ascent + v, box_descent - v),
+                VerticalAlign::Percent(p) => {
+                    let shift = parent_font_size * p;
+                    (box_ascent + shift, box_descent - shift)
+                }
                 VerticalAlign::Middle => (
                     inline.height / 2.0 + line_x_height / 2.0,
                     inline.height / 2.0 - line_x_height / 2.0,
@@ -13491,8 +13792,12 @@ fn render_box_shadows_inset(
     box_w: f32,
     box_h: f32,
     border_radius: f32,
+    border_radii: [f32; 4],
+    border_radii_y: [f32; 4],
     page_ext_gstates: &mut Vec<(String, f32)>,
     gs_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     for shadow in shadows.iter().rev() {
         if shadow.inset {
@@ -13504,8 +13809,12 @@ fn render_box_shadows_inset(
                 box_w,
                 box_h,
                 border_radius,
+                border_radii,
+                border_radii_y,
                 page_ext_gstates,
                 gs_counter,
+                pdf_writer,
+                page_images,
             );
         }
     }
@@ -13684,8 +13993,12 @@ fn render_box_shadow_inset(
     box_w: f32,
     box_h: f32,
     border_radius: f32,
+    border_radii: [f32; 4],
+    border_radii_y: [f32; 4],
     page_ext_gstates: &mut Vec<(String, f32)>,
     gs_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
 ) {
     if !shadow.inset {
         return;
@@ -13697,9 +14010,71 @@ fn render_box_shadow_inset(
     let offset_y = shadow.offset_y;
     let layers: usize = 10;
     let alpha_normalizer: f32 = 0.11;
+
+    if blur > 0.5
+        && let Some(blurred) = crate::render::blur::blur_inset_shadow_rect(
+            box_w,
+            box_h,
+            border_radius,
+            blur,
+            spread,
+            offset_x,
+            offset_y,
+            (sr, sg, sb, base_alpha),
+            pdf_writer.opts.filter_dpi,
+        )
+    {
+        let img_obj_id = pdf_writer.add_image_object(
+            &blurred.asset.data,
+            blurred.asset.source_width,
+            blurred.asset.source_height,
+            blurred.asset.format,
+            blurred.asset.png_metadata.as_ref(),
+        );
+        let img_name = format!("Im{img_obj_id}");
+        let ov = blurred.overflow_pt;
+        content.push_str("q\n");
+        if border_radius > 0.5 {
+            content.push_str(&rounded_rect_path(
+                box_x,
+                box_y_bottom,
+                box_w,
+                box_h,
+                border_radius,
+            ));
+            content.push('\n');
+        } else {
+            content.push_str(&format!("{box_x} {box_y_bottom} {box_w} {box_h} re\n"));
+        }
+        content.push_str("W n\n");
+        content.push_str(&format!(
+            "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\nQ\n",
+            w = box_w + 2.0 * ov,
+            h = box_h + 2.0 * ov,
+            ix = box_x - ov,
+            iy = box_y_bottom - ov,
+            name = img_name,
+        ));
+        page_images.push(ImageRef {
+            name: img_name,
+            obj_id: img_obj_id,
+        });
+        return;
+    }
+
     // Save gfx state, clip to box path.
     content.push_str("q\n");
-    if border_radius > 0.5 {
+    if let Some(path) = rounded_box_path(
+        box_x,
+        box_y_bottom,
+        box_w,
+        box_h,
+        border_radii,
+        border_radii_y,
+    ) {
+        content.push_str(&path);
+        content.push('\n');
+    } else if border_radius > 0.5 {
         content.push_str(&rounded_rect_path(
             box_x,
             box_y_bottom,
@@ -13736,7 +14111,13 @@ fn render_box_shadow_inset(
         let hh = box_h - spread * 2.0;
         content.push_str(&format!("{ox} {oy} {ow} {oh} re\n"));
         if hw > 0.0 && hh > 0.0 {
-            content.push_str(&format!("{hx} {hy} {hw} {hh} re\n"));
+            let inset_radii = border_radii.map(|r| (r - spread).max(0.0));
+            let inset_radii_y = border_radii_y.map(|r| (r - spread).max(0.0));
+            if let Some(path) = rounded_box_path(hx, hy, hw, hh, inset_radii, inset_radii_y) {
+                content.push_str(&path);
+            } else {
+                content.push_str(&format!("{hx} {hy} {hw} {hh} re\n"));
+            }
         }
         content.push_str("f*\n");
         content.push_str("Q\n");
@@ -13767,7 +14148,13 @@ fn render_box_shadow_inset(
         // Draw outer rect + inner rect, fill with even-odd → ring of shadow color.
         content.push_str(&format!("{ox} {oy} {ow} {oh} re\n"));
         if hw > 0.0 && hh > 0.0 {
-            content.push_str(&format!("{hx} {hy} {hw} {hh} re\n"));
+            let inset_radii = border_radii.map(|r| (r - total_inset).max(0.0));
+            let inset_radii_y = border_radii_y.map(|r| (r - total_inset).max(0.0));
+            if let Some(path) = rounded_box_path(hx, hy, hw, hh, inset_radii, inset_radii_y) {
+                content.push_str(&path);
+            } else {
+                content.push_str(&format!("{hx} {hy} {hw} {hh} re\n"));
+            }
         }
         content.push_str("f*\n");
     }
@@ -14413,6 +14800,16 @@ fn coverage_byte(rgba: (f32, f32, f32, f32), mode: crate::style::computed::MaskM
     (cov.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
+fn soften_mask_coverage(coverage: Vec<u8>, width: u32, height: u32, sigma: f32) -> Vec<u8> {
+    if sigma <= 0.0 {
+        return coverage;
+    }
+    let Some(img) = image::GrayImage::from_raw(width, height, coverage) else {
+        return Vec::new();
+    };
+    image::imageops::blur(&img, sigma).into_raw()
+}
+
 /// Rasterise a `mask-image` source to a `px_w` × `px_h` DeviceGray coverage
 /// buffer (row 0 = top of the box, matching PDF image sample order). Each byte
 /// is the mask coverage for one pixel under `mode`.
@@ -14763,7 +15160,24 @@ fn rasterize_mask_layers(
             }
         }
     }
-    Some(accum)
+    let all_no_repeat = layers.iter().all(|layer| {
+        matches!(
+            layer.layer_box.repeat.unwrap_or(BackgroundRepeat::Repeat),
+            BackgroundRepeat::NoRepeat
+        )
+    });
+    if layers.len() > 1 && all_no_repeat {
+        let sx = px_w as f32 / (w / 0.75).max(1e-6);
+        let sy = px_h as f32 / (h / 0.75).max(1e-6);
+        Some(soften_mask_coverage(
+            accum,
+            px_w,
+            px_h,
+            ((sx + sy) * 0.5) * 0.5,
+        ))
+    } else {
+        Some(accum)
+    }
 }
 
 fn rasterize_mask_border_ring(px_w: u32, px_h: u32, w: f32, h: f32, width: f32) -> Vec<u8> {

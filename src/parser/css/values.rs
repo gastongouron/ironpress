@@ -381,12 +381,30 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword(lower));
     }
 
-    if property == "font-family" {
+    if matches!(property, "font-family" | "font") {
         return Some(CssValue::Keyword(val.trim().to_string()));
     }
 
-    if matches!(property, "text-align" | "text-decoration" | "display") {
+    if matches!(
+        property,
+        "text-align"
+            | "text-decoration"
+            | "text-decoration-line"
+            | "text-decoration-style"
+            | "display"
+    ) {
         return Some(CssValue::Keyword(lower));
+    }
+
+    if matches!(
+        property,
+        "text-decoration-thickness" | "text-underline-offset"
+    ) {
+        return parse_length(val).or(Some(CssValue::Keyword(lower)));
+    }
+
+    if property == "vertical-align" {
+        return parse_length(val).or(Some(CssValue::Keyword(lower)));
     }
 
     if property.starts_with("page-break")
@@ -521,20 +539,34 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "quotes"
             | "counter-reset"
             | "counter-increment"
+            | "counter-set"
+            | "string-set"
             | "list-style-type"
             | "list-style-position"
             | "list-style-image"
             | "list-style"
+            | "marker-side"
             | "overflow"
             | "overflow-x"
             | "overflow-y"
+            | "overflow-inline"
+            | "overflow-block"
+            | "scrollbar-gutter"
             | "visibility"
             | "transform"
             | "transform-origin"
+            | "transform-box"
+            | "translate"
+            | "rotate"
+            | "scale"
+            | "perspective"
+            | "perspective-origin"
             | "filter"
+            | "clip"
             | "aspect-ratio"
             | "grid-template-columns"
             | "grid-template-rows"
+            | "grid-auto-rows"
             | "grid-auto-flow"
             | "grid-auto-columns"
             | "justify-items"
@@ -562,6 +594,10 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "mask-clip"
             | "mask-composite"
             | "mask-type"
+            | "mask-border-source"
+            | "mask-border-slice"
+            | "mask-border-width"
+            | "mask-border-repeat"
             | "box-shadow"
             | "text-shadow"
             | "unicode-bidi"
@@ -577,6 +613,8 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "background-position"
             | "background-origin"
             | "background-clip"
+            | "background-attachment"
+            | "border-image"
             | "background-image"
             | "white-space"
             | "overflow-wrap"
@@ -585,12 +623,27 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "text-transform"
             | "font-variant"
             | "font-variant-caps"
+            | "font-variant-ligatures"
+            | "font-kerning"
+            | "font-size-adjust"
+            | "font-synthesis"
+            | "text-emphasis"
+            | "text-emphasis-style"
+            | "text-emphasis-position"
+            | "hyphens"
             | "font-feature-settings"
             | "direction"
             | "writing-mode"
+            | "text-orientation"
+            | "text-combine-upright"
+            | "white-space-collapse"
+            | "text-wrap-mode"
             | "object-fit"
             | "object-position"
             | "vertical-align"
+            | "inset"
+            | "line-clamp"
+            | "-webkit-line-clamp"
     ) {
         return Some(CssValue::Keyword(val.to_string()));
     }
@@ -659,7 +712,7 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
     // `max-content`, `fit-content`). Preserve them as keywords so the computed
     // style layer can record `width_keyword`; otherwise they would fall through
     // to `parse_length` and be dropped (treated as `auto`).
-    if property == "width"
+    if matches!(property, "width" | "min-width" | "max-width")
         && matches!(
             lower.as_str(),
             "min-content" | "max-content" | "fit-content"

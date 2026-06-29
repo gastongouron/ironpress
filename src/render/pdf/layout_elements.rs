@@ -433,21 +433,31 @@ pub(super) fn render_cell_text(
                     ctx.custom_fonts,
                 );
                 let desc = descender_ratio * run.font_size;
-                let underline_y = text_y - desc * 0.6;
-                let thickness = (run.font_size * 0.07).max(0.5);
-                content.push_str(&format!(
-                    "{r} {g} {b} RG\n{thickness} w\n{x} {underline_y} m {x2} {underline_y} l\nS\n",
-                    x2 = x + run_width,
-                ));
+                let underline_y = text_y - desc * 0.6 - super::decoration_offset(run);
+                let thickness = super::decoration_thickness(run);
+                super::push_decoration_stroke(
+                    content,
+                    (r, g, b),
+                    thickness,
+                    x,
+                    x + run_width,
+                    underline_y,
+                    super::decoration_is_wavy(run),
+                );
             }
 
             if run.line_through {
                 let strike_y = text_y + run.font_size * 0.3;
-                let thickness = (run.font_size * 0.07).max(0.5);
-                content.push_str(&format!(
-                    "{r} {g} {b} RG\n{thickness} w\n{x} {strike_y} m {x2} {strike_y} l\nS\n",
-                    x2 = x + run_width,
-                ));
+                let thickness = super::decoration_thickness(run);
+                super::push_decoration_stroke(
+                    content,
+                    (r, g, b),
+                    thickness,
+                    x,
+                    x + run_width,
+                    strike_y,
+                    false,
+                );
             }
 
             if let Some(annotation) =
@@ -474,7 +484,9 @@ fn table_cell_content_top(cell: &TableCell, row_y: f32, row_height: f32) -> f32 
         | VerticalAlign::TextTop
         | VerticalAlign::Baseline
         | VerticalAlign::Super
-        | VerticalAlign::Sub => 0.0,
+        | VerticalAlign::Sub
+        | VerticalAlign::Length(_)
+        | VerticalAlign::Percent(_) => 0.0,
     };
     row_y - offset - cell.padding_top
 }

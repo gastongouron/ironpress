@@ -694,7 +694,7 @@
     "description": "background-attachment:fixed anchors a split gradient to the page viewport; catches element-relative fixed positioning.",
     "file": "cases/backgrounds-borders/background-attachment-fixed-viewport.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch"

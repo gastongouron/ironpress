@@ -10,8 +10,8 @@ use std::collections::HashMap;
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
 use super::engine::{
-    LayoutBorder, LayoutElement, PageBreakSide, TextRun, element_sibling_list, flatten_element,
-    forward_siblings,
+    LayoutBorder, LayoutElement, PageBreakSide, TextLine, TextRun, element_sibling_list,
+    flatten_element, forward_siblings,
 };
 use super::helpers::{
     BackgroundFields, LayoutOverflowKeyword, append_pseudo_inline_run, aspect_ratio_height,
@@ -21,7 +21,8 @@ use super::helpers::{
     has_background_paint, heading_level, patch_absolute_children_containing_block,
     pseudo_is_block_like, push_block_pseudo, recurses_as_layout_child,
     resolve_abs_containing_block, resolve_content_box_height, resolve_inset,
-    resolve_padding_box_height, resolve_relative_offsets, selector_context_from_ancestors,
+    resolve_padding_box_height, resolve_relative_offsets, selector_attributes_with_has,
+    selector_context_from_ancestors,
 };
 use super::inline::{
     element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
@@ -29,11 +30,120 @@ use super::inline::{
 use super::paginate::estimate_element_height;
 use super::text::{
     TextWrapOptions, apply_text_overflow_ellipsis, collect_text_runs, estimate_word_width,
-    resolved_line_height_factor, wrap_text_runs,
+    resolve_style_font_family, resolved_line_height_factor, wrap_text_runs,
 };
 
 const VERTICAL_LR_LINE_MARKER: f32 = -1_000_000.0;
 const VERTICAL_UPRIGHT_LINE_MARKER: f32 = -2_000_000.0;
+
+fn restyle_runs_for_first_line_wrap(
+    runs: &mut [TextRun],
+    fl: &ComputedStyle,
+    fonts: &HashMap<String, TtfFont>,
+) {
+    let family = resolve_style_font_family(fl, fonts);
+    let line_height = resolved_line_height_factor(fl, fonts);
+    for run in runs {
+        if run.inline_box.is_some() {
+            continue;
+        }
+        run.font_size = fl.font_size;
+        run.bold = fl.font_weight == crate::style::computed::FontWeight::Bold;
+        run.italic = fl.font_style == crate::style::computed::FontStyle::Italic;
+        run.font_family = family.clone();
+        run.line_height_factor = line_height;
+    }
+}
+
+fn text_len_in_line(line: &TextLine) -> usize {
+    line.runs.iter().map(|run| run.text.chars().count()).sum()
+}
+
+fn split_runs_at_text_len(runs: Vec<TextRun>, mut count: usize) -> (Vec<TextRun>, Vec<TextRun>) {
+    let mut first = Vec::new();
+    let mut rest = Vec::new();
+    let mut in_rest = false;
+    for run in runs {
+        if in_rest || run.inline_box.is_some() {
+            rest.push(run);
+            continue;
+        }
+        let len = run.text.chars().count();
+        if count >= len {
+            count -= len;
+            first.push(run);
+            continue;
+        }
+        if count == 0 {
+            rest.push(run);
+            in_rest = true;
+            continue;
+        }
+        let split = run
+            .text
+            .char_indices()
+            .nth(count)
+            .map(|(idx, _)| idx)
+            .unwrap_or(run.text.len());
+        let mut head = run.clone();
+        let mut tail = run;
+        head.text = head.text[..split].to_string();
+        tail.text = tail.text[split..].to_string();
+        if !head.text.is_empty() {
+            first.push(head);
+        }
+        if !tail.text.is_empty() {
+            rest.push(tail);
+        }
+        in_rest = true;
+    }
+    (first, rest)
+}
+
+fn trim_leading_collapsible_space(runs: &mut Vec<TextRun>) {
+    while let Some(first) = runs.first_mut() {
+        if first.inline_box.is_some() {
+            return;
+        }
+        let trimmed = first.text.trim_start().to_string();
+        if trimmed.is_empty() {
+            runs.remove(0);
+        } else {
+            first.text = trimmed;
+            return;
+        }
+    }
+}
+
+fn wrap_text_runs_with_first_line_style(
+    runs: Vec<TextRun>,
+    options: TextWrapOptions,
+    fl: &ComputedStyle,
+    fonts: &HashMap<String, TtfFont>,
+) -> Vec<TextLine> {
+    let mut styled_runs = runs.clone();
+    restyle_runs_for_first_line_wrap(&mut styled_runs, fl, fonts);
+    let styled_lines = wrap_text_runs(styled_runs, options, fonts);
+    let Some(first_styled) = styled_lines.first() else {
+        return Vec::new();
+    };
+    let first_len = text_len_in_line(first_styled);
+    if first_len == 0 {
+        return wrap_text_runs(runs, options, fonts);
+    }
+    let (mut first_runs, mut rest_runs) = split_runs_at_text_len(runs, first_len);
+    trim_leading_collapsible_space(&mut rest_runs);
+    restyle_runs_for_first_line_wrap(&mut first_runs, fl, fonts);
+    let mut first_lines = wrap_text_runs(first_runs, options, fonts);
+    first_lines.truncate(1);
+    let mut tail_options = options;
+    tail_options.text_indent = 0.0;
+    tail_options.dropcap_width = 0.0;
+    tail_options.dropcap_lines = 0;
+    let mut tail_lines = wrap_text_runs(rest_runs, tail_options, fonts);
+    first_lines.append(&mut tail_lines);
+    first_lines
+}
 
 fn collect_plain_text_for_dir_auto(nodes: &[DomNode], out: &mut String) {
     for node in nodes {
@@ -314,7 +424,18 @@ pub(crate) fn layout_block_element(
     // against its HEIGHT, giving elliptical corners on a non-square box. The
     // legacy uniform `border_radius` field stays circular (smaller dimension) for
     // code paths that carry only one radius.
-    let height_dim = effective_height.unwrap_or(block_w);
+    let height_dim = effective_height
+        .map(|h| {
+            resolve_padding_box_height(
+                0.0,
+                Some(h),
+                style.padding.top,
+                style.padding.bottom,
+                style.border.vertical_width(),
+                style.box_sizing,
+            ) + style.border.vertical_width()
+        })
+        .unwrap_or(block_w);
     let radius_dim = block_w.min(height_dim);
     if let Some(pct) = style.border_radius_pct {
         style.border_radius = radius_dim * pct / 100.0;
@@ -554,6 +675,7 @@ pub(crate) fn layout_block_element(
             .with_bidi_override(style.bidi_override)
             .with_bidi_plaintext(style.bidi_plaintext)
             .with_word_break_keep_all(style.word_break_keep_all)
+            .with_hyphens_manual(style.hyphens_manual)
             .with_text_indent(style.text_indent),
             fonts,
         );
@@ -1364,36 +1486,38 @@ pub(crate) fn layout_block_element(
         } else {
             inner_width
         };
-        let mut lines = wrap_text_runs(
-            runs,
-            TextWrapOptions::new(
-                wrap_width,
-                style.font_size,
-                resolved_line_height_factor(style, env.fonts),
-                style.overflow_wrap,
-            )
-            .with_rtl(style.direction_rtl)
-            .with_bidi_override(style.bidi_override)
-            .with_bidi_plaintext(style.bidi_plaintext)
-            .with_word_break_keep_all(style.word_break_keep_all)
-            .with_pre_wrap(matches!(
-                style.white_space,
-                WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
-            ))
-            .with_break_spaces(style.white_space == WhiteSpace::BreakSpaces)
-            // text-indent shortens the FIRST formatted line, so the wrapper must
-            // reserve that space before breaking — otherwise the first line packs
-            // full-width text that then overflows once shifted at paint time
-            // (css-text-3 §8).
-            .with_text_indent(style.text_indent)
-            // A `::first-letter { float: left }` drop cap reserves a left
-            // exclusion on the lines it overlaps (css-pseudo-4 §2.2 + css2 §9.5).
-            .with_drop_cap(
-                drop_cap.map_or(0.0, |d| d.width),
-                drop_cap.map_or(0, |d| d.span_lines),
-            ),
-            env.fonts,
+        let wrap_options = TextWrapOptions::new(
+            wrap_width,
+            style.font_size,
+            resolved_line_height_factor(style, env.fonts),
+            style.overflow_wrap,
+        )
+        .with_rtl(style.direction_rtl)
+        .with_bidi_override(style.bidi_override)
+        .with_bidi_plaintext(style.bidi_plaintext)
+        .with_word_break_keep_all(style.word_break_keep_all)
+        .with_hyphens_manual(style.hyphens_manual)
+        .with_pre_wrap(matches!(
+            style.white_space,
+            WhiteSpace::PreWrap | WhiteSpace::BreakSpaces
+        ))
+        .with_break_spaces(style.white_space == WhiteSpace::BreakSpaces)
+        // text-indent shortens the FIRST formatted line, so the wrapper must
+        // reserve that space before breaking — otherwise the first line packs
+        // full-width text that then overflows once shifted at paint time
+        // (css-text-3 §8).
+        .with_text_indent(style.text_indent)
+        // A `::first-letter { float: left }` drop cap reserves a left
+        // exclusion on the lines it overlaps (css-pseudo-4 §2.2 + css2 §9.5).
+        .with_drop_cap(
+            drop_cap.map_or(0.0, |d| d.width),
+            drop_cap.map_or(0, |d| d.span_lines),
         );
+        let mut lines = if let Some(ref fl) = first_line_style {
+            wrap_text_runs_with_first_line_style(runs, wrap_options, fl, env.fonts)
+        } else {
+            wrap_text_runs(runs, wrap_options, env.fonts)
+        };
 
         // `::first-line` (css-pseudo-4 §2.1): restyle the runs that landed on
         // the dynamically-determined first formatted line.
@@ -1921,7 +2045,39 @@ pub(crate) fn layout_block_element(
 
         // Measure children total height. A non-BFC auto-height block does not
         // grow to enclose floated descendants; a BFC does.
-        let children_h_raw: f32 = if !bfc {
+        let only_floating_element_children = child_el_count > 0
+            && el.children.iter().all(|child| match child {
+                DomNode::Element(child_el) => {
+                    let cls = child_el.class_list();
+                    let cls_refs: Vec<&str> = cls.iter().map(|s| s.as_ref()).collect();
+                    let child_selector_ctx = SelectorContext {
+                        ancestors: child_ancestors.to_vec(),
+                        ..SelectorContext::default()
+                    };
+                    let child_style = compute_style_with_context(
+                        child_el.tag,
+                        child_el.style_attr(),
+                        style,
+                        env.rules,
+                        child_el.tag_name(),
+                        &cls_refs,
+                        child_el.id(),
+                        &selector_attributes_with_has(child_el),
+                        &child_selector_ctx,
+                    );
+                    child_style.float != Float::None
+                }
+                DomNode::Text(text) => text.trim().is_empty(),
+            });
+        let clip_non_bfc_floats = !bfc
+            && only_floating_element_children
+            && matches!(
+                (overflow_axes.x, overflow_axes.y),
+                (LayoutOverflowKeyword::Clip, _) | (_, LayoutOverflowKeyword::Clip)
+            );
+        let children_h_raw: f32 = if clip_non_bfc_floats {
+            0.0
+        } else if !bfc {
             child_elements
                 .iter()
                 .filter(|child| {
@@ -2153,7 +2309,8 @@ pub(crate) fn layout_block_element(
             // this, an explicit-height box with a border rendered short by the
             // border thickness.) The aspect-ratio case is left as-is: its height
             // is derived from the border-box width and is already consistent.
-            block_height: if effective_height.is_some() || max_height_clamped {
+            block_height: if clip_non_bfc_floats || effective_height.is_some() || max_height_clamped
+            {
                 Some(emitted_container_h + style.border.vertical_width())
             } else if style.aspect_ratio.is_some() {
                 Some(emitted_container_h)

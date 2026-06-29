@@ -192,6 +192,7 @@ pub(crate) fn load_image_from_element(
             margin_top: style.margin.top,
             margin_bottom: style.margin.bottom,
             background_color: style.background_color.map(|c| c.to_f32_rgba()),
+            mix_blend_mode: style.mix_blend_mode,
             border,
         });
     }
@@ -715,6 +716,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             margin_top,
             margin_bottom,
             background_color,
+            mix_blend_mode,
             border,
         } => LayoutElement::Svg {
             tree,
@@ -724,6 +726,7 @@ pub(crate) fn add_inline_replaced_baseline_gap(
             margin_top,
             margin_bottom,
             background_color,
+            mix_blend_mode,
             border,
         },
         other => other,

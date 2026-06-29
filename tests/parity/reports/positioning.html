@@ -1,120 +1,171 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · positioning</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>positioning — 86.36%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 19 · PARTIAL 0 · FAIL 3 · UNKNOWN 0 · 22 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-z-index">z-index <span class="sc">67%</span></a> <a href="#feat-inset">inset <span class="sc">80%</span></a> <a href="#feat-position">position <span class="sc">86%</span></a> <a href="#feat-clear">clear <span class="sc">100%</span></a> <a href="#feat-containing-block">containing-block <span class="sc">100%</span></a> <a href="#feat-float">float <span class="sc">100%</span></a> <a href="#feat-overflow">overflow <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="ColorValue">ColorValue</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-z-index">z-index — 66.67% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="17.321"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">17.32%</span> <strong>positioning-z-index-negative-behind-flow</strong> · negative-behind-flow · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-z-index-negative-behind-flow.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-z-index-negative-behind-flow.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-z-index-negative-behind-flow.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-188,+87,+6) (ΔE 66.9)</div><div class="desc">A positioned z-index:-1 child in a local stacking context stays behind an overlapping in-flow sibling; catches painting all positioned descendants above normal flow.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>55,45 → 130,95</td><td class="num">17.32</td><td>ΔE 66.9 ΔRGB(-188,87,6) shift(0.6,0.6)</td><td>fill recolour ΔRGB(-188,+87,+6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/positioning/positioning-z-index-negative-behind-flow.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 220px 150px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .wrap {
-<span class="ln">11</span>    position: relative;
-<span class="ln">12</span>    z-index: 0;
-<span class="ln">13</span>    width: 180px;
-<span class="ln">14</span>    height: 120px;
-<span class="ln">15</span>    background: #f2f2f2;
-<span class="ln">16</span>  }
-<span class="ln">17</span>  .back {
-<span class="ln">18</span>    position: absolute;
-<span class="ln">19</span>    left: 35px;
-<span class="ln">20</span>    top: 25px;
-<span class="ln">21</span>    width: 95px;
-<span class="ln">22</span>    height: 70px;
-<span class="ln">23</span>    z-index: -1;
-<span class="ln">24</span>    background: #0a7f2e;
-<span class="ln">25</span>  }
-<span class="ln">26</span>  .front {
-<span class="ln">27</span>    position: relative;
-<span class="ln">28</span>    left: 55px;
-<span class="ln">29</span>    top: 45px;
-<span class="ln">30</span>    width: 95px;
-<span class="ln">31</span>    height: 60px;
-<span class="ln">32</span>    background: #c62828;
-<span class="ln">33</span>  }
-<span class="ln">34</span>&lt;/style&gt;
-<span class="ln">35</span>&lt;/head&gt;
-<span class="ln">36</span>&lt;body&gt;
-<span class="ln">37</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">38</span>    &lt;div class=&quot;back&quot;&gt;&lt;/div&gt;
-<span class="ln">39</span>    &lt;div class=&quot;front&quot;&gt;&lt;/div&gt;
-<span class="ln">40</span>  &lt;/div&gt;
-<span class="ln">41</span>&lt;/body&gt;
-<span class="ln">42</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-z-index-source-order-overlap</strong> · source-order<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-z-index-source-order-overlap.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-z-index-source-order-overlap.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-z-index-source-order-overlap.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Without z-index, positioned siblings stack in source order; the later box paints over the earlier.</div><details open class="src"><summary>source · cases/positioning/positioning-z-index-source-order-overlap.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · positioning</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>positioning — 100.00%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 22 · PARTIAL 0 · FAIL 0 · UNKNOWN 0 · 22 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-clear">clear <span class="sc">100%</span></a> <a href="#feat-containing-block">containing-block <span class="sc">100%</span></a> <a href="#feat-float">float <span class="sc">100%</span></a> <a href="#feat-inset">inset <span class="sc">100%</span></a> <a href="#feat-overflow">overflow <span class="sc">100%</span></a> <a href="#feat-position">position <span class="sc">100%</span></a> <a href="#feat-z-index">z-index <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="ColorValue">ColorValue</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-clear">clear — 100.00% <span class="meta">PASS 1 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="ColorValue" data-diff="0.0009"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-clear-both</strong> · both<span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 2.7</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-clear-both.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-clear-both.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-clear-both.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-2,-4,-1) (ΔE 2.7)</div><div class="desc">clear:both pushes the cleared block below preceding floats instead of wrapping beside them.</div><details open class="src"><summary>source · cases/positioning/positioning-clear-both.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 287px 226px; margin: 0; }
+<span class="ln">6</span>  @page { size: 417px 195px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; position: relative; height: 220px; }
-<span class="ln">11</span>  /* with no z-index, positioned siblings stack in source order:
-<span class="ln">12</span>     the later box paints over the earlier one */
-<span class="ln">13</span>  .box { position: absolute; width: 120px; height: 120px; border: 2px solid #000000; }
-<span class="ln">14</span>  .first  { top: 20px; left: 20px; background: #27ae60; }
-<span class="ln">15</span>  .second { top: 70px; left: 70px; background: #8e44ad; }
-<span class="ln">16</span>&lt;/style&gt;
-<span class="ln">17</span>&lt;/head&gt;
-<span class="ln">18</span>&lt;body&gt;
-<span class="ln">19</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">20</span>    &lt;div class=&quot;box first&quot;&gt;&lt;/div&gt;
-<span class="ln">21</span>    &lt;div class=&quot;box second&quot;&gt;&lt;/div&gt;
-<span class="ln">22</span>  &lt;/div&gt;
-<span class="ln">23</span>&lt;/body&gt;
-<span class="ln">24</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-z-index-stacking</strong> · stacking<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-z-index-stacking.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-z-index-stacking.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-z-index-stacking.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Higher z-index paints on top of a later-in-source sibling with lower z-index.</div><details open class="src"><summary>source · cases/positioning/positioning-z-index-stacking.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  /* clear:both pushes the cleared block below all preceding floats instead of
+<span class="ln">12</span>     wrapping beside them */
+<span class="ln">13</span>  .container {
+<span class="ln">14</span>    width: 300px;
+<span class="ln">15</span>    background: #f0e8f4;
+<span class="ln">16</span>    border: 2px solid #6e6e6e;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .float {
+<span class="ln">19</span>    float: left;
+<span class="ln">20</span>    width: 100px;
+<span class="ln">21</span>    height: 90px;
+<span class="ln">22</span>    background: #8e44ad;
+<span class="ln">23</span>    border: 2px solid #4a2259;
+<span class="ln">24</span>  }
+<span class="ln">25</span>  .cleared {
+<span class="ln">26</span>    clear: both;
+<span class="ln">27</span>    height: 60px;
+<span class="ln">28</span>    background: #d6c2e0;
+<span class="ln">29</span>    border: 2px solid #6e6e6e;
+<span class="ln">30</span>  }
+<span class="ln">31</span>&lt;/style&gt;
+<span class="ln">32</span>&lt;/head&gt;
+<span class="ln">33</span>&lt;body&gt;
+<span class="ln">34</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">35</span>    &lt;div class=&quot;container&quot;&gt;
+<span class="ln">36</span>      &lt;div class=&quot;float&quot;&gt;&lt;/div&gt;
+<span class="ln">37</span>      &lt;div class=&quot;cleared&quot;&gt;&lt;/div&gt;
+<span class="ln">38</span>    &lt;/div&gt;
+<span class="ln">39</span>  &lt;/div&gt;
+<span class="ln">40</span>&lt;/body&gt;
+<span class="ln">41</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-containing-block">containing-block — 100.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-absolute-containing-block-relative-ancestor</strong> · nearest-positioned-ancestor<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-absolute-containing-block-relative-ancestor.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-absolute-containing-block-relative-ancestor.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-absolute-containing-block-relative-ancestor.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.</div><details open class="src"><summary>source · cases/positioning/positioning-absolute-containing-block-relative-ancestor.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 287px 226px; margin: 0; }
+<span class="ln">6</span>  @page { size: 377px 261px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; position: relative; height: 220px; }
-<span class="ln">11</span>  /* higher z-index paints on top regardless of source order:
-<span class="ln">12</span>     the low box is later in source but has lower z-index */
-<span class="ln">13</span>  .box { position: absolute; width: 120px; height: 120px; border: 2px solid #000000; }
-<span class="ln">14</span>  .high { top: 20px;  left: 20px;  background: #2980b9; z-index: 2; }
-<span class="ln">15</span>  .low  { top: 70px;  left: 70px;  background: #e67e22; z-index: 1; }
-<span class="ln">16</span>&lt;/style&gt;
-<span class="ln">17</span>&lt;/head&gt;
-<span class="ln">18</span>&lt;body&gt;
-<span class="ln">19</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">20</span>    &lt;div class=&quot;box high&quot;&gt;&lt;/div&gt;
-<span class="ln">21</span>    &lt;div class=&quot;box low&quot;&gt;&lt;/div&gt;
-<span class="ln">22</span>  &lt;/div&gt;
-<span class="ln">23</span>&lt;/body&gt;
-<span class="ln">24</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-inset">inset — 80.00% <span class="meta">PASS 4 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="38.3348"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">38.33%</span> <strong>positioning-inset-shorthand-stretch</strong> · shorthand-stretch · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-inset-shorthand-stretch.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-inset-shorthand-stretch.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-inset-shorthand-stretch.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">The inset shorthand stretches an absolutely positioned box with inset:20px 30px 40px 50px; catches parsers that ignore the shorthand while longhands work.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>50,20 → 190,110</td><td class="num">38.33</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/positioning/positioning-inset-shorthand-stretch.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 240px 180px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .cb {
-<span class="ln">11</span>    position: relative;
-<span class="ln">12</span>    width: 220px;
-<span class="ln">13</span>    height: 150px;
-<span class="ln">14</span>    background: #c62828;
-<span class="ln">15</span>  }
-<span class="ln">16</span>  .target {
-<span class="ln">17</span>    position: absolute;
-<span class="ln">18</span>    inset: 20px 30px 40px 50px;
-<span class="ln">19</span>    background: #0a7f2e;
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  /* outer is positioned (relative) so it is the containing block;
+<span class="ln">12</span>     the static middle div must NOT capture the absolute child */
+<span class="ln">13</span>  .outer {
+<span class="ln">14</span>    position: relative;
+<span class="ln">15</span>    width: 260px;
+<span class="ln">16</span>    height: 220px;
+<span class="ln">17</span>    background: #e9f0f4;
+<span class="ln">18</span>    border: 2px solid #7fa8c0;
+<span class="ln">19</span>    padding: 20px;
 <span class="ln">20</span>  }
-<span class="ln">21</span>&lt;/style&gt;
-<span class="ln">22</span>&lt;/head&gt;
-<span class="ln">23</span>&lt;body&gt;
-<span class="ln">24</span>  &lt;div class=&quot;cb&quot;&gt;&lt;div class=&quot;target&quot;&gt;&lt;/div&gt;&lt;/div&gt;
-<span class="ln">25</span>&lt;/body&gt;
-<span class="ln">26</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-absolute-percent-insets</strong> · absolute-percent-insets<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-absolute-percent-insets.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-absolute-percent-insets.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-absolute-percent-insets.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Absolute top/right/bottom/left percentages resolve against the containing block and stretch the child to the centered half-size box; catches pixel interpretation or wrong percentage bases.</div><details open class="src"><summary>source · cases/positioning/positioning-absolute-percent-insets.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">21</span>  .middle {
+<span class="ln">22</span>    position: static;
+<span class="ln">23</span>    width: 140px;
+<span class="ln">24</span>    height: 100px;
+<span class="ln">25</span>    background: #cdd9e0;
+<span class="ln">26</span>    border: 2px solid #9bb0bd;
+<span class="ln">27</span>  }
+<span class="ln">28</span>  .box {
+<span class="ln">29</span>    position: absolute;
+<span class="ln">30</span>    top: 0;
+<span class="ln">31</span>    left: 0;
+<span class="ln">32</span>    width: 90px;
+<span class="ln">33</span>    height: 60px;
+<span class="ln">34</span>    background: #16a085;
+<span class="ln">35</span>    border: 2px solid #0a4d40;
+<span class="ln">36</span>  }
+<span class="ln">37</span>&lt;/style&gt;
+<span class="ln">38</span>&lt;/head&gt;
+<span class="ln">39</span>&lt;body&gt;
+<span class="ln">40</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">41</span>    &lt;div class=&quot;outer&quot;&gt;
+<span class="ln">42</span>      &lt;div class=&quot;middle&quot;&gt;
+<span class="ln">43</span>        &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">44</span>      &lt;/div&gt;
+<span class="ln">45</span>    &lt;/div&gt;
+<span class="ln">46</span>  &lt;/div&gt;
+<span class="ln">47</span>&lt;/body&gt;
+<span class="ln">48</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-transform-establishes-containing-block</strong> · transform-establishes<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-transform-establishes-containing-block.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-transform-establishes-containing-block.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-transform-establishes-containing-block.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.</div><details open class="src"><summary>source · cases/positioning/positioning-transform-establishes-containing-block.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 377px 261px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  /* a transform on a non-positioned ancestor makes it the containing block
+<span class="ln">12</span>     for the absolutely positioned descendant (bottom/right resolve to this box) */
+<span class="ln">13</span>  .outer {
+<span class="ln">14</span>    transform: translate(0, 0);
+<span class="ln">15</span>    width: 260px;
+<span class="ln">16</span>    height: 220px;
+<span class="ln">17</span>    background: #ecf0f4;
+<span class="ln">18</span>    border: 2px solid #2c3e6e;
+<span class="ln">19</span>  }
+<span class="ln">20</span>  .box {
+<span class="ln">21</span>    position: absolute;
+<span class="ln">22</span>    bottom: 40px;
+<span class="ln">23</span>    right: 50px;
+<span class="ln">24</span>    width: 100px;
+<span class="ln">25</span>    height: 70px;
+<span class="ln">26</span>    background: #2980b9;
+<span class="ln">27</span>    border: 2px solid #15324f;
+<span class="ln">28</span>  }
+<span class="ln">29</span>&lt;/style&gt;
+<span class="ln">30</span>&lt;/head&gt;
+<span class="ln">31</span>&lt;body&gt;
+<span class="ln">32</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">33</span>    &lt;div class=&quot;outer&quot;&gt;
+<span class="ln">34</span>      &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">35</span>    &lt;/div&gt;
+<span class="ln">36</span>  &lt;/div&gt;
+<span class="ln">37</span>&lt;/body&gt;
+<span class="ln">38</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-float">float — 100.00% <span class="meta">PASS 1 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-float-left</strong> · left<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-float-left.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-float-left.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-float-left.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">float:left removes the box from flow and shifts it left; the following block wraps around its right side.</div><details open class="src"><summary>source · cases/positioning/positioning-float-left.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 417px 185px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  /* float:left removes the box from normal flow and shifts it to the left edge
+<span class="ln">12</span>     of its container; the following in-flow block wraps around its right side */
+<span class="ln">13</span>  .container {
+<span class="ln">14</span>    width: 300px;
+<span class="ln">15</span>    background: #eef4ec;
+<span class="ln">16</span>    border: 2px solid #6e6e6e;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .float {
+<span class="ln">19</span>    float: left;
+<span class="ln">20</span>    width: 100px;
+<span class="ln">21</span>    height: 100px;
+<span class="ln">22</span>    background: #16a085;
+<span class="ln">23</span>    border: 2px solid #0a4d40;
+<span class="ln">24</span>  }
+<span class="ln">25</span>  .flow {
+<span class="ln">26</span>    height: 140px;
+<span class="ln">27</span>    background: #d6e6df;
+<span class="ln">28</span>    border: 2px solid #6e6e6e;
+<span class="ln">29</span>  }
+<span class="ln">30</span>&lt;/style&gt;
+<span class="ln">31</span>&lt;/head&gt;
+<span class="ln">32</span>&lt;body&gt;
+<span class="ln">33</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">34</span>    &lt;div class=&quot;container&quot;&gt;
+<span class="ln">35</span>      &lt;div class=&quot;float&quot;&gt;&lt;/div&gt;
+<span class="ln">36</span>      &lt;div class=&quot;flow&quot;&gt;&lt;/div&gt;
+<span class="ln">37</span>    &lt;/div&gt;
+<span class="ln">38</span>  &lt;/div&gt;
+<span class="ln">39</span>&lt;/body&gt;
+<span class="ln">40</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-inset">inset — 100.00% <span class="meta">PASS 5 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-absolute-percent-insets</strong> · absolute-percent-insets<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-absolute-percent-insets.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-absolute-percent-insets.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-absolute-percent-insets.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Absolute top/right/bottom/left percentages resolve against the containing block and stretch the child to the centered half-size box; catches pixel interpretation or wrong percentage bases.</div><details open class="src"><summary>source · cases/positioning/positioning-absolute-percent-insets.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -178,6 +229,32 @@
 <span class="ln">33</span>  &lt;/div&gt;
 <span class="ln">34</span>&lt;/body&gt;
 <span class="ln">35</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-inset-shorthand-stretch</strong> · shorthand-stretch<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-inset-shorthand-stretch.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-inset-shorthand-stretch.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-inset-shorthand-stretch.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">The inset shorthand stretches an absolutely positioned box with inset:20px 30px 40px 50px; catches parsers that ignore the shorthand while longhands work.</div><details open class="src"><summary>source · cases/positioning/positioning-inset-shorthand-stretch.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 240px 180px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .cb {
+<span class="ln">11</span>    position: relative;
+<span class="ln">12</span>    width: 220px;
+<span class="ln">13</span>    height: 150px;
+<span class="ln">14</span>    background: #c62828;
+<span class="ln">15</span>  }
+<span class="ln">16</span>  .target {
+<span class="ln">17</span>    position: absolute;
+<span class="ln">18</span>    inset: 20px 30px 40px 50px;
+<span class="ln">19</span>    background: #0a7f2e;
+<span class="ln">20</span>  }
+<span class="ln">21</span>&lt;/style&gt;
+<span class="ln">22</span>&lt;/head&gt;
+<span class="ln">23</span>&lt;body&gt;
+<span class="ln">24</span>  &lt;div class=&quot;cb&quot;&gt;&lt;div class=&quot;target&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+<span class="ln">25</span>&lt;/body&gt;
+<span class="ln">26</span>&lt;/html&gt;
 </code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-logical-insets-horizontal</strong> · logical-insets-horizontal<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-logical-insets-horizontal.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-logical-insets-horizontal.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-logical-insets-horizontal.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Logical inset longhands map to physical top/right/bottom/left in horizontal-tb writing mode; catches ignoring logical inset properties or mapping axes incorrectly.</div><details open class="src"><summary>source · cases/positioning/positioning-logical-insets-horizontal.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
@@ -245,47 +322,114 @@
 <span class="ln">35</span>  &lt;/div&gt;
 <span class="ln">36</span>&lt;/body&gt;
 <span class="ln">37</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-position">position — 85.71% <span class="meta">PASS 6 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="17.5481"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">17.55%</span> <strong>positioning-relative-percent-offset</strong> · relative-percent-offset · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 66.9</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-relative-percent-offset.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-relative-percent-offset.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-relative-percent-offset.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</div><div class="desc">position:relative percentage top/left offsets resolve against the containing block and cover the red marker; catches own-size percentage bases or ignored relative percentages.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>40,20 → 110,60</td><td class="num">17.55</td><td>ΔE 66.9 ΔRGB(188,-87,-6)</td><td>fill recolour ΔRGB(+188,-87,-6) (ΔE 66.9)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/positioning/positioning-relative-percent-offset.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-overflow">overflow — 100.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-overflow-hidden-absolute-child-clip</strong> · hidden-clips-absolute<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-overflow-hidden-absolute-child-clip.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-overflow-hidden-absolute-child-clip.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-overflow-hidden-absolute-child-clip.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.</div><details open class="src"><summary>source · cases/positioning/positioning-overflow-hidden-absolute-child-clip.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 210px 140px; margin: 0; }
+<span class="ln">6</span>  @page { size: 278px 171px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  html, body { background: #ffffff; }
-<span class="ln">10</span>  .cb {
-<span class="ln">11</span>    position: relative;
-<span class="ln">12</span>    width: 160px;
-<span class="ln">13</span>    height: 100px;
-<span class="ln">14</span>    background: #d9d9d9;
-<span class="ln">15</span>  }
-<span class="ln">16</span>  .ref {
-<span class="ln">17</span>    position: absolute;
-<span class="ln">18</span>    left: 40px;
-<span class="ln">19</span>    top: 20px;
-<span class="ln">20</span>    width: 70px;
-<span class="ln">21</span>    height: 40px;
-<span class="ln">22</span>    background: #c62828;
-<span class="ln">23</span>  }
-<span class="ln">24</span>  .target {
-<span class="ln">25</span>    position: relative;
-<span class="ln">26</span>    left: 25%;
-<span class="ln">27</span>    top: 20%;
-<span class="ln">28</span>    width: 70px;
-<span class="ln">29</span>    height: 40px;
-<span class="ln">30</span>    background: #0a7f2e;
-<span class="ln">31</span>  }
-<span class="ln">32</span>&lt;/style&gt;
-<span class="ln">33</span>&lt;/head&gt;
-<span class="ln">34</span>&lt;body&gt;
-<span class="ln">35</span>  &lt;div class=&quot;cb&quot;&gt;
-<span class="ln">36</span>    &lt;div class=&quot;ref&quot;&gt;&lt;/div&gt;
-<span class="ln">37</span>    &lt;div class=&quot;target&quot;&gt;&lt;/div&gt;
-<span class="ln">38</span>  &lt;/div&gt;
-<span class="ln">39</span>&lt;/body&gt;
-<span class="ln">40</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-fixed-repeats-pages</strong> · fixed-repeats-paged-media<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="pglabel">page 1</div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-fixed-repeats-pages.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-fixed-repeats-pages.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-fixed-repeats-pages.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="pglabel">page 2</div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-fixed-repeats-pages.p2.png" alt="Chrome ref p2"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-fixed-repeats-pages.p2.png" alt="ironpress p2"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-fixed-repeats-pages.p2.diff.png" alt="classed diff p2"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">position:fixed header repeats at the top of each printed page; catches treating fixed as a one-page absolute box.</div><details open class="src"><summary>source · cases/positioning/positioning-fixed-repeats-pages.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">9</span>  body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  /* overflow:hidden on a positioned ancestor clips an absolutely positioned
+<span class="ln">12</span>     descendant that extends past the clip box edges */
+<span class="ln">13</span>  .clip {
+<span class="ln">14</span>    position: relative;
+<span class="ln">15</span>    overflow: hidden;
+<span class="ln">16</span>    width: 160px;
+<span class="ln">17</span>    height: 130px;
+<span class="ln">18</span>    background: #f6ecdf;
+<span class="ln">19</span>    border: 2px solid #8a4910;
+<span class="ln">20</span>  }
+<span class="ln">21</span>  .box {
+<span class="ln">22</span>    position: absolute;
+<span class="ln">23</span>    top: 60px;
+<span class="ln">24</span>    left: 80px;
+<span class="ln">25</span>    width: 160px;
+<span class="ln">26</span>    height: 130px;
+<span class="ln">27</span>    background: #e67e22;
+<span class="ln">28</span>    border: 2px solid #8a4910;
+<span class="ln">29</span>  }
+<span class="ln">30</span>&lt;/style&gt;
+<span class="ln">31</span>&lt;/head&gt;
+<span class="ln">32</span>&lt;body&gt;
+<span class="ln">33</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">34</span>    &lt;div class=&quot;clip&quot;&gt;
+<span class="ln">35</span>      &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
+<span class="ln">36</span>    &lt;/div&gt;
+<span class="ln">37</span>  &lt;/div&gt;
+<span class="ln">38</span>&lt;/body&gt;
+<span class="ln">39</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-overflow-hidden-clip</strong> · hidden<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-overflow-hidden-clip.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-overflow-hidden-clip.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-overflow-hidden-clip.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">overflow:hidden clips an oversized in-flow child to the parent box.</div><details open class="src"><summary>source · cases/positioning/positioning-overflow-hidden-clip.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 267px 161px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 20px; }
+<span class="ln">11</span>  /* child larger than parent; overflow:hidden clips it to the parent box */
+<span class="ln">12</span>  .clip {
+<span class="ln">13</span>    overflow: hidden;
+<span class="ln">14</span>    width: 150px;
+<span class="ln">15</span>    height: 120px;
+<span class="ln">16</span>    background: #eef4ec;
+<span class="ln">17</span>    border: 2px solid #6e2018;
+<span class="ln">18</span>  }
+<span class="ln">19</span>  .child {
+<span class="ln">20</span>    width: 240px;
+<span class="ln">21</span>    height: 200px;
+<span class="ln">22</span>    background: #c0392b;
+<span class="ln">23</span>    border: 2px solid #6e2018;
+<span class="ln">24</span>  }
+<span class="ln">25</span>&lt;/style&gt;
+<span class="ln">26</span>&lt;/head&gt;
+<span class="ln">27</span>&lt;body&gt;
+<span class="ln">28</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">29</span>    &lt;div class=&quot;clip&quot;&gt;
+<span class="ln">30</span>      &lt;div class=&quot;child&quot;&gt;&lt;/div&gt;
+<span class="ln">31</span>    &lt;/div&gt;
+<span class="ln">32</span>  &lt;/div&gt;
+<span class="ln">33</span>&lt;/body&gt;
+<span class="ln">34</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-overflow-visible-no-clip</strong> · visible<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-overflow-visible-no-clip.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-overflow-visible-no-clip.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-overflow-visible-no-clip.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">overflow:visible (default) does not clip; the child overflows the parent box.</div><details open class="src"><summary>source · cases/positioning/positioning-overflow-visible-no-clip.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 389px 272px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  body { background: #ffffff; }
+<span class="ln">10</span>  .wrap { padding: 40px; }
+<span class="ln">11</span>  /* overflow:visible (default) does NOT clip; child overflows the parent box */
+<span class="ln">12</span>  .container {
+<span class="ln">13</span>    overflow: visible;
+<span class="ln">14</span>    width: 150px;
+<span class="ln">15</span>    height: 120px;
+<span class="ln">16</span>    background: #e8eef4;
+<span class="ln">17</span>    border: 2px solid #2c3e6e;
+<span class="ln">18</span>  }
+<span class="ln">19</span>  .child {
+<span class="ln">20</span>    width: 230px;
+<span class="ln">21</span>    height: 190px;
+<span class="ln">22</span>    background: #2980b9;
+<span class="ln">23</span>    border: 2px solid #15324f;
+<span class="ln">24</span>  }
+<span class="ln">25</span>&lt;/style&gt;
+<span class="ln">26</span>&lt;/head&gt;
+<span class="ln">27</span>&lt;body&gt;
+<span class="ln">28</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">29</span>    &lt;div class=&quot;container&quot;&gt;
+<span class="ln">30</span>      &lt;div class=&quot;child&quot;&gt;&lt;/div&gt;
+<span class="ln">31</span>    &lt;/div&gt;
+<span class="ln">32</span>  &lt;/div&gt;
+<span class="ln">33</span>&lt;/body&gt;
+<span class="ln">34</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-position">position — 100.00% <span class="meta">PASS 7 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-fixed-repeats-pages</strong> · fixed-repeats-paged-media<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="pglabel">page 1</div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-fixed-repeats-pages.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-fixed-repeats-pages.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-fixed-repeats-pages.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="pglabel">page 2</div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-fixed-repeats-pages.p2.png" alt="Chrome ref p2"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-fixed-repeats-pages.p2.png" alt="ironpress p2"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-fixed-repeats-pages.p2.diff.png" alt="classed diff p2"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">position:fixed header repeats at the top of each printed page; catches treating fixed as a one-page absolute box.</div><details open class="src"><summary>source · cases/positioning/positioning-fixed-repeats-pages.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
@@ -490,278 +634,134 @@
 <span class="ln">26</span>  &lt;/div&gt;
 <span class="ln">27</span>&lt;/body&gt;
 <span class="ln">28</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-clear">clear — 100.00% <span class="meta">PASS 1 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="ColorValue" data-diff="0.0009"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-clear-both</strong> · both<span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">ΔE 2.7</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-clear-both.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-clear-both.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-clear-both.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(-2,-4,-1) (ΔE 2.7)</div><div class="desc">clear:both pushes the cleared block below preceding floats instead of wrapping beside them.</div><details open class="src"><summary>source · cases/positioning/positioning-clear-both.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-relative-percent-offset</strong> · relative-percent-offset<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-relative-percent-offset.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-relative-percent-offset.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-relative-percent-offset.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">position:relative percentage top/left offsets resolve against the containing block and cover the red marker; catches own-size percentage bases or ignored relative percentages.</div><details open class="src"><summary>source · cases/positioning/positioning-relative-percent-offset.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 417px 195px; margin: 0; }
+<span class="ln">6</span>  @page { size: 210px 140px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  /* clear:both pushes the cleared block below all preceding floats instead of
-<span class="ln">12</span>     wrapping beside them */
-<span class="ln">13</span>  .container {
-<span class="ln">14</span>    width: 300px;
-<span class="ln">15</span>    background: #f0e8f4;
-<span class="ln">16</span>    border: 2px solid #6e6e6e;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  .float {
-<span class="ln">19</span>    float: left;
-<span class="ln">20</span>    width: 100px;
-<span class="ln">21</span>    height: 90px;
-<span class="ln">22</span>    background: #8e44ad;
-<span class="ln">23</span>    border: 2px solid #4a2259;
-<span class="ln">24</span>  }
-<span class="ln">25</span>  .cleared {
-<span class="ln">26</span>    clear: both;
-<span class="ln">27</span>    height: 60px;
-<span class="ln">28</span>    background: #d6c2e0;
-<span class="ln">29</span>    border: 2px solid #6e6e6e;
-<span class="ln">30</span>  }
-<span class="ln">31</span>&lt;/style&gt;
-<span class="ln">32</span>&lt;/head&gt;
-<span class="ln">33</span>&lt;body&gt;
-<span class="ln">34</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">35</span>    &lt;div class=&quot;container&quot;&gt;
-<span class="ln">36</span>      &lt;div class=&quot;float&quot;&gt;&lt;/div&gt;
-<span class="ln">37</span>      &lt;div class=&quot;cleared&quot;&gt;&lt;/div&gt;
-<span class="ln">38</span>    &lt;/div&gt;
-<span class="ln">39</span>  &lt;/div&gt;
-<span class="ln">40</span>&lt;/body&gt;
-<span class="ln">41</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-containing-block">containing-block — 100.00% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-absolute-containing-block-relative-ancestor</strong> · nearest-positioned-ancestor<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-absolute-containing-block-relative-ancestor.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-absolute-containing-block-relative-ancestor.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-absolute-containing-block-relative-ancestor.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Absolute box resolves against the nearest positioned ancestor, skipping intermediate static parents.</div><details open class="src"><summary>source · cases/positioning/positioning-absolute-containing-block-relative-ancestor.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 377px 261px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  /* outer is positioned (relative) so it is the containing block;
-<span class="ln">12</span>     the static middle div must NOT capture the absolute child */
-<span class="ln">13</span>  .outer {
-<span class="ln">14</span>    position: relative;
-<span class="ln">15</span>    width: 260px;
-<span class="ln">16</span>    height: 220px;
-<span class="ln">17</span>    background: #e9f0f4;
-<span class="ln">18</span>    border: 2px solid #7fa8c0;
-<span class="ln">19</span>    padding: 20px;
-<span class="ln">20</span>  }
-<span class="ln">21</span>  .middle {
-<span class="ln">22</span>    position: static;
-<span class="ln">23</span>    width: 140px;
-<span class="ln">24</span>    height: 100px;
-<span class="ln">25</span>    background: #cdd9e0;
-<span class="ln">26</span>    border: 2px solid #9bb0bd;
-<span class="ln">27</span>  }
-<span class="ln">28</span>  .box {
-<span class="ln">29</span>    position: absolute;
-<span class="ln">30</span>    top: 0;
-<span class="ln">31</span>    left: 0;
-<span class="ln">32</span>    width: 90px;
-<span class="ln">33</span>    height: 60px;
-<span class="ln">34</span>    background: #16a085;
-<span class="ln">35</span>    border: 2px solid #0a4d40;
-<span class="ln">36</span>  }
-<span class="ln">37</span>&lt;/style&gt;
-<span class="ln">38</span>&lt;/head&gt;
-<span class="ln">39</span>&lt;body&gt;
-<span class="ln">40</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">41</span>    &lt;div class=&quot;outer&quot;&gt;
-<span class="ln">42</span>      &lt;div class=&quot;middle&quot;&gt;
-<span class="ln">43</span>        &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">44</span>      &lt;/div&gt;
-<span class="ln">45</span>    &lt;/div&gt;
-<span class="ln">46</span>  &lt;/div&gt;
-<span class="ln">47</span>&lt;/body&gt;
-<span class="ln">48</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-transform-establishes-containing-block</strong> · transform-establishes<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-transform-establishes-containing-block.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-transform-establishes-containing-block.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-transform-establishes-containing-block.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A transform on a non-positioned ancestor makes it the containing block for an absolute descendant.</div><details open class="src"><summary>source · cases/positioning/positioning-transform-establishes-containing-block.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 377px 261px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  /* a transform on a non-positioned ancestor makes it the containing block
-<span class="ln">12</span>     for the absolutely positioned descendant (bottom/right resolve to this box) */
-<span class="ln">13</span>  .outer {
-<span class="ln">14</span>    transform: translate(0, 0);
-<span class="ln">15</span>    width: 260px;
-<span class="ln">16</span>    height: 220px;
-<span class="ln">17</span>    background: #ecf0f4;
-<span class="ln">18</span>    border: 2px solid #2c3e6e;
-<span class="ln">19</span>  }
-<span class="ln">20</span>  .box {
-<span class="ln">21</span>    position: absolute;
-<span class="ln">22</span>    bottom: 40px;
-<span class="ln">23</span>    right: 50px;
-<span class="ln">24</span>    width: 100px;
-<span class="ln">25</span>    height: 70px;
-<span class="ln">26</span>    background: #2980b9;
-<span class="ln">27</span>    border: 2px solid #15324f;
-<span class="ln">28</span>  }
-<span class="ln">29</span>&lt;/style&gt;
-<span class="ln">30</span>&lt;/head&gt;
-<span class="ln">31</span>&lt;body&gt;
-<span class="ln">32</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">33</span>    &lt;div class=&quot;outer&quot;&gt;
-<span class="ln">34</span>      &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">35</span>    &lt;/div&gt;
-<span class="ln">36</span>  &lt;/div&gt;
-<span class="ln">37</span>&lt;/body&gt;
-<span class="ln">38</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-float">float — 100.00% <span class="meta">PASS 1 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-float-left</strong> · left<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-float-left.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-float-left.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-float-left.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">float:left removes the box from flow and shifts it left; the following block wraps around its right side.</div><details open class="src"><summary>source · cases/positioning/positioning-float-left.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 417px 185px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  /* float:left removes the box from normal flow and shifts it to the left edge
-<span class="ln">12</span>     of its container; the following in-flow block wraps around its right side */
-<span class="ln">13</span>  .container {
-<span class="ln">14</span>    width: 300px;
-<span class="ln">15</span>    background: #eef4ec;
-<span class="ln">16</span>    border: 2px solid #6e6e6e;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  .float {
-<span class="ln">19</span>    float: left;
-<span class="ln">20</span>    width: 100px;
-<span class="ln">21</span>    height: 100px;
-<span class="ln">22</span>    background: #16a085;
-<span class="ln">23</span>    border: 2px solid #0a4d40;
-<span class="ln">24</span>  }
-<span class="ln">25</span>  .flow {
-<span class="ln">26</span>    height: 140px;
-<span class="ln">27</span>    background: #d6e6df;
-<span class="ln">28</span>    border: 2px solid #6e6e6e;
-<span class="ln">29</span>  }
-<span class="ln">30</span>&lt;/style&gt;
-<span class="ln">31</span>&lt;/head&gt;
-<span class="ln">32</span>&lt;body&gt;
-<span class="ln">33</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">34</span>    &lt;div class=&quot;container&quot;&gt;
-<span class="ln">35</span>      &lt;div class=&quot;float&quot;&gt;&lt;/div&gt;
-<span class="ln">36</span>      &lt;div class=&quot;flow&quot;&gt;&lt;/div&gt;
-<span class="ln">37</span>    &lt;/div&gt;
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .cb {
+<span class="ln">11</span>    position: relative;
+<span class="ln">12</span>    width: 160px;
+<span class="ln">13</span>    height: 100px;
+<span class="ln">14</span>    background: #d9d9d9;
+<span class="ln">15</span>  }
+<span class="ln">16</span>  .ref {
+<span class="ln">17</span>    position: absolute;
+<span class="ln">18</span>    left: 40px;
+<span class="ln">19</span>    top: 20px;
+<span class="ln">20</span>    width: 70px;
+<span class="ln">21</span>    height: 40px;
+<span class="ln">22</span>    background: #c62828;
+<span class="ln">23</span>  }
+<span class="ln">24</span>  .target {
+<span class="ln">25</span>    position: relative;
+<span class="ln">26</span>    left: 25%;
+<span class="ln">27</span>    top: 20%;
+<span class="ln">28</span>    width: 70px;
+<span class="ln">29</span>    height: 40px;
+<span class="ln">30</span>    background: #0a7f2e;
+<span class="ln">31</span>  }
+<span class="ln">32</span>&lt;/style&gt;
+<span class="ln">33</span>&lt;/head&gt;
+<span class="ln">34</span>&lt;body&gt;
+<span class="ln">35</span>  &lt;div class=&quot;cb&quot;&gt;
+<span class="ln">36</span>    &lt;div class=&quot;ref&quot;&gt;&lt;/div&gt;
+<span class="ln">37</span>    &lt;div class=&quot;target&quot;&gt;&lt;/div&gt;
 <span class="ln">38</span>  &lt;/div&gt;
 <span class="ln">39</span>&lt;/body&gt;
 <span class="ln">40</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-overflow">overflow — 100.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-overflow-hidden-absolute-child-clip</strong> · hidden-clips-absolute<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-overflow-hidden-absolute-child-clip.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-overflow-hidden-absolute-child-clip.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-overflow-hidden-absolute-child-clip.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">overflow:hidden on a positioned ancestor clips an absolutely positioned descendant past the clip edges.</div><details open class="src"><summary>source · cases/positioning/positioning-overflow-hidden-absolute-child-clip.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-z-index">z-index — 100.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-z-index-negative-behind-flow</strong> · negative-behind-flow<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-z-index-negative-behind-flow.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-z-index-negative-behind-flow.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-z-index-negative-behind-flow.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A positioned z-index:-1 child in a local stacking context stays behind an overlapping in-flow sibling; catches painting all positioned descendants above normal flow.</div><details open class="src"><summary>source · cases/positioning/positioning-z-index-negative-behind-flow.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;style&gt;
+<span class="ln">6</span>  @page { size: 220px 150px; margin: 0; }
+<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>  html, body { background: #ffffff; }
+<span class="ln">10</span>  .wrap {
+<span class="ln">11</span>    position: relative;
+<span class="ln">12</span>    z-index: 0;
+<span class="ln">13</span>    width: 180px;
+<span class="ln">14</span>    height: 120px;
+<span class="ln">15</span>    background: #f2f2f2;
+<span class="ln">16</span>  }
+<span class="ln">17</span>  .back {
+<span class="ln">18</span>    position: absolute;
+<span class="ln">19</span>    left: 35px;
+<span class="ln">20</span>    top: 25px;
+<span class="ln">21</span>    width: 95px;
+<span class="ln">22</span>    height: 70px;
+<span class="ln">23</span>    z-index: -1;
+<span class="ln">24</span>    background: #0a7f2e;
+<span class="ln">25</span>  }
+<span class="ln">26</span>  .front {
+<span class="ln">27</span>    position: relative;
+<span class="ln">28</span>    left: 55px;
+<span class="ln">29</span>    top: 45px;
+<span class="ln">30</span>    width: 95px;
+<span class="ln">31</span>    height: 60px;
+<span class="ln">32</span>    background: #c62828;
+<span class="ln">33</span>  }
+<span class="ln">34</span>&lt;/style&gt;
+<span class="ln">35</span>&lt;/head&gt;
+<span class="ln">36</span>&lt;body&gt;
+<span class="ln">37</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">38</span>    &lt;div class=&quot;back&quot;&gt;&lt;/div&gt;
+<span class="ln">39</span>    &lt;div class=&quot;front&quot;&gt;&lt;/div&gt;
+<span class="ln">40</span>  &lt;/div&gt;
+<span class="ln">41</span>&lt;/body&gt;
+<span class="ln">42</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-z-index-source-order-overlap</strong> · source-order<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-z-index-source-order-overlap.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-z-index-source-order-overlap.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-z-index-source-order-overlap.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Without z-index, positioned siblings stack in source order; the later box paints over the earlier.</div><details open class="src"><summary>source · cases/positioning/positioning-z-index-source-order-overlap.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 278px 171px; margin: 0; }
+<span class="ln">6</span>  @page { size: 287px 226px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  /* overflow:hidden on a positioned ancestor clips an absolutely positioned
-<span class="ln">12</span>     descendant that extends past the clip box edges */
-<span class="ln">13</span>  .clip {
-<span class="ln">14</span>    position: relative;
-<span class="ln">15</span>    overflow: hidden;
-<span class="ln">16</span>    width: 160px;
-<span class="ln">17</span>    height: 130px;
-<span class="ln">18</span>    background: #f6ecdf;
-<span class="ln">19</span>    border: 2px solid #8a4910;
-<span class="ln">20</span>  }
-<span class="ln">21</span>  .box {
-<span class="ln">22</span>    position: absolute;
-<span class="ln">23</span>    top: 60px;
-<span class="ln">24</span>    left: 80px;
-<span class="ln">25</span>    width: 160px;
-<span class="ln">26</span>    height: 130px;
-<span class="ln">27</span>    background: #e67e22;
-<span class="ln">28</span>    border: 2px solid #8a4910;
-<span class="ln">29</span>  }
-<span class="ln">30</span>&lt;/style&gt;
-<span class="ln">31</span>&lt;/head&gt;
-<span class="ln">32</span>&lt;body&gt;
-<span class="ln">33</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">34</span>    &lt;div class=&quot;clip&quot;&gt;
-<span class="ln">35</span>      &lt;div class=&quot;box&quot;&gt;&lt;/div&gt;
-<span class="ln">36</span>    &lt;/div&gt;
-<span class="ln">37</span>  &lt;/div&gt;
-<span class="ln">38</span>&lt;/body&gt;
-<span class="ln">39</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-overflow-hidden-clip</strong> · hidden<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-overflow-hidden-clip.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-overflow-hidden-clip.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-overflow-hidden-clip.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">overflow:hidden clips an oversized in-flow child to the parent box.</div><details open class="src"><summary>source · cases/positioning/positioning-overflow-hidden-clip.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">10</span>  .wrap { padding: 20px; position: relative; height: 220px; }
+<span class="ln">11</span>  /* with no z-index, positioned siblings stack in source order:
+<span class="ln">12</span>     the later box paints over the earlier one */
+<span class="ln">13</span>  .box { position: absolute; width: 120px; height: 120px; border: 2px solid #000000; }
+<span class="ln">14</span>  .first  { top: 20px; left: 20px; background: #27ae60; }
+<span class="ln">15</span>  .second { top: 70px; left: 70px; background: #8e44ad; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">20</span>    &lt;div class=&quot;box first&quot;&gt;&lt;/div&gt;
+<span class="ln">21</span>    &lt;div class=&quot;box second&quot;&gt;&lt;/div&gt;
+<span class="ln">22</span>  &lt;/div&gt;
+<span class="ln">23</span>&lt;/body&gt;
+<span class="ln">24</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-z-index-stacking</strong> · stacking<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-z-index-stacking.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-z-index-stacking.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-z-index-stacking.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">Higher z-index paints on top of a later-in-source sibling with lower z-index.</div><details open class="src"><summary>source · cases/positioning/positioning-z-index-stacking.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 267px 161px; margin: 0; }
+<span class="ln">6</span>  @page { size: 287px 226px; margin: 0; }
 <span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 20px; }
-<span class="ln">11</span>  /* child larger than parent; overflow:hidden clips it to the parent box */
-<span class="ln">12</span>  .clip {
-<span class="ln">13</span>    overflow: hidden;
-<span class="ln">14</span>    width: 150px;
-<span class="ln">15</span>    height: 120px;
-<span class="ln">16</span>    background: #eef4ec;
-<span class="ln">17</span>    border: 2px solid #6e2018;
-<span class="ln">18</span>  }
-<span class="ln">19</span>  .child {
-<span class="ln">20</span>    width: 240px;
-<span class="ln">21</span>    height: 200px;
-<span class="ln">22</span>    background: #c0392b;
-<span class="ln">23</span>    border: 2px solid #6e2018;
-<span class="ln">24</span>  }
-<span class="ln">25</span>&lt;/style&gt;
-<span class="ln">26</span>&lt;/head&gt;
-<span class="ln">27</span>&lt;body&gt;
-<span class="ln">28</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">29</span>    &lt;div class=&quot;clip&quot;&gt;
-<span class="ln">30</span>      &lt;div class=&quot;child&quot;&gt;&lt;/div&gt;
-<span class="ln">31</span>    &lt;/div&gt;
-<span class="ln">32</span>  &lt;/div&gt;
-<span class="ln">33</span>&lt;/body&gt;
-<span class="ln">34</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>positioning-overflow-visible-no-clip</strong> · visible<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/positioning/positioning-overflow-visible-no-clip.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/positioning/positioning-overflow-visible-no-clip.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="positioning/positioning-overflow-visible-no-clip.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">overflow:visible (default) does not clip; the child overflows the parent box.</div><details open class="src"><summary>source · cases/positioning/positioning-overflow-visible-no-clip.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;style&gt;
-<span class="ln">6</span>  @page { size: 389px 272px; margin: 0; }
-<span class="ln">7</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>  body { background: #ffffff; }
-<span class="ln">10</span>  .wrap { padding: 40px; }
-<span class="ln">11</span>  /* overflow:visible (default) does NOT clip; child overflows the parent box */
-<span class="ln">12</span>  .container {
-<span class="ln">13</span>    overflow: visible;
-<span class="ln">14</span>    width: 150px;
-<span class="ln">15</span>    height: 120px;
-<span class="ln">16</span>    background: #e8eef4;
-<span class="ln">17</span>    border: 2px solid #2c3e6e;
-<span class="ln">18</span>  }
-<span class="ln">19</span>  .child {
-<span class="ln">20</span>    width: 230px;
-<span class="ln">21</span>    height: 190px;
-<span class="ln">22</span>    background: #2980b9;
-<span class="ln">23</span>    border: 2px solid #15324f;
-<span class="ln">24</span>  }
-<span class="ln">25</span>&lt;/style&gt;
-<span class="ln">26</span>&lt;/head&gt;
-<span class="ln">27</span>&lt;body&gt;
-<span class="ln">28</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">29</span>    &lt;div class=&quot;container&quot;&gt;
-<span class="ln">30</span>      &lt;div class=&quot;child&quot;&gt;&lt;/div&gt;
-<span class="ln">31</span>    &lt;/div&gt;
-<span class="ln">32</span>  &lt;/div&gt;
-<span class="ln">33</span>&lt;/body&gt;
-<span class="ln">34</span>&lt;/html&gt;
+<span class="ln">10</span>  .wrap { padding: 20px; position: relative; height: 220px; }
+<span class="ln">11</span>  /* higher z-index paints on top regardless of source order:
+<span class="ln">12</span>     the low box is later in source but has lower z-index */
+<span class="ln">13</span>  .box { position: absolute; width: 120px; height: 120px; border: 2px solid #000000; }
+<span class="ln">14</span>  .high { top: 20px;  left: 20px;  background: #2980b9; z-index: 2; }
+<span class="ln">15</span>  .low  { top: 70px;  left: 70px;  background: #e67e22; z-index: 1; }
+<span class="ln">16</span>&lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">20</span>    &lt;div class=&quot;box high&quot;&gt;&lt;/div&gt;
+<span class="ln">21</span>    &lt;div class=&quot;box low&quot;&gt;&lt;/div&gt;
+<span class="ln">22</span>  &lt;/div&gt;
+<span class="ln">23</span>&lt;/body&gt;
+<span class="ln">24</span>&lt;/html&gt;
 </code></pre></details></div></div></section></body></html>

@@ -10,6 +10,7 @@ use crate::style::computed::{
     Visibility, compute_pseudo_element_style, compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
+use std::cell::Cell;
 use std::collections::HashMap;
 
 use super::block::layout_block_element;
@@ -132,6 +133,7 @@ impl LayoutBorder {
 #[allow(dead_code)]
 pub(crate) struct CounterState {
     pub(crate) stacks: HashMap<String, Vec<i32>>,
+    pub(crate) quote_depth: Cell<usize>,
 }
 #[allow(dead_code)]
 impl CounterState {
@@ -149,6 +151,11 @@ impl CounterState {
             if let Some(top) = stack.last_mut() {
                 *top += val;
             }
+        }
+    }
+    fn apply_sets(&mut self, sets: &[(String, i32)]) {
+        for (name, val) in sets {
+            self.set_current(name, *val);
         }
     }
     fn pop_resets(&mut self, resets: &[(String, i32)]) {
@@ -193,11 +200,11 @@ impl CounterState {
         }
     }
     pub(crate) fn get_all(&self, name: &str, sep: &str) -> String {
-        self.get_all_styled(name, sep, ListStyleType::Decimal)
+        self.get_all_styled(name, sep, &ListStyleType::Decimal)
     }
     /// Like `get_all`, but renders every nested level with the given
     /// list-style-type (e.g. `counters(x, '.', upper-roman)`).
-    pub(crate) fn get_all_styled(&self, name: &str, sep: &str, style: ListStyleType) -> String {
+    pub(crate) fn get_all_styled(&self, name: &str, sep: &str, style: &ListStyleType) -> String {
         self.stacks
             .get(name)
             .map(|s| {
@@ -746,6 +753,7 @@ pub enum LayoutElement {
         /// Bottom margin.
         margin_bottom: f32,
         background_color: Option<(f32, f32, f32, f32)>,
+        mix_blend_mode: crate::style::computed::BlendMode,
         border: LayoutBorder,
     },
     /// A flex row with cells positioned horizontally.
@@ -2694,6 +2702,7 @@ pub(crate) fn flatten_element(
         following_siblings: following_siblings.to_vec(),
         is_empty: element_is_empty(el),
     };
+    let selector_attrs = selector_attributes_with_has(el);
     let mut style = compute_style_with_context(
         el.tag,
         el.style_attr(),
@@ -2702,7 +2711,7 @@ pub(crate) fn flatten_element(
         el.tag_name(),
         &classes,
         el.id(),
-        &el.attributes,
+        &selector_attrs,
         &selector_ctx,
     );
     let authored_display_contents =
@@ -2749,6 +2758,7 @@ pub(crate) fn flatten_element(
     // Apply CSS counter operations for this element.
     env.counter_state.apply_resets(&style.counter_reset);
     env.counter_state.apply_increments(&style.counter_increment);
+    env.counter_state.apply_sets(&style.counter_set);
 
     // Bail out on excessively deep nesting to prevent stack overflow.
     if ancestors.len() > 30 {
@@ -2914,8 +2924,14 @@ pub(crate) fn flatten_element(
     }
 
     if el.tag == HtmlTag::Svg {
-        let (svg_width, svg_height) =
+        let (mut svg_width, mut svg_height) =
             resolve_svg_element_size(el, available_width, available_height, true, true);
+        if let Some(width) = style.width {
+            svg_width = width;
+        }
+        if let Some(height) = style.height {
+            svg_height = height;
+        }
         // Resolve the SVG's children against its *user-unit* viewport (the native
         // width/height in CSS px) rather than the pt display box. The render path
         // scales the whole drawing from this native extent into the pt box (see
@@ -2952,6 +2968,7 @@ pub(crate) fn flatten_element(
                 margin_top: style.margin.top,
                 margin_bottom: style.margin.bottom,
                 background_color: style.background_color.map(|c| c.to_f32_rgba()),
+                mix_blend_mode: style.mix_blend_mode,
                 border: LayoutBorder::from_computed(&style.border),
             });
         }
@@ -3514,7 +3531,7 @@ pub(crate) fn flatten_element(
     }
 
     // Li handling — prepend bullet/number marker
-    if el.tag == HtmlTag::Li {
+    if el.tag == HtmlTag::Li || style.display == Display::ListItem {
         // counter_state resets/increments already applied at top of flatten_element.
         // Ordered list items also participate in the implicit `list-item`
         // counter: absent an explicit `counter-increment: list-item ...`, every
@@ -3625,7 +3642,9 @@ pub(crate) fn flatten_element(
             String::new()
         } else {
             match list_ctx {
-                Some(ListContext::Unordered { .. }) => format_list_marker(style.list_style_type, 0),
+                Some(ListContext::Unordered { .. }) => {
+                    format_list_marker(&style.list_style_type, 0)
+                }
                 // The <ol> UA default (`list-style-type: decimal`, set in
                 // `default_style`) is inherited by the <li>, so `style
                 // .list_style_type` already carries the correct ordered glyph
@@ -3639,9 +3658,9 @@ pub(crate) fn flatten_element(
                     } else {
                         marker_value
                     };
-                    format_list_marker(style.list_style_type, marker_value.max(0) as usize)
+                    format_list_marker(&style.list_style_type, marker_value.max(0) as usize)
                 }
-                None => format_list_marker(style.list_style_type, 0),
+                None => format_list_marker(&style.list_style_type, 0),
             }
         };
         // The <li> content is indented by the list's accumulated start padding
@@ -3741,7 +3760,7 @@ pub(crate) fn flatten_element(
                     env.fonts,
                 );
                 build_list_bullet_marker(
-                    marker_style.list_style_type,
+                    &marker_style.list_style_type,
                     marker_style.font_size,
                     marker_style.color.to_f32_rgb(),
                     symbol_advance,
@@ -3891,8 +3910,8 @@ pub(crate) fn flatten_element(
                 padding_left: style.padding.left,
                 padding_right: style.padding.right,
                 border: LayoutBorder::from_computed(&style.border),
-                block_width: Some(available_width),
-                block_height: None,
+                block_width: Some(style.width.unwrap_or(available_width)),
+                block_height: style.height,
                 opacity: style.opacity,
                 mix_blend_mode: style.mix_blend_mode,
                 background_blend_mode: style.background_blend_mode,
@@ -4307,7 +4326,7 @@ fn route_element(
     let layout_ctx = *ctx;
 
     // Flex container handling
-    if style.display == Display::Flex {
+    if matches!(style.display, Display::Flex | Display::InlineFlex) {
         let expanded_flex_el;
         let flex_el = if let Some(expanded) =
             flex_element_with_display_contents_children(el, child_ancestors, env)

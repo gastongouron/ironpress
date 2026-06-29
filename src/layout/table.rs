@@ -817,13 +817,13 @@ fn table_section_is_first_header_group(
 ) -> bool {
     section.is_some_and(|section| section.tag == HtmlTag::Thead)
         && table_section_role(
-        section,
-        table_style,
-        rules,
-        table_ancestors,
-        child_index,
-        sibling_count,
-    ) == Some(TableBoxRole::HeaderGroup)
+            section,
+            table_style,
+            rules,
+            table_ancestors,
+            child_index,
+            sibling_count,
+        ) == Some(TableBoxRole::HeaderGroup)
         && first_header_section_key == Some(table_section_key(section, child_index))
 }
 
@@ -1287,8 +1287,7 @@ fn resolve_fixed_table_columns(
             if let Some(width) = resolve_cell_track_width(cell_el, &cell_style, table_width) {
                 apply_cell_width_to_columns(&mut col_widths, col_pos, colspan, width);
             } else if colspan == 1 && col_pos < col_widths.len() {
-                let border_min =
-                    cell_style.border.horizontal_width() + cell_style.font_size * 0.25;
+                let border_min = cell_style.border.horizontal_width() + cell_style.font_size * 0.25;
                 if border_min > 0.0 {
                     col_widths[col_pos] =
                         Some(col_widths[col_pos].map_or(border_min, |w| w.max(border_min)));
@@ -1514,7 +1513,9 @@ pub(crate) fn flatten_table(
                     row_section_child_indices.push(section_child_idx);
                     row_section_sibling_counts.push(section_count);
                 }
-                Some(TableBoxRole::HeaderGroup | TableBoxRole::RowGroup | TableBoxRole::FooterGroup) => {
+                Some(
+                    TableBoxRole::HeaderGroup | TableBoxRole::RowGroup | TableBoxRole::FooterGroup,
+                ) => {
                     let mut section_ancestors = table_ancestors.clone();
                     section_ancestors.push(AncestorInfo {
                         element: child_el,
@@ -1585,26 +1586,25 @@ pub(crate) fn flatten_table(
     // per-row section metadata travels with each row, so nth-child / descendant
     // selector matching is unaffected.
     let section_rank = |sec: &Option<&ElementNode>| -> u8 {
-        match sec
-            .and_then(|s| {
-                let child_index = row_section_child_indices
-                    .iter()
-                    .zip(&row_section_elements)
-                    .find_map(|(idx, candidate)| {
-                        candidate
-                            .is_some_and(|candidate| std::ptr::eq(candidate, s))
-                            .then_some(*idx)
-                    })
-                    .unwrap_or(0);
-                table_section_role(
-                    Some(s),
-                    style,
-                    rules,
-                    &table_ancestors,
-                    child_index,
-                    section_count,
-                )
-            }) {
+        match sec.and_then(|s| {
+            let child_index = row_section_child_indices
+                .iter()
+                .zip(&row_section_elements)
+                .find_map(|(idx, candidate)| {
+                    candidate
+                        .is_some_and(|candidate| std::ptr::eq(candidate, s))
+                        .then_some(*idx)
+                })
+                .unwrap_or(0);
+            table_section_role(
+                Some(s),
+                style,
+                rules,
+                &table_ancestors,
+                child_index,
+                section_count,
+            )
+        }) {
             Some(TableBoxRole::HeaderGroup) => 0,
             Some(TableBoxRole::FooterGroup) => 2,
             _ => 1, // tbody and standalone <tr>
@@ -3156,7 +3156,14 @@ pub(crate) fn flatten_table(
         // the table's `margin-bottom` instead (the rows already absorbed the
         // bottom border-spacing gap above).
         let (caption_margin_top, caption_margin_bottom) = if caption_on_top {
-            (if caption_idx == 0 { style.margin.top } else { 0.0 }, 0.0)
+            (
+                if caption_idx == 0 {
+                    style.margin.top
+                } else {
+                    0.0
+                },
+                0.0,
+            )
         } else {
             (
                 0.0,

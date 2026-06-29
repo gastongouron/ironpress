@@ -963,7 +963,7 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",
@@ -1003,7 +1003,7 @@
     "partial_threshold_pct": 10.0,
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch",

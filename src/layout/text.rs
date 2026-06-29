@@ -6,8 +6,8 @@ use crate::parser::ttf::TtfFont;
 pub(crate) use crate::style::computed::OverflowWrap;
 use crate::style::computed::{
     BoxSizing, ComputedStyle, Display, Float, FontFamily, FontStyle, FontWeight,
-    IntrinsicWidthKeyword, Position, TARGET_PLACEHOLDER_START, VerticalAlign, WhiteSpace,
-    compute_style_with_context,
+    IntrinsicWidthKeyword, Position, TARGET_PLACEHOLDER_START, TextDecorationStyle, VerticalAlign,
+    WhiteSpace, compute_style_with_context,
 };
 use std::collections::HashMap;
 
@@ -68,6 +68,42 @@ pub(crate) fn resolved_line_height_factor(
         // cap helper writes its reduced factor explicitly after collection.
         style.line_height.max(0.9)
     }
+}
+
+fn style_run_bold(style: &ComputedStyle) -> bool {
+    style.font_weight == FontWeight::Bold && style.font_synthesis_weight
+}
+
+fn style_run_italic(style: &ComputedStyle) -> bool {
+    style.font_style == FontStyle::Italic && style.font_synthesis_style
+}
+
+fn decoration_padding(style: &ComputedStyle, background: Option<(f32, f32, f32, f32)>) -> (f32, f32) {
+    if background.is_some() {
+        return (style.padding.left, style.padding.top);
+    }
+    (0.0, style.text_decoration_thickness.unwrap_or(0.0))
+}
+
+fn decoration_radius(style: &ComputedStyle, background: Option<(f32, f32, f32, f32)>) -> f32 {
+    if background.is_some() {
+        return style.border_radius;
+    }
+    if style.text_emphasis_mark {
+        return -20_000.0;
+    }
+    let offset = style.text_underline_offset.unwrap_or(0.0);
+    if style.text_decoration_style == TextDecorationStyle::Wavy {
+        -10_000.0 - offset
+    } else if offset != 0.0 {
+        -offset
+    } else {
+        0.0
+    }
+}
+
+fn ligatures_enabled_for_style(style: &ComputedStyle) -> bool {
+    style.ligatures_enabled && style.font_kerning_enabled
 }
 
 /// The parent (line) font size that a `vertical-align: super`/`sub` baseline
@@ -308,6 +344,7 @@ pub(crate) struct TextWrapOptions {
     pub(crate) line_height_factor: f32,
     pub(crate) overflow_wrap: OverflowWrap,
     pub(crate) word_break_keep_all: bool,
+    pub(crate) hyphens_manual: bool,
     /// Paragraph base direction for the Unicode Bidi Algorithm. Set to `true`
     /// when the containing block has `direction: rtl` (or `dir="rtl"`).
     pub(crate) paragraph_rtl: bool,
@@ -357,6 +394,7 @@ impl TextWrapOptions {
             line_height_factor,
             overflow_wrap,
             word_break_keep_all: false,
+            hyphens_manual: true,
             paragraph_rtl: false,
             bidi_override: false,
             bidi_plaintext: false,
@@ -394,6 +432,11 @@ impl TextWrapOptions {
 
     pub(crate) const fn with_word_break_keep_all(mut self, keep_all: bool) -> Self {
         self.word_break_keep_all = keep_all;
+        self
+    }
+
+    pub(crate) const fn with_hyphens_manual(mut self, manual: bool) -> Self {
+        self.hyphens_manual = manual;
         self
     }
 
@@ -481,6 +524,7 @@ fn push_word_with_hyphen_breaks(
     template: &TextRun,
     out: &mut Vec<StyledWord>,
     keep_all: bool,
+    hyphens_manual: bool,
 ) {
     if should_break_as_char_tokens(word, keep_all) {
         push_char_break_tokens(word, template, out);
@@ -492,11 +536,12 @@ fn push_word_with_hyphen_breaks(
     let mut first = true;
     for (i, &c) in chars.iter().enumerate() {
         seg.push(c);
-        let can_break = c == '-'
-            && i > 0
-            && i + 1 < chars.len()
-            && chars[i - 1].is_alphabetic()
-            && chars[i + 1].is_alphabetic();
+        let can_break = (hyphens_manual && c == '\u{00ad}')
+            || (c == '-'
+                && i > 0
+                && i + 1 < chars.len()
+                && chars[i - 1].is_alphabetic()
+                && chars[i + 1].is_alphabetic());
         if can_break {
             out.push(StyledWord {
                 text: std::mem::take(&mut seg),
@@ -522,6 +567,34 @@ fn strip_soft_hyphens(text: &str) -> String {
         return text.to_string();
     }
     text.chars().filter(|&c| c != '\u{00ad}').collect()
+}
+
+fn finalize_soft_hyphen_line(runs: &mut [TextRun], broke_line: bool) {
+    let Some(last_idx) = runs.iter().rposition(|run| run.inline_box.is_none()) else {
+        return;
+    };
+    for (idx, run) in runs.iter_mut().enumerate() {
+        if !run.text.contains('\u{00ad}') {
+            continue;
+        }
+        if broke_line && idx == last_idx && run.text.ends_with('\u{00ad}') {
+            while run.text.ends_with('\u{00ad}') {
+                run.text.pop();
+            }
+            run.text.push('-');
+        } else {
+            run.text = strip_soft_hyphens(&run.text);
+        }
+    }
+}
+
+fn push_wrapped_line(lines: &mut Vec<TextLine>, runs: &mut Vec<TextRun>, height: f32) {
+    finalize_soft_hyphen_line(runs, true);
+    lines.push(TextLine {
+        runs: std::mem::take(runs),
+        height,
+        x_offset: 0.0,
+    });
 }
 
 fn is_cjk_char(ch: char) -> bool {
@@ -651,6 +724,8 @@ pub(crate) fn wrap_text_runs(
         let shift = match run.vertical_align {
             VerticalAlign::Super => shift_basis_fs * crate::render::pdf::SUPER_SHIFT_RATIO,
             VerticalAlign::Sub => -shift_basis_fs * crate::render::pdf::SUB_SHIFT_RATIO,
+            VerticalAlign::Length(v) => v,
+            VerticalAlign::Percent(p) => run.font_size * factor * p,
             _ => return base,
         };
         let (asc_r, desc_r) =
@@ -782,6 +857,7 @@ pub(crate) fn wrap_text_runs(
                             run,
                             &mut styled_words,
                             options.word_break_keep_all,
+                            options.hyphens_manual,
                         );
                     }
                 }
@@ -804,6 +880,7 @@ pub(crate) fn wrap_text_runs(
                     run,
                     &mut styled_words,
                     options.word_break_keep_all,
+                    options.hyphens_manual,
                 );
             }
         }
@@ -873,11 +950,7 @@ pub(crate) fn wrap_text_runs(
     {
         if word == "\n" {
             // Line break
-            lines.push(TextLine {
-                runs: std::mem::take(&mut current_runs),
-                height: line_height,
-                x_offset: 0.0,
-            });
+            push_wrapped_line(&mut lines, &mut current_runs, line_height);
             current_width = 0.0;
             line_height = run_line_height(&template);
             bs_break_run_idx = 0;
@@ -930,11 +1003,7 @@ pub(crate) fn wrap_text_runs(
                     let split_at = bs_break_run_idx.min(current_runs.len());
                     let rolled: Vec<TextRun> = current_runs.split_off(split_at);
                     line_height = line_height.max(run_line_height(&template));
-                    lines.push(TextLine {
-                        runs: std::mem::take(&mut current_runs),
-                        height: line_height,
-                        x_offset: 0.0,
-                    });
+                    push_wrapped_line(&mut lines, &mut current_runs, line_height);
                     current_width = 0.0;
                     line_height = options.default_font_size * line_height_factor;
                     bs_break_run_idx = 0;
@@ -1003,11 +1072,7 @@ pub(crate) fn wrap_text_runs(
                     text: word,
                     ..template
                 });
-                lines.push(TextLine {
-                    runs: std::mem::take(&mut current_runs),
-                    height: line_height,
-                    x_offset: 0.0,
-                });
+                push_wrapped_line(&mut lines, &mut current_runs, line_height);
                 current_width = 0.0;
                 line_height = options.default_font_size * line_height_factor;
                 continue;
@@ -1050,11 +1115,7 @@ pub(crate) fn wrap_text_runs(
             if current_width > 0.0
                 && current_width + lead_space + box_w > line_max_width(lines.len())
             {
-                lines.push(TextLine {
-                    runs: std::mem::take(&mut current_runs),
-                    height: line_height,
-                    x_offset: 0.0,
-                });
+                push_wrapped_line(&mut lines, &mut current_runs, line_height);
                 current_width = 0.0;
                 line_height = run_line_height(&template);
             } else if lead_space > 0.0 {
@@ -1081,7 +1142,9 @@ pub(crate) fn wrap_text_runs(
             let box_extent = match inline.vertical_align {
                 crate::style::computed::VerticalAlign::Baseline
                 | crate::style::computed::VerticalAlign::Sub
-                | crate::style::computed::VerticalAlign::Super => {
+                | crate::style::computed::VerticalAlign::Super
+                | crate::style::computed::VerticalAlign::Length(_)
+                | crate::style::computed::VerticalAlign::Percent(_) => {
                     let box_ascent = inline.baseline_ascent.unwrap_or(inline.height);
                     let box_descent = (inline.height - box_ascent).max(0.0);
                     let shift = match inline.vertical_align {
@@ -1090,6 +1153,10 @@ pub(crate) fn wrap_text_runs(
                         }
                         crate::style::computed::VerticalAlign::Super => {
                             shift_basis_fs * crate::render::pdf::SUPER_SHIFT_RATIO
+                        }
+                        crate::style::computed::VerticalAlign::Length(v) => v,
+                        crate::style::computed::VerticalAlign::Percent(p) => {
+                            run_line_height(&template) * p
                         }
                         _ => 0.0,
                     };
@@ -1200,11 +1267,7 @@ pub(crate) fn wrap_text_runs(
             // word starts breaking at the left edge of a fresh line — matching
             // Chrome, which keeps the preceding whole word(s) alone on their line.
             if current_width > 0.0 {
-                lines.push(TextLine {
-                    runs: std::mem::take(&mut current_runs),
-                    height: line_height,
-                    x_offset: 0.0,
-                });
+                push_wrapped_line(&mut lines, &mut current_runs, line_height);
                 current_width = 0.0;
                 line_height = run_line_height(&template);
             }
@@ -1226,11 +1289,7 @@ pub(crate) fn wrap_text_runs(
                     ..template.clone()
                 });
 
-                lines.push(TextLine {
-                    runs: std::mem::take(&mut current_runs),
-                    height: line_height,
-                    x_offset: 0.0,
-                });
+                push_wrapped_line(&mut lines, &mut current_runs, line_height);
                 current_width = 0.0;
                 line_height = run_line_height(&template);
                 queue.push_front(StyledWord {
@@ -1244,11 +1303,7 @@ pub(crate) fn wrap_text_runs(
         }
 
         if overflows && current_width > 0.0 {
-            lines.push(TextLine {
-                runs: std::mem::take(&mut current_runs),
-                height: line_height,
-                x_offset: 0.0,
-            });
+            push_wrapped_line(&mut lines, &mut current_runs, line_height);
             current_width = 0.0;
             line_height = run_line_height(&template);
             bs_break_run_idx = 0;
@@ -1272,6 +1327,11 @@ pub(crate) fn wrap_text_runs(
             .and_then(|r: &TextRun| r.background_color);
         let bg_changed = prev_bg != template.background_color;
 
+        let run_word = if word.contains('\u{00ad}') {
+            word.clone()
+        } else {
+            paint_word.clone()
+        };
         let text = if needs_space {
             if bg_changed && template.background_color.is_some() {
                 // Emit space as separate unstyled run using the PREVIOUS
@@ -1308,16 +1368,17 @@ pub(crate) fn wrap_text_runs(
                     vertical_align: prev_run.vertical_align,
                     text_shadow: prev_run.text_shadow.clone(),
                 });
-                paint_word
+                run_word
             } else {
-                format!(" {paint_word}")
+                format!(" {run_word}")
             }
         } else {
-            paint_word
+            run_word
         };
+        let measure_text = strip_soft_hyphens(&text);
 
         let w = estimate_word_width(
-            &text,
+            &measure_text,
             template.font_size,
             &template.font_family,
             template.bold,
@@ -1331,6 +1392,7 @@ pub(crate) fn wrap_text_runs(
     }
 
     if !current_runs.is_empty() {
+        finalize_soft_hyphen_line(&mut current_runs, false);
         lines.push(TextLine {
             runs: current_runs,
             height: line_height,
@@ -1707,7 +1769,8 @@ fn build_inline_box(
             .with_rtl(style.direction_rtl)
             .with_bidi_override(style.bidi_override)
             .with_bidi_plaintext(style.bidi_plaintext)
-            .with_word_break_keep_all(style.word_break_keep_all),
+            .with_word_break_keep_all(style.word_break_keep_all)
+            .with_hyphens_manual(style.hyphens_manual),
             fonts,
         )
     };
@@ -1931,23 +1994,29 @@ fn collect_text_runs_inner(
                     // to avoid overlapping rects that hide subsequent lines.
                     let (bg, pad, br) =
                         if inline_parent && parent_style.white_space != WhiteSpace::Pre {
+                            let bg = parent_style.background_color.map(|c| c.to_f32_rgba());
                             (
-                                parent_style.background_color.map(|c| c.to_f32_rgba()),
-                                (parent_style.padding.left, parent_style.padding.top),
-                                parent_style.border_radius,
+                                bg,
+                                decoration_padding(parent_style, bg),
+                                decoration_radius(parent_style, bg),
                             )
                         } else {
-                            (None, (0.0, 0.0), 0.0)
+                            (
+                                None,
+                                decoration_padding(parent_style, None),
+                                decoration_radius(parent_style, None),
+                            )
                         };
                     push_styled_run(
                         TextRun {
                             text: processed,
                             font_size: parent_style.font_size,
-                            bold: parent_style.font_weight == FontWeight::Bold,
-                            italic: parent_style.font_style == FontStyle::Italic,
+                            bold: style_run_bold(parent_style),
+                            italic: style_run_italic(parent_style),
                             underline: parent_style.text_decoration_underline,
                             line_through: parent_style.text_decoration_line_through,
-                            overline: parent_style.text_decoration_overline,
+                            overline: parent_style.text_decoration_overline
+                                || parent_style.text_emphasis_mark,
                             decoration_color: parent_style
                                 .text_decoration_color
                                 .map(|c| c.to_f32_rgb()),
@@ -1964,7 +2033,7 @@ fn collect_text_runs_inner(
                             text_shadow: parent_style.text_shadow.clone(),
                         },
                         parent_style.font_variant_caps,
-                        parent_style.ligatures_enabled,
+                        ligatures_enabled_for_style(parent_style),
                         runs,
                         fonts,
                     );
@@ -2039,8 +2108,8 @@ fn collect_text_runs_inner(
                                     TextRun {
                                         text: format!("{marker} "),
                                         font_size: style.font_size * FOOTNOTE_CALL_FONT_SCALE,
-                                        bold: style.font_weight == FontWeight::Bold,
-                                        italic: style.font_style == FontStyle::Italic,
+                                        bold: style_run_bold(&style),
+                                        italic: style_run_italic(&style),
                                         underline: false,
                                         line_through: false,
                                         overline: false,
@@ -2063,7 +2132,7 @@ fn collect_text_runs_inner(
                                         text_shadow: style.text_shadow.clone(),
                                     },
                                     style.font_variant_caps,
-                                    style.ligatures_enabled,
+                                    ligatures_enabled_for_style(&style),
                                     runs,
                                     fonts,
                                 );
@@ -2247,26 +2316,30 @@ impl<'a> FlexTextRunCollector<'a> {
                         crate::style::computed::TextTransform::None => processed,
                     };
                     if !processed.is_empty() {
+                        let bg = parent_style.background_color.map(|c| c.to_f32_rgba());
                         push_styled_run(
                             TextRun {
                                 text: processed,
                                 font_size: parent_style.font_size,
-                                bold: parent_style.font_weight == FontWeight::Bold,
-                                italic: parent_style.font_style == FontStyle::Italic,
+                                bold: style_run_bold(parent_style),
+                                italic: style_run_italic(parent_style),
                                 underline: parent_style.text_decoration_underline,
                                 line_through: parent_style.text_decoration_line_through,
-                                overline: parent_style.text_decoration_overline,
+                                overline: parent_style.text_decoration_overline
+                                    || parent_style.text_emphasis_mark,
                                 decoration_color: parent_style
                                     .text_decoration_color
                                     .map(|c| c.to_f32_rgb()),
                                 color: parent_style.color.to_f32_rgb(),
                                 link_url: link_url.map(String::from),
                                 font_family: resolve_style_font_family(parent_style, self.fonts),
-                                background_color: parent_style
-                                    .background_color
-                                    .map(|c| c.to_f32_rgba()),
-                                padding: text_padding,
-                                border_radius: 0.0,
+                                background_color: bg,
+                                padding: if bg.is_some() {
+                                    text_padding
+                                } else {
+                                    decoration_padding(parent_style, None)
+                                },
+                                border_radius: decoration_radius(parent_style, bg),
                                 line_height_factor: resolved_line_height_factor(
                                     parent_style,
                                     self.fonts,
@@ -2277,7 +2350,7 @@ impl<'a> FlexTextRunCollector<'a> {
                                 text_shadow: parent_style.text_shadow.clone(),
                             },
                             parent_style.font_variant_caps,
-                            parent_style.ligatures_enabled,
+                            ligatures_enabled_for_style(parent_style),
                             self.runs,
                             self.fonts,
                         );

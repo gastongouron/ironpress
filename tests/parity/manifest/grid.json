@@ -988,7 +988,7 @@
     "description": "Implicit rows should cycle through the grid-auto-rows list: 30px, 70px, 30px, ; catches storing only one grid-auto-rows length passes single-size implicit-row fixtures.",
     "file": "cases/grid/grid-auto-rows-repeats-a-track-size-pattern.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",

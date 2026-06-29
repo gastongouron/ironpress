@@ -747,24 +747,27 @@ fn split_selector_list(list: &str) -> Vec<&str> {
 }
 
 /// Evaluate `:has(<relative-selector-list>)` against the element's known
-/// context. Only the forward relational forms reachable from the available
-/// context are supported: `:has(+ X)` / `:has(~ X)` (a following sibling
-/// matching X). Child and descendant `:has` need the element subtree, which the
-/// matcher does not carry, so those relations return false (conservative).
+/// context. Sibling forms use the sibling lists in `SelectorContext`; child and
+/// descendant class selectors use synthetic class summaries supplied by layout
+/// in the element attributes map.
 fn has_matches(
     arg: &str,
     _tag: &str,
     _classes: &[&str],
     _id: Option<&str>,
-    _attributes: &HashMap<String, String>,
+    attributes: &HashMap<String, String>,
     ctx: &SelectorContext,
 ) -> bool {
     split_selector_list(arg)
         .into_iter()
-        .any(|relative| has_relative_selector_matches(relative, ctx))
+        .any(|relative| has_relative_selector_matches(relative, attributes, ctx))
 }
 
-fn has_relative_selector_matches(relative: &str, ctx: &SelectorContext) -> bool {
+fn has_relative_selector_matches(
+    relative: &str,
+    attributes: &HashMap<String, String>,
+    ctx: &SelectorContext,
+) -> bool {
     let arg = relative.trim();
     let (combinator, target) = if let Some(rest) = arg.strip_prefix('+') {
         ('+', rest.trim())
@@ -787,10 +790,43 @@ fn has_relative_selector_matches(relative: &str, ctx: &SelectorContext) -> bool 
             let refs: Vec<&str> = c.iter().map(String::as_str).collect();
             compound_selector_matches(target, t, &refs, None, &HashMap::new(), &empty_ctx())
         }),
-        // Child / descendant relations are not represented in the matcher
-        // context; conservatively unsupported.
+        '>' => synthetic_has_class(attributes, "__ironpress_has_child_classes", target),
+        ' ' => synthetic_has_class(attributes, "__ironpress_has_descendant_classes", target),
         _ => false,
     }
+}
+
+fn synthetic_has_class(attributes: &HashMap<String, String>, key: &str, selector: &str) -> bool {
+    let Some(classes) = attributes.get(key) else {
+        return false;
+    };
+    let Some(required) = required_classes(selector) else {
+        return false;
+    };
+    required
+        .iter()
+        .all(|class| classes.split_whitespace().any(|present| present == class))
+}
+
+fn required_classes(selector: &str) -> Option<Vec<String>> {
+    let selector = selector.trim();
+    if selector.is_empty() || selector.contains([' ', '>', '+', '~', '[', ':']) {
+        return None;
+    }
+    let mut classes = Vec::new();
+    for part in selector.split('.') {
+        if part.is_empty() {
+            continue;
+        }
+        if part.contains('#') {
+            return None;
+        }
+        if classes.is_empty() && !selector.starts_with('.') {
+            continue;
+        }
+        classes.push(part.to_string());
+    }
+    (!classes.is_empty()).then_some(classes)
 }
 
 fn dir_matches(arg: &str, attributes: &HashMap<String, String>, ctx: &SelectorContext) -> bool {
@@ -814,10 +850,9 @@ fn dir_matches(arg: &str, attributes: &HashMap<String, String>, ctx: &SelectorCo
 }
 
 fn lang_matches(arg: &str, attributes: &HashMap<String, String>, ctx: &SelectorContext) -> bool {
-    let Some(lang) = inherited_attribute_value(attributes, ctx, &["lang", "xml:lang"]) else {
-        return false;
-    };
-    let lang = lang.to_ascii_lowercase();
+    let lang = inherited_attribute_value(attributes, ctx, &["lang", "xml:lang"])
+        .unwrap_or_else(|| "en".to_string())
+        .to_ascii_lowercase();
 
     split_selector_list(arg).into_iter().any(|range| {
         let range = unquote(range.trim()).to_ascii_lowercase();

@@ -594,7 +594,7 @@
     "description": "Collapsed-border conflict where equal-width double beats solid on the shared edge; catches renderers that overpaint the later solid edge.",
     "file": "cases/tables/tables-border-style-conflict.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

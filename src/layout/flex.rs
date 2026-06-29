@@ -1614,7 +1614,10 @@ pub(crate) fn layout_flex_container(
                 max_main: main_min_max(&child_style).1,
                 cross_min: cross_min_max(&child_style).0,
                 cross_max: cross_min_max(&child_style).1,
-                is_flex_container: child_style.display == Display::Flex,
+                is_flex_container: matches!(
+                    child_style.display,
+                    Display::Flex | Display::InlineFlex
+                ),
                 margin_main_start_auto: m_main_start_auto,
                 margin_main_end_auto: m_main_end_auto,
                 margin_main_start: m_main_start,
@@ -1655,7 +1658,10 @@ pub(crate) fn layout_flex_container(
                 if child_style.flex_basis_keyword == Some(IntrinsicWidthKeyword::MinContent) {
                     flex_text_min_content(
                         &runs,
-                        matches!(child_style.white_space, WhiteSpace::NoWrap | WhiteSpace::Pre),
+                        matches!(
+                            child_style.white_space,
+                            WhiteSpace::NoWrap | WhiteSpace::Pre
+                        ),
                         env.fonts,
                     )
                 } else {
@@ -1927,7 +1933,7 @@ pub(crate) fn layout_flex_container(
             max_main: resolved_max_main,
             cross_min: cross_min_max(&child_style).0,
             cross_max: cross_min_max(&child_style).1,
-            is_flex_container: child_style.display == Display::Flex,
+            is_flex_container: matches!(child_style.display, Display::Flex | Display::InlineFlex),
             margin_main_start_auto: m_main_start_auto,
             margin_main_end_auto: m_main_end_auto,
             margin_main_start: m_main_start,
@@ -2242,7 +2248,7 @@ pub(crate) fn layout_flex_container(
                 - child_style.border.horizontal_width())
             .max(0.0);
             let mut buf = Vec::new();
-            if child_style.display == Display::Flex {
+            if matches!(child_style.display, Display::Flex | Display::InlineFlex) {
                 // A nested flex container carries its own main-axis distribution
                 // that depends on the stretched height; re-layout it as a flex.
                 let child_ctx = ctx
@@ -3031,8 +3037,10 @@ pub(crate) fn layout_flex_container(
                             // at an indefinite height, collapsing its grow children
                             // to zero (the pre-grow stretch pass above used the
                             // ungrown width, which the grow re-flatten then clobbered).
-                            if relayout_child_style.display == Display::Flex
-                                && direction.is_row()
+                            if matches!(
+                                relayout_child_style.display,
+                                Display::Flex | Display::InlineFlex
+                            ) && direction.is_row()
                                 && inner_cross_size > 0.0
                             {
                                 let mut fstyle = relayout_child_style.clone();
@@ -4036,8 +4044,7 @@ pub(crate) fn layout_flex_container(
                             };
                         let mut x_offset = cross_offset
                             + match effective_align {
-                                AlignItems::FlexStart
-                                | AlignItems::Baseline => 0.0,
+                                AlignItems::FlexStart | AlignItems::Baseline => 0.0,
                                 AlignItems::FlexEnd => line.cross_size - used_width,
                                 AlignItems::Center => (line.cross_size - used_width) / 2.0,
                                 AlignItems::Stretch => 0.0,

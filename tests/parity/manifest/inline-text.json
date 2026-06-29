@@ -642,7 +642,7 @@
     "description": "vertical-align:18px shifts an inline-block above the surrounding baseline; catches keyword-only implementations that fall back to baseline.",
     "file": "cases/inline-text/inline-text-vertical-align-length.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline",
       "probe-fill-box"

@@ -180,6 +180,121 @@ pub(crate) fn blur_shadow_rect(
     Some(BlurredRaster { asset, overflow_pt })
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn blur_inset_shadow_rect(
+    width_pt: f32,
+    height_pt: f32,
+    radius_pt: f32,
+    blur_pt: f32,
+    spread_pt: f32,
+    offset_x_pt: f32,
+    offset_y_pt: f32,
+    color: (f32, f32, f32, f32),
+    filter_dpi: f32,
+) -> Option<BlurredRaster> {
+    let (_, _, _, a) = color;
+    if width_pt <= 0.0 || height_pt <= 0.0 || a <= 0.0 {
+        return None;
+    }
+
+    use resvg::tiny_skia;
+
+    let s = filter_dpi_scale(filter_dpi);
+    let sigma = (blur_pt / PT_PER_PX) * s / 2.0;
+    let pad = pad_pixels(sigma);
+    let box_w = (width_pt / PT_PER_PX * s).round().max(1.0) as u32;
+    let box_h = (height_pt / PT_PER_PX * s).round().max(1.0) as u32;
+    let buf_w = box_w + 2 * pad;
+    let buf_h = box_h + 2 * pad;
+
+    let mut pixmap = tiny_skia::Pixmap::new(buf_w, buf_h)?;
+    let (r, g, b, _) = color;
+    let mut paint = tiny_skia::Paint::default();
+    paint.set_color(color8(r, g, b, a));
+    paint.anti_alias = true;
+
+    let pt_to_px = s / PT_PER_PX;
+    let spread_px = spread_pt * pt_to_px;
+    let hole_x = pad as f32 + offset_x_pt * pt_to_px + spread_px;
+    let hole_y = pad as f32 + offset_y_pt * pt_to_px + spread_px;
+    let hole_w = box_w as f32 - 2.0 * spread_px;
+    let hole_h = box_h as f32 - 2.0 * spread_px;
+
+    let mut pb = tiny_skia::PathBuilder::new();
+    pb.move_to(0.0, 0.0);
+    pb.line_to(buf_w as f32, 0.0);
+    pb.line_to(buf_w as f32, buf_h as f32);
+    pb.line_to(0.0, buf_h as f32);
+    pb.close();
+    if hole_w > 0.0 && hole_h > 0.0 {
+        let hole_radius = ((radius_pt - spread_pt).max(0.0) * pt_to_px)
+            .min(hole_w / 2.0)
+            .min(hole_h / 2.0);
+        append_rounded_path(
+            &mut pb,
+            hole_x,
+            hole_y,
+            hole_w,
+            hole_h,
+            hole_radius,
+            hole_radius,
+        );
+    }
+    if let Some(path) = pb.finish() {
+        pixmap.fill_path(
+            &path,
+            &paint,
+            tiny_skia::FillRule::EvenOdd,
+            tiny_skia::Transform::identity(),
+            None,
+        );
+    }
+
+    let rgba = pixmap_to_rgba(&pixmap, buf_w, buf_h);
+    let rgba = if sigma > 0.0 {
+        blur_premultiplied(&rgba, sigma)
+    } else {
+        rgba
+    };
+
+    let overflow_pt = pad as f32 / s * PT_PER_PX;
+    let asset = rgba_to_png_alpha_asset(rgba)?;
+    Some(BlurredRaster { asset, overflow_pt })
+}
+
+fn append_rounded_path(
+    pb: &mut resvg::tiny_skia::PathBuilder,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    rx: f32,
+    ry: f32,
+) {
+    if rx <= 0.5 && ry <= 0.5 {
+        pb.move_to(x, y);
+        pb.line_to(x + w, y);
+        pb.line_to(x + w, y + h);
+        pb.line_to(x, y + h);
+        pb.close();
+        return;
+    }
+    let rx = rx.min(w / 2.0);
+    let ry = ry.min(h / 2.0);
+    let (x0, y0) = (x, y);
+    let (x1, y1) = (x + w, y + h);
+    pb.move_to(x0 + rx, y0);
+    pb.line_to(x1 - rx, y0);
+    pb.quad_to(x1, y0, x1, y0 + ry);
+    pb.line_to(x1, y1 - ry);
+    pb.quad_to(x1, y1, x1 - rx, y1);
+    pb.line_to(x0 + rx, y1);
+    pb.quad_to(x0, y1, x0, y1 - ry);
+    pb.line_to(x0, y0 + ry);
+    pb.quad_to(x0, y0, x0 + rx, y0);
+    pb.close();
+}
+
 /// Gaussian-blur a pre-rasterized straight-alpha coverage mask (e.g. shadow
 /// glyphs), tinting with `color`, and return the embeddable asset plus the
 /// per-side overflow in points.

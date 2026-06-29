@@ -9,6 +9,42 @@ use crate::style::computed::{
 };
 use std::collections::HashMap;
 
+pub(crate) fn selector_attributes_with_has(el: &ElementNode) -> HashMap<String, String> {
+    let mut attrs = el.attributes.clone();
+    let child_classes = el
+        .children
+        .iter()
+        .filter_map(|child| match child {
+            DomNode::Element(child_el) => Some(child_el.class_list().join(" ")),
+            DomNode::Text(_) => None,
+        })
+        .filter(|classes| !classes.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !child_classes.is_empty() {
+        attrs.insert("__ironpress_has_child_classes".to_string(), child_classes);
+    }
+
+    let mut descendant = Vec::new();
+    collect_descendant_classes(el, &mut descendant);
+    if !descendant.is_empty() {
+        attrs.insert(
+            "__ironpress_has_descendant_classes".to_string(),
+            descendant.join(" "),
+        );
+    }
+    attrs
+}
+
+fn collect_descendant_classes(el: &ElementNode, out: &mut Vec<String>) {
+    for child in &el.children {
+        if let DomNode::Element(child_el) = child {
+            out.extend(child_el.class_list().into_iter().map(str::to_string));
+            collect_descendant_classes(child_el, out);
+        }
+    }
+}
+
 pub(crate) fn authored_keyword_property(
     el: &ElementNode,
     rules: &[CssRule],
@@ -32,6 +68,7 @@ pub(crate) fn authored_pseudo_keyword_property(
     let mut winner: Option<(bool, u8, u32, usize, CssValue)> = None;
     let classes = el.class_list();
     let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+    let selector_attrs = selector_attributes_with_has(el);
 
     for (source_idx, rule) in rules.iter().enumerate() {
         if rule.pseudo_element != Some(pseudo) {
@@ -42,7 +79,7 @@ pub(crate) fn authored_pseudo_keyword_property(
             el.tag_name(),
             &class_refs,
             el.id(),
-            &el.attributes,
+            &selector_attrs,
             selector_ctx,
         ) {
             continue;
@@ -81,6 +118,7 @@ pub(crate) fn authored_property_value(
     let mut winner: Option<(bool, u8, u32, usize, CssValue)> = None;
     let classes = el.class_list();
     let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+    let selector_attrs = selector_attributes_with_has(el);
 
     for (source_idx, rule) in rules.iter().enumerate() {
         if rule.pseudo_element.is_some() {
@@ -91,7 +129,7 @@ pub(crate) fn authored_property_value(
             el.tag_name(),
             &class_refs,
             el.id(),
-            &el.attributes,
+            &selector_attrs,
             selector_ctx,
         ) {
             continue;
@@ -1046,7 +1084,7 @@ pub(crate) fn resolve_intrinsic_keyword_width(
 // Group 3 — List marker formatting
 // ---------------------------------------------------------------------------
 
-pub(crate) fn format_list_marker(list_style_type: ListStyleType, index: usize) -> String {
+pub(crate) fn format_list_marker(list_style_type: &ListStyleType, index: usize) -> String {
     match list_style_type {
         ListStyleType::Disc => "\u{2022} ".to_string(),
         ListStyleType::Circle => "\u{25E6} ".to_string(),
@@ -1057,6 +1095,9 @@ pub(crate) fn format_list_marker(list_style_type: ListStyleType, index: usize) -
         ListStyleType::UpperAlpha => format!("{}. ", to_alpha_upper(index)),
         ListStyleType::LowerRoman => format!("{}. ", to_roman_lower(index)),
         ListStyleType::UpperRoman => format!("{}. ", to_roman_upper(index)),
+        ListStyleType::CjkDecimal => format!("{}、", to_cjk_decimal(index)),
+        ListStyleType::String(marker) => marker.clone(),
+        ListStyleType::Custom(_) => format!("{}. ", index),
         ListStyleType::None => String::new(),
     }
 }
@@ -1075,7 +1116,7 @@ pub(crate) fn format_list_marker(list_style_type: ListStyleType, index: usize) -
 /// Returns `None` for non-geometric types (decimal/alpha/roman/circle/none) so
 /// the caller falls back to the textual marker path for those.
 pub(crate) fn build_list_bullet_marker(
-    list_style_type: ListStyleType,
+    list_style_type: &ListStyleType,
     font_size: f32,
     color: (f32, f32, f32),
     gap: f32,
@@ -1171,13 +1212,24 @@ pub(crate) fn to_roman_upper(n: usize) -> String {
     to_roman_lower(n).to_uppercase()
 }
 
+fn to_cjk_decimal(n: usize) -> String {
+    const DIGITS: [&str; 10] = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+    if n == 0 {
+        return DIGITS[0].to_string();
+    }
+    n.to_string()
+        .chars()
+        .filter_map(|ch| ch.to_digit(10).map(|d| DIGITS[d as usize]))
+        .collect()
+}
+
 /// Format a single counter value in the given list-style-type, WITHOUT any
 /// marker suffix (unlike `format_list_marker`). Used by `counter()`/`counters()`
 /// in the `content` property, where the CSS author supplies their own separators
 /// and suffixes. Geometric markers (disc/circle/square) and `none` have no
 /// numeric textual form, so they fall back to decimal — matching how browsers
 /// render `counter(x, disc)` as the raw number.
-pub(crate) fn format_counter_value(style: ListStyleType, value: i32) -> String {
+pub(crate) fn format_counter_value(style: &ListStyleType, value: i32) -> String {
     // Roman/alpha styles are only defined for positive integers; negative or
     // zero values fall back to decimal (CSS counter-style fallback behavior).
     if value <= 0 {
@@ -1190,6 +1242,7 @@ pub(crate) fn format_counter_value(style: ListStyleType, value: i32) -> String {
         ListStyleType::UpperAlpha => to_alpha_upper(n),
         ListStyleType::LowerRoman => to_roman_lower(n),
         ListStyleType::UpperRoman => to_roman_upper(n),
+        ListStyleType::CjkDecimal => to_cjk_decimal(n),
         // decimal, disc, circle, square, none → plain decimal text.
         _ => value.to_string(),
     }
@@ -1226,7 +1279,7 @@ pub(crate) fn resolve_content_with_quotes(
     quotes: Option<&[(String, String)]>,
 ) -> String {
     let mut result = String::new();
-    let mut depth: usize = 0;
+    let mut depth = counter_state.quote_depth.get();
     let open_glyph = |level: usize| -> String {
         match quotes {
             Some([]) => String::new(),
@@ -1247,7 +1300,9 @@ pub(crate) fn resolve_content_with_quotes(
     };
     for item in items {
         match item {
-            ContentItem::String(s) => result.push_str(s),
+            ContentItem::String(s) => {
+                result.push_str(&resolve_target_attr_placeholders(s, attributes));
+            }
             ContentItem::Attr(name) => {
                 // Missing attribute resolves to the empty string (css-content-3 §1).
                 if let Some(val) = attributes.get(name) {
@@ -1255,24 +1310,38 @@ pub(crate) fn resolve_content_with_quotes(
                 }
             }
             ContentItem::Counter(name, style) => {
-                result.push_str(&format_counter_value(*style, counter_state.get(name)));
+                result.push_str(&format_counter_value(style, counter_state.get(name)));
             }
             ContentItem::Counters(name, sep, style) => {
-                result.push_str(&counter_state.get_all_styled(name, sep, *style));
+                result.push_str(&counter_state.get_all_styled(name, sep, style));
+            }
+            ContentItem::Leader(pattern) => {
+                let pattern = if pattern.is_empty() {
+                    "."
+                } else {
+                    pattern.as_str()
+                };
+                for _ in 0..18 {
+                    result.push_str(pattern);
+                }
             }
             ContentItem::OpenQuote => {
                 result.push_str(&open_glyph(depth));
                 depth += 1;
+                counter_state.quote_depth.set(depth);
             }
             ContentItem::NoOpenQuote => {
                 depth += 1;
+                counter_state.quote_depth.set(depth);
             }
             ContentItem::CloseQuote => {
                 depth = depth.saturating_sub(1);
                 result.push_str(&close_glyph(depth));
+                counter_state.quote_depth.set(depth);
             }
             ContentItem::NoCloseQuote => {
                 depth = depth.saturating_sub(1);
+                counter_state.quote_depth.set(depth);
             }
             // Replaced-element content (`url(...)`) is handled by the caller as
             // an image box, not text.
@@ -1280,6 +1349,29 @@ pub(crate) fn resolve_content_with_quotes(
         }
     }
     result
+}
+
+fn resolve_target_attr_placeholders(s: &str, attributes: &HashMap<String, String>) -> String {
+    if !s.contains(crate::style::computed::TARGET_PLACEHOLDER_START) || !s.contains("attr(") {
+        return s.to_string();
+    }
+    let mut out = String::new();
+    let mut rest = s;
+    while let Some(start) = rest.find("attr(") {
+        out.push_str(&rest[..start]);
+        let arg_start = start + "attr(".len();
+        let Some(end_rel) = rest[arg_start..].find(')') else {
+            out.push_str(&rest[start..]);
+            return out;
+        };
+        let name = rest[arg_start..arg_start + end_rel].trim();
+        if let Some(value) = attributes.get(name) {
+            out.push_str(value);
+        }
+        rest = &rest[arg_start + end_rel + 1..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// Returns the first `url()` image reference in a content list, if any.
@@ -1716,7 +1808,7 @@ pub(crate) fn build_pseudo_block(
     let mut runs = Vec::new();
     if !content_text.is_empty() {
         if list_item_marker {
-            let marker_text = format_list_marker(pseudo_style.list_style_type, 0);
+            let marker_text = format_list_marker(&pseudo_style.list_style_type, 0);
             let marker_font = resolve_style_font_family(pseudo_style, fonts);
             let symbol_advance = estimate_word_width(
                 &marker_text,
@@ -1727,7 +1819,7 @@ pub(crate) fn build_pseudo_block(
                 fonts,
             );
             if let Some(mut bullet) = build_list_bullet_marker(
-                pseudo_style.list_style_type,
+                &pseudo_style.list_style_type,
                 pseudo_style.font_size,
                 pseudo_style.color.to_f32_rgb(),
                 symbol_advance,
@@ -2372,15 +2464,24 @@ pub(crate) fn layout_element_paint_order(element: &LayoutElement) -> (i32, i32) 
             ..
         } if *z_index < 0 => (i32::MIN, 0),
         LayoutElement::TextBlock {
-            position: _,
+            position,
             z_index,
             ..
         }
         | LayoutElement::Container {
-            position: _,
+            position,
             z_index,
             ..
-        } => (0, *z_index),
+        } => {
+            if *z_index < 0 {
+                (-1, *z_index)
+            } else {
+                match position {
+                    Position::Static => (0, 0),
+                    Position::Relative | Position::Absolute => (1, *z_index),
+                }
+            }
+        }
         _ => (0, 0),
     }
 }

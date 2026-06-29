@@ -297,7 +297,7 @@
     "file": "cases/positioning/positioning-inset-shorthand-stretch.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -351,7 +351,7 @@
     "file": "cases/positioning/positioning-z-index-negative-behind-flow.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -369,7 +369,7 @@
     "file": "cases/positioning/positioning-relative-percent-offset.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

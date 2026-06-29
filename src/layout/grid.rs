@@ -1298,7 +1298,10 @@ fn layout_grid_item_children(
     // Lay it out through the matching container path against the item's content
     // box (`content_width`), so e.g. a `display:flex` cell distributes its boxes
     // along the main axis instead of stacking them block-by-block.
-    if matches!(item_style.display, Display::Flex | Display::Grid) {
+    if matches!(
+        item_style.display,
+        Display::Flex | Display::InlineFlex | Display::Grid
+    ) {
         // Give the inner container exactly the item's content-box width so flex
         // main-axis distribution / grid track sizing resolve correctly.
         let mut inner_style = item_style.clone();
@@ -1329,7 +1332,7 @@ fn layout_grid_item_children(
         } else if let Some(content_h) = content_height {
             inner_style.height = Some(content_h);
         }
-        if item_style.display == Display::Flex {
+        if matches!(item_style.display, Display::Flex | Display::InlineFlex) {
             crate::layout::flex::layout_flex_container(
                 item_el,
                 &inner_style,
@@ -1427,7 +1430,11 @@ fn layout_grid_item_children(
         );
         let is_block = matches!(
             child_style.display,
-            Display::Block | Display::InlineBlock | Display::Flex | Display::Grid
+            Display::Block
+                | Display::InlineBlock
+                | Display::Flex
+                | Display::InlineFlex
+                | Display::Grid
         );
         if is_block {
             after_block = true;
@@ -2173,7 +2180,11 @@ fn layout_grid_container_inner(
         .map(|child_el| {
             (
                 child_el.tag_name().to_string(),
-                child_el.class_list().iter().map(|s| s.to_string()).collect(),
+                child_el
+                    .class_list()
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
             )
         })
         .collect();

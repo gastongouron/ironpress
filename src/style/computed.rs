@@ -26,9 +26,11 @@ const CURRENT_COLOR_SENTINEL: Color = Color {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Display {
     Block,
+    ListItem,
     Inline,
     InlineBlock,
     Flex,
+    InlineFlex,
     Grid,
     InlineGrid,
     Table,
@@ -562,24 +564,52 @@ pub enum BlendMode {
     SoftLight,
     Difference,
     Exclusion,
+    Hue,
+    Saturation,
+    Color,
+    Luminosity,
+    BackgroundList {
+        modes: [u8; 8],
+        len: u8,
+    },
 }
 
 impl BlendMode {
     /// Parse a CSS blend-mode keyword. Unknown keywords fall back to `Normal`.
     pub fn from_keyword(keyword: &str) -> Self {
-        match keyword.trim().to_ascii_lowercase().as_str() {
-            "multiply" => BlendMode::Multiply,
-            "screen" => BlendMode::Screen,
-            "overlay" => BlendMode::Overlay,
-            "darken" => BlendMode::Darken,
-            "lighten" => BlendMode::Lighten,
-            "color-dodge" => BlendMode::ColorDodge,
-            "color-burn" => BlendMode::ColorBurn,
-            "hard-light" => BlendMode::HardLight,
-            "soft-light" => BlendMode::SoftLight,
-            "difference" => BlendMode::Difference,
-            "exclusion" => BlendMode::Exclusion,
-            _ => BlendMode::Normal,
+        Self::from_code(Self::keyword_code(keyword))
+    }
+
+    /// Parse `background-blend-mode`, whose value is a comma-separated list.
+    pub fn from_background_value(value: &str) -> Self {
+        let parts: Vec<&str> = value
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .collect();
+        if parts.len() <= 1 {
+            return Self::from_keyword(value);
+        }
+
+        let mut modes = [0u8; 8];
+        let mut len = 0usize;
+        for part in parts.iter().take(modes.len()) {
+            modes[len] = Self::keyword_code(part);
+            len += 1;
+        }
+        BlendMode::BackgroundList {
+            modes,
+            len: len as u8,
+        }
+    }
+
+    pub fn background_layer(self, index: usize) -> Self {
+        match self {
+            BlendMode::BackgroundList { modes, len } if len > 0 => {
+                Self::from_code(modes[index % len as usize])
+            }
+            BlendMode::BackgroundList { .. } => BlendMode::Normal,
+            mode => mode,
         }
     }
 
@@ -598,6 +628,56 @@ impl BlendMode {
             BlendMode::SoftLight => Some("SoftLight"),
             BlendMode::Difference => Some("Difference"),
             BlendMode::Exclusion => Some("Exclusion"),
+            BlendMode::Hue => Some("Hue"),
+            BlendMode::Saturation => Some("Saturation"),
+            BlendMode::Color => Some("Color"),
+            BlendMode::Luminosity => Some("Luminosity"),
+            BlendMode::BackgroundList { modes, len } if len > 0 => {
+                Self::from_code(modes[0]).pdf_name()
+            }
+            BlendMode::BackgroundList { .. } => None,
+        }
+    }
+
+    fn keyword_code(keyword: &str) -> u8 {
+        match keyword.trim().to_ascii_lowercase().as_str() {
+            "multiply" => 1,
+            "screen" => 2,
+            "overlay" => 3,
+            "darken" => 4,
+            "lighten" => 5,
+            "color-dodge" => 6,
+            "color-burn" => 7,
+            "hard-light" => 8,
+            "soft-light" => 9,
+            "difference" => 10,
+            "exclusion" => 11,
+            "hue" => 12,
+            "saturation" => 13,
+            "color" => 14,
+            "luminosity" => 15,
+            _ => 0,
+        }
+    }
+
+    fn from_code(code: u8) -> Self {
+        match code {
+            1 => BlendMode::Multiply,
+            2 => BlendMode::Screen,
+            3 => BlendMode::Overlay,
+            4 => BlendMode::Darken,
+            5 => BlendMode::Lighten,
+            6 => BlendMode::ColorDodge,
+            7 => BlendMode::ColorBurn,
+            8 => BlendMode::HardLight,
+            9 => BlendMode::SoftLight,
+            10 => BlendMode::Difference,
+            11 => BlendMode::Exclusion,
+            12 => BlendMode::Hue,
+            13 => BlendMode::Saturation,
+            14 => BlendMode::Color,
+            15 => BlendMode::Luminosity,
+            _ => BlendMode::Normal,
         }
     }
 }
@@ -897,6 +977,13 @@ pub enum FontVariantCaps {
     SmallCaps,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextDecorationStyle {
+    #[default]
+    Solid,
+    Wavy,
+}
+
 /// CSS white-space property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum WhiteSpace {
@@ -920,6 +1007,8 @@ pub enum VerticalAlign {
     Baseline,
     Super,
     Sub,
+    Length(f32),
+    Percent(f32),
     Top,
     /// `text-top`: align the box top to the top of the PARENT's text content
     /// (font) area — the parent baseline plus the parent's font ascent — which
@@ -1220,7 +1309,7 @@ impl Default for BackgroundPosition {
     }
 }
 /// CSS list-style-type property.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ListStyleType {
     #[default]
     Disc,
@@ -1232,6 +1321,9 @@ pub enum ListStyleType {
     UpperAlpha,
     LowerRoman,
     UpperRoman,
+    CjkDecimal,
+    String(String),
+    Custom(String),
     None,
 }
 /// CSS list-style-position property.
@@ -1252,6 +1344,8 @@ pub enum ContentItem {
     /// `counters(name, separator)` or `counters(name, separator, style)`. Joins
     /// every nested level of `name` with `separator`, each formatted in `style`.
     Counters(String, String, ListStyleType),
+    /// `leader(pattern)` from CSS Generated Content for Paged Media.
+    Leader(String),
     /// `open-quote` keyword — resolves to the opening quotation mark.
     OpenQuote,
     /// `close-quote` keyword — resolves to the closing quotation mark.
@@ -1457,6 +1551,7 @@ pub struct ComputedStyle {
     pub text_align: TextAlign,
     pub text_align_last: Option<TextAlign>,
     pub word_break_keep_all: bool,
+    pub hyphens_manual: bool,
     /// CSS direction property (ltr/rtl), set from `dir` attribute or CSS.
     pub direction_rtl: bool,
     /// CSS `writing-mode` (css-writing-modes-4 §3.1). Inherited; initial
@@ -1476,6 +1571,9 @@ pub struct ComputedStyle {
     pub text_decoration_underline: bool,
     pub text_decoration_line_through: bool,
     pub text_decoration_overline: bool,
+    pub text_decoration_style: TextDecorationStyle,
+    pub text_decoration_thickness: Option<f32>,
+    pub text_underline_offset: Option<f32>,
     /// CSS `text-decoration-color` (css-text-decor-3 §2.2): the colour of the
     /// underline/line-through/overline, independent of the text `color`. `None`
     /// means `currentColor` (fall back to the run's text colour). Not inherited.
@@ -1690,6 +1788,10 @@ pub struct ComputedStyle {
     /// `font-feature-settings: "liga" 0` (and `clig`/`dlig` off) to suppress
     /// the shaper's default ligature substitution.
     pub ligatures_enabled: bool,
+    pub font_kerning_enabled: bool,
+    pub font_synthesis_weight: bool,
+    pub font_synthesis_style: bool,
+    pub text_emphasis_mark: bool,
     pub text_indent: f32,
     pub white_space: WhiteSpace,
     pub letter_spacing: f32,
@@ -1736,6 +1838,7 @@ pub struct ComputedStyle {
     pub content: Vec<ContentItem>,
     pub counter_reset: Vec<(String, i32)>,
     pub counter_increment: Vec<(String, i32)>,
+    pub counter_set: Vec<(String, i32)>,
     /// CSS `quotes` property: ordered (open, close) glyph pairs by nesting level.
     /// `None` means `auto`/unset (use the UA default pair); an empty `Vec` means
     /// `quotes: none` (open/close-quote produce no glyphs). Per css-content-3
@@ -1913,6 +2016,7 @@ impl Default for ComputedStyle {
             text_align: TextAlign::Left,
             text_align_last: None,
             word_break_keep_all: false,
+            hyphens_manual: true,
             direction_rtl: false,
             writing_mode: WritingMode::HorizontalTb,
             writing_mode_vertical_lr: false,
@@ -1922,6 +2026,9 @@ impl Default for ComputedStyle {
             text_decoration_underline: false,
             text_decoration_line_through: false,
             text_decoration_overline: false,
+            text_decoration_style: TextDecorationStyle::Solid,
+            text_decoration_thickness: None,
+            text_underline_offset: None,
             text_decoration_color: None,
             line_height: f32::NAN,
             line_height_absolute: None,
@@ -2022,6 +2129,10 @@ impl Default for ComputedStyle {
             text_transform: TextTransform::None,
             font_variant_caps: FontVariantCaps::Normal,
             ligatures_enabled: true,
+            font_kerning_enabled: true,
+            font_synthesis_weight: true,
+            font_synthesis_style: true,
+            text_emphasis_mark: false,
             text_indent: 0.0,
             white_space: WhiteSpace::Normal,
             letter_spacing: 0.0,
@@ -2057,6 +2168,7 @@ impl Default for ComputedStyle {
             quotes: None,
             counter_reset: Vec::new(),
             counter_increment: Vec::new(),
+            counter_set: Vec::new(),
             column_count: None,
             column_width: None,
             column_gap: 0.0,
@@ -2687,10 +2799,15 @@ fn is_inherited_property(property: &str) -> bool {
             | "font-weight"
             | "font-style"
             | "font-family"
+            | "font"
             | "line-height"
             | "text-align"
             | "text-align-last"
             | "text-decoration"
+            | "text-decoration-line"
+            | "text-decoration-style"
+            | "text-decoration-thickness"
+            | "text-underline-offset"
             | "visibility"
             | "letter-spacing"
             | "word-spacing"
@@ -2698,13 +2815,20 @@ fn is_inherited_property(property: &str) -> bool {
             | "text-transform"
             | "font-variant"
             | "font-variant-caps"
+            | "font-variant-ligatures"
+            | "font-kerning"
+            | "font-size-adjust"
+            | "font-synthesis"
             | "font-feature-settings"
+            | "text-emphasis"
+            | "text-emphasis-position"
             | "white-space"
             | "white-space-collapse"
             | "text-wrap-mode"
             | "overflow-wrap"
             | "word-wrap"
             | "word-break"
+            | "hyphens"
             | "border-collapse"
             | "border-spacing"
             | "empty-cells"
@@ -2735,10 +2859,16 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         }
         "text-align" => style.text_align = default.text_align,
         "text-align-last" => style.text_align_last = default.text_align_last,
-        "text-decoration" => {
+        "text-decoration" | "text-decoration-line" => {
             style.text_decoration_underline = default.text_decoration_underline;
             style.text_decoration_line_through = default.text_decoration_line_through;
+            style.text_decoration_overline = default.text_decoration_overline;
         }
+        "text-decoration-style" => style.text_decoration_style = default.text_decoration_style,
+        "text-decoration-thickness" => {
+            style.text_decoration_thickness = default.text_decoration_thickness
+        }
+        "text-underline-offset" => style.text_underline_offset = default.text_underline_offset,
         "visibility" => style.visibility = default.visibility,
         "letter-spacing" => style.letter_spacing = default.letter_spacing,
         "word-spacing" => style.word_spacing = default.word_spacing,
@@ -2882,12 +3012,13 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "object-fit" => style.object_fit = default.object_fit,
         "object-position" => style.object_position = default.object_position,
         "background" => style.reset_background(),
-        "list-style-type" => style.list_style_type = default.list_style_type,
+        "list-style-type" => style.list_style_type = default.list_style_type.clone(),
         "list-style-position" => style.list_style_position = default.list_style_position,
         "list-style-image" => style.list_style_image = default.list_style_image.clone(),
         "content" => style.content = default.content,
         "counter-reset" => style.counter_reset = default.counter_reset,
         "counter-increment" => style.counter_increment = default.counter_increment,
+        "counter-set" => style.counter_set = default.counter_set,
         "column-count" => style.column_count = default.column_count,
         "column-width" => style.column_width = default.column_width,
         "columns" => {
@@ -2950,10 +3081,16 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         }
         "text-align" => style.text_align = parent.text_align,
         "text-align-last" => style.text_align_last = parent.text_align_last,
-        "text-decoration" => {
+        "text-decoration" | "text-decoration-line" => {
             style.text_decoration_underline = parent.text_decoration_underline;
             style.text_decoration_line_through = parent.text_decoration_line_through;
+            style.text_decoration_overline = parent.text_decoration_overline;
         }
+        "text-decoration-style" => style.text_decoration_style = parent.text_decoration_style,
+        "text-decoration-thickness" => {
+            style.text_decoration_thickness = parent.text_decoration_thickness
+        }
+        "text-underline-offset" => style.text_underline_offset = parent.text_underline_offset,
         "visibility" => style.visibility = parent.visibility,
         "letter-spacing" => style.letter_spacing = parent.letter_spacing,
         "word-spacing" => style.word_spacing = parent.word_spacing,
@@ -3104,12 +3241,13 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "object-fit" => style.object_fit = parent.object_fit,
         "object-position" => style.object_position = parent.object_position,
         "background" => style.inherit_background(parent),
-        "list-style-type" => style.list_style_type = parent.list_style_type,
+        "list-style-type" => style.list_style_type = parent.list_style_type.clone(),
         "list-style-position" => style.list_style_position = parent.list_style_position,
         "list-style-image" => style.list_style_image = parent.list_style_image.clone(),
         "content" => style.content = parent.content.clone(),
         "counter-reset" => style.counter_reset = parent.counter_reset.clone(),
         "counter-increment" => style.counter_increment = parent.counter_increment.clone(),
+        "counter-set" => style.counter_set = parent.counter_set.clone(),
         "column-count" | "columns" => style.column_count = parent.column_count,
         "column-gap" => style.column_gap = parent.column_gap,
         "filter" => {
@@ -3163,6 +3301,127 @@ fn ligatures_disabled_by_feature_settings(value: &str) -> bool {
         }
     }
     disabled
+}
+
+fn apply_text_decoration_line(style: &mut ComputedStyle, value: &str) {
+    let mut underline = false;
+    let mut overline = false;
+    let mut line_through = false;
+    for token in value.split_whitespace() {
+        match token {
+            "underline" => underline = true,
+            "overline" => overline = true,
+            "line-through" => line_through = true,
+            "none" => {
+                underline = false;
+                overline = false;
+                line_through = false;
+            }
+            _ => {}
+        }
+    }
+    style.text_decoration_underline = underline;
+    style.text_decoration_overline = overline;
+    style.text_decoration_line_through = line_through;
+}
+
+fn apply_font_shorthand(
+    style: &mut ComputedStyle,
+    value: &str,
+    length_context: crate::style::resolve::LengthResolutionContext,
+) {
+    let tokens: Vec<&str> = value.split_whitespace().collect();
+    let Some(size_idx) = tokens.iter().position(|token| {
+        let size = token.split_once('/').map_or(*token, |(size, _)| size);
+        parse_length(size).is_some()
+    }) else {
+        return;
+    };
+
+    style.font_style = FontStyle::Normal;
+    style.font_weight = FontWeight::Normal;
+    style.line_height = f32::NAN;
+    style.line_height_absolute = None;
+
+    for token in &tokens[..size_idx] {
+        let lower = token.to_ascii_lowercase();
+        match lower.as_str() {
+            "italic" | "oblique" => style.font_style = FontStyle::Italic,
+            "bold" | "bolder" | "600" | "700" | "800" | "900" => {
+                style.font_weight = FontWeight::Bold
+            }
+            "normal" | "lighter" | "100" | "200" | "300" | "400" | "500" => {}
+            _ => {}
+        }
+    }
+
+    let (size_raw, line_raw) = tokens[size_idx]
+        .split_once('/')
+        .map_or((tokens[size_idx], None), |(size, line)| (size, Some(line)));
+    apply_font_size_token(style, size_raw, length_context);
+    if let Some(line) = line_raw {
+        apply_line_height_token(style, line, length_context);
+    }
+
+    let family = tokens[size_idx + 1..].join(" ");
+    if !family.trim().is_empty() {
+        style.font_stack = parse_font_stack(&family);
+        style.font_family = style.font_stack.primary();
+    }
+}
+
+fn apply_font_size_token(
+    style: &mut ComputedStyle,
+    token: &str,
+    length_context: crate::style::resolve::LengthResolutionContext,
+) {
+    if let Some(value) = parse_length(token) {
+        match value {
+            CssValue::Length(v) => style.font_size = v,
+            CssValue::Number(v) => style.font_size *= v,
+            CssValue::Percentage(p) => style.font_size *= p / 100.0,
+            other => {
+                if let Some(v) = resolve_css_length_for_style(&other, style, length_context) {
+                    style.font_size = v;
+                }
+            }
+        }
+    }
+}
+
+fn apply_line_height_token(
+    style: &mut ComputedStyle,
+    token: &str,
+    length_context: crate::style::resolve::LengthResolutionContext,
+) {
+    if token == "normal" {
+        style.line_height = f32::NAN;
+        style.line_height_absolute = None;
+        return;
+    }
+    if let Some(value) = parse_length(token) {
+        match value {
+            CssValue::Length(v) => {
+                style.line_height_absolute = Some(v);
+                style.line_height = v / style.font_size;
+            }
+            CssValue::Number(v) => {
+                style.line_height = v;
+                style.line_height_absolute = None;
+            }
+            CssValue::Percentage(p) => {
+                let absolute = style.font_size * p / 100.0;
+                style.line_height_absolute = Some(absolute);
+                style.line_height = absolute / style.font_size;
+            }
+            other => {
+                if let Some(v) = resolve_css_length_for_style(&other, style, length_context) {
+                    style.line_height_absolute = Some(v);
+                    style.line_height = v / style.font_size;
+                }
+            }
+        }
+    }
 }
 
 /// Whether to apply normal (non-important) or `!important` declarations.
@@ -3258,6 +3517,10 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "font") {
+        apply_font_shorthand(style, k, length_context);
+    }
+
     if let Some(CssValue::Length(v)) = get_non_special(map, "font-size") {
         style.font_size = *v;
     }
@@ -3281,7 +3544,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-weight") {
-        style.font_weight = if k == "bold" || k == "700" || k == "800" || k == "900" {
+        style.font_weight = if matches!(k.as_str(), "bold" | "bolder" | "700" | "800" | "900") {
             FontWeight::Bold
         } else {
             FontWeight::Normal
@@ -3299,6 +3562,19 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-family") {
         style.font_stack = parse_font_stack(k);
         style.font_family = style.font_stack.primary();
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-size-adjust") {
+        if k != "none" {
+            if let Ok(target_aspect) = k.trim().parse::<f32>() {
+                let actual_aspect =
+                    crate::style::font_ctx::style_x_height_ratio(style).unwrap_or(0.5);
+                if actual_aspect > 0.0 {
+                    style.font_size *= target_aspect / actual_aspect;
+                    sync_line_height_from_absolute(style);
+                }
+            }
+        }
     }
 
     if let Some(CssValue::Color(c)) = get_non_special(map, "color") {
@@ -3470,7 +3746,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 }
             }
             "match-parent" => {
-                if parent.direction_rtl && !style.direction_rtl && parent.text_align == TextAlign::Left
+                if parent.direction_rtl
+                    && !style.direction_rtl
+                    && parent.text_align == TextAlign::Left
                 {
                     TextAlign::Right
                 } else {
@@ -3503,9 +3781,31 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-decoration") {
-        style.text_decoration_underline = k == "underline";
-        style.text_decoration_line_through = k == "line-through";
-        style.text_decoration_overline = k == "overline";
+        apply_text_decoration_line(style, k);
+        if k.split_whitespace().any(|t| t == "wavy") {
+            style.text_decoration_style = TextDecorationStyle::Wavy;
+        }
+        for token in k.split_whitespace() {
+            if let Some(CssValue::Length(v)) = parse_length(token) {
+                style.text_decoration_thickness = Some(v);
+            }
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-decoration-line") {
+        apply_text_decoration_line(style, k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-decoration-style") {
+        style.text_decoration_style = if k == "wavy" {
+            TextDecorationStyle::Wavy
+        } else {
+            TextDecorationStyle::Solid
+        };
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "text-decoration-thickness") {
+        style.text_decoration_thickness = Some(*v);
+    }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "text-underline-offset") {
+        style.text_underline_offset = Some(*v);
     }
 
     // `text-decoration-color` longhand (css-text-decor-3 §2.2): an explicit line
@@ -3859,7 +4159,6 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         apply_grid_area(style, k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip") {
-        eprintln!("DEBUG clip={k}");
         style.clip_path = parse_legacy_clip_rect(k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip-path") {
@@ -4177,7 +4476,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         style.mix_blend_mode = BlendMode::from_keyword(k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-blend-mode") {
-        style.background_blend_mode = BlendMode::from_keyword(k);
+        style.background_blend_mode = BlendMode::from_background_value(k);
     }
 
     // Uniform `border-width`. Absolute lengths (pt) apply directly; a font-relative
@@ -4374,6 +4673,47 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Length(v)) = get_non_special(map, "left") {
         style.left = Some(*v);
         style.percentage_insets.left = None;
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "inset") {
+        let parts: Vec<&str> = k.split_whitespace().collect();
+        let values = match parts.as_slice() {
+            [a] => Some([*a, *a, *a, *a]),
+            [a, b] => Some([*a, *b, *a, *b]),
+            [a, b, c] => Some([*a, *b, *c, *b]),
+            [a, b, c, d] => Some([*a, *b, *c, *d]),
+            _ => None,
+        };
+        if let Some(values) = values {
+            for (idx, token) in values.iter().enumerate() {
+                let token = token.trim();
+                let length = parse_length(token);
+                match (idx, length) {
+                    (0, Some(CssValue::Length(v))) => {
+                        style.top = Some(v);
+                        style.percentage_insets.top = None;
+                    }
+                    (1, Some(CssValue::Length(v))) => {
+                        style.right = Some(v);
+                        style.percentage_insets.right = None;
+                    }
+                    (2, Some(CssValue::Length(v))) => {
+                        style.bottom = Some(v);
+                        style.percentage_insets.bottom = None;
+                    }
+                    (3, Some(CssValue::Length(v))) => {
+                        style.left = Some(v);
+                        style.percentage_insets.left = None;
+                    }
+                    (0, Some(CssValue::Percentage(v))) => style.percentage_insets.top = Some(v),
+                    (1, Some(CssValue::Percentage(v))) => style.percentage_insets.right = Some(v),
+                    (2, Some(CssValue::Percentage(v))) => {
+                        style.percentage_insets.bottom = Some(v)
+                    }
+                    (3, Some(CssValue::Percentage(v))) => style.percentage_insets.left = Some(v),
+                    _ => {}
+                }
+            }
+        }
     }
 
     // Box-shadow: parse from keyword (stored as full shorthand string).
@@ -4582,6 +4922,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         overflow_x = Some(parse_raw_overflow(k));
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow-y") {
+        overflow_y = Some(parse_raw_overflow(k));
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow-inline") {
+        overflow_x = Some(parse_raw_overflow(k));
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "overflow-block") {
         overflow_y = Some(parse_raw_overflow(k));
     }
     if overflow_x.is_some() || overflow_y.is_some() {
@@ -4899,7 +5245,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 }
             }
             "match-parent" => {
-                if parent.direction_rtl && !style.direction_rtl && parent.text_align == TextAlign::Left
+                if parent.direction_rtl
+                    && !style.direction_rtl
+                    && parent.text_align == TextAlign::Left
                 {
                     TextAlign::Right
                 } else {
@@ -4943,8 +5291,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => WritingMode::HorizontalTb,
         };
     }
-    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-orientation")
-    {
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-orientation") {
         style.text_orientation_upright = k == "upright";
     }
 
@@ -4987,6 +5334,36 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // default ligature substitution; the inverse (or omission) leaves it on.
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-feature-settings") {
         style.ligatures_enabled = !ligatures_disabled_by_feature_settings(k);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-variant-ligatures") {
+        style.ligatures_enabled = !k.split_whitespace().any(|t| {
+            matches!(
+                t,
+                "none" | "no-common-ligatures" | "no-contextual" | "no-discretionary-ligatures"
+            )
+        });
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-kerning") {
+        style.font_kerning_enabled = k != "none";
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "font-synthesis") {
+        style.font_synthesis_weight = !k.split_whitespace().any(|t| t == "none" || t == "style");
+        style.font_synthesis_style = !k.split_whitespace().any(|t| t == "none" || t == "weight");
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-emphasis") {
+        style.text_emphasis_mark = k.split_whitespace().any(|t| matches!(t, "dot" | "filled"));
+        if let Some(CssValue::Color(c)) = k
+            .split_whitespace()
+            .find_map(crate::parser::css::parse_color)
+        {
+            style.text_decoration_color = Some(c);
+        }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-emphasis-style") {
+        style.text_emphasis_mark = k.split_whitespace().any(|t| matches!(t, "dot" | "filled"));
+    }
+    if let Some(CssValue::Color(c)) = get_non_special(map, "text-emphasis-color") {
+        style.text_decoration_color = Some(*c);
     }
 
     // Text-indent
@@ -5058,6 +5435,12 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             _ => VerticalAlign::Baseline,
         };
     }
+    if let Some(CssValue::Length(v)) = get_non_special(map, "vertical-align") {
+        style.vertical_align = VerticalAlign::Length(*v);
+    }
+    if let Some(CssValue::Percentage(v)) = get_non_special(map, "vertical-align") {
+        style.vertical_align = VerticalAlign::Percent(*v / 100.0);
+    }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-overflow") {
         style.text_overflow = match k.as_str() {
             "ellipsis" => TextOverflow::Ellipsis,
@@ -5083,6 +5466,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         if k == "break-all" && style.overflow_wrap == OverflowWrap::Normal {
             style.overflow_wrap = OverflowWrap::Anywhere;
         }
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "hyphens") {
+        style.hyphens_manual = k != "none";
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-collapse") {
         style.border_collapse = match k.as_str() {
@@ -5162,6 +5548,15 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         && let Some(part) = nth_layer_value(k, raster_layer_index.unwrap_or(0))
     {
         style.background_attachment = parse_background_attachment_value(&part);
+        if let Some(ref mut lg) = style.background_gradient {
+            lg.layer_box.attachment = Some(style.background_attachment);
+        }
+        if let Some(ref mut rg) = style.background_radial_gradient {
+            rg.layer_box.attachment = Some(style.background_attachment);
+        }
+        if let Some(ref mut cg) = style.background_conic_gradient {
+            cg.layer_box.attachment = Some(style.background_attachment);
+        }
     }
 
     // Route the gradient layer's own size/position/repeat entry onto the gradient
@@ -5694,10 +6089,17 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "counter-increment") {
         style.counter_increment = parse_counter_directive(k, 1);
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "counter-set") {
+        style.counter_set = parse_counter_directive(k, 0);
+    }
 }
 
 fn parse_list_style_type(k: &str) -> ListStyleType {
-    match k.to_ascii_lowercase().as_str() {
+    let trimmed = k.trim();
+    if let Some(marker) = parse_quoted_css_string(trimmed) {
+        return ListStyleType::String(marker);
+    }
+    match trimmed.to_ascii_lowercase().as_str() {
         "disc" => ListStyleType::Disc,
         "circle" => ListStyleType::Circle,
         "square" => ListStyleType::Square,
@@ -5707,12 +6109,51 @@ fn parse_list_style_type(k: &str) -> ListStyleType {
         "upper-alpha" | "upper-latin" => ListStyleType::UpperAlpha,
         "lower-roman" => ListStyleType::LowerRoman,
         "upper-roman" => ListStyleType::UpperRoman,
+        "cjk-decimal" => ListStyleType::CjkDecimal,
         "none" => ListStyleType::None,
-        // CSS Counter Styles Level 3: an unresolved <counter-style-name> acts
-        // like `decimal` (without computing to it). Until custom styles are
-        // represented separately, decimal is the closest spec-correct fallback.
-        _ => ListStyleType::Decimal,
+        other => ListStyleType::Custom(other.to_string()),
     }
+}
+
+fn parse_quoted_css_string(raw: &str) -> Option<String> {
+    let mut chars = raw.chars();
+    let quote = chars.next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let mut out = String::new();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            if let Some(next) = chars.next() {
+                out.push(next);
+            }
+        } else if ch == quote {
+            return Some(repair_css_string_mojibake(&out));
+        } else {
+            out.push(ch);
+        }
+    }
+    Some(repair_css_string_mojibake(&out))
+}
+
+fn repair_css_string_mojibake(s: &str) -> String {
+    let repaired = s
+        .replace("Ã‚Â«", "«")
+        .replace("Ã‚Â»", "»")
+        .replace("Ã¢ÂÂ¹", "‹")
+        .replace("Ã¢ÂÂº", "›")
+        .replace("Ã«", "«")
+        .replace("Ã»", "»")
+        .replace("Â«", "«")
+        .replace("Â»", "»")
+        .replace("â€¹", "‹")
+        .replace("â€º", "›");
+    for glyph in ["«", "»", "‹", "›"] {
+        if repaired.contains(glyph) {
+            return glyph.to_string();
+        }
+    }
+    repaired
 }
 
 /// Test-only wrapper for `parse_content_value`.
@@ -5770,6 +6211,17 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
                     "{TARGET_PLACEHOLDER_START}text|{target}{TARGET_PLACEHOLDER_END}"
                 )));
             }
+            rest = tail;
+        } else if let Some((inner, tail)) = parse_content_function_balanced(rest, "leader(") {
+            let pattern = parse_quoted_css_string(inner.trim()).unwrap_or_else(|| {
+                let trimmed = inner.trim();
+                if trimmed.is_empty() {
+                    ".".to_string()
+                } else {
+                    trimmed.to_string()
+                }
+            });
+            items.push(ContentItem::Leader(pattern));
             rest = tail;
         } else if let Some((inner, tail)) = parse_content_function(rest, "counters(") {
             // counters(name, sep[, style])
@@ -5878,7 +6330,7 @@ fn parse_quotes_value(raw: &str) -> Option<Vec<(String, String)>> {
                     buf.push(ch);
                 }
             }
-            strings.push(buf);
+            strings.push(repair_css_string_mojibake(&buf));
         } else {
             chars.next();
         }
@@ -8346,8 +8798,10 @@ fn parse_display_value(k: &str) -> Option<Display> {
     match lower.as_str() {
         "none" => return Some(Display::None),
         "inline" => return Some(Display::Inline),
-        "inline-block" | "inline-flex" => return Some(Display::InlineBlock),
+        "inline-block" => return Some(Display::InlineBlock),
+        "inline-flex" => return Some(Display::InlineFlex),
         "block" | "-webkit-box" => return Some(Display::Block),
+        "list-item" => return Some(Display::ListItem),
         "flex" => return Some(Display::Flex),
         "grid" => return Some(Display::Grid),
         "inline-grid" => return Some(Display::InlineGrid),
@@ -8368,7 +8822,7 @@ fn parse_display_value(k: &str) -> Option<Display> {
     if parts.contains(&"none") {
         Some(Display::None)
     } else if parts.contains(&"inline") && parts.contains(&"flex") {
-        Some(Display::InlineBlock)
+        Some(Display::InlineFlex)
     } else if parts.contains(&"flex") {
         Some(Display::Flex)
     } else if parts.contains(&"grid") {
@@ -8397,7 +8851,9 @@ fn parse_display_value(k: &str) -> Option<Display> {
         Some(Display::InlineBlock)
     } else if parts.contains(&"inline") {
         Some(Display::Inline)
-    } else if parts.contains(&"block") || parts.contains(&"flow") || parts.contains(&"list-item") {
+    } else if parts.contains(&"list-item") {
+        Some(Display::ListItem)
+    } else if parts.contains(&"block") || parts.contains(&"flow") {
         Some(Display::Block)
     } else {
         None

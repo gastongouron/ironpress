@@ -52,6 +52,7 @@ pub enum HtmlTag {
     Mark,
     Abbr,
     Cite,
+    Q,
     Section,
     Article,
     Nav,
@@ -127,6 +128,7 @@ impl HtmlTag {
             "mark" => Self::Mark,
             "abbr" => Self::Abbr,
             "cite" => Self::Cite,
+            "q" => Self::Q,
             "section" => Self::Section,
             "article" => Self::Article,
             "nav" => Self::Nav,
@@ -216,6 +218,7 @@ impl HtmlTag {
                 | Self::Mark
                 | Self::Abbr
                 | Self::Cite
+                | Self::Q
                 // `<br>` is an inline-level forced line break (HTML UA stylesheet):
                 // it must stay within the inline formatting context and NOT default
                 // to `display: block`, which would split a paragraph's inline runs
@@ -337,6 +340,7 @@ impl ElementNode {
             HtmlTag::Mark => "mark",
             HtmlTag::Abbr => "abbr",
             HtmlTag::Cite => "cite",
+            HtmlTag::Q => "q",
             HtmlTag::Section => "section",
             HtmlTag::Article => "article",
             HtmlTag::Nav => "nav",
