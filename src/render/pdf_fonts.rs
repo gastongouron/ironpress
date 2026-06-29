@@ -120,7 +120,8 @@ fn collect_non_winansi_from_run(
         if !crate::render::pdf::is_winansi_char(ch) {
             chars.insert(ch);
         } else if let FontFamily::Custom(name) = &run.font_family
-            && let Some((_, font)) = crate::system_fonts::find_font(custom_fonts, name, false, false)
+            && let Some((_, font)) =
+                crate::system_fonts::find_font(custom_fonts, name, false, false)
         {
             let cp = ch as u32;
             if !font.cmap.contains_key(&cp) {
@@ -375,6 +376,31 @@ fn collect_font_usage_from_run(
     else {
         return;
     };
+
+    if crate::text::needs_unicode_fallback(run, custom_fonts) {
+        for (segment_text, use_fallback) in
+            crate::text::split_run_by_font_coverage(run, custom_fonts)
+        {
+            let mut sub_run = run.clone();
+            sub_run.text = segment_text;
+            if use_fallback {
+                if let Some((shaped_run, fallback_key, _)) =
+                    crate::text::shape_with_unicode_fallback(&sub_run, custom_fonts)
+                {
+                    let font_usage = usage.entry(fallback_key.to_string()).or_default();
+                    for glyph in shaped_run.glyphs {
+                        font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+                    }
+                }
+            } else if let Some(shaped_run) = crate::text::shape_text_run(&sub_run, custom_fonts) {
+                let font_usage = usage.entry(resolved_name.to_string()).or_default();
+                for glyph in shaped_run.glyphs {
+                    font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+                }
+            }
+        }
+        return;
+    }
 
     let font_usage = usage.entry(resolved_name.to_string()).or_default();
     if let Some(shaped_run) = crate::text::shape_text_run(run, custom_fonts) {

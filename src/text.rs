@@ -39,6 +39,11 @@ pub(crate) fn measure_text_width(
     italic: bool,
     fonts: &HashMap<String, TtfFont>,
 ) -> Option<f32> {
+    if let Some(width) =
+        measure_text_width_by_font_face_ranges(text, font_size, font_family, bold, italic, fonts)
+    {
+        return Some(width);
+    }
     let (_, font) = resolve_custom_font(font_family, bold, italic, fonts)?;
     shape_text_with_font(text, font_size, font, false).map(|run| run.width)
 }
@@ -82,6 +87,10 @@ pub(crate) fn shape_with_unicode_fallback<'a>(
     run: &TextRun,
     fonts: &'a HashMap<String, TtfFont>,
 ) -> Option<(ShapedRun, &'a str, &'a TtfFont)> {
+    if let Some((shaped_run, font_key, font)) = shape_with_font_face_range(run, fonts) {
+        return Some((shaped_run, font_key, font));
+    }
+
     // For standard PDF fonts, fall back when text has non-WinAnsi characters.
     // For custom fonts (including bundled Liberation), fall back when the
     // primary font cannot shape the text (missing glyphs for CJK, Arabic, etc.).
@@ -128,6 +137,134 @@ pub(crate) fn shape_with_unicode_fallback<'a>(
         }
     }
     None
+}
+
+fn measure_text_width_by_font_face_ranges(
+    text: &str,
+    font_size: f32,
+    font_family: &FontFamily,
+    bold: bool,
+    italic: bool,
+    fonts: &HashMap<String, TtfFont>,
+) -> Option<f32> {
+    let FontFamily::Custom(name) = font_family else {
+        return None;
+    };
+    let (_, primary_font) = crate::system_fonts::find_font(fonts, name, bold, italic)?;
+    if text
+        .chars()
+        .all(|ch| primary_font.cmap.contains_key(&(ch as u32)))
+    {
+        return None;
+    }
+
+    let mut width = 0.0;
+    for segment in split_text_by_font_face_ranges(text, name, bold, italic, fonts)? {
+        let shaped = shape_text_with_font(&segment.text, font_size, segment.font, false)?;
+        width += shaped.width;
+    }
+    Some(width)
+}
+
+fn shape_with_font_face_range<'a>(
+    run: &TextRun,
+    fonts: &'a HashMap<String, TtfFont>,
+) -> Option<(ShapedRun, &'a str, &'a TtfFont)> {
+    let FontFamily::Custom(name) = &run.font_family else {
+        return None;
+    };
+    for (key, font) in font_face_range_fonts(fonts, name, run.bold, run.italic) {
+        if !run
+            .text
+            .chars()
+            .all(|ch| font.cmap.contains_key(&(ch as u32)))
+        {
+            continue;
+        }
+        if let Some(shaped) =
+            shape_text_with_font(&run.text, run.font_size, font, run.disable_ligatures)
+            && !shaped.glyphs.is_empty()
+            && shaped.glyphs.iter().all(|g| g.glyph_id != 0)
+        {
+            return Some((shaped, key, font));
+        }
+    }
+    None
+}
+
+struct FontFaceRangeSegment<'a> {
+    text: String,
+    font: &'a TtfFont,
+}
+
+fn split_text_by_font_face_ranges<'a>(
+    text: &str,
+    family: &str,
+    bold: bool,
+    italic: bool,
+    fonts: &'a HashMap<String, TtfFont>,
+) -> Option<Vec<FontFaceRangeSegment<'a>>> {
+    let (_, primary_font) = crate::system_fonts::find_font(fonts, family, bold, italic)?;
+    let mut segments = Vec::new();
+    let mut current = String::new();
+    let mut current_font: Option<&TtfFont> = None;
+
+    for ch in text.chars() {
+        let font = if primary_font.cmap.contains_key(&(ch as u32)) {
+            primary_font
+        } else {
+            font_face_range_fonts(fonts, family, bold, italic)
+                .into_iter()
+                .map(|(_, font)| font)
+                .find(|font| font.cmap.contains_key(&(ch as u32)))?
+        };
+
+        if let Some(active) = current_font {
+            if std::ptr::eq(active, font) {
+                current.push(ch);
+                continue;
+            }
+            segments.push(FontFaceRangeSegment {
+                text: std::mem::take(&mut current),
+                font: active,
+            });
+        }
+        current_font = Some(font);
+        current.push(ch);
+    }
+
+    if let Some(font) = current_font {
+        segments.push(FontFaceRangeSegment {
+            text: current,
+            font,
+        });
+    }
+    Some(segments)
+}
+
+fn font_face_range_fonts<'a>(
+    fonts: &'a HashMap<String, TtfFont>,
+    family: &str,
+    bold: bool,
+    italic: bool,
+) -> Vec<(&'a str, &'a TtfFont)> {
+    let prefix = format!(
+        "{}__fontface_",
+        crate::system_fonts::font_variant_key(family, bold, italic)
+    );
+    let mut matches: Vec<_> = fonts
+        .iter()
+        .filter_map(|(key, font)| {
+            key.strip_prefix(&prefix)
+                .and_then(|suffix| suffix.parse::<usize>().ok())
+                .map(|index| (index, key.as_str(), font))
+        })
+        .collect();
+    matches.sort_by_key(|(index, _, _)| *index);
+    matches
+        .into_iter()
+        .map(|(_, key, font)| (key, font))
+        .collect()
 }
 
 /// Check if a run needs unicode fallback (has characters the primary font can't cover).

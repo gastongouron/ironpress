@@ -1,6 +1,6 @@
 use super::engine::{
     decode_footnote_link, layout_element_paint_order, table_cell_content_height, FootnoteItem,
-    LayoutElement, Page, PageBreakSide, FOOTNOTE_CALL_FONT_SCALE,
+    LayoutElement, Page, PageBreakSide, TableCell, FOOTNOTE_CALL_FONT_SCALE,
 };
 use crate::style::computed::{
     BorderCollapse, BoxDecorationBreak, Clear, Float, ObjectFit, Position,
@@ -979,9 +979,251 @@ fn split_element(
         .or_else(|| split_text_block(element, avail_below_box_top))
         .or_else(|| split_image_block(element, avail_below_box_top))
         .or_else(|| split_svg_block(element, avail_below_box_top))
+        .or_else(|| split_fixed_height_container(element, avail_below_box_top))
         .or_else(|| split_table_row(element, avail_below_box_top))
+        .or_else(|| split_grid_row(element, avail_below_box_top))
         .or_else(|| split_flex_row(element, avail_below_box_top))
         .or_else(|| split_container(element, avail_below_box_top))
+}
+
+fn split_fixed_height_container(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::Container {
+        block_height,
+        children,
+        position,
+        float,
+        ..
+    } = element
+    else {
+        return None;
+    };
+    let box_h = (*block_height)?;
+    if *position != Position::Static
+        || *float != Float::None
+        || !children.is_empty()
+        || box_h <= 1.0
+        || avail_below_box_top <= 1.0
+        || box_h <= avail_below_box_top + 0.5
+    {
+        return None;
+    }
+
+    let consumed_h = avail_below_box_top.min(box_h - 1.0).max(1.0);
+    let rest_h = (box_h - consumed_h).max(0.0);
+    if rest_h <= 0.5 {
+        return None;
+    }
+
+    let mut first = element.clone();
+    if let LayoutElement::Container {
+        block_height,
+        margin_bottom,
+        padding_bottom,
+        border,
+        border_radii,
+        border_radii_y,
+        ..
+    } = &mut first
+    {
+        *block_height = Some(consumed_h);
+        *margin_bottom = 0.0;
+        *padding_bottom = 0.0;
+        border.bottom.width = 0.0;
+        border_radii[2] = 0.0;
+        border_radii[3] = 0.0;
+        border_radii_y[2] = 0.0;
+        border_radii_y[3] = 0.0;
+    }
+
+    let mut rest = element.clone();
+    if let LayoutElement::Container {
+        block_height,
+        margin_top,
+        padding_top,
+        border,
+        border_radii,
+        border_radii_y,
+        ..
+    } = &mut rest
+    {
+        *block_height = Some(rest_h);
+        *margin_top = 0.0;
+        *padding_top = 0.0;
+        border.top.width = 0.0;
+        border_radii[0] = 0.0;
+        border_radii[1] = 0.0;
+        border_radii_y[0] = 0.0;
+        border_radii_y[1] = 0.0;
+    }
+
+    Some((first, rest))
+}
+
+fn split_nested_rows_at(
+    rows: &[LayoutElement],
+    available_height: f32,
+) -> (Vec<LayoutElement>, Vec<LayoutElement>) {
+    if rows.is_empty() || available_height <= 0.5 {
+        return (Vec::new(), rows.to_vec());
+    }
+    let mut first = Vec::new();
+    let mut rest = Vec::new();
+    let mut used = 0.0_f32;
+    for (idx, child) in rows.iter().enumerate() {
+        let child_h = estimate_element_height(child);
+        if used + child_h <= available_height + 0.5 {
+            first.push(child.clone());
+            used += child_h;
+            continue;
+        }
+        let child_avail = (available_height - used - element_margins(child).0).max(0.0);
+        if child_avail > 1.0 {
+            if let Some((head, tail)) = split_fixed_height_container(child, child_avail)
+                .or_else(|| split_element(child, child_avail))
+            {
+                first.push(head);
+                rest.push(tail);
+                rest.extend_from_slice(&rows[idx + 1..]);
+                return (first, rest);
+            }
+        }
+        rest.extend_from_slice(&rows[idx..]);
+        return (first, rest);
+    }
+    (first, rest)
+}
+
+fn split_grid_cell(cell: &TableCell, first_h: f32, rest_h: f32) -> (TableCell, TableCell) {
+    let available_lines = (first_h - cell.padding_top).max(0.0);
+    let mut acc = 0.0_f32;
+    let mut cut = 0usize;
+    for (idx, line) in cell.lines.iter().enumerate() {
+        let next = acc + line.height;
+        if idx > 0 && next > available_lines + 0.01 {
+            break;
+        }
+        acc = next;
+        cut = idx + 1;
+    }
+
+    let text_first_h: f32 = cell.lines[..cut.min(cell.lines.len())]
+        .iter()
+        .map(|line| line.height)
+        .sum();
+    let nested_avail = (first_h - cell.padding_top - text_first_h).max(0.0);
+    let (first_nested, rest_nested) = split_nested_rows_at(&cell.nested_rows, nested_avail);
+
+    let mut first = cell.clone();
+    first.lines = first.lines[..cut.min(first.lines.len())].to_vec();
+    first.nested_rows = first_nested;
+    first.border.bottom.width = 0.0;
+    first.padding_bottom = 0.0;
+    first.min_content_height = first_h;
+    if let Some(inset) = &mut first.grid_inset {
+        inset.height = first_h;
+        inset.offset_y = inset.offset_y.min(first_h);
+    }
+
+    let mut rest = cell.clone();
+    let cut = cut.min(rest.lines.len());
+    rest.lines = rest.lines[cut..].to_vec();
+    rest.nested_rows = rest_nested;
+    rest.border.top.width = 0.0;
+    rest.padding_top = 0.0;
+    let rest_intrinsic_h = rest.padding_top
+        + rest.lines.iter().map(|line| line.height).sum::<f32>()
+        + rest
+            .nested_rows
+            .iter()
+            .map(estimate_element_height)
+            .sum::<f32>()
+        + rest.padding_bottom;
+    let adjusted_rest_intrinsic_h = if rest.lines.is_empty() && !rest.nested_rows.is_empty() {
+        rest_intrinsic_h * 1.07
+    } else {
+        rest_intrinsic_h
+    };
+    let adjusted_rest_h = if adjusted_rest_intrinsic_h > 0.5 {
+        rest_h.min(adjusted_rest_intrinsic_h)
+    } else {
+        rest_h
+    };
+    rest.min_content_height = adjusted_rest_h;
+    if let Some(inset) = &mut rest.grid_inset {
+        inset.height = adjusted_rest_h;
+        inset.offset_y = 0.0;
+    }
+
+    (first, rest)
+}
+
+fn split_grid_row(
+    element: &LayoutElement,
+    avail_below_box_top: f32,
+) -> Option<(LayoutElement, LayoutElement)> {
+    let LayoutElement::GridRow {
+        cells,
+        padding_top,
+        border,
+        ..
+    } = element
+    else {
+        return None;
+    };
+    let row_h = cells
+        .iter()
+        .map(|cell| cell.min_content_height)
+        .fold(0.0_f32, f32::max);
+    let available_row_h = avail_below_box_top - border.top.width - *padding_top;
+    if row_h <= 1.0 || available_row_h <= 1.0 || row_h <= available_row_h + 0.5 {
+        return None;
+    }
+
+    let first_h = available_row_h.min(row_h - 1.0).max(1.0);
+    let rest_h = (row_h - first_h).max(0.0);
+    if rest_h <= 0.5 {
+        return None;
+    }
+
+    let split_cells: Vec<(TableCell, TableCell)> = cells
+        .iter()
+        .map(|cell| split_grid_cell(cell, first_h, rest_h))
+        .collect();
+
+    let mut first = element.clone();
+    if let LayoutElement::GridRow {
+        cells,
+        margin_bottom,
+        padding_bottom,
+        border,
+        ..
+    } = &mut first
+    {
+        *cells = split_cells.iter().map(|(cell, _)| cell.clone()).collect();
+        *margin_bottom = 0.0;
+        *padding_bottom = 0.0;
+        border.bottom.width = 0.0;
+    }
+
+    let mut rest = element.clone();
+    if let LayoutElement::GridRow {
+        cells,
+        margin_top,
+        padding_top,
+        border,
+        ..
+    } = &mut rest
+    {
+        *cells = split_cells.into_iter().map(|(_, cell)| cell).collect();
+        *margin_top = 0.0;
+        *padding_top = 0.0;
+        border.top.width = 0.0;
+    }
+
+    Some((first, rest))
 }
 
 /// Split a table row that is taller than the current fragmentainer. CSS Tables
@@ -1310,6 +1552,22 @@ fn split_container(
             // the whole container as-is (unchanged overflow behaviour).
             None if children.len() >= 2 => (children[..1].to_vec(), children[1..].to_vec()),
             None => return None,
+        }
+    } else if idx < children.len() {
+        let next_child = &children[idx];
+        let child_avail = (avail_children - acc - element_margins(next_child).0).max(0.0);
+        if child_avail > 1.0 && matches!(next_child, LayoutElement::GridRow { .. }) {
+            if let Some((c_first, c_rest)) = split_element(next_child, child_avail) {
+                let mut first_children = children[..idx].to_vec();
+                first_children.push(c_first);
+                let mut rest_children = vec![c_rest];
+                rest_children.extend_from_slice(&children[idx + 1..]);
+                (first_children, rest_children)
+            } else {
+                (children[..idx].to_vec(), children[idx..].to_vec())
+            }
+        } else {
+            (children[..idx].to_vec(), children[idx..].to_vec())
         }
     } else if idx >= children.len() {
         // Every child fits at this boundary (nothing to move to a continuation):

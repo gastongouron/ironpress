@@ -1770,6 +1770,11 @@ pub enum ColorFilterOp {
     Contrast(f32),
     Saturate(f32),
     HueRotate(f32),
+    Matrix([f32; 20]),
+    Blur(f32),
+    Offset { dx: f32, dy: f32, keep_source: bool },
+    DropShadow(DropShadow),
+    MorphologyDilate(f32),
 }
 
 impl Default for ComputedStyle {
@@ -2265,6 +2270,10 @@ pub fn compute_style_with_context(
     }
     sync_line_height_from_absolute(&mut style);
 
+    if tag != HtmlTag::Img {
+        add_filter_drop_shadow_box_shadow(&mut style);
+    }
+
     // Resolve `currentColor`. Two cases collapse here, both needing the
     // element's now-finalized `color`:
     //   1. The legacy parser parks an explicit `currentColor` keyword as a
@@ -2322,6 +2331,11 @@ fn resolve_current_color(style: &mut ComputedStyle) {
         if is_sentinel(&shadow.color) {
             shadow.color = resolved;
         }
+    }
+    if let Some(shadow) = &mut style.drop_shadow
+        && drop_shadow_color_is_current_color(shadow.color)
+    {
+        shadow.color = resolved.to_f32_rgba();
     }
 }
 
@@ -5682,8 +5696,8 @@ fn parse_filter_blur(val: &str) -> Option<f32> {
 /// Parse a full CSS `filter` value into (blur_radius, ordered color ops,
 /// opacity multiplier, drop-shadow, url-reference id). Recognizes
 /// blur/grayscale/sepia/invert/brightness/contrast/saturate/hue-rotate/
-/// opacity/drop-shadow and `url(#id)` (css-filter-effects-1 §3); other unknown
-/// functions are ignored. `none` clears. The opacity multiplier is the product
+/// opacity/drop-shadow and `url(#id)` (css-filter-effects-1 §3); invalid or
+/// unknown functions invalidate the whole list. `none` clears. The opacity multiplier is the product
 /// of all `opacity()` functions (1.0 when none are present) and is intended to
 /// be folded into the element's final `style.opacity`. The url id (if any) is
 /// resolved later, during layout, where the DOM `<filter>` is reachable.
@@ -5706,16 +5720,25 @@ fn parse_filter(
     let mut drop_shadow = None;
     let mut url_id = None;
     let mut rest = raw;
-    while let Some(open) = rest.find('(') {
+    while !rest.trim().is_empty() {
+        rest = rest.trim_start();
+        let Some(open) = rest.find('(') else {
+            return (Some(0.0), Vec::new(), 1.0, None, None);
+        };
+        if rest[..open].trim().is_empty() {
+            return (Some(0.0), Vec::new(), 1.0, None, None);
+        }
         let name = rest[..open].trim().to_ascii_lowercase();
         let Some(close_rel) = rest[open + 1..].find(')') else {
-            break;
+            return (Some(0.0), Vec::new(), 1.0, None, None);
         };
         let arg = rest[open + 1..open + 1 + close_rel].trim();
         match name.as_str() {
             "blur" => {
                 if let Some(r) = parse_filter_blur(&format!("blur({arg})")) {
                     blur = Some(r);
+                } else {
+                    return (Some(0.0), Vec::new(), 1.0, None, None);
                 }
             }
             "grayscale" => {
@@ -5757,6 +5780,8 @@ fn parse_filter(
             "drop-shadow" => {
                 if let Some(ds) = parse_drop_shadow(arg) {
                     drop_shadow = Some(ds);
+                } else {
+                    return (Some(0.0), Vec::new(), 1.0, None, None);
                 }
             }
             "url" => {
@@ -5767,9 +5792,11 @@ fn parse_filter(
                 let inner = arg.trim().trim_matches(|c| c == '\'' || c == '"');
                 if let Some(id) = inner.strip_prefix('#') {
                     url_id = Some(id.to_string());
+                } else {
+                    return (Some(0.0), Vec::new(), 1.0, None, None);
                 }
             }
-            _ => {}
+            _ => return (Some(0.0), Vec::new(), 1.0, None, None),
         }
         rest = &rest[open + 1 + close_rel + 1..];
     }
@@ -5785,16 +5812,15 @@ fn parse_filter(
 
 /// Parse the inner argument of `drop-shadow(<offset-x> <offset-y> <blur>?
 /// <color>?)` (css-filter-effects-1 §4.4). Lengths become points; the color
-/// defaults to the element's `currentColor` (approximated as opaque black here,
-/// matching the common case). Returns `None` when the two required offsets are
-/// missing.
+/// defaults to the element's `currentColor`, resolved after cascade finalization.
+/// Returns `None` when the two required offsets are missing.
 fn parse_drop_shadow(arg: &str) -> Option<DropShadow> {
     let mut lengths: Vec<f32> = Vec::new();
     let mut color: Option<(f32, f32, f32, f32)> = None;
     for tok in arg.split_whitespace() {
         if let Some(CssValue::Length(l)) = crate::parser::css::parse_length(tok) {
             lengths.push(l);
-        } else if let Some(CssValue::Color(c)) = crate::parser::css::parse_color(tok) {
+        } else if let Some(c) = parse_border_color(tok) {
             color = Some(c.to_f32_rgba());
         } else if tok == "0" {
             lengths.push(0.0);
@@ -5807,8 +5833,42 @@ fn parse_drop_shadow(arg: &str) -> Option<DropShadow> {
         dx: lengths[0],
         dy: lengths[1],
         blur: lengths.get(2).copied().unwrap_or(0.0).max(0.0),
-        color: color.unwrap_or((0.0, 0.0, 0.0, 1.0)),
+        color: color.unwrap_or(CURRENT_COLOR_SENTINEL.to_f32_rgba()),
     })
+}
+
+fn drop_shadow_color_is_current_color(color: (f32, f32, f32, f32)) -> bool {
+    let sentinel = CURRENT_COLOR_SENTINEL.to_f32_rgba();
+    (color.0 - sentinel.0).abs() < f32::EPSILON
+        && (color.1 - sentinel.1).abs() < f32::EPSILON
+        && (color.2 - sentinel.2).abs() < f32::EPSILON
+        && (color.3 - sentinel.3).abs() < f32::EPSILON
+}
+
+fn add_filter_drop_shadow_box_shadow(style: &mut ComputedStyle) {
+    let Some(shadow) = style.drop_shadow else {
+        return;
+    };
+    style.box_shadow.push(BoxShadow {
+        offset_x: shadow.dx,
+        offset_y: shadow.dy,
+        blur: shadow.blur,
+        spread: 0.0,
+        color: color_from_filter_shadow(shadow.color),
+        inset: false,
+    });
+}
+
+fn color_from_filter_shadow(color: (f32, f32, f32, f32)) -> Color {
+    if drop_shadow_color_is_current_color(color) {
+        return CURRENT_COLOR_SENTINEL;
+    }
+    Color {
+        r: (color.0 * 255.0).round().clamp(0.0, 255.0) as u8,
+        g: (color.1 * 255.0).round().clamp(0.0, 255.0) as u8,
+        b: (color.2 * 255.0).round().clamp(0.0, 255.0) as u8,
+        a: (color.3 * 255.0).round().clamp(0.0, 255.0) as u8,
+    }
 }
 
 /// Parse a filter amount: `100%` -> 1.0, `1.5` -> 1.5, empty -> `default`.
@@ -6787,12 +6847,10 @@ fn parse_clip_position(raw: &str) -> (LengthPercent, LengthPercent) {
     }
     let edge_value = |edge: &str, offset: Option<&str>| -> Option<LengthPercent> {
         match edge {
-            "left" | "top" => offset
-                .and_then(parse_clip_len_lp)
-                .or(Some(LengthPercent {
-                    value: 0.0,
-                    is_percent: true,
-                })),
+            "left" | "top" => offset.and_then(parse_clip_len_lp).or(Some(LengthPercent {
+                value: 0.0,
+                is_percent: true,
+            })),
             "right" | "bottom" => {
                 if let Some(lp) = offset.and_then(parse_clip_len_lp) {
                     if lp.is_percent {
@@ -6849,7 +6907,10 @@ fn parse_clip_position(raw: &str) -> (LengthPercent, LengthPercent) {
     if matches!(first, "top" | "bottom") {
         (center, edge_value(first, None).unwrap_or(center))
     } else {
-        (edge_value(first, None).unwrap_or_else(|| parse_clip_len_lp(first).unwrap_or(center)), center)
+        (
+            edge_value(first, None).unwrap_or_else(|| parse_clip_len_lp(first).unwrap_or(center)),
+            center,
+        )
     }
 }
 
@@ -6975,9 +7036,7 @@ fn parse_clip_path(val: &str) -> Option<ClipPath> {
         }
     }
     if let Some(inner) = split_function_args(raw, "path") {
-        let d = inner
-            .trim()
-            .trim_matches(|c: char| c == '"' || c == '\'');
+        let d = inner.trim().trim_matches(|c: char| c == '"' || c == '\'');
         let commands = crate::parser::svg::parse_path_data(d);
         if !commands.is_empty() {
             return Some(ClipPath::Path {
@@ -7175,7 +7234,9 @@ fn parse_mask_image(val: &str, mode: MaskMode) -> Option<Option<MaskSource>> {
     }
     let layers: Vec<MaskLayer> = split_top_level_commas_value(raw)
         .into_iter()
-        .filter_map(|part| parse_mask_layer_source(&part).map(|src| mask_layer_from_source(src, mode)))
+        .filter_map(|part| {
+            parse_mask_layer_source(&part).map(|src| mask_layer_from_source(src, mode))
+        })
         .collect();
     mask_source_from_layers(layers)
 }
@@ -7284,11 +7345,26 @@ fn apply_mask_longhands(map: &StyleMap, style: &mut ComputedStyle) {
     };
     let mut layers = match source {
         MaskSource::Layers(layers) => layers,
-        MaskSource::Linear(g) => vec![mask_layer_from_source(MaskLayerSource::Linear(g), style.mask_mode)],
-        MaskSource::Radial(g) => vec![mask_layer_from_source(MaskLayerSource::Radial(g), style.mask_mode)],
-        MaskSource::Conic(g) => vec![mask_layer_from_source(MaskLayerSource::Conic(g), style.mask_mode)],
-        MaskSource::Svg(bytes) => vec![mask_layer_from_source(MaskLayerSource::Svg(bytes), style.mask_mode)],
-        MaskSource::Ref(id) => vec![mask_layer_from_source(MaskLayerSource::Ref(id), style.mask_mode)],
+        MaskSource::Linear(g) => vec![mask_layer_from_source(
+            MaskLayerSource::Linear(g),
+            style.mask_mode,
+        )],
+        MaskSource::Radial(g) => vec![mask_layer_from_source(
+            MaskLayerSource::Radial(g),
+            style.mask_mode,
+        )],
+        MaskSource::Conic(g) => vec![mask_layer_from_source(
+            MaskLayerSource::Conic(g),
+            style.mask_mode,
+        )],
+        MaskSource::Svg(bytes) => vec![mask_layer_from_source(
+            MaskLayerSource::Svg(bytes),
+            style.mask_mode,
+        )],
+        MaskSource::Ref(id) => vec![mask_layer_from_source(
+            MaskLayerSource::Ref(id),
+            style.mask_mode,
+        )],
         MaskSource::BorderRing { width } => {
             style.mask_image = Some(MaskSource::BorderRing { width });
             return;
@@ -9488,7 +9564,11 @@ fn max_gradient_length_stop(parts: &[String]) -> Option<f32> {
             if let Some((v, false)) = parse_clip_len(t) {
                 max_len = max_len.max(v);
                 split_at -= 1;
-            } else if t.strip_suffix('%').and_then(|n| n.parse::<f32>().ok()).is_some() {
+            } else if t
+                .strip_suffix('%')
+                .and_then(|n| n.parse::<f32>().ok())
+                .is_some()
+            {
                 split_at -= 1;
             } else {
                 break;

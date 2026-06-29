@@ -993,18 +993,116 @@ pub fn filter_element_color_ops(
     // below too; the most specific wins for the primitive that supplies the op.
     let filter_space_srgb = color_interpolation_filters_is_srgb(filter_el);
     let mut use_linear_rgb = !filter_space_srgb;
-    for child in &filter_el.children {
-        let DomNode::Element(el) = child else {
-            continue;
-        };
-        if !el.raw_tag_name.eq_ignore_ascii_case("feColorMatrix") {
-            continue;
-        }
+    let mut flood_color: Option<(f32, f32, f32, f32)> = None;
+    let element_children: Vec<&ElementNode> = filter_el
+        .children
+        .iter()
+        .filter_map(|child| match child {
+            DomNode::Element(el) => Some(el),
+            _ => None,
+        })
+        .collect();
+    for (idx, el) in element_children.iter().enumerate() {
         // A primitive may override the filter's color space; an explicit sRGB on
         // any contributing primitive disables linearRGB for the whole recolor
         // (we apply ops as a single composite, so the box uses one space).
         if color_interpolation_filters_is_srgb(el) {
             use_linear_rgb = false;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feFlood") {
+            flood_color = Some(svg_flood_color(el));
+            continue;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feGaussianBlur") {
+            let std_dev = attr_f32(el, "stdDeviation");
+            if std_dev > 0.0 {
+                ops.push(ColorFilterOp::Blur(std_dev * 0.75));
+            }
+            continue;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feDropShadow") {
+            let mut color = svg_flood_color(el);
+            if let Some(opacity) = el
+                .attributes
+                .get("flood-opacity")
+                .and_then(|v| v.trim().parse::<f32>().ok())
+            {
+                color.3 *= opacity.clamp(0.0, 1.0);
+            }
+            ops.push(ColorFilterOp::DropShadow(
+                crate::style::computed::DropShadow {
+                    dx: attr_f32(el, "dx") * 0.75,
+                    dy: attr_f32(el, "dy") * 0.75,
+                    blur: attr_f32(el, "stdDeviation") * 0.75,
+                    color,
+                },
+            ));
+            continue;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feOffset") {
+            let keep_source = element_children
+                .get(idx + 1)
+                .is_some_and(|next| next.raw_tag_name.eq_ignore_ascii_case("feMerge"));
+            ops.push(ColorFilterOp::Offset {
+                dx: attr_f32(el, "dx") * 0.75,
+                dy: attr_f32(el, "dy") * 0.75,
+                keep_source,
+            });
+            continue;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feMorphology")
+            && el
+                .attributes
+                .get("operator")
+                .is_none_or(|v| v.eq_ignore_ascii_case("dilate"))
+        {
+            let radius = el
+                .attributes
+                .get("radius")
+                .and_then(|v| v.split_whitespace().next())
+                .and_then(|v| v.parse::<f32>().ok())
+                .unwrap_or(0.0);
+            if radius > 0.0 {
+                ops.push(ColorFilterOp::MorphologyDilate(radius * 0.75));
+            }
+            continue;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feBlend")
+            && el
+                .attributes
+                .get("mode")
+                .is_some_and(|v| v.eq_ignore_ascii_case("multiply"))
+            && let Some((r, g, b, _)) = flood_color
+        {
+            let (r, g, b) = filter_rgb_constants(r, g, b, use_linear_rgb);
+            ops.push(ColorFilterOp::Matrix([
+                r, 0.0, 0.0, 0.0, 0.0, 0.0, g, 0.0, 0.0, 0.0, 0.0, 0.0, b, 0.0, 0.0, 0.0, 0.0, 0.0,
+                1.0, 0.0,
+            ]));
+            continue;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feComposite")
+            && el
+                .attributes
+                .get("operator")
+                .is_some_and(|v| v.eq_ignore_ascii_case("in"))
+            && let Some((r, g, b, a)) = flood_color
+        {
+            let (r, g, b) = filter_rgb_constants(r, g, b, use_linear_rgb);
+            ops.push(ColorFilterOp::Matrix([
+                0.0, 0.0, 0.0, 0.0, r, 0.0, 0.0, 0.0, 0.0, g, 0.0, 0.0, 0.0, 0.0, b, 0.0, 0.0, 0.0,
+                a, 0.0,
+            ]));
+            continue;
+        }
+        if el.raw_tag_name.eq_ignore_ascii_case("feComponentTransfer") {
+            if let Some(matrix) = component_transfer_matrix(el) {
+                ops.push(ColorFilterOp::Matrix(matrix));
+            }
+            continue;
+        }
+        if !el.raw_tag_name.eq_ignore_ascii_case("feColorMatrix") {
+            continue;
         }
         let kind = el
             .attributes
@@ -1039,7 +1137,12 @@ pub fn filter_element_color_ops(
                     ops.push(op);
                 }
             }
-            // luminanceToAlpha touches alpha only; no RGB recolor to apply.
+            "luminancetoalpha" => {
+                ops.push(ColorFilterOp::Matrix([
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.2125, 0.7154, 0.0721, 0.0, 0.0,
+                ]));
+            }
             _ => {}
         }
     }
@@ -1084,6 +1187,7 @@ fn color_matrix_to_op(values: &str) -> Option<crate::style::computed::ColorFilte
     if m.len() != 20 {
         return None;
     }
+    let matrix: [f32; 20] = m.clone().try_into().ok()?;
     // The saturate(s) matrix (filter-effects §15.9) has the form:
     //   row R: 0.213+0.787s  0.715-0.715s  0.072-0.072s  0 0
     //   row G: 0.213-0.213s  0.715+0.285s  0.072-0.072s  0 0
@@ -1109,7 +1213,120 @@ fn color_matrix_to_op(values: &str) -> Option<crate::style::computed::ColorFilte
     if saturate_ok {
         return Some(ColorFilterOp::Saturate(s.max(0.0)));
     }
-    None
+    Some(ColorFilterOp::Matrix(matrix))
+}
+
+fn svg_flood_color(el: &ElementNode) -> (f32, f32, f32, f32) {
+    let mut color = el
+        .attributes
+        .get("flood-color")
+        .and_then(|v| crate::parser::css::parse_color(v))
+        .and_then(|v| match v {
+            crate::parser::css::CssValue::Color(c) => Some(c.to_f32_rgba()),
+            _ => None,
+        })
+        .unwrap_or((0.0, 0.0, 0.0, 1.0));
+    if let Some(opacity) = el
+        .attributes
+        .get("flood-opacity")
+        .and_then(|v| v.trim().parse::<f32>().ok())
+    {
+        color.3 *= opacity.clamp(0.0, 1.0);
+    }
+    color
+}
+
+fn filter_rgb_constants(r: f32, g: f32, b: f32, linear_rgb: bool) -> (f32, f32, f32) {
+    if linear_rgb {
+        (
+            svg_srgb_to_linear(r),
+            svg_srgb_to_linear(g),
+            svg_srgb_to_linear(b),
+        )
+    } else {
+        (r, g, b)
+    }
+}
+
+fn svg_srgb_to_linear(c: f32) -> f32 {
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+fn component_transfer_matrix(el: &ElementNode) -> Option<[f32; 20]> {
+    let mut slopes = [1.0_f32; 4];
+    let mut intercepts = [0.0_f32; 4];
+    for child in &el.children {
+        let DomNode::Element(func) = child else {
+            continue;
+        };
+        let channel = match func.raw_tag_name.to_ascii_lowercase().as_str() {
+            "fefuncr" => 0,
+            "fefuncg" => 1,
+            "fefuncb" => 2,
+            "fefunca" => 3,
+            _ => continue,
+        };
+        let kind = func
+            .attributes
+            .get("type")
+            .map(|v| v.trim().to_ascii_lowercase())
+            .unwrap_or_else(|| "identity".to_string());
+        match kind.as_str() {
+            "identity" => {}
+            "table" => {
+                let values: Vec<f32> = func
+                    .attributes
+                    .get("tableValues")?
+                    .split(|c: char| c.is_whitespace() || c == ',')
+                    .filter(|s| !s.is_empty())
+                    .filter_map(|v| v.parse::<f32>().ok())
+                    .collect();
+                if values.len() >= 2 {
+                    intercepts[channel] = values[0];
+                    slopes[channel] = values[values.len() - 1] - values[0];
+                }
+            }
+            "linear" => {
+                slopes[channel] = func
+                    .attributes
+                    .get("slope")
+                    .and_then(|v| v.parse::<f32>().ok())
+                    .unwrap_or(1.0);
+                intercepts[channel] = func
+                    .attributes
+                    .get("intercept")
+                    .and_then(|v| v.parse::<f32>().ok())
+                    .unwrap_or(0.0);
+            }
+            _ => return None,
+        }
+    }
+    Some([
+        slopes[0],
+        0.0,
+        0.0,
+        0.0,
+        intercepts[0],
+        0.0,
+        slopes[1],
+        0.0,
+        0.0,
+        intercepts[1],
+        0.0,
+        0.0,
+        slopes[2],
+        0.0,
+        intercepts[2],
+        0.0,
+        0.0,
+        0.0,
+        slopes[3],
+        intercepts[3],
+    ])
 }
 
 fn svg_translate_from_use(el: &ElementNode) -> Option<SvgTransform> {

@@ -587,7 +587,7 @@
     "description": "grid-template-columns:subgrid makes a nested grid adopt parent column tracks; catches independent one-column nested-grid layout.",
     "file": "cases/grid/grid-subgrid-columns.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1439,7 +1439,7 @@
     "description": "A nested grid spanning two parent rows should use the parent row sizes for its own children when rows are subgridded; catches round 1 covered subgrid columns only; an implementation could special-case columns and still fail rows.",
     "file": "cases/grid/grid-subgrid-adopts-parent-row-tracks.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1457,7 +1457,7 @@
     "description": "Line names declared after subgrid should be usable by grandchildren placed inside the subgrid; catches basic subgrid track adoption does not prove line-name augmentation or name-repeat behavior.",
     "file": "cases/grid/grid-subgrid-augments-and-exposes-line-names.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1475,7 +1475,7 @@
     "description": "Children of a column subgrid should align to parent columns including the parent's column-gap; catches treating a subgrid as an independent grid with no inherited gap can still pass a no-gap subgrid fixture.",
     "file": "cases/grid/grid-subgrid-inherits-parent-gutters-on-subgridded-axis.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1493,7 +1493,7 @@
     "description": "A grid with fixed-height rows taller than the page should break between rows rather than clipping or overlapping rows on one page; catches single-page grid fixtures cannot detect whether grid row boxes participate in pagination.",
     "file": "cases/grid/grid-rows-fragment-between-pages.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1511,7 +1511,7 @@
     "description": "A tall block child inside one grid item should fragment across pages without escaping the grid item's containing area geometry; catches paginating between grid rows only passes row-break fixtures while clipping tall cell contents.",
     "file": "cases/grid/grid-tall-grid-item-fragments-inside-its-grid-area.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1529,7 +1529,7 @@
     "description": "A grid item spanning multiple rows should keep its area geometry and fragment content consistently across page breaks; catches approximating spanning items as a single starting-row cell passes simple row-span layout but fails paged output.",
     "file": "cases/grid/grid-row-spanning-grid-item-fragments-across-spanned-rows.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",

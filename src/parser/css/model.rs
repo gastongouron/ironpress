@@ -190,13 +190,63 @@ pub struct CssRule {
     pub pseudo_element: Option<PseudoElement>,
 }
 
-/// A parsed `@font-face` rule with font-family name and source path.
+/// A source entry from an `@font-face src:` descriptor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FontFaceSource {
+    /// `url(...)` source.
+    Url(String),
+    /// `local(...)` source.
+    Local(String),
+}
+
+/// A parsed `unicode-range` interval from an `@font-face` descriptor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnicodeRange {
+    /// Inclusive first Unicode codepoint.
+    pub start: u32,
+    /// Inclusive last Unicode codepoint.
+    pub end: u32,
+}
+
+impl UnicodeRange {
+    /// Whether this interval contains `ch`.
+    pub const fn contains(self, ch: char) -> bool {
+        let codepoint = ch as u32;
+        self.start <= codepoint && codepoint <= self.end
+    }
+}
+
+/// A parsed `@font-face` rule with font-family name, source list, and descriptors.
 #[derive(Debug, Clone)]
 pub struct FontFaceRule {
     /// The font-family name declared in the rule.
     pub font_family: String,
-    /// The local file path from the `src: url(...)` declaration.
-    pub src_path: String,
+    /// The ordered source list from the `src:` descriptor.
+    pub sources: Vec<FontFaceSource>,
+    /// Whether the face descriptor declares a bold weight.
+    pub font_weight_bold: bool,
+    /// Whether the face descriptor declares italic/oblique style.
+    pub font_style_italic: bool,
+    /// CSS Fonts `size-adjust` descriptor as a multiplier (`normal` = 1.0).
+    pub size_adjust: f32,
+    /// The `unicode-range` intervals. Empty means the default full Unicode range.
+    pub unicode_ranges: Vec<UnicodeRange>,
+}
+
+impl FontFaceRule {
+    /// Iterate source entries as `(is_local, value)`, preserving source-list order.
+    pub fn source_entries(&self) -> impl Iterator<Item = (bool, &str)> {
+        self.sources.iter().map(|source| match source {
+            FontFaceSource::Local(name) => (true, name.as_str()),
+            FontFaceSource::Url(path) => (false, path.as_str()),
+        })
+    }
+
+    /// Iterate `local(...)` source names.
+    pub fn local_source_names(&self) -> impl Iterator<Item = &str> {
+        self.source_entries()
+            .filter_map(|(is_local, value)| is_local.then_some(value))
+    }
 }
 
 /// A parsed `@import` rule with the local file path.

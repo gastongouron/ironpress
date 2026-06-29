@@ -892,7 +892,7 @@
     "file": "cases/paged-media/paged-grid-fragmentation-rows.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -1103,7 +1103,7 @@
     "file": "cases/paged-media/paged-named-page-left-right.html",
     "oracle": "chrome",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

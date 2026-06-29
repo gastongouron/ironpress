@@ -1,6 +1,8 @@
 use super::{
-    extract_url_path, preprocess_media_queries, FontFaceRule, MarginBox, MarginBoxPosition,
-    MarginContentToken, PageRule, PageSelector,
+    FontFaceRule, MarginBox, MarginBoxPosition, MarginContentToken, PageRule, PageSelector,
+    extract_url_path,
+    model::{FontFaceSource, UnicodeRange},
+    preprocess_media_queries,
 };
 
 /// Parse a CSS stylesheet and extract `@page` rules.
@@ -49,7 +51,11 @@ pub(crate) fn extract_font_face_rules(css: &str) -> Vec<FontFaceRule> {
 /// Parse the declarations inside an @font-face block.
 pub(crate) fn parse_font_face_declarations(decls: &str) -> Option<FontFaceRule> {
     let mut font_family: Option<String> = None;
-    let mut src_path: Option<String> = None;
+    let mut sources: Vec<FontFaceSource> = Vec::new();
+    let mut font_weight_bold = false;
+    let mut font_style_italic = false;
+    let mut size_adjust = 1.0;
+    let mut unicode_ranges = Vec::new();
 
     for declaration in decls.split(';') {
         let declaration = declaration.trim();
@@ -69,22 +75,149 @@ pub(crate) fn parse_font_face_declarations(decls: &str) -> Option<FontFaceRule> 
                     }
                 }
                 "src" => {
-                    if let Some(path) = extract_url_path(val) {
-                        src_path = Some(path);
-                    }
+                    sources = parse_font_face_sources(val);
+                }
+                "font-weight" => {
+                    font_weight_bold = parse_font_face_weight(val);
+                }
+                "font-style" => {
+                    font_style_italic = parse_font_face_style(val);
+                }
+                "size-adjust" => {
+                    size_adjust = parse_size_adjust_descriptor(val).unwrap_or(1.0);
+                }
+                "unicode-range" => {
+                    unicode_ranges = parse_unicode_ranges(val);
                 }
                 _ => {}
             }
         }
     }
 
-    match (font_family, src_path) {
-        (Some(family), Some(path)) => Some(FontFaceRule {
+    match (font_family, !sources.is_empty()) {
+        (Some(family), true) => Some(FontFaceRule {
             font_family: family,
-            src_path: path,
+            sources,
+            font_weight_bold,
+            font_style_italic,
+            size_adjust,
+            unicode_ranges,
         }),
         _ => None,
     }
+}
+
+fn parse_font_face_sources(raw: &str) -> Vec<FontFaceSource> {
+    split_css_commas(raw)
+        .into_iter()
+        .filter_map(parse_font_face_source)
+        .collect()
+}
+
+fn parse_font_face_source(raw: &str) -> Option<FontFaceSource> {
+    let source = raw.trim();
+    let lower = source.to_ascii_lowercase();
+    if lower.starts_with("local(") {
+        let inner = source.get(6..source.rfind(')')?)?;
+        let name = unquote_css_string(inner.trim());
+        if name.is_empty() {
+            None
+        } else {
+            Some(FontFaceSource::Local(name.to_string()))
+        }
+    } else {
+        extract_url_path(source).map(FontFaceSource::Url)
+    }
+}
+
+fn split_css_commas(raw: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut start = 0usize;
+    let mut quote = None;
+    let mut paren_depth = 0usize;
+
+    for (index, ch) in raw.char_indices() {
+        match ch {
+            '\'' | '"' if quote == Some(ch) => quote = None,
+            '\'' | '"' if quote.is_none() => quote = Some(ch),
+            '(' if quote.is_none() => paren_depth += 1,
+            ')' if quote.is_none() => paren_depth = paren_depth.saturating_sub(1),
+            ',' if quote.is_none() && paren_depth == 0 => {
+                parts.push(raw[start..index].trim());
+                start = index + ch.len_utf8();
+            }
+            _ => {}
+        }
+    }
+
+    parts.push(raw[start..].trim());
+    parts.retain(|part| !part.is_empty());
+    parts
+}
+
+fn unquote_css_string(raw: &str) -> &str {
+    raw.trim().trim_matches('"').trim_matches('\'').trim()
+}
+
+fn parse_font_face_weight(raw: &str) -> bool {
+    let value = raw.trim().to_ascii_lowercase();
+    if value.contains("bold") {
+        return true;
+    }
+    value
+        .split_whitespace()
+        .filter_map(|part| part.parse::<u16>().ok())
+        .max()
+        .is_some_and(|weight| weight >= 600)
+}
+
+fn parse_font_face_style(raw: &str) -> bool {
+    let value = raw.trim().to_ascii_lowercase();
+    value.starts_with("italic") || value.starts_with("oblique")
+}
+
+fn parse_size_adjust_descriptor(raw: &str) -> Option<f32> {
+    let value = raw.trim();
+    if value.eq_ignore_ascii_case("normal") {
+        return Some(1.0);
+    }
+    if let Some(percent) = value.strip_suffix('%') {
+        return percent
+            .trim()
+            .parse::<f32>()
+            .ok()
+            .map(|v| (v / 100.0).max(0.0));
+    }
+    value.parse::<f32>().ok().map(|v| v.max(0.0))
+}
+
+fn parse_unicode_ranges(raw: &str) -> Vec<UnicodeRange> {
+    split_css_commas(raw)
+        .into_iter()
+        .filter_map(parse_unicode_range)
+        .collect()
+}
+
+fn parse_unicode_range(raw: &str) -> Option<UnicodeRange> {
+    let value = raw.trim();
+    let body = value
+        .strip_prefix("U+")
+        .or_else(|| value.strip_prefix("u+"))?;
+    if let Some((start, end)) = body.split_once('-') {
+        let start = u32::from_str_radix(start.trim(), 16).ok()?;
+        let end = u32::from_str_radix(end.trim(), 16).ok()?;
+        return (start <= end).then_some(UnicodeRange { start, end });
+    }
+    if body.contains('?') {
+        let start = u32::from_str_radix(&body.replace('?', "0"), 16).ok()?;
+        let end = u32::from_str_radix(&body.replace('?', "F"), 16).ok()?;
+        return Some(UnicodeRange { start, end });
+    }
+    let codepoint = u32::from_str_radix(body.trim(), 16).ok()?;
+    Some(UnicodeRange {
+        start: codepoint,
+        end: codepoint,
+    })
 }
 
 /// Classify the text between `@page` and `{` into a [`PageSelector`]
@@ -780,11 +913,12 @@ mod tests {
         let rule =
             parse_page_declarations("background: #abc").expect("background-only @page retained");
         assert!(rule.width.is_none() && rule.margin_top.is_none());
-        assert!(rule
-            .raw_declarations
-            .as_deref()
-            .unwrap()
-            .contains("background"));
+        assert!(
+            rule.raw_declarations
+                .as_deref()
+                .unwrap()
+                .contains("background")
+        );
     }
 
     #[test]
@@ -794,7 +928,53 @@ mod tests {
         );
         assert_eq!(rules.len(), 1);
         assert_eq!(rules[0].font_family, "MyFont");
-        assert_eq!(rules[0].src_path, "font.ttf");
+        assert_eq!(
+            rules[0].sources,
+            vec![FontFaceSource::Url("font.ttf".into())]
+        );
+    }
+
+    #[test]
+    fn parse_font_face_descriptors() {
+        let rule = parse_font_face_declarations(
+            r#"
+                font-family: Pick;
+                src: local("Parity Serif"), url("fallback.ttf");
+                font-weight: 700;
+                font-style: italic;
+                size-adjust: 150%;
+                unicode-range: U+0041, U+0100-017F, U+4??;
+            "#,
+        )
+        .unwrap();
+        assert_eq!(rule.font_family, "Pick");
+        assert_eq!(
+            rule.sources,
+            vec![
+                FontFaceSource::Local("Parity Serif".into()),
+                FontFaceSource::Url("fallback.ttf".into()),
+            ]
+        );
+        assert!(rule.font_weight_bold);
+        assert!(rule.font_style_italic);
+        assert!((rule.size_adjust - 1.5).abs() < f32::EPSILON);
+        assert_eq!(
+            rule.unicode_ranges,
+            vec![
+                UnicodeRange {
+                    start: 0x41,
+                    end: 0x41,
+                },
+                UnicodeRange {
+                    start: 0x100,
+                    end: 0x17f,
+                },
+                UnicodeRange {
+                    start: 0x400,
+                    end: 0x4ff,
+                },
+            ]
+        );
     }
 
     #[test]

@@ -646,44 +646,19 @@ impl HtmlConverter {
         // Step 4: Parse custom fonts (API-registered + @font-face from CSS)
         let mut parsed_fonts = self.parse_custom_fonts();
 
-        // Step 4b: Load fonts from @font-face rules (local files + remote URLs)
-        for ff_rule in &font_face_rules {
-            let is_remote =
-                ff_rule.src_path.starts_with("http://") || ff_rule.src_path.starts_with("https://");
-
-            let ttf_data = if is_remote {
-                fetch_remote_bytes(&ff_rule.src_path)
-            } else if let Some(ref base) = self.base_path {
-                // Resolve the (relative) `src: url(...)` against the document
-                // base directory, exactly as a browser resolves a font URL
-                // against the stylesheet location. A relative URL may legitimately
-                // climb out of the immediate directory (e.g. `../fonts/F.ttf`), so
-                // we do NOT subtree-jail it the way `@import` is jailed; instead we
-                // reject ABSOLUTE `src` paths (which untrusted CSS could otherwise
-                // point at arbitrary files) and rely on the readable-file +
-                // `parse_ttf` validation below to discard anything that is not a
-                // genuine font. The base directory itself is caller-controlled, so
-                // resolving relative URLs against it is the trusted-input contract.
-                let src = std::path::Path::new(&ff_rule.src_path);
-                if src.is_absolute() {
-                    None
-                } else {
-                    std::fs::read(base.join(src)).ok()
-                }
-            } else {
-                None
-            };
-
-            if let Some(data) = ttf_data {
-                if let Ok(font) = parser::ttf::parse_ttf(data) {
-                    parsed_fonts.insert(ff_rule.font_family.to_ascii_lowercase(), font);
-                }
-            }
-        }
-
         system_fonts::load_system_default_fonts(&mut parsed_fonts);
         system_fonts::load_bundled_liberation_fonts(&mut parsed_fonts);
-        system_fonts::load_requested_system_fonts(&result.nodes, &rules, &mut parsed_fonts);
+        let requested_font_rules = rules_with_font_face_local_sources(&rules, &font_face_rules);
+        system_fonts::load_requested_system_fonts(
+            &result.nodes,
+            &requested_font_rules,
+            &mut parsed_fonts,
+        );
+        load_font_face_rules(
+            &font_face_rules,
+            self.base_path.as_deref(),
+            &mut parsed_fonts,
+        );
         // Load system CJK font BEFORE bundled fallbacks so it gets UNICODE_FALLBACK_KEY
         system_fonts::load_unicode_fallback_font(&mut parsed_fonts);
         system_fonts::load_emoji_fallback_font(&mut parsed_fonts);
@@ -796,6 +771,176 @@ impl HtmlConverter {
         }
         fonts
     }
+}
+
+fn rules_with_font_face_local_sources(
+    rules: &[parser::css::CssRule],
+    font_face_rules: &[parser::css::FontFaceRule],
+) -> Vec<parser::css::CssRule> {
+    let local_names: Vec<String> = font_face_rules
+        .iter()
+        .flat_map(|rule| rule.local_source_names())
+        .map(str::to_string)
+        .collect();
+    if local_names.is_empty() {
+        return rules.to_vec();
+    }
+
+    let mut requested = rules.to_vec();
+    for local_name in local_names {
+        let mut declarations = parser::css::StyleMap::new();
+        declarations.set(
+            "font-family",
+            parser::css::CssValue::Keyword(local_name.clone()),
+        );
+        requested.push(parser::css::CssRule {
+            selector: format!("__font_face_local_source_{local_name}"),
+            declarations,
+            pseudo_element: None,
+        });
+    }
+    requested
+}
+
+fn load_font_face_rules(
+    font_face_rules: &[parser::css::FontFaceRule],
+    base_path: Option<&std::path::Path>,
+    fonts: &mut std::collections::HashMap<String, parser::ttf::TtfFont>,
+) {
+    for (index, rule) in font_face_rules.iter().enumerate() {
+        let Some(mut font) = resolve_font_face_source(rule, base_path, fonts) else {
+            continue;
+        };
+        apply_font_face_descriptors(rule, &mut font);
+
+        let variant_key = system_fonts::font_variant_key(
+            &rule.font_family,
+            rule.font_weight_bold,
+            rule.font_style_italic,
+        );
+        if rule.unicode_ranges.is_empty() {
+            fonts.insert(variant_key, font);
+            continue;
+        }
+
+        let ranged_key = font_face_range_key(&variant_key, index);
+        fonts.insert(ranged_key, font.clone());
+        fonts.entry(variant_key).or_insert(font);
+    }
+}
+
+fn resolve_font_face_source(
+    rule: &parser::css::FontFaceRule,
+    base_path: Option<&std::path::Path>,
+    fonts: &std::collections::HashMap<String, parser::ttf::TtfFont>,
+) -> Option<parser::ttf::TtfFont> {
+    for (is_local, value) in rule.source_entries() {
+        if is_local {
+            if let Some((_, font)) =
+                system_fonts::find_font(fonts, value, rule.font_weight_bold, rule.font_style_italic)
+                    .or_else(|| system_fonts::find_font(fonts, value, false, false))
+            {
+                return Some(font.clone());
+            }
+        } else {
+            let is_remote = value.starts_with("http://") || value.starts_with("https://");
+            let ttf_data = if is_remote {
+                fetch_remote_bytes(value)
+            } else if let Some(base) = base_path {
+                // Resolve the (relative) `src: url(...)` against the document
+                // base directory, exactly as a browser resolves a font URL
+                // against the stylesheet location. A relative URL may legitimately
+                // climb out of the immediate directory (e.g. `../fonts/F.ttf`), so
+                // we do NOT subtree-jail it the way `@import` is jailed; instead we
+                // reject ABSOLUTE `src` paths (which untrusted CSS could otherwise
+                // point at arbitrary files) and rely on the readable-file +
+                // `parse_ttf` validation below to discard anything that is not a
+                // genuine font. The base directory itself is caller-controlled, so
+                // resolving relative URLs against it is the trusted-input contract.
+                let src = std::path::Path::new(value);
+                if src.is_absolute() {
+                    None
+                } else {
+                    std::fs::read(base.join(src)).ok()
+                }
+            } else {
+                None
+            };
+
+            if let Some(data) = ttf_data
+                && let Ok(font) = parser::ttf::parse_ttf(data)
+            {
+                return Some(font);
+            }
+        }
+    }
+    None
+}
+
+fn apply_font_face_descriptors(rule: &parser::css::FontFaceRule, font: &mut parser::ttf::TtfFont) {
+    font.is_bold = rule.font_weight_bold;
+    font.is_italic = rule.font_style_italic;
+    if !rule.unicode_ranges.is_empty() {
+        font.cmap.retain(|codepoint, _| {
+            char::from_u32(*codepoint)
+                .is_some_and(|ch| rule.unicode_ranges.iter().any(|range| range.contains(ch)))
+        });
+    }
+    apply_size_adjust(font, rule.size_adjust);
+}
+
+fn apply_size_adjust(font: &mut parser::ttf::TtfFont, size_adjust: f32) {
+    if !size_adjust.is_finite() || size_adjust <= 0.0 || (size_adjust - 1.0).abs() < f32::EPSILON {
+        return;
+    }
+    let adjusted_units_per_em = (f32::from(font.units_per_em) / size_adjust)
+        .round()
+        .clamp(1.0, f32::from(u16::MAX)) as u16;
+    if adjusted_units_per_em == font.units_per_em {
+        return;
+    }
+    if let Some(adjusted_data) = ttf_data_with_units_per_em(&font.data, adjusted_units_per_em) {
+        font.data = std::sync::Arc::new(adjusted_data);
+    }
+    font.units_per_em = adjusted_units_per_em;
+}
+
+fn ttf_data_with_units_per_em(data: &[u8], units_per_em: u16) -> Option<Vec<u8>> {
+    if data.len() < 12 {
+        return None;
+    }
+    let num_tables = u16::from_be_bytes([data[4], data[5]]) as usize;
+    let directory_len = 12usize.checked_add(num_tables.checked_mul(16)?)?;
+    if data.len() < directory_len {
+        return None;
+    }
+
+    let mut adjusted = data.to_vec();
+    for table_index in 0..num_tables {
+        let record = 12 + table_index * 16;
+        if &data[record..record + 4] != b"head" {
+            continue;
+        }
+        let offset = u32::from_be_bytes([
+            data[record + 8],
+            data[record + 9],
+            data[record + 10],
+            data[record + 11],
+        ]) as usize;
+        let units_offset = offset.checked_add(18)?;
+        if adjusted.len() < units_offset + 2 {
+            return None;
+        }
+        let bytes = units_per_em.to_be_bytes();
+        adjusted[units_offset] = bytes[0];
+        adjusted[units_offset + 1] = bytes[1];
+        return Some(adjusted);
+    }
+    None
+}
+
+fn font_face_range_key(variant_key: &str, index: usize) -> String {
+    format!("{variant_key}__fontface_{index}")
 }
 
 impl Default for HtmlConverter {

@@ -473,13 +473,7 @@ fn encode_rgba_subimage_as_asset(sub: image::RgbaImage) -> Option<RasterImageAss
 /// Wrap a raw IDAT (zlib) stream back into a minimal, valid PNG file (signature +
 /// IHDR + IDAT + IEND, each with a correct CRC-32) so the standard image decoder
 /// can read pixels from an opaque-PNG asset that only stored its IDAT.
-fn reconstruct_png(
-    width: u32,
-    height: u32,
-    bit_depth: u8,
-    color_type: u8,
-    idat: &[u8],
-) -> Vec<u8> {
+fn reconstruct_png(width: u32, height: u32, bit_depth: u8, color_type: u8, idat: &[u8]) -> Vec<u8> {
     fn crc32(bytes: &[u8]) -> u32 {
         let mut crc: u32 = 0xFFFF_FFFF;
         for &byte in bytes {
@@ -1149,6 +1143,15 @@ fn apply_one_filter(op: &ColorFilterOp, r: f32, g: f32, b: f32) -> (f32, f32, f3
                     + (0.072 + c * 0.928 + s * 0.072) * b,
             )
         }
+        ColorFilterOp::Matrix(m) => (
+            m[0] * r + m[1] * g + m[2] * b + m[4] * 255.0,
+            m[5] * r + m[6] * g + m[7] * b + m[9] * 255.0,
+            m[10] * r + m[11] * g + m[12] * b + m[14] * 255.0,
+        ),
+        ColorFilterOp::Blur(_)
+        | ColorFilterOp::Offset { .. }
+        | ColorFilterOp::DropShadow(_)
+        | ColorFilterOp::MorphologyDilate(_) => (r, g, b),
     }
 }
 
@@ -1184,7 +1187,7 @@ pub(crate) fn apply_color_filters_to_color(
     ops: &[ColorFilterOp],
     linear_rgb: bool,
 ) -> (f32, f32, f32, f32) {
-    let (mut cr, mut cg, mut cb, a) = color;
+    let (mut cr, mut cg, mut cb, mut a) = color;
     if linear_rgb {
         cr = srgb_to_linear(cr);
         cg = srgb_to_linear(cg);
@@ -1192,10 +1195,22 @@ pub(crate) fn apply_color_filters_to_color(
     }
     let (mut r, mut g, mut b) = (cr * 255.0, cg * 255.0, cb * 255.0);
     for op in ops {
-        let (nr, ng, nb) = apply_one_filter(op, r, g, b);
-        r = nr.clamp(0.0, 255.0);
-        g = ng.clamp(0.0, 255.0);
-        b = nb.clamp(0.0, 255.0);
+        if let ColorFilterOp::Matrix(m) = op {
+            let alpha = a * 255.0;
+            let nr = m[0] * r + m[1] * g + m[2] * b + m[3] * alpha + m[4] * 255.0;
+            let ng = m[5] * r + m[6] * g + m[7] * b + m[8] * alpha + m[9] * 255.0;
+            let nb = m[10] * r + m[11] * g + m[12] * b + m[13] * alpha + m[14] * 255.0;
+            let na = m[15] * r + m[16] * g + m[17] * b + m[18] * alpha + m[19] * 255.0;
+            r = nr.clamp(0.0, 255.0);
+            g = ng.clamp(0.0, 255.0);
+            b = nb.clamp(0.0, 255.0);
+            a = (na / 255.0).clamp(0.0, 1.0);
+        } else {
+            let (nr, ng, nb) = apply_one_filter(op, r, g, b);
+            r = nr.clamp(0.0, 255.0);
+            g = ng.clamp(0.0, 255.0);
+            b = nb.clamp(0.0, 255.0);
+        }
     }
     let (mut or, mut og, mut ob) = (r / 255.0, g / 255.0, b / 255.0);
     if linear_rgb {
@@ -1214,9 +1229,9 @@ pub(crate) fn apply_color_filters_to_color(
 /// Replaced-image pixels are filtered separately on the image path, so this only
 /// affects the box's own paint and never double-applies.
 pub(crate) fn apply_color_filters_to_box(style: &mut ComputedStyle, linear_rgb: bool) {
-    let ops = &style.color_filters;
+    let ops = style.color_filters.clone();
     let recolor = |c: crate::types::Color| -> crate::types::Color {
-        let (r, g, b, a) = apply_color_filters_to_color(c.to_f32_rgba(), ops, linear_rgb);
+        let (r, g, b, a) = apply_color_filters_to_color(c.to_f32_rgba(), &ops, linear_rgb);
         crate::types::Color {
             r: (r * 255.0).round().clamp(0.0, 255.0) as u8,
             g: (g * 255.0).round().clamp(0.0, 255.0) as u8,
@@ -1236,6 +1251,67 @@ pub(crate) fn apply_color_filters_to_box(style: &mut ComputedStyle, linear_rgb: 
         if let Some(c) = side.color {
             side.color = Some(recolor(c));
         }
+    }
+    for shadow in &mut style.box_shadow {
+        shadow.color = recolor(shadow.color);
+    }
+    for op in &ops {
+        match *op {
+            ColorFilterOp::Blur(radius) => {
+                style.blur_radius = style.blur_radius.max(radius);
+            }
+            ColorFilterOp::Offset {
+                dx,
+                dy,
+                keep_source,
+            } => {
+                if let Some(bg) = style.background_color {
+                    style.box_shadow.push(crate::style::computed::BoxShadow {
+                        offset_x: dx,
+                        offset_y: dy,
+                        blur: 0.0,
+                        spread: 0.0,
+                        color: bg,
+                        inset: false,
+                    });
+                    if !keep_source {
+                        style.background_color = None;
+                    }
+                }
+            }
+            ColorFilterOp::DropShadow(shadow) => {
+                style.box_shadow.push(crate::style::computed::BoxShadow {
+                    offset_x: shadow.dx,
+                    offset_y: shadow.dy,
+                    blur: shadow.blur,
+                    spread: 0.0,
+                    color: color_from_filter_tuple(shadow.color),
+                    inset: false,
+                });
+            }
+            ColorFilterOp::MorphologyDilate(radius) => {
+                if let Some(bg) = style.background_color {
+                    style.box_shadow.push(crate::style::computed::BoxShadow {
+                        offset_x: 0.0,
+                        offset_y: 0.0,
+                        blur: 0.0,
+                        spread: radius,
+                        color: bg,
+                        inset: false,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn color_from_filter_tuple(color: (f32, f32, f32, f32)) -> crate::types::Color {
+    crate::types::Color {
+        r: (color.0 * 255.0).round().clamp(0.0, 255.0) as u8,
+        g: (color.1 * 255.0).round().clamp(0.0, 255.0) as u8,
+        b: (color.2 * 255.0).round().clamp(0.0, 255.0) as u8,
+        a: (color.3 * 255.0).round().clamp(0.0, 255.0) as u8,
     }
 }
 
