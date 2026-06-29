@@ -17,3 +17,7 @@ target/parity-tmp/
 
 # IDE
 .idea/
+
+# generated parity render artifacts (browsable on the parity-report branch)
+/tests/parity/out/
+/tests/parity/reports/
