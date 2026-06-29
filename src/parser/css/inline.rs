@@ -56,7 +56,11 @@ pub(super) fn apply_declaration(map: &mut StyleMap, raw_prop: &str, val: &str, i
     let mut prop = raw_prop.to_ascii_lowercase();
     // Vendor-prefixed CSS Masking aliases (`-webkit-mask*`) are treated as the
     // equivalent unprefixed properties (css-masking-1; widely used in the wild).
-    if let Some(unprefixed) = prop.strip_prefix("-webkit-mask") {
+    if prop == "-webkit-background-clip" {
+        prop = "background-clip".to_string();
+    } else if prop == "-webkit-text-fill-color" {
+        prop = "color".to_string();
+    } else if let Some(unprefixed) = prop.strip_prefix("-webkit-mask") {
         prop = format!("mask{unprefixed}");
     }
     let prop = prop;
@@ -129,6 +133,15 @@ pub(super) fn apply_declaration(map: &mut StyleMap, raw_prop: &str, val: &str, i
         }
     }
 
+    if prop == "border-image" {
+        map.set_with_importance(
+            "border-image",
+            CssValue::Keyword(val.trim().to_string()),
+            is_important,
+        );
+        return;
+    }
+
     if let Some(css_value) = parse_property_value(&prop, val) {
         map.set_with_importance(&prop, css_value, is_important);
     }
@@ -157,6 +170,8 @@ fn clear_background_shorthand_keys(map: &mut StyleMap) {
         "background-position",
         "background-origin",
         "background-clip",
+        "background-attachment",
+        "border-image",
     ] {
         map.remove(key);
     }
@@ -357,6 +372,11 @@ fn apply_single_background_image_value(
 
     // A non-SVG `url(...)` is a raster image layer. Preserve the full `url(...)`
     // token (rather than just the path) so the raster builder can resolve it.
+    if let Some(url) = extract_image_set_url(trimmed) {
+        map.set_with_importance("background-image", CssValue::Keyword(url), is_important);
+        return Some(BackgroundLayerSlot::Raster);
+    }
+
     if lower.starts_with("url(") {
         map.set_with_importance(
             "background-image",
@@ -367,6 +387,27 @@ fn apply_single_background_image_value(
     }
 
     None
+}
+
+fn extract_image_set_url(value: &str) -> Option<String> {
+    let lower = value.trim().to_ascii_lowercase();
+    let inner = lower
+        .strip_prefix("image-set(")
+        .or_else(|| lower.strip_prefix("-webkit-image-set("))?;
+    if !inner.ends_with(')') {
+        return None;
+    }
+    let raw_inner = &value.trim()[value.trim().find('(')? + 1..value.trim().len() - 1];
+    split_top_level_commas(raw_inner)
+        .into_iter()
+        .find_map(|candidate| {
+            let token = candidate.trim();
+            token.find("url(").and_then(|start| {
+                let tail = &token[start..];
+                let end = tail.find(')')?;
+                Some(tail[..=end].to_string())
+            })
+        })
 }
 
 fn apply_background_shorthand_defaults(map: &mut StyleMap, is_important: bool) {
@@ -405,6 +446,11 @@ fn apply_background_shorthand_defaults(map: &mut StyleMap, is_important: bool) {
         CssValue::Keyword("border-box".to_string()),
         is_important,
     );
+    map.set_with_importance(
+        "background-attachment",
+        CssValue::Keyword("scroll".to_string()),
+        is_important,
+    );
 }
 
 fn ensure_background_shorthand_defaults(
@@ -426,6 +472,7 @@ struct BackgroundLayerParts {
     position: Option<String>,
     origin: Option<String>,
     clip: Option<String>,
+    attachment: Option<String>,
     color: Option<CssValue>,
     recognized: bool,
 }
@@ -438,7 +485,15 @@ impl BackgroundLayerParts {
 
 fn parse_background_layer(val: &str, allow_color: bool) -> BackgroundLayerParts {
     const ORIGIN_KEYWORDS: [&str; 3] = ["padding-box", "border-box", "content-box"];
-    const REPEAT_KEYWORDS: [&str; 4] = ["no-repeat", "repeat", "repeat-x", "repeat-y"];
+    const REPEAT_KEYWORDS: [&str; 6] = [
+        "no-repeat",
+        "repeat",
+        "repeat-x",
+        "repeat-y",
+        "space",
+        "round",
+    ];
+    const ATTACHMENT_KEYWORDS: [&str; 3] = ["scroll", "fixed", "local"];
     const POSITION_KEYWORDS: [&str; 5] = ["center", "top", "bottom", "left", "right"];
 
     let mut layer = BackgroundLayerParts::default();
@@ -463,6 +518,8 @@ fn parse_background_layer(val: &str, allow_color: bool) -> BackgroundLayerParts 
                 || lower.starts_with("conic-gradient(")
                 || lower.starts_with("repeating-conic-gradient(")
                 || lower.starts_with("url(")
+                || lower.starts_with("image-set(")
+                || lower.starts_with("-webkit-image-set(")
                 || lower == "none")
         {
             layer.image = Some(token.trim().to_string());
@@ -492,9 +549,27 @@ fn parse_background_layer(val: &str, allow_color: bool) -> BackgroundLayerParts 
         }
 
         if !found_repeat && REPEAT_KEYWORDS.contains(&lower.as_str()) {
-            layer.repeat = Some(lower);
+            let mut repeat = lower;
+            if matches!(repeat.as_str(), "repeat" | "space" | "round" | "no-repeat")
+                && let Some(next_token) = tokens.get(index + 1)
+            {
+                let next = next_token.trim().to_ascii_lowercase();
+                if matches!(next.as_str(), "repeat" | "space" | "round" | "no-repeat") {
+                    repeat.push(' ');
+                    repeat.push_str(&next);
+                    index += 1;
+                }
+            }
+            layer.repeat = Some(repeat);
             layer.recognized = true;
             found_repeat = true;
+            index += 1;
+            continue;
+        }
+
+        if ATTACHMENT_KEYWORDS.contains(&lower.as_str()) {
+            layer.attachment = Some(lower);
+            layer.recognized = true;
             index += 1;
             continue;
         }
@@ -628,6 +703,17 @@ fn parse_background_shorthand(val: &str, map: &mut StyleMap, is_important: bool)
     map.set_with_importance(
         "background-clip",
         CssValue::Keyword(clip_list),
+        is_important,
+    );
+
+    let attachment_list = layers
+        .iter()
+        .map(|layer| layer.attachment.as_deref().unwrap_or("scroll"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    map.set_with_importance(
+        "background-attachment",
+        CssValue::Keyword(attachment_list),
         is_important,
     );
 
@@ -808,6 +894,7 @@ fn prefer_legacy_value_form(key: &str, parsed: &CssValue, legacy: &CssValue) -> 
             | "border-bottom"
             | "border-left"
             | "outline"
+            | "background-image"
             | "background-size"
             | "background-position"
     ) || prefers_legacy_relative_length(key, parsed, legacy)

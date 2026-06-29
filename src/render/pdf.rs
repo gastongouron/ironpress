@@ -71,6 +71,7 @@ fn background_clip_rect(
             border_top + padding_top,
             border_bottom + padding_bottom,
         ),
+        BackgroundClip::Text => (0.0, 0.0, 0.0, 0.0),
     };
     (
         bx + inset_left,
@@ -78,6 +79,62 @@ fn background_clip_rect(
         (bw - inset_left - inset_right).max(0.0),
         (bh - inset_top - inset_bottom).max(0.0),
     )
+}
+
+fn collect_document_svg_defs(pages: &[Page]) -> crate::parser::svg::SvgDefs {
+    let mut defs = crate::parser::svg::collected_svg_defs_snapshot();
+    for page in pages {
+        collect_svg_defs_from_elements(&page.elements, &mut defs);
+    }
+    defs
+}
+
+fn collect_svg_defs_from_elements(
+    elements: &[(f32, LayoutElement)],
+    defs: &mut crate::parser::svg::SvgDefs,
+) {
+    for (_, element) in elements {
+        collect_svg_defs_from_element(element, defs);
+    }
+}
+
+fn merge_svg_defs(dst: &mut crate::parser::svg::SvgDefs, src: &crate::parser::svg::SvgDefs) {
+    dst.gradients
+        .extend(src.gradients.iter().map(|(id, val)| (id.clone(), val.clone())));
+    dst.radial_gradients.extend(
+        src.radial_gradients
+            .iter()
+            .map(|(id, val)| (id.clone(), val.clone())),
+    );
+    dst.clip_paths.extend(
+        src.clip_paths
+            .iter()
+            .map(|(id, val)| (id.clone(), val.clone())),
+    );
+    dst.masks
+        .extend(src.masks.iter().map(|(id, val)| (id.clone(), val.clone())));
+}
+
+fn collect_svg_defs_from_element(
+    element: &LayoutElement,
+    defs: &mut crate::parser::svg::SvgDefs,
+) {
+    match element {
+        LayoutElement::Svg { tree, .. } => merge_svg_defs(defs, &tree.defs),
+        LayoutElement::Container { children, .. } => {
+            for child in children {
+                collect_svg_defs_from_element(child, defs);
+            }
+        }
+        LayoutElement::FlexRow { cells, .. } => {
+            for cell in cells {
+                for child in &cell.nested_elements {
+                    collect_svg_defs_from_element(child, defs);
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -132,6 +189,7 @@ fn background_clip_radii(
             top + padding_top,
             bottom + padding_bottom,
         ),
+        BackgroundClip::Text => (0.0, 0.0, 0.0, 0.0),
     };
     (
         [
@@ -1732,6 +1790,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     let _font_ctx = crate::style::font_ctx::FontCtxGuard::new(custom_fonts);
     let mut pdf_writer = PdfWriter::new();
     pdf_writer.opts = opts;
+    pdf_writer.svg_defs = collect_document_svg_defs(pages);
     // `available_width` is derived per page inside the loop below, since a page
     // may carry an `@page :first` margin override that changes its content box.
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
@@ -2153,43 +2212,62 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     // Draw linear gradient if specified
                     if let Some(gradient) = background_gradient {
                         let gradient = linear_with_background_layer(gradient, tb_layer_box);
-                        if tb_bg_blended {
-                            content.push_str("q\n");
-                            begin_blend_mode(
+                        if gradient.layer_box.border_image {
+                            render_border_image_linear_gradient(
                                 &mut content,
-                                &mut page_ext_gstates,
-                                *background_blend_mode,
+                                &gradient,
+                                block_x,
+                                block_bottom,
+                                render_width,
+                                border_box_h,
+                                tb_bl,
+                                tb_br,
+                                tb_bt,
+                                tb_bb,
+                                &mut page_shadings,
+                                &mut shading_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
-                        }
-                        // Clip to the background-clip box (rounded if needed).
-                        if tb_gradient_clip {
-                            push_background_clip_box(
+                        } else {
+                            if tb_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(
+                                    &mut content,
+                                    &mut page_ext_gstates,
+                                    *background_blend_mode,
+                                );
+                            }
+                            // Clip to the background-clip box (rounded if needed).
+                            if tb_gradient_clip {
+                                push_background_clip_box(
+                                    &mut content,
+                                    tb_clip_x,
+                                    tb_clip_y,
+                                    tb_clip_w,
+                                    tb_clip_h,
+                                    tb_clip_rx,
+                                    tb_clip_ry,
+                                );
+                            }
+                            render_linear_gradient(
                                 &mut content,
-                                tb_clip_x,
-                                tb_clip_y,
-                                tb_clip_w,
-                                tb_clip_h,
-                                tb_clip_rx,
-                                tb_clip_ry,
+                                &gradient,
+                                tb_ref_x,
+                                tb_ref_y,
+                                tb_ref_w,
+                                tb_ref_h,
+                                &mut page_shadings,
+                                &mut shading_counter,
+                                &mut pdf_writer,
+                                &mut page_images,
                             );
-                        }
-                        render_linear_gradient(
-                            &mut content,
-                            &gradient,
-                            tb_ref_x,
-                            tb_ref_y,
-                            tb_ref_w,
-                            tb_ref_h,
-                            &mut page_shadings,
-                            &mut shading_counter,
-                            &mut pdf_writer,
-                            &mut page_images,
-                        );
-                        if tb_gradient_clip {
-                            content.push_str("Q\n");
-                        }
-                        if tb_bg_blended {
-                            content.push_str("Q\n");
+                            if tb_gradient_clip {
+                                content.push_str("Q\n");
+                            }
+                            if tb_bg_blended {
+                                content.push_str("Q\n");
+                            }
                         }
                     }
 
@@ -5031,6 +5109,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         push_clip_path(
                             &mut content,
                             cp,
+                            Some(&pdf_writer.svg_defs),
                             container_x,
                             container_y_top,
                             container_w,
@@ -5147,7 +5226,6 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             *c_pt,
                             *c_pb,
                         );
-                        let c_clip_radius = *c_border_radius;
                         let c_needs_clip = *c_bg_clip != BackgroundClip::Border;
 
                         // Draw background
@@ -5163,13 +5241,14 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 // Clip the fill to the clip box; a non-uniform
                                 // rounded fill cannot also be clipped, so fall
                                 // back to a rectangular clip-box fill.
-                                push_background_clip(
+                                push_background_clip_box(
                                     &mut content,
                                     c_clip_x,
                                     c_clip_y,
                                     c_clip_w,
                                     c_clip_h,
-                                    c_clip_radius,
+                                    c_clip_rx,
+                                    c_clip_ry,
                                 );
                                 content.push_str(&format!(
                                     "{c_clip_x} {c_clip_y} {c_clip_w} {c_clip_h} re\n"
@@ -5211,38 +5290,61 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         // Draw container linear gradient
                         if let Some(gradient) = c_bg_gradient {
                             let gradient = linear_with_background_layer(gradient, c_layer_box);
-                            if c_bg_blended {
-                                content.push_str("q\n");
-                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
-                            }
-                            if gradient_clip {
-                                push_background_clip_box(
+                            if gradient.layer_box.border_image {
+                                render_border_image_linear_gradient(
                                     &mut content,
-                                    c_clip_x,
-                                    c_clip_y,
-                                    c_clip_w,
-                                    c_clip_h,
-                                    c_clip_rx,
-                                    c_clip_ry,
+                                    &gradient,
+                                    container_x,
+                                    c_bg_y,
+                                    container_w,
+                                    total_h,
+                                    c_bl,
+                                    c_br,
+                                    c_bt,
+                                    c_bb,
+                                    &mut page_shadings,
+                                    &mut shading_counter,
+                                    &mut pdf_writer,
+                                    &mut page_images,
                                 );
-                            }
-                            render_linear_gradient(
-                                &mut content,
-                                &gradient,
-                                c_ref_x,
-                                c_ref_y,
-                                c_ref_w,
-                                c_ref_h,
-                                &mut page_shadings,
-                                &mut shading_counter,
-                                &mut pdf_writer,
-                                &mut page_images,
-                            );
-                            if gradient_clip {
-                                content.push_str("Q\n");
-                            }
-                            if c_bg_blended {
-                                content.push_str("Q\n");
+                            } else {
+                                if c_bg_blended {
+                                    content.push_str("q\n");
+                                    begin_blend_mode(
+                                        &mut content,
+                                        &mut page_ext_gstates,
+                                        *c_bg_blend,
+                                    );
+                                }
+                                if gradient_clip {
+                                    push_background_clip_box(
+                                        &mut content,
+                                        c_clip_x,
+                                        c_clip_y,
+                                        c_clip_w,
+                                        c_clip_h,
+                                        c_clip_rx,
+                                        c_clip_ry,
+                                    );
+                                }
+                                render_linear_gradient(
+                                    &mut content,
+                                    &gradient,
+                                    c_ref_x,
+                                    c_ref_y,
+                                    c_ref_w,
+                                    c_ref_h,
+                                    &mut page_shadings,
+                                    &mut shading_counter,
+                                    &mut pdf_writer,
+                                    &mut page_images,
+                                );
+                                if gradient_clip {
+                                    content.push_str("Q\n");
+                                }
+                                if c_bg_blended {
+                                    content.push_str("Q\n");
+                                }
                             }
                         }
 
@@ -6171,12 +6273,11 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     continue;
                 }
                 if dec.margin_boxes.iter().any(|other| {
-                        other.position == mb.position
-                            && page_margin_box_applies(&other.selector, page, page_num)
-                            && page_selector_specificity(&other.selector)
-                                > page_selector_specificity(&mb.selector)
-                    })
-                {
+                    other.position == mb.position
+                        && page_margin_box_applies(&other.selector, page, page_num)
+                        && page_selector_specificity(&other.selector)
+                            > page_selector_specificity(&mb.selector)
+                }) {
                     continue;
                 }
                 if matches!(mb.selector, crate::parser::css::PageSelector::None)
@@ -6210,17 +6311,18 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 if let Some(element) = running_element {
                     if let Some(band) = band
                         && render_running_margin_element(
-                        &mut content,
-                        element,
-                        mb.position.align(),
-                        band,
-                        page_size,
-                        margin,
-                        custom_fonts,
-                        &prepared_custom_fonts,
-                        &mut pdf_writer,
-                        &mut page_images,
-                    ) {
+                            &mut content,
+                            element,
+                            mb.position.align(),
+                            band,
+                            page_size,
+                            margin,
+                            custom_fonts,
+                            &prepared_custom_fonts,
+                            &mut pdf_writer,
+                            &mut page_images,
+                        )
+                    {
                         continue;
                     }
                 }
@@ -6231,52 +6333,62 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 let text_w =
                     crate::fonts::str_width(&text, mb_font_size, &FontFamily::Helvetica, false);
                 let (x, y) = match mb.position {
-                    crate::parser::css::MarginBoxPosition::TopLeftCorner => {
-                        (margin.left / 2.0 - text_w / 2.0, page_size.height - margin.top / 2.0)
-                    }
+                    crate::parser::css::MarginBoxPosition::TopLeftCorner => (
+                        margin.left / 2.0 - text_w / 2.0,
+                        page_size.height - margin.top / 2.0,
+                    ),
                     crate::parser::css::MarginBoxPosition::TopLeft => {
                         (margin.left, page_size.height - margin.top / 2.0)
                     }
                     crate::parser::css::MarginBoxPosition::TopCenter => {
                         (center_x - text_w / 2.0, page_size.height - margin.top / 2.0)
                     }
-                    crate::parser::css::MarginBoxPosition::TopRight => {
-                        (page_size.width - margin.right - text_w, page_size.height - margin.top / 2.0)
-                    }
-                    crate::parser::css::MarginBoxPosition::TopRightCorner => {
-                        (page_size.width - margin.right / 2.0 - text_w / 2.0, page_size.height - margin.top / 2.0)
-                    }
+                    crate::parser::css::MarginBoxPosition::TopRight => (
+                        page_size.width - margin.right - text_w,
+                        page_size.height - margin.top / 2.0,
+                    ),
+                    crate::parser::css::MarginBoxPosition::TopRightCorner => (
+                        page_size.width - margin.right / 2.0 - text_w / 2.0,
+                        page_size.height - margin.top / 2.0,
+                    ),
                     crate::parser::css::MarginBoxPosition::BottomLeftCorner => {
                         (margin.left / 2.0 - text_w / 2.0, margin.bottom / 2.0)
                     }
-                    crate::parser::css::MarginBoxPosition::BottomLeft => (margin.left, margin.bottom / 2.0),
+                    crate::parser::css::MarginBoxPosition::BottomLeft => {
+                        (margin.left, margin.bottom / 2.0)
+                    }
                     crate::parser::css::MarginBoxPosition::BottomCenter => {
                         (center_x - text_w / 2.0, margin.bottom / 2.0)
                     }
                     crate::parser::css::MarginBoxPosition::BottomRight => {
                         (page_size.width - margin.right - text_w, margin.bottom / 2.0)
                     }
-                    crate::parser::css::MarginBoxPosition::BottomRightCorner => {
-                        (page_size.width - margin.right / 2.0 - text_w / 2.0, margin.bottom / 2.0)
-                    }
-                    crate::parser::css::MarginBoxPosition::LeftTop => {
-                        (margin.left / 2.0 - text_w / 2.0, page_size.height - margin.top)
-                    }
+                    crate::parser::css::MarginBoxPosition::BottomRightCorner => (
+                        page_size.width - margin.right / 2.0 - text_w / 2.0,
+                        margin.bottom / 2.0,
+                    ),
+                    crate::parser::css::MarginBoxPosition::LeftTop => (
+                        margin.left / 2.0 - text_w / 2.0,
+                        page_size.height - margin.top,
+                    ),
                     crate::parser::css::MarginBoxPosition::LeftMiddle => {
                         (margin.left / 2.0 - text_w / 2.0, page_size.height / 2.0)
                     }
                     crate::parser::css::MarginBoxPosition::LeftBottom => {
                         (margin.left / 2.0 - text_w / 2.0, margin.bottom)
                     }
-                    crate::parser::css::MarginBoxPosition::RightTop => {
-                        (page_size.width - margin.right / 2.0 - text_w / 2.0, page_size.height - margin.top)
-                    }
-                    crate::parser::css::MarginBoxPosition::RightMiddle => {
-                        (page_size.width - margin.right / 2.0 - text_w / 2.0, page_size.height / 2.0)
-                    }
-                    crate::parser::css::MarginBoxPosition::RightBottom => {
-                        (page_size.width - margin.right / 2.0 - text_w / 2.0, margin.bottom)
-                    }
+                    crate::parser::css::MarginBoxPosition::RightTop => (
+                        page_size.width - margin.right / 2.0 - text_w / 2.0,
+                        page_size.height - margin.top,
+                    ),
+                    crate::parser::css::MarginBoxPosition::RightMiddle => (
+                        page_size.width - margin.right / 2.0 - text_w / 2.0,
+                        page_size.height / 2.0,
+                    ),
+                    crate::parser::css::MarginBoxPosition::RightBottom => (
+                        page_size.width - margin.right / 2.0 - text_w / 2.0,
+                        margin.bottom,
+                    ),
                 };
                 if let Some(bg) = mb.background_color {
                     let (r, g, b, a) = bg.to_f32_rgba();
@@ -6290,7 +6402,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             | crate::parser::css::MarginBoxPosition::TopRightCorner
                                 if full_horizontal_slot =>
                             {
-                                (0.0, page_size.height - margin.top, page_size.width, margin.top)
+                                (
+                                    0.0,
+                                    page_size.height - margin.top,
+                                    page_size.width,
+                                    margin.top,
+                                )
                             }
                             crate::parser::css::MarginBoxPosition::BottomLeftCorner
                             | crate::parser::css::MarginBoxPosition::BottomLeft
@@ -6308,9 +6425,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             }
                             crate::parser::css::MarginBoxPosition::RightTop
                             | crate::parser::css::MarginBoxPosition::RightMiddle
-                            | crate::parser::css::MarginBoxPosition::RightBottom => {
-                                (page_size.width - margin.right, 0.0, margin.right, page_size.height)
-                            }
+                            | crate::parser::css::MarginBoxPosition::RightBottom => (
+                                page_size.width - margin.right,
+                                0.0,
+                                margin.right,
+                                page_size.height,
+                            ),
                             _ => (
                                 x - 4.0,
                                 y - mb_font_size * 0.35,
@@ -6936,9 +7056,11 @@ fn resolve_clip_radius(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_clip_path(
     content: &mut String,
     clip: &crate::style::computed::ClipPath,
+    svg_defs: Option<&crate::parser::svg::SvgDefs>,
     left: f32,
     top_y: f32,
     w: f32,
@@ -7106,8 +7228,15 @@ fn push_clip_path(
                 content.push_str(&format!("{rx} {ry} {rw} {rh} re\n"));
             }
         }
-        ClipPath::Url(_) => {
-            content.push_str(&format!("{left} {} {w} {h} re\n", top_y - h));
+        ClipPath::Url(id) => {
+            if let Some(defs) = svg_defs.filter(|defs| defs.clip_paths.contains_key(id)) {
+                crate::render::svg_to_pdf::render_css_clip_path_reference(
+                    id, defs, left, top_y, w, h, content,
+                );
+                return;
+            } else {
+                content.push_str(&format!("{left} {} {w} {h} re\n", top_y - h));
+            }
         }
     }
     content.push_str("W n\n");
@@ -8398,6 +8527,7 @@ fn render_container_children(
                         push_clip_path(
                             content,
                             cp,
+                            Some(&pdf_writer.svg_defs),
                             nk_x,
                             nk_top_y,
                             nk_w,
@@ -8536,6 +8666,7 @@ fn render_container_children(
                         push_clip_path(
                             content,
                             cp,
+                            Some(&pdf_writer.svg_defs),
                             nk_x,
                             nk_top_y,
                             nk_w,
@@ -11524,6 +11655,25 @@ fn gradient_layer_tiles(
                 .unwrap_or(height);
             (tw, th)
         }
+        Some(BackgroundSize::ExplicitAuto {
+            width: Some(w),
+            height: h,
+            width_is_percent,
+            height_is_percent,
+        }) => {
+            let tw = resolve_axis(w, width_is_percent, width);
+            let th = h
+                .map(|hv| resolve_axis(hv, height_is_percent, height))
+                .unwrap_or(height);
+            (tw, th)
+        }
+        Some(BackgroundSize::ExplicitAuto {
+            width: None,
+            height: Some(h),
+            height_is_percent,
+            ..
+        }) => (width, resolve_axis(h, height_is_percent, height)),
+        Some(BackgroundSize::ExplicitAuto { .. }) => (width, height),
         _ => (width, height),
     };
     if tile_w <= 0.0 || tile_h <= 0.0 {
@@ -11535,11 +11685,15 @@ fn gradient_layer_tiles(
         Some(pos) => {
             let ox = if pos.x_is_percent {
                 (width - tile_w) * pos.x
+            } else if pos.x < 0.0 {
+                (width - tile_w) + pos.x
             } else {
                 pos.x
             };
             let oy = if pos.y_is_percent {
                 (height - tile_h) * pos.y
+            } else if pos.y < 0.0 {
+                (height - tile_h) + pos.y
             } else {
                 pos.y
             };
@@ -11549,14 +11703,8 @@ fn gradient_layer_tiles(
     };
 
     let repeat = layer_box.repeat.unwrap_or(BackgroundRepeat::Repeat);
-    let xs = match repeat {
-        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatY => vec![offset_x],
-        _ => tile_offsets(offset_x, tile_w, width),
-    };
-    let ys = match repeat {
-        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatX => vec![offset_y],
-        _ => tile_offsets(offset_y, tile_h, height),
-    };
+    let (xs, tile_w) = background_axis_tiles(repeat_x(repeat), offset_x, tile_w, width);
+    let (ys, tile_h) = background_axis_tiles(repeat_y(repeat), offset_y, tile_h, height);
 
     let mut tiles = Vec::new();
     for &css_oy in &ys {
@@ -11579,6 +11727,23 @@ fn gradient_requires_raster(stops: &[crate::style::computed::GradientStop]) -> b
     stops.iter().any(|stop| stop.color.a < 255)
 }
 
+fn radial_gradient_requires_raster(
+    stops: &[crate::style::computed::GradientStop],
+    repeating: bool,
+) -> bool {
+    gradient_requires_raster(stops)
+        || stops.len() > 16
+        || stops.iter().any(|stop| stop.position_length.abs() > 1e-6)
+        || (!repeating
+            && stops
+                .windows(2)
+                .any(|pair| (pair[1].position - pair[0].position).abs() < 0.02))
+}
+
+fn conic_gradient_requires_raster(stops: &[crate::style::computed::GradientStop]) -> bool {
+    gradient_requires_raster(stops)
+}
+
 fn background_layer_box(
     size: BackgroundSize,
     position: BackgroundPosition,
@@ -11588,6 +11753,10 @@ fn background_layer_box(
         size: Some(size),
         position: Some(position),
         repeat: Some(repeat),
+        origin: None,
+        clip: None,
+        attachment: None,
+        border_image: false,
     }
 }
 
@@ -11603,6 +11772,15 @@ fn merge_background_layer_box(
     }
     if layer_box.repeat.is_none() {
         layer_box.repeat = fallback.repeat;
+    }
+    if layer_box.origin.is_none() {
+        layer_box.origin = fallback.origin;
+    }
+    if layer_box.clip.is_none() {
+        layer_box.clip = fallback.clip;
+    }
+    if layer_box.attachment.is_none() {
+        layer_box.attachment = fallback.attachment;
     }
     layer_box
 }
@@ -11635,11 +11813,15 @@ fn conic_with_background_layer(
 }
 
 fn gradient_raster_dimensions(width: f32, height: f32) -> Option<(u32, u32)> {
+    gradient_raster_dimensions_scaled(width, height, 3.125)
+}
+
+fn gradient_raster_dimensions_scaled(width: f32, height: f32, scale: f32) -> Option<(u32, u32)> {
     if width <= 0.0 || height <= 0.0 {
         return None;
     }
-    let px_w = (width / 0.75).round().clamp(1.0, 2048.0) as u32;
-    let px_h = (height / 0.75).round().clamp(1.0, 2048.0) as u32;
+    let px_w = (width / 0.75 * scale).round().clamp(1.0, 2048.0) as u32;
+    let px_h = (height / 0.75 * scale).round().clamp(1.0, 2048.0) as u32;
     Some((px_w, px_h))
 }
 
@@ -11693,6 +11875,36 @@ fn gradient_stop_rgba(stop: crate::style::computed::GradientStop) -> (f32, f32, 
         f32::from(stop.color.b) / 255.0,
         f32::from(stop.color.a) / 255.0,
     )
+}
+
+fn resolve_gradient_stop_positions(
+    stops: &[crate::style::computed::GradientStop],
+    basis: f32,
+) -> Vec<crate::style::computed::GradientStop> {
+    resolve_gradient_stop_positions_with_length_scale(stops, basis, 1.0)
+}
+
+fn resolve_gradient_stop_positions_with_length_scale(
+    stops: &[crate::style::computed::GradientStop],
+    basis: f32,
+    length_scale: f32,
+) -> Vec<crate::style::computed::GradientStop> {
+    let basis = basis.max(1e-6);
+    let mut last = 0.0_f32;
+    stops
+        .iter()
+        .copied()
+        .map(|mut stop| {
+            let mut position = stop.position + stop.position_length * length_scale / basis;
+            if position < last {
+                position = last;
+            }
+            last = position;
+            stop.position = position.clamp(0.0, 1.0);
+            stop.position_length = 0.0;
+            stop
+        })
+        .collect()
 }
 
 fn sample_rgba_gradient_stops(
@@ -11767,6 +11979,7 @@ fn render_linear_gradient_tile_raster(
     let dx = theta.sin();
     let dy = -theta.cos();
     let half = (width * 0.5 * dx.abs() + height * 0.5 * dy.abs()).max(1e-6);
+    let stops = resolve_gradient_stop_positions(&gradient.stops, half * 2.0);
     let (cx, cy) = (width * 0.5, height * 0.5);
     let mut image = image::RgbaImage::new(px_w, px_h);
     for py in 0..px_h {
@@ -11778,11 +11991,7 @@ fn render_linear_gradient_tile_raster(
             image.put_pixel(
                 px,
                 py,
-                rgba_to_pixel(sample_rgba_gradient_stops(
-                    &gradient.stops,
-                    t,
-                    gradient.repeating,
-                )),
+                rgba_to_pixel(sample_rgba_gradient_stops(&stops, t, gradient.repeating)),
             );
         }
     }
@@ -11847,6 +12056,7 @@ fn render_radial_gradient_tile_raster(
         }
     };
     let (rx, ry) = (rx.max(1e-6), ry.max(1e-6));
+    let stops = resolve_gradient_stop_positions(&gradient.stops, rx.max(ry));
     let mut image = image::RgbaImage::new(px_w, px_h);
     for py in 0..px_h {
         let fy = (py as f32 + 0.5) * height / px_h as f32;
@@ -11858,11 +12068,7 @@ fn render_radial_gradient_tile_raster(
             image.put_pixel(
                 px,
                 py,
-                rgba_to_pixel(sample_rgba_gradient_stops(
-                    &gradient.stops,
-                    t,
-                    gradient.repeating,
-                )),
+                rgba_to_pixel(sample_rgba_gradient_stops(&stops, t, gradient.repeating)),
             );
         }
     }
@@ -11889,7 +12095,7 @@ fn render_conic_gradient_tile_raster(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) {
-    let Some((px_w, px_h)) = gradient_raster_dimensions(width, height) else {
+    let Some((px_w, px_h)) = gradient_raster_dimensions_scaled(width, height, 5.0) else {
         return;
     };
     let cx = gradient.center.0.resolve(width);
@@ -11897,21 +12103,30 @@ fn render_conic_gradient_tile_raster(
     let from = gradient.from_angle.to_radians();
     let mut image = image::RgbaImage::new(px_w, px_h);
     for py in 0..px_h {
-        let fy = (py as f32 + 0.5) * height / px_h as f32;
         for px in 0..px_w {
-            let fx = (px as f32 + 0.5) * width / px_w as f32;
-            let dx = fx - cx;
-            let dy = fy - cy;
-            let angle = (dx.atan2(-dy) - from).rem_euclid(std::f32::consts::TAU);
-            let t = angle / std::f32::consts::TAU;
+            let mut rgba = (0.0, 0.0, 0.0, 0.0);
+            for (ox, oy) in [
+                (0.25_f32, 0.25_f32),
+                (0.75, 0.25),
+                (0.25, 0.75),
+                (0.75, 0.75),
+            ] {
+                let fy = (py as f32 + oy) * height / px_h as f32;
+                let fx = (px as f32 + ox) * width / px_w as f32;
+                let dx = fx - cx;
+                let dy = fy - cy;
+                let angle = (dx.atan2(-dy) - from).rem_euclid(std::f32::consts::TAU);
+                let t = angle / std::f32::consts::TAU;
+                let sample = sample_rgba_gradient_stops(&gradient.stops, t, gradient.repeating);
+                rgba.0 += sample.0;
+                rgba.1 += sample.1;
+                rgba.2 += sample.2;
+                rgba.3 += sample.3;
+            }
             image.put_pixel(
                 px,
                 py,
-                rgba_to_pixel(sample_rgba_gradient_stops(
-                    &gradient.stops,
-                    t,
-                    gradient.repeating,
-                )),
+                rgba_to_pixel((rgba.0 * 0.25, rgba.1 * 0.25, rgba.2 * 0.25, rgba.3 * 0.25)),
             );
         }
     }
@@ -12015,17 +12230,6 @@ fn render_linear_gradient(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) {
-    let base_stops: Vec<(f32, (f32, f32, f32))> = gradient
-        .stops
-        .iter()
-        .map(|s| (s.position, s.color.to_f32_rgb()))
-        .collect();
-    let stops: Vec<(f32, (f32, f32, f32))> = if gradient.repeating {
-        repeat_stops_to_unit(&base_stops)
-    } else {
-        base_stops
-    };
-
     for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
         if gradient_requires_raster(&gradient.stops) {
             render_linear_gradient_tile_raster(
@@ -12040,6 +12244,17 @@ fn render_linear_gradient(
             );
             continue;
         }
+        let basis = linear_gradient_line_length(gradient.angle, tile.width, tile.height);
+        let resolved_stops = resolve_gradient_stop_positions(&gradient.stops, basis);
+        let base_stops: Vec<(f32, (f32, f32, f32))> = resolved_stops
+            .iter()
+            .map(|s| (s.position, s.color.to_f32_rgb()))
+            .collect();
+        let stops: Vec<(f32, (f32, f32, f32))> = if gradient.repeating {
+            repeat_stops_to_unit(&base_stops)
+        } else {
+            base_stops
+        };
         *shading_counter += 1;
         render_linear_gradient_tile(
             content,
@@ -12053,6 +12268,63 @@ fn render_linear_gradient(
             shading_counter,
         );
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_border_image_linear_gradient(
+    content: &mut String,
+    gradient: &LinearGradient,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    border_left: f32,
+    border_right: f32,
+    border_top: f32,
+    border_bottom: f32,
+    shadings: &mut Vec<ShadingEntry>,
+    shading_counter: &mut usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) {
+    let strips = [
+        (x, y + height - border_top, width, border_top),
+        (x + width - border_right, y, border_right, height),
+        (x, y, width, border_bottom),
+        (x, y, border_left, height),
+    ];
+    let mut gradient = gradient.clone();
+    gradient.layer_box.border_image = false;
+    gradient.layer_box.size = None;
+    gradient.layer_box.position = None;
+    gradient.layer_box.repeat = None;
+    for (cx, cy, cw, ch) in strips {
+        if cw <= 0.0 || ch <= 0.0 {
+            continue;
+        }
+        content.push_str("q\n");
+        content.push_str(&format!("{cx} {cy} {cw} {ch} re W n\n"));
+        render_linear_gradient(
+            content,
+            &gradient,
+            x,
+            y,
+            width,
+            height,
+            shadings,
+            shading_counter,
+            pdf_writer,
+            page_images,
+        );
+        content.push_str("Q\n");
+    }
+}
+
+fn linear_gradient_line_length(angle: f32, width: f32, height: f32) -> f32 {
+    let angle_rad = angle * std::f32::consts::PI / 180.0;
+    let sin_a = angle_rad.sin();
+    let cos_a = angle_rad.cos();
+    width * sin_a.abs() + height * cos_a.abs()
 }
 
 /// Paint a single axial-gradient tile clipped to its rectangle.
@@ -12115,14 +12387,8 @@ fn render_radial_gradient(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) {
-    let stops: Vec<(f32, (f32, f32, f32))> = gradient
-        .stops
-        .iter()
-        .map(|s| (s.position, s.color.to_f32_rgb()))
-        .collect();
-
     for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
-        if gradient_requires_raster(&gradient.stops) {
+        if radial_gradient_requires_raster(&gradient.stops, gradient.repeating) {
             render_radial_gradient_tile_raster(
                 content,
                 gradient,
@@ -12142,7 +12408,6 @@ fn render_radial_gradient(
             tile.y,
             tile.width,
             tile.height,
-            &stops,
             shadings,
             shading_counter,
         );
@@ -12158,7 +12423,6 @@ fn render_radial_gradient_tile(
     y: f32,
     width: f32,
     height: f32,
-    stops: &[(f32, (f32, f32, f32))],
     shadings: &mut Vec<ShadingEntry>,
     shading_counter: &mut usize,
 ) {
@@ -12176,15 +12440,6 @@ fn render_radial_gradient_tile(
     let near_y = off_y.min(height - off_y).abs();
     let far_y = off_y.max(height - off_y).abs();
 
-    // Repeating gradients tile the stop pattern along the gradient ray. The
-    // shading function already loops if we feed it a stop list extended over the
-    // ray; instead we expand the stops to cover [0,1] by repetition.
-    let render_stops: Vec<(f32, (f32, f32, f32))> = if gradient.repeating {
-        repeat_stops_to_unit(stops)
-    } else {
-        stops.to_vec()
-    };
-
     match gradient.shape {
         RadialShape::Circle => {
             // Use the explicit circle radius when given; otherwise resolve the
@@ -12198,6 +12453,16 @@ fn render_radial_gradient_tile(
             if max_radius <= 0.0 {
                 return;
             }
+            let resolved_stops = resolve_gradient_stop_positions(&gradient.stops, max_radius);
+            let base_stops: Vec<(f32, (f32, f32, f32))> = resolved_stops
+                .iter()
+                .map(|s| (s.position, s.color.to_f32_rgb()))
+                .collect();
+            let render_stops = if gradient.repeating {
+                repeat_stops_to_unit(&base_stops)
+            } else {
+                base_stops
+            };
             let name = push_radial_shading(
                 shadings,
                 shading_counter,
@@ -12232,6 +12497,16 @@ fn render_radial_gradient_tile(
             if rx <= 0.0 || ry <= 0.0 {
                 return;
             }
+            let resolved_stops = resolve_gradient_stop_positions(&gradient.stops, rx.max(ry));
+            let base_stops: Vec<(f32, (f32, f32, f32))> = resolved_stops
+                .iter()
+                .map(|s| (s.position, s.color.to_f32_rgb()))
+                .collect();
+            let render_stops = if gradient.repeating {
+                repeat_stops_to_unit(&base_stops)
+            } else {
+                base_stops
+            };
             // PDF radial shadings are circular, so paint a unit-radius circular
             // shading at the origin and squash it into the desired ellipse via a
             // `cm` transform applied after clipping to the tile (clip stays in
@@ -12337,7 +12612,7 @@ fn render_conic_gradient(
     }
 
     for tile in gradient_layer_tiles(&gradient.layer_box, x, y, width, height) {
-        if gradient_requires_raster(&gradient.stops) {
+        if conic_gradient_requires_raster(&gradient.stops) {
             render_conic_gradient_tile_raster(
                 content,
                 gradient,
@@ -12585,6 +12860,26 @@ fn render_svg_background(
                 .unwrap_or_else(|| scaled_w * vb_h / vb_w);
             (scaled_w, scaled_h)
         }
+        BackgroundSize::ExplicitAuto {
+            width,
+            height,
+            width_is_percent,
+            height_is_percent,
+        } => match (width, height) {
+            (Some(w), Some(h)) => (
+                resolve_axis(w, width_is_percent, paint.reference_box.width),
+                resolve_axis(h, height_is_percent, paint.reference_box.height),
+            ),
+            (Some(w), None) => {
+                let scaled_w = resolve_axis(w, width_is_percent, paint.reference_box.width);
+                (scaled_w, scaled_w * vb_h / vb_w)
+            }
+            (None, Some(h)) => {
+                let scaled_h = resolve_axis(h, height_is_percent, paint.reference_box.height);
+                (scaled_h * vb_w / vb_h, scaled_h)
+            }
+            (None, None) => (intrinsic_width * 0.75, intrinsic_height * 0.75),
+        },
     };
 
     if scaled_w <= 0.0 || scaled_h <= 0.0 {
@@ -12653,38 +12948,33 @@ fn render_svg_background(
     // origin at top-left of the element box).
     let offset_x = if paint.position.x_is_percent {
         (paint.reference_box.width - scaled_w) * paint.position.x
+    } else if paint.position.x < 0.0 {
+        (paint.reference_box.width - scaled_w) + paint.position.x
     } else {
         paint.position.x
     };
     let offset_y = if paint.position.y_is_percent {
         (paint.reference_box.height - scaled_h) * paint.position.y
+    } else if paint.position.y < 0.0 {
+        (paint.reference_box.height - scaled_h) + paint.position.y
     } else {
         paint.position.y
     };
 
     // Determine tiling grid based on background-repeat.
     // We compute the set of tile origin offsets (in CSS coords, top-left = 0,0).
-    let tiles_x: Vec<f32>;
-    let tiles_y: Vec<f32>;
-
-    match paint.repeat {
-        BackgroundRepeat::NoRepeat => {
-            tiles_x = vec![offset_x];
-            tiles_y = vec![offset_y];
-        }
-        BackgroundRepeat::Repeat => {
-            tiles_x = tile_offsets(offset_x, scaled_w, paint.reference_box.width);
-            tiles_y = tile_offsets(offset_y, scaled_h, paint.reference_box.height);
-        }
-        BackgroundRepeat::RepeatX => {
-            tiles_x = tile_offsets(offset_x, scaled_w, paint.reference_box.width);
-            tiles_y = vec![offset_y];
-        }
-        BackgroundRepeat::RepeatY => {
-            tiles_x = vec![offset_x];
-            tiles_y = tile_offsets(offset_y, scaled_h, paint.reference_box.height);
-        }
-    }
+    let (tiles_x, _scaled_w) = background_axis_tiles(
+        repeat_x(paint.repeat),
+        offset_x,
+        scaled_w,
+        paint.reference_box.width,
+    );
+    let (tiles_y, _scaled_h) = background_axis_tiles(
+        repeat_y(paint.repeat),
+        offset_y,
+        scaled_h,
+        paint.reference_box.height,
+    );
 
     // Clip to the element box.
     content.push_str("q\n");
@@ -12791,6 +13081,64 @@ fn tile_offsets(origin: f32, step: f32, extent: f32) -> Vec<f32> {
         offsets.push(origin);
     }
     offsets
+}
+
+#[derive(Clone, Copy)]
+enum RepeatAxis {
+    Repeat,
+    NoRepeat,
+    Space,
+    Round,
+}
+
+fn repeat_x(repeat: BackgroundRepeat) -> RepeatAxis {
+    match repeat {
+        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatY => RepeatAxis::NoRepeat,
+        BackgroundRepeat::Space | BackgroundRepeat::SpaceRound => RepeatAxis::Space,
+        BackgroundRepeat::Round | BackgroundRepeat::RoundSpace => RepeatAxis::Round,
+        _ => RepeatAxis::Repeat,
+    }
+}
+
+fn repeat_y(repeat: BackgroundRepeat) -> RepeatAxis {
+    match repeat {
+        BackgroundRepeat::NoRepeat | BackgroundRepeat::RepeatX => RepeatAxis::NoRepeat,
+        BackgroundRepeat::Round | BackgroundRepeat::SpaceRound => RepeatAxis::Round,
+        BackgroundRepeat::Space | BackgroundRepeat::RoundSpace => RepeatAxis::Space,
+        _ => RepeatAxis::Repeat,
+    }
+}
+
+fn background_axis_tiles(
+    repeat: RepeatAxis,
+    origin: f32,
+    step: f32,
+    extent: f32,
+) -> (Vec<f32>, f32) {
+    if step <= 0.0 || extent <= 0.0 {
+        return (vec![origin], step);
+    }
+    match repeat {
+        RepeatAxis::NoRepeat => (vec![origin], step),
+        RepeatAxis::Repeat => (tile_offsets(origin, step, extent), step),
+        RepeatAxis::Space => {
+            let count = (extent / step).floor().max(1.0) as usize;
+            if count <= 1 {
+                (vec![0.0], step)
+            } else {
+                let gap = (extent - step * count as f32) / (count - 1) as f32;
+                ((0..count).map(|i| i as f32 * (step + gap)).collect(), step)
+            }
+        }
+        RepeatAxis::Round => {
+            let count = (extent / step).round().max(1.0) as usize;
+            let rounded_step = extent / count as f32;
+            (
+                (0..count).map(|i| i as f32 * rounded_step).collect(),
+                rounded_step,
+            )
+        }
+    }
 }
 /// Render every outset shadow in a `box-shadow` list. CSS paints shadows
 /// back-to-front: the FIRST listed shadow ends up on top, so the list is
@@ -13786,6 +14134,7 @@ fn rasterize_mask_coverage(
         match p {
             RadialPos::Fraction(f) => extent * f,
             RadialPos::Points(pt) => (pt / 0.75) * scale,
+            RadialPos::EndOffset(pt) => extent - (pt / 0.75) * scale,
         }
     };
     let mut out = Vec::with_capacity((px_w * px_h) as usize);
@@ -13802,6 +14151,12 @@ fn rasterize_mask_coverage(
             // Half-length of the projected gradient line: project the box's
             // half-extents onto the direction and sum the absolute components.
             let half = (w * 0.5 * dx.abs() + h * 0.5 * dy.abs()).max(1e-6);
+            let stop_scale = ((scale_x + scale_y) * 0.5) / 0.75;
+            let stops = resolve_gradient_stop_positions_with_length_scale(
+                &lg.stops,
+                half * 2.0,
+                stop_scale,
+            );
             let (cx, cy) = (w * 0.5, h * 0.5);
             for py in 0..px_h {
                 let fy = py as f32 + 0.5;
@@ -13810,11 +14165,11 @@ fn rasterize_mask_coverage(
                     let proj = (fx - cx) * dx + (fy - cy) * dy;
                     let mut t = (proj + half) / (2.0 * half);
                     if lg.repeating {
-                        t = t.rem_euclid(repeat_period(&lg.stops));
+                        t = t.rem_euclid(repeat_period(&stops));
                     } else {
                         t = t.clamp(0.0, 1.0);
                     }
-                    out.push(coverage_byte(sample_gradient_stops(&lg.stops, t), mode));
+                    out.push(coverage_byte(sample_gradient_stops(&stops, t), mode));
                 }
             }
         }
@@ -13861,6 +14216,9 @@ fn rasterize_mask_coverage(
                 }
             };
             let (rx, ry) = (rx.max(1e-6), ry.max(1e-6));
+            let stop_scale = ((scale_x + scale_y) * 0.5) / 0.75;
+            let stops =
+                resolve_gradient_stop_positions_with_length_scale(&rg.stops, rx.max(ry), stop_scale);
             for py in 0..px_h {
                 let fy = py as f32 + 0.5;
                 for px in 0..px_w {
@@ -13869,11 +14227,11 @@ fn rasterize_mask_coverage(
                     let ny = (fy - cy) / ry;
                     let mut t = (nx * nx + ny * ny).sqrt();
                     if rg.repeating {
-                        t = t.rem_euclid(repeat_period(&rg.stops));
+                        t = t.rem_euclid(repeat_period(&stops));
                     } else {
                         t = t.clamp(0.0, 1.0);
                     }
-                    out.push(coverage_byte(sample_gradient_stops(&rg.stops, t), mode));
+                    out.push(coverage_byte(sample_gradient_stops(&stops, t), mode));
                 }
             }
         }
@@ -13926,9 +14284,21 @@ fn layer_sample(
     px_h: u32,
     scale_x: f32,
     scale_y: f32,
+    svg_defs: &crate::parser::svg::SvgDefs,
 ) -> Option<Vec<u8>> {
     match source {
         MaskLayerSource::Svg(bytes) => rasterize_svg_mask_coverage(bytes, mode, px_w, px_h),
+        MaskLayerSource::Ref(id) => {
+            let mask = svg_defs.masks.get(id)?;
+            rasterize_svg_mask_ref_coverage(
+                mask,
+                mode,
+                px_w,
+                px_h,
+                px_w as f32 / scale_x.max(1e-6),
+                px_h as f32 / scale_y.max(1e-6),
+            )
+        }
         _ => source_from_layer_source(source)
             .map(|src| rasterize_mask_coverage(&src, mode, px_w, px_h, scale_x, scale_y)),
     }
@@ -13961,6 +14331,7 @@ fn rasterize_mask_layer(
     w: f32,
     h: f32,
     metrics: BoxMetrics,
+    svg_defs: &crate::parser::svg::SvgDefs,
 ) -> Option<Vec<u8>> {
     let sx = px_w as f32 / w.max(1e-6);
     let sy = px_h as f32 / h.max(1e-6);
@@ -14023,6 +14394,7 @@ fn rasterize_mask_layer(
         tile_px_h,
         tile_scale_x,
         tile_scale_y,
+        svg_defs,
     )?;
     let mut out = vec![0u8; (px_w * px_h) as usize];
     let clip_l = (clip_x * sx).floor() as i32;
@@ -14061,6 +14433,7 @@ fn composite_mask(source: u8, dest: u8, op: MaskComposite) -> u8 {
         MaskComposite::Subtract => s * (1.0 - d),
         MaskComposite::Intersect => s * d,
         MaskComposite::Exclude => s * (1.0 - d) + d * (1.0 - s),
+        MaskComposite::Destination => d,
     };
     (a.clamp(0.0, 1.0) * 255.0).round() as u8
 }
@@ -14072,11 +14445,12 @@ fn rasterize_mask_layers(
     w: f32,
     h: f32,
     metrics: BoxMetrics,
+    svg_defs: &crate::parser::svg::SvgDefs,
 ) -> Option<Vec<u8>> {
     let mut accum = vec![0u8; (px_w * px_h) as usize];
     let mut first = true;
     for layer in layers.iter().rev() {
-        let cov = rasterize_mask_layer(layer, px_w, px_h, w, h, metrics)?;
+        let cov = rasterize_mask_layer(layer, px_w, px_h, w, h, metrics, svg_defs)?;
         if first {
             accum = cov;
             first = false;
@@ -14105,6 +14479,144 @@ fn rasterize_mask_border_ring(px_w: u32, px_h: u32, w: f32, h: f32, width: f32) 
         }
     }
     out
+}
+
+fn svg_mask_effective_mode(
+    requested: MaskMode,
+    mask_type: crate::parser::svg::SvgMaskType,
+) -> MaskMode {
+    match requested {
+        MaskMode::MatchSource => match mask_type {
+            crate::parser::svg::SvgMaskType::Alpha => MaskMode::Alpha,
+            crate::parser::svg::SvgMaskType::Luminance => MaskMode::Luminance,
+        },
+        other => other,
+    }
+}
+
+fn svg_mask_fill_coverage(style: &crate::parser::svg::SvgStyle, mode: MaskMode) -> Option<u8> {
+    let (r, g, b) = match style.fill {
+        crate::parser::svg::SvgPaint::None => return None,
+        crate::parser::svg::SvgPaint::Color(rgb) => rgb,
+        crate::parser::svg::SvgPaint::Unspecified => (0.0, 0.0, 0.0),
+        crate::parser::svg::SvgPaint::CurrentColor => style.color.unwrap_or((0.0, 0.0, 0.0)),
+        crate::parser::svg::SvgPaint::Url(_) => return None,
+    };
+    let a = style.opacity.clamp(0.0, 1.0);
+    let cov = match mode {
+        MaskMode::Alpha | MaskMode::MatchSource => a,
+        MaskMode::Luminance => (0.2126 * r + 0.7152 * g + 0.0722 * b) * a,
+    };
+    Some((cov.clamp(0.0, 1.0) * 255.0).round() as u8)
+}
+
+fn rasterize_svg_mask_node(
+    node: &crate::parser::svg::SvgNode,
+    out: &mut [u8],
+    px_w: u32,
+    px_h: u32,
+    user_w: f32,
+    user_h: f32,
+    mode: MaskMode,
+) {
+    match node {
+        crate::parser::svg::SvgNode::Group { children, .. } => {
+            for child in children {
+                rasterize_svg_mask_node(child, out, px_w, px_h, user_w, user_h, mode);
+            }
+        }
+        crate::parser::svg::SvgNode::Rect {
+            x,
+            y,
+            width,
+            height,
+            style,
+            ..
+        } => {
+            let Some(cov) = svg_mask_fill_coverage(style, mode) else {
+                return;
+            };
+            for py in 0..px_h {
+                let uy = (py as f32 + 0.5) * user_h / px_h as f32;
+                if uy < *y || uy >= *y + *height {
+                    continue;
+                }
+                for px in 0..px_w {
+                    let ux = (px as f32 + 0.5) * user_w / px_w as f32;
+                    if ux >= *x && ux < *x + *width {
+                        out[(py * px_w + px) as usize] = cov;
+                    }
+                }
+            }
+        }
+        crate::parser::svg::SvgNode::Circle { cx, cy, r, style } => {
+            let Some(cov) = svg_mask_fill_coverage(style, mode) else {
+                return;
+            };
+            let rr = r * r;
+            for py in 0..px_h {
+                let uy = (py as f32 + 0.5) * user_h / px_h as f32;
+                for px in 0..px_w {
+                    let ux = (px as f32 + 0.5) * user_w / px_w as f32;
+                    let dx = ux - *cx;
+                    let dy = uy - *cy;
+                    if dx * dx + dy * dy <= rr {
+                        out[(py * px_w + px) as usize] = cov;
+                    }
+                }
+            }
+        }
+        crate::parser::svg::SvgNode::Ellipse {
+            cx,
+            cy,
+            rx,
+            ry,
+            style,
+        } => {
+            let Some(cov) = svg_mask_fill_coverage(style, mode) else {
+                return;
+            };
+            if *rx <= 0.0 || *ry <= 0.0 {
+                return;
+            }
+            for py in 0..px_h {
+                let uy = (py as f32 + 0.5) * user_h / px_h as f32;
+                for px in 0..px_w {
+                    let ux = (px as f32 + 0.5) * user_w / px_w as f32;
+                    let nx = (ux - *cx) / *rx;
+                    let ny = (uy - *cy) / *ry;
+                    if nx * nx + ny * ny <= 1.0 {
+                        out[(py * px_w + px) as usize] = cov;
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn rasterize_svg_mask_ref_coverage(
+    mask: &crate::parser::svg::SvgMask,
+    requested_mode: MaskMode,
+    px_w: u32,
+    px_h: u32,
+    css_w: f32,
+    css_h: f32,
+) -> Option<Vec<u8>> {
+    if px_w == 0 || px_h == 0 {
+        return None;
+    }
+    let user_w = if mask.width > 0.0 { mask.width } else { css_w };
+    let user_h = if mask.height > 0.0 { mask.height } else { css_h };
+    if !(user_w > 0.0 && user_h > 0.0) {
+        return None;
+    }
+    let mode = svg_mask_effective_mode(requested_mode, mask.mask_type);
+    let mut out = vec![0u8; (px_w * px_h) as usize];
+    for child in &mask.children {
+        rasterize_svg_mask_node(child, &mut out, px_w, px_h, user_w, user_h, mode);
+    }
+    Some(out)
 }
 
 /// Rasterise an SVG `url()` mask source to a `px_w` × `px_h` DeviceGray coverage
@@ -14270,6 +14782,7 @@ pub(crate) struct PdfWriter {
     /// Each becomes an `/ExtGState << /SMask << /S /Luminosity /G <form> >> >>`
     /// emitted into the shared resource dictionary. Names are global across pages.
     soft_mask_gstates: Vec<(String, usize)>,
+    svg_defs: crate::parser::svg::SvgDefs,
     opts: RenderOpts,
 }
 
@@ -14285,6 +14798,7 @@ impl PdfWriter {
             page_shadings: Vec::new(),
             custom_font_entries: Vec::new(),
             soft_mask_gstates: Vec::new(),
+            svg_defs: crate::parser::svg::SvgDefs::default(),
             opts: RenderOpts::default(),
         }
     }
@@ -14707,11 +15221,16 @@ impl PdfWriter {
         let px_h = ((h / 0.75 * 4.0).round() as u32).clamp(1, 4096);
         let coverage = match source {
             MaskSource::Svg(bytes) => rasterize_svg_mask_coverage(bytes, mode, px_w, px_h)?,
-            MaskSource::Layers(layers) => rasterize_mask_layers(layers, px_w, px_h, w, h, metrics)?,
+            MaskSource::Layers(layers) => {
+                rasterize_mask_layers(layers, px_w, px_h, w, h, metrics, &self.svg_defs)?
+            }
             MaskSource::BorderRing { width } => {
                 rasterize_mask_border_ring(px_w, px_h, w, h, *width)
             }
-            MaskSource::Ref(_) => return None,
+            MaskSource::Ref(id) => {
+                let mask = self.svg_defs.masks.get(id)?;
+                rasterize_svg_mask_ref_coverage(mask, mode, px_w, px_h, w / 0.75, h / 0.75)?
+            }
             _ => rasterize_mask_coverage(
                 source,
                 mode,
@@ -14726,7 +15245,7 @@ impl PdfWriter {
         let gray_stream = flate_compress(&coverage)?;
         let img_id = self.next_id();
         self.objects.push(format!(
-            "{img_id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {px_w} /Height {px_h} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length {len} >>\nstream\n",
+            "{img_id} 0 obj\n<< /Type /XObject /Subtype /Image /Width {px_w} /Height {px_h} /ColorSpace /DeviceGray /BitsPerComponent 8 /Interpolate true /Filter /FlateDecode /Length {len} >>\nstream\n",
             len = gray_stream.len(),
         ));
         self.binary_objects.insert(img_id, gray_stream);
@@ -17674,6 +18193,7 @@ mod tests {
                         a: 255,
                     },
                     position: 0.0,
+                    position_length: 0.0,
                 },
                 GradientStop {
                     color: Color {
@@ -17683,6 +18203,7 @@ mod tests {
                         a: 255,
                     },
                     position: 1.0,
+                    position_length: 0.0,
                 },
             ],
             center: (

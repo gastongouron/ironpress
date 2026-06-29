@@ -1,15 +1,15 @@
 //! SVG tree to PDF content stream renderer.
 
 use crate::parser::svg::{
-    PathCommand, SvgClipPathUnits, SvgGradientUnits, SvgLinearGradient, SvgNode, SvgPaint,
-    SvgRadialGradient, SvgStyle, SvgTextAnchor, SvgTextContext, SvgTransform, SvgTree,
+    PathCommand, SvgClipPathUnits, SvgClipRule, SvgGradientUnits, SvgLinearGradient, SvgNode,
+    SvgPaint, SvgRadialGradient, SvgStyle, SvgTextAnchor, SvgTextContext, SvgTransform, SvgTree,
 };
 use crate::render::pdf::encode_pdf_text;
-use crate::render::shading::{ShadingEntry, push_axial_shading, push_radial_shading};
+use crate::render::shading::{push_axial_shading, push_radial_shading, ShadingEntry};
 use crate::render::svg_geometry::{
-    SvgPlacementRequest, SvgViewportBox, compute_raster_placement, compute_svg_placement,
+    compute_raster_placement, compute_svg_placement, SvgPlacementRequest, SvgViewportBox,
 };
-use crate::style::computed::{FontFamily, parse_font_stack};
+use crate::style::computed::{parse_font_stack, FontFamily};
 use std::fmt::Write as _;
 
 pub(crate) trait SvgImageObjectSink {
@@ -120,6 +120,7 @@ pub(crate) fn render_svg_tree_with_resources(
         fill: SvgPaint::Color((0.0, 0.0, 0.0)),
         stroke: SvgPaint::None,
         clip_path: None,
+        clip_rule: SvgClipRule::NonZero,
         stroke_width: 1.0,
         font_family: None,
         font_bold: None,
@@ -145,6 +146,7 @@ struct ResolvedStyle {
     fill: SvgPaint,
     stroke: SvgPaint,
     clip_path: Option<String>,
+    clip_rule: SvgClipRule,
     stroke_width: f32,
     font_family: Option<String>,
     font_bold: Option<bool>,
@@ -255,6 +257,7 @@ fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
         fill,
         stroke,
         clip_path: local.clip_path.clone(),
+        clip_rule: local.clip_rule,
         stroke_width,
         font_family: local.font_family.clone().or(parent.font_family),
         font_bold: local.font_bold.or(parent.font_bold),
@@ -699,6 +702,59 @@ fn resolve_gradient_coords(
     }
 }
 
+pub(crate) fn render_css_clip_path_reference(
+    clip_path_id: &str,
+    defs: &crate::parser::svg::SvgDefs,
+    left: f32,
+    top_y: f32,
+    w: f32,
+    h: f32,
+    out: &mut String,
+) {
+    let mut shadings = Vec::new();
+    let mut shading_counter = 0usize;
+    let scale = 0.75_f32;
+    let inv = 1.0 / scale;
+    out.push_str(&format!("{scale} 0 0 -{scale} {left} {top_y} cm\n"));
+    render_clip_path(
+        clip_path_id,
+        defs,
+        &mut shadings,
+        &mut shading_counter,
+        Some(SvgObjectBoundingBox {
+            min_x: 0.0,
+            min_y: 0.0,
+            width: w / scale,
+            height: h / scale,
+        }),
+        out,
+    );
+    out.push_str(&format!(
+        "{inv} 0 0 -{inv} {} {} cm\n",
+        -left * inv,
+        top_y * inv
+    ));
+}
+
+fn clip_nodes_use_evenodd(nodes: &[SvgNode], inherited: ResolvedStyle) -> bool {
+    nodes.iter().any(|node| match node {
+        SvgNode::Group {
+            children, style, ..
+        } => clip_nodes_use_evenodd(children, resolve_style(inherited.clone(), style)),
+        SvgNode::Rect { style, .. }
+        | SvgNode::Circle { style, .. }
+        | SvgNode::Ellipse { style, .. }
+        | SvgNode::Polygon { style, .. }
+        | SvgNode::Path { style, .. }
+        | SvgNode::Line { style, .. }
+        | SvgNode::Polyline { style, .. }
+        | SvgNode::Text { style, .. }
+        | SvgNode::Image { style, .. } => {
+            resolve_style(inherited.clone(), style).clip_rule == SvgClipRule::EvenOdd
+        }
+    })
+}
+
 fn render_clip_path(
     clip_path_id: &str,
     defs: &crate::parser::svg::SvgDefs,
@@ -742,6 +798,7 @@ fn render_clip_path(
         fill: SvgPaint::None,
         stroke: SvgPaint::None,
         clip_path: None,
+        clip_rule: SvgClipRule::NonZero,
         stroke_width: 0.0,
         font_family: None,
         font_bold: None,
@@ -754,6 +811,7 @@ fn render_clip_path(
     }
 
     let mut resources = SvgPdfResources::without_images(shadings, shading_counter);
+    let even_odd = clip_nodes_use_evenodd(&clip_path.children, clip_style.clone());
     for child in &clip_path.children {
         render_node(
             child,
@@ -765,7 +823,7 @@ fn render_clip_path(
             RenderMode::PathOnly,
         );
     }
-    out.push_str("W n\n");
+    out.push_str(if even_odd { "W* n\n" } else { "W n\n" });
 
     for transform in transforms.iter().rev() {
         if let Some(inverse_transform) = inverse_svg_transform(transform) {

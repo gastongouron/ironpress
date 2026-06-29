@@ -289,10 +289,13 @@ fn build_filter_raster(
     let rgba = decode_image_for_blur(raw)?.to_rgba8();
     if let Some(ds) = drop_shadow {
         // drop-shadow operates on the (color-filtered) source.
-        let mut src = rgba;
-        if !color_filters.is_empty() {
-            apply_color_filters_rgba(&mut src, color_filters);
-        }
+        let (src, _) = apply_filter_ops_rgba(
+            &rgba,
+            color_filters,
+            content_w_pt,
+            content_h_pt,
+            0.0,
+        )?;
         return crate::render::blur::drop_shadow_image(
             &src,
             content_w_pt,
@@ -305,24 +308,57 @@ fn build_filter_raster(
         .map(|b| (b.asset, b.overflow_pt));
     }
     if blur_radius_pt > 0.0 {
-        // The fixtures order blur first (`blur(...) brightness(...)`), and the
-        // CSS filter pipeline applies functions in order, so blur the source
-        // and then apply the color filters to the *blurred* pixels (including
-        // the feathered edge) before encoding.
-        let (mut buf, overflow) = crate::render::blur::blur_image_buffer(
+        let (buf, overflow) = apply_filter_ops_rgba(
             &rgba,
+            color_filters,
             content_w_pt,
             content_h_pt,
             blur_radius_pt,
-            300.0,
         )?;
-        if !color_filters.is_empty() {
-            apply_color_filters_rgba(&mut buf, color_filters);
-        }
         return crate::render::blur::raster_from_buffer(buf, overflow)
             .map(|b| (b.asset, b.overflow_pt));
     }
     None
+}
+
+fn apply_filter_ops_rgba(
+    img: &image::RgbaImage,
+    ops: &[ColorFilterOp],
+    content_w_pt: f32,
+    content_h_pt: f32,
+    fallback_blur_pt: f32,
+) -> Option<(image::RgbaImage, f32)> {
+    let mut current = img.clone();
+    let mut overflow = 0.0;
+    let mut saw_blur = false;
+    for op in ops {
+        match *op {
+            ColorFilterOp::Blur(radius) if radius > 0.0 => {
+                let display_w = content_w_pt + 2.0 * overflow;
+                let display_h = content_h_pt + 2.0 * overflow;
+                let (buf, ov) = crate::render::blur::blur_image_buffer(
+                    &current, display_w, display_h, radius, 300.0,
+                )?;
+                current = buf;
+                overflow += ov;
+                saw_blur = true;
+            }
+            ColorFilterOp::Blur(_) => {}
+            _ => apply_color_filters_rgba(&mut current, std::slice::from_ref(op)),
+        }
+    }
+    if !saw_blur && fallback_blur_pt > 0.0 {
+        let (buf, ov) = crate::render::blur::blur_image_buffer(
+            &current,
+            content_w_pt,
+            content_h_pt,
+            fallback_blur_pt,
+            300.0,
+        )?;
+        current = buf;
+        overflow += ov;
+    }
+    Some((current, overflow))
 }
 
 /// Apply CSS `filter` color functions to an RGBA image in place, preserving the
@@ -1148,6 +1184,7 @@ fn apply_one_filter(op: &ColorFilterOp, r: f32, g: f32, b: f32) -> (f32, f32, f3
             m[5] * r + m[6] * g + m[7] * b + m[9] * 255.0,
             m[10] * r + m[11] * g + m[12] * b + m[14] * 255.0,
         ),
+        ColorFilterOp::Flood { .. } => (r, g, b),
         ColorFilterOp::Blur(_)
         | ColorFilterOp::Offset { .. }
         | ColorFilterOp::DropShadow(_)
@@ -1264,6 +1301,7 @@ pub(crate) fn apply_color_filters_to_box(style: &mut ComputedStyle, linear_rgb: 
                 dx,
                 dy,
                 keep_source,
+                ..
             } => {
                 if let Some(bg) = style.background_color {
                     style.box_shadow.push(crate::style::computed::BoxShadow {

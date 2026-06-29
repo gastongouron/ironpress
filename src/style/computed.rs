@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::parser::css::{
-    CssRule, CssValue, SelectorContext, StyleMap, parse_length, selector_matches_with_context,
-    specificity,
+    CalcOp, CssRule, CssValue, SelectorContext, StyleMap, parse_length,
+    selector_matches_with_context, specificity,
 };
 use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
@@ -297,6 +297,7 @@ pub enum MaskComposite {
     Subtract,
     Intersect,
     Exclude,
+    Destination,
 }
 
 #[derive(Debug, Clone)]
@@ -942,8 +943,11 @@ pub enum WritingMode {
 #[derive(Debug, Clone, Copy)]
 pub struct GradientStop {
     pub color: Color,
-    /// Position in the gradient (0.0 to 1.0).
+    /// Fractional position in the gradient (0.0 to 1.0).
     pub position: f32,
+    /// Absolute offset, in points, added at paint time against the gradient line
+    /// or radius. This preserves length/calc() stops until the basis is known.
+    pub position_length: f32,
 }
 
 /// Per-layer painting parameters for a gradient background layer. Populated
@@ -959,6 +963,10 @@ pub struct GradientLayerBox {
     pub position: Option<BackgroundPosition>,
     /// Repeat mode of the gradient tile (`background-repeat` for this layer).
     pub repeat: Option<BackgroundRepeat>,
+    pub origin: Option<BackgroundOrigin>,
+    pub clip: Option<BackgroundClip>,
+    pub attachment: Option<BackgroundAttachment>,
+    pub border_image: bool,
 }
 
 /// A CSS linear gradient.
@@ -984,6 +992,8 @@ pub enum RadialPos {
     Fraction(f32),
     /// Absolute offset in points from the box's start edge (left/top).
     Points(f32),
+    /// Absolute offset in points from the box's end edge (right/bottom).
+    EndOffset(f32),
 }
 
 impl RadialPos {
@@ -993,6 +1003,7 @@ impl RadialPos {
         match self {
             RadialPos::Fraction(f) => extent * f,
             RadialPos::Points(p) => p,
+            RadialPos::EndOffset(p) => extent - p,
         }
     }
 }
@@ -1135,6 +1146,15 @@ pub enum BackgroundClip {
     Border,
     Padding,
     Content,
+    Text,
+}
+/// CSS background-attachment property.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum BackgroundAttachment {
+    #[default]
+    Scroll,
+    Fixed,
+    Local,
 }
 /// CSS background-size property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -1149,6 +1169,12 @@ pub enum BackgroundSize {
         width_is_percent: bool,
         height_is_percent: bool,
     },
+    ExplicitAuto {
+        width: Option<f32>,
+        height: Option<f32>,
+        width_is_percent: bool,
+        height_is_percent: bool,
+    },
 }
 /// CSS background-repeat property.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -1158,6 +1184,10 @@ pub enum BackgroundRepeat {
     NoRepeat,
     RepeatX,
     RepeatY,
+    Space,
+    Round,
+    SpaceRound,
+    RoundSpace,
 }
 /// CSS background-position value.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1667,6 +1697,7 @@ pub struct ComputedStyle {
     pub background_position: BackgroundPosition,
     pub background_origin: BackgroundOrigin,
     pub background_clip: BackgroundClip,
+    pub background_attachment: BackgroundAttachment,
     /// CSS z-index (0 = auto).
     pub z_index: i32,
     /// CSS custom properties inherited from ancestors.
@@ -1811,8 +1842,23 @@ pub enum ColorFilterOp {
     Saturate(f32),
     HueRotate(f32),
     Matrix([f32; 20]),
+    Flood {
+        color: (f32, f32, f32, f32),
+        region_x: f32,
+        region_y: f32,
+        region_width: f32,
+        region_height: f32,
+    },
     Blur(f32),
-    Offset { dx: f32, dy: f32, keep_source: bool },
+    Offset {
+        dx: f32,
+        dy: f32,
+        keep_source: bool,
+        region_x: f32,
+        region_y: f32,
+        region_width: f32,
+        region_height: f32,
+    },
     DropShadow(DropShadow),
     MorphologyDilate(f32),
 }
@@ -1966,6 +2012,7 @@ impl Default for ComputedStyle {
             background_position: BackgroundPosition::default(),
             background_origin: BackgroundOrigin::Padding,
             background_clip: BackgroundClip::Border,
+            background_attachment: BackgroundAttachment::Scroll,
             z_index: 0,
             custom_properties: HashMap::new(),
             list_style_type: ListStyleType::Disc,
@@ -2012,6 +2059,7 @@ impl ComputedStyle {
         self.background_position = BackgroundPosition::default();
         self.background_origin = BackgroundOrigin::Padding;
         self.background_clip = BackgroundClip::Border;
+        self.background_attachment = BackgroundAttachment::Scroll;
     }
 
     fn inherit_background_image(&mut self, source: &ComputedStyle) {
@@ -2030,6 +2078,7 @@ impl ComputedStyle {
         self.background_position = source.background_position;
         self.background_origin = source.background_origin;
         self.background_clip = source.background_clip;
+        self.background_attachment = source.background_attachment;
     }
 }
 
@@ -2204,6 +2253,7 @@ pub fn compute_style_with_context(
     style.background_position = BackgroundPosition::default();
     style.background_origin = BackgroundOrigin::Padding;
     style.background_clip = BackgroundClip::Border;
+    style.background_attachment = BackgroundAttachment::Scroll;
     style.content = Vec::new();
     style.counter_reset = Vec::new();
     style.counter_increment = Vec::new();
@@ -2774,6 +2824,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "background-position" => style.background_position = default.background_position,
         "background-origin" => style.background_origin = default.background_origin,
         "background-clip" => style.background_clip = default.background_clip,
+        "background-attachment" => style.background_attachment = default.background_attachment,
         "background-image" | "background-svg" => style.clear_background_images(),
         "aspect-ratio" => style.aspect_ratio = default.aspect_ratio,
         "object-fit" => style.object_fit = default.object_fit,
@@ -2963,6 +3014,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "background-position" => style.background_position = parent.background_position,
         "background-origin" => style.background_origin = parent.background_origin,
         "background-clip" => style.background_clip = parent.background_clip,
+        "background-attachment" => style.background_attachment = parent.background_attachment,
         "background-image" | "background-svg" => style.inherit_background_image(parent),
         "background-gradient" => style.background_gradient = parent.background_gradient.clone(),
         "background-radial-gradient" => {
@@ -3229,6 +3281,8 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                 if let Some(tree) = crate::parser::svg::parse_svg_from_string(&svg_text) {
                     style.background_svg = Some(tree);
                 }
+            } else if let Some(url) = extract_image_set_url(trimmed) {
+                style.background_image = Some(url);
             } else if let Some(CssValue::Color(c)) = crate::parser::css::parse_color(trimmed) {
                 // `background: var(--c)` decomposes here; a resolved colour is a
                 // background-color, not an image URL.
@@ -3666,6 +3720,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         apply_grid_area(style, k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip") {
+        eprintln!("DEBUG clip={k}");
         style.clip_path = parse_legacy_clip_rect(k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "clip-path") {
@@ -4873,6 +4928,11 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             }
         }
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-attachment")
+        && let Some(part) = nth_layer_value(k, raster_layer_index.unwrap_or(0))
+    {
+        style.background_attachment = parse_background_attachment_value(&part);
+    }
 
     // Route the gradient layer's own size/position/repeat entry onto the gradient
     // struct so the renderer can paint it as a positioned, sized tile.
@@ -4889,19 +4949,21 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-origin") {
-        style.background_origin = match k.as_str() {
-            "border-box" => BackgroundOrigin::Border,
-            "content-box" => BackgroundOrigin::Content,
-            _ => BackgroundOrigin::Padding,
-        };
+        if let Some(part) = nth_layer_value(k, raster_layer_index.unwrap_or(0)) {
+            style.background_origin = parse_background_origin_value(&part);
+        }
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-clip") {
-        style.background_clip = match k.as_str() {
-            "padding-box" => BackgroundClip::Padding,
-            "content-box" => BackgroundClip::Content,
-            // `text` and any unknown value fall back to the initial `border-box`.
-            _ => BackgroundClip::Border,
-        };
+        if let Some(part) = nth_layer_value(k, raster_layer_index.unwrap_or(0)) {
+            style.background_clip = parse_background_clip_value(&part);
+        }
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "border-image")
+        && let Some(gradient) = parse_border_image_gradient(k)
+    {
+        style.background_gradient = Some(gradient);
+        style.background_clip = BackgroundClip::Padding;
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "aspect-ratio") {
@@ -5839,6 +5901,7 @@ fn parse_filter(
             "blur" => {
                 if let Some(r) = parse_filter_blur(&format!("blur({arg})")) {
                     blur = Some(r);
+                    ops.push(ColorFilterOp::Blur(r));
                 } else {
                     return (Some(0.0), Vec::new(), 1.0, None, None);
                 }
@@ -6054,7 +6117,36 @@ fn parse_background_repeat_value(val: &str) -> BackgroundRepeat {
         "no-repeat" => BackgroundRepeat::NoRepeat,
         "repeat-x" => BackgroundRepeat::RepeatX,
         "repeat-y" => BackgroundRepeat::RepeatY,
+        "space" => BackgroundRepeat::Space,
+        "round" => BackgroundRepeat::Round,
+        "space round" => BackgroundRepeat::SpaceRound,
+        "round space" => BackgroundRepeat::RoundSpace,
         _ => BackgroundRepeat::Repeat,
+    }
+}
+
+fn parse_background_origin_value(val: &str) -> BackgroundOrigin {
+    match val.trim() {
+        "border-box" => BackgroundOrigin::Border,
+        "content-box" => BackgroundOrigin::Content,
+        _ => BackgroundOrigin::Padding,
+    }
+}
+
+fn parse_background_clip_value(val: &str) -> BackgroundClip {
+    match val.trim() {
+        "padding-box" => BackgroundClip::Padding,
+        "content-box" => BackgroundClip::Content,
+        "text" => BackgroundClip::Text,
+        _ => BackgroundClip::Border,
+    }
+}
+
+fn parse_background_attachment_value(val: &str) -> BackgroundAttachment {
+    match val.trim() {
+        "fixed" => BackgroundAttachment::Fixed,
+        "local" => BackgroundAttachment::Local,
+        _ => BackgroundAttachment::Scroll,
     }
 }
 
@@ -6080,10 +6172,32 @@ fn resolve_gradient_layer_box(map: &StyleMap, gradient_idx: usize) -> GradientLa
         }
         _ => None,
     });
+    let origin = get_non_special(map, "background-origin").and_then(|v| match v {
+        CssValue::Keyword(k) => {
+            nth_layer_value(k, gradient_idx).map(|part| parse_background_origin_value(&part))
+        }
+        _ => None,
+    });
+    let clip = get_non_special(map, "background-clip").and_then(|v| match v {
+        CssValue::Keyword(k) => {
+            nth_layer_value(k, gradient_idx).map(|part| parse_background_clip_value(&part))
+        }
+        _ => None,
+    });
+    let attachment = get_non_special(map, "background-attachment").and_then(|v| match v {
+        CssValue::Keyword(k) => {
+            nth_layer_value(k, gradient_idx).map(|part| parse_background_attachment_value(&part))
+        }
+        _ => None,
+    });
     GradientLayerBox {
         size,
         position,
         repeat,
+        origin,
+        clip,
+        attachment,
+        border_image: false,
     }
 }
 
@@ -6101,6 +6215,24 @@ fn parse_background_size_explicit(val: &str) -> Option<BackgroundSize> {
         }
     };
     match parts.len() {
+        2 if parts[0] == "auto" => {
+            let (height, height_is_percent) = parse_dimension(parts[1])?;
+            Some(BackgroundSize::ExplicitAuto {
+                width: None,
+                height: Some(height),
+                width_is_percent: false,
+                height_is_percent,
+            })
+        }
+        2 if parts[1] == "auto" => {
+            let (width, width_is_percent) = parse_dimension(parts[0])?;
+            Some(BackgroundSize::ExplicitAuto {
+                width: Some(width),
+                height: None,
+                width_is_percent,
+                height_is_percent: false,
+            })
+        }
         1 => {
             let (width, width_is_percent) = parse_dimension(parts[0])?;
             Some(BackgroundSize::Explicit {
@@ -6208,12 +6340,81 @@ fn parse_background_position(val: &str) -> Option<BackgroundPosition> {
                 y_is_percent: yp,
             })
         }
+        [h_edge, h_offset, v_edge, v_offset]
+            if matches!(*h_edge, "left" | "right") && matches!(*v_edge, "top" | "bottom") =>
+        {
+            let (mut x, xp) = pc(h_offset)?;
+            let (mut y, yp) = pc(v_offset)?;
+            if *h_edge == "right" && !xp {
+                x = -x;
+            } else if *h_edge == "right" {
+                x = 1.0 - x;
+            }
+            if *v_edge == "bottom" && !yp {
+                y = -y;
+            } else if *v_edge == "bottom" {
+                y = 1.0 - y;
+            }
+            Some(BackgroundPosition {
+                x,
+                y,
+                x_is_percent: xp,
+                y_is_percent: yp,
+            })
+        }
+        [v_edge, v_offset, h_edge, h_offset]
+            if matches!(*h_edge, "left" | "right") && matches!(*v_edge, "top" | "bottom") =>
+        {
+            let (mut x, xp) = pc(h_offset)?;
+            let (mut y, yp) = pc(v_offset)?;
+            if *h_edge == "right" && !xp {
+                x = -x;
+            } else if *h_edge == "right" {
+                x = 1.0 - x;
+            }
+            if *v_edge == "bottom" && !yp {
+                y = -y;
+            } else if *v_edge == "bottom" {
+                y = 1.0 - y;
+            }
+            Some(BackgroundPosition {
+                x,
+                y,
+                x_is_percent: xp,
+                y_is_percent: yp,
+            })
+        }
         _ => None,
     }
 }
 
 fn is_background_position_keyword(token: &str) -> bool {
     matches!(token, "left" | "right" | "top" | "bottom" | "center")
+}
+
+fn extract_image_set_url(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    let _ = lower
+        .strip_prefix("image-set(")
+        .or_else(|| lower.strip_prefix("-webkit-image-set("))?;
+    if !trimmed.ends_with(')') {
+        return None;
+    }
+    let inner = &trimmed[trimmed.find('(')? + 1..trimmed.len() - 1];
+    let start = inner.find("url(")?;
+    let tail = &inner[start..];
+    let end = tail.find(')')?;
+    Some(tail[..=end].to_string())
+}
+
+fn parse_border_image_gradient(value: &str) -> Option<LinearGradient> {
+    let trimmed = value.trim();
+    let end = trimmed.find(')')?;
+    let gradient_value = &trimmed[..=end];
+    let mut gradient = parse_linear_gradient(gradient_value)?;
+    gradient.layer_box.border_image = true;
+    Some(gradient)
 }
 
 /// Parse a `box-shadow` shorthand value.
@@ -7517,8 +7718,8 @@ fn parse_clip_path(val: &str) -> Option<ClipPath> {
             });
         }
     }
-    if let Some(id) = raw.strip_prefix("url(#").and_then(|s| s.strip_suffix(')')) {
-        return Some(ClipPath::Url(id.to_string()));
+    if let Some(id) = parse_fragment_url(raw) {
+        return Some(ClipPath::Url(id));
     }
     parse_shape_box(raw).map(|box_kind| ClipPath::Inset {
         top: LengthPercent {
@@ -7581,11 +7782,23 @@ fn parse_mask_mode(raw: &str) -> MaskMode {
 
 fn parse_mask_composite(raw: &str) -> MaskComposite {
     match raw.trim().to_ascii_lowercase().as_str() {
-        "subtract" | "source-out" => MaskComposite::Subtract,
-        "intersect" | "source-in" => MaskComposite::Intersect,
+        "subtract" => MaskComposite::Subtract,
+        "intersect" => MaskComposite::Intersect,
         "exclude" | "xor" => MaskComposite::Exclude,
+        "source-out" => MaskComposite::Exclude,
+        "source-in" => MaskComposite::Destination,
         _ => MaskComposite::Add,
     }
+}
+
+fn parse_fragment_url(raw: &str) -> Option<String> {
+    let inner = raw
+        .trim()
+        .strip_prefix("url(")?
+        .strip_suffix(')')?
+        .trim()
+        .trim_matches(|c| c == '\'' || c == '"');
+    inner.strip_prefix('#').map(str::to_string)
 }
 
 fn parse_mask_layer_source(raw: &str) -> Option<MaskLayerSource> {
@@ -7599,9 +7812,10 @@ fn parse_mask_layer_source(raw: &str) -> Option<MaskLayerSource> {
     if lower.starts_with("conic-gradient(") || lower.starts_with("repeating-conic-gradient(") {
         return parse_conic_gradient(raw).map(MaskLayerSource::Conic);
     }
-    if lower.starts_with("url(#") {
-        let id = raw.trim().strip_prefix("url(#")?.strip_suffix(')')?;
-        return Some(MaskLayerSource::Ref(id.to_string()));
+    if lower.starts_with("url(") {
+        if let Some(id) = parse_fragment_url(raw) {
+            return Some(MaskLayerSource::Ref(id));
+        }
     }
     if lower.starts_with("url(") {
         return parse_mask_url_svg(raw).map(MaskLayerSource::Svg);
@@ -9350,6 +9564,7 @@ pub fn parse_linear_gradient(val: &str) -> Option<LinearGradient> {
     }
 
     let first = parts[0].trim();
+    let first = strip_gradient_interpolation_method(first);
 
     // Determine if the first arg is a direction/angle or a color stop
     let (angle, color_start) = if first.starts_with("to ") {
@@ -9385,6 +9600,14 @@ pub fn parse_linear_gradient(val: &str) -> Option<LinearGradient> {
         repeating,
         layer_box: GradientLayerBox::default(),
     })
+}
+
+fn strip_gradient_interpolation_method(first: &str) -> &str {
+    let lower = first.to_ascii_lowercase();
+    if let Some(idx) = lower.find(" in oklab") {
+        return first[..idx].trim();
+    }
+    first
 }
 
 /// Parse a CSS `<angle>` token into degrees. Supports `deg`, `grad`, `rad`,
@@ -9618,6 +9841,7 @@ pub fn parse_conic_gradient(val: &str) -> Option<ConicGradient> {
 fn parse_conic_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
     // Raw stops: (color, optional fraction position).
     let mut raw: Vec<(Color, Option<f32>)> = Vec::new();
+    let mut hints: Vec<(usize, f32)> = Vec::new();
 
     for part in parts {
         let part = part.trim();
@@ -9629,6 +9853,14 @@ fn parse_conic_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
         // `rgb(...)` have no spaces after lightningcss normalization.
         let tokens: Vec<&str> = part.split_whitespace().collect();
         if tokens.is_empty() {
+            continue;
+        }
+        if tokens.len() == 1
+            && let Some(position) = parse_conic_angle_fraction(tokens[0])
+        {
+            if let Some(prev) = raw.len().checked_sub(1) {
+                hints.push((prev, position));
+            }
             continue;
         }
         // Find how many leading tokens form the color (1 normally).
@@ -9686,7 +9918,7 @@ fn parse_conic_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
 
     // Enforce non-decreasing positions (later smaller positions clamp up).
     let mut last = 0.0_f32;
-    let stops: Vec<GradientStop> = raw
+    let mut stops: Vec<GradientStop> = raw
         .into_iter()
         .map(|(color, pos)| {
             let mut p = pos.unwrap_or(0.0).clamp(0.0, 1.0);
@@ -9694,9 +9926,45 @@ fn parse_conic_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
                 p = last;
             }
             last = p;
-            GradientStop { color, position: p }
+            GradientStop {
+                color,
+                position: p,
+                position_length: 0.0,
+            }
         })
         .collect();
+
+    for (prev, hint_pos) in hints.into_iter().rev() {
+        if prev + 1 >= stops.len() {
+            continue;
+        }
+        let left = stops[prev].position;
+        let right = stops[prev + 1].position;
+        let span = right - left;
+        if span <= 1e-6 {
+            continue;
+        }
+        let hint_t = ((hint_pos - left) / span).clamp(0.0, 1.0);
+        if hint_t <= 1e-6 || hint_t >= 1.0 - 1e-6 {
+            continue;
+        }
+        let exponent = 0.5_f32.ln() / hint_t.ln();
+        let mut hinted = Vec::new();
+        const HINT_STEPS: usize = 256;
+        for step in 1..HINT_STEPS {
+            let t = step as f32 / HINT_STEPS as f32;
+            hinted.push(GradientStop {
+                color: lerp_color(
+                    stops[prev].color,
+                    stops[prev + 1].color,
+                    color_hint_progress(t, hint_t, exponent),
+                ),
+                position: left + span * t,
+                position_length: 0.0,
+            });
+        }
+        stops.splice(prev + 1..prev + 1, hinted);
+    }
 
     Some(stops)
 }
@@ -9763,27 +10031,80 @@ fn parse_radial_center(first: &str) -> (RadialPos, RadialPos) {
         return (half, half);
     }
 
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum AxisEdge {
+        Left,
+        Right,
+        Top,
+        Bottom,
+        Center,
+    }
+
+    fn edge(token: &str) -> Option<AxisEdge> {
+        match token {
+            "left" => Some(AxisEdge::Left),
+            "right" => Some(AxisEdge::Right),
+            "top" => Some(AxisEdge::Top),
+            "bottom" => Some(AxisEdge::Bottom),
+            "center" => Some(AxisEdge::Center),
+            _ => None,
+        }
+    }
+
+    fn edge_pos(edge: AxisEdge, offset: Option<RadialPos>) -> RadialPos {
+        match (edge, offset) {
+            (AxisEdge::Left | AxisEdge::Top, Some(pos)) => pos,
+            (AxisEdge::Right | AxisEdge::Bottom, Some(RadialPos::Fraction(f))) => {
+                RadialPos::Fraction(1.0 - f)
+            }
+            (AxisEdge::Right | AxisEdge::Bottom, Some(RadialPos::Points(p))) => {
+                RadialPos::EndOffset(p)
+            }
+            (AxisEdge::Right | AxisEdge::Bottom, Some(RadialPos::EndOffset(p))) => {
+                RadialPos::Points(p)
+            }
+            (AxisEdge::Left | AxisEdge::Top, None) => RadialPos::Fraction(0.0),
+            (AxisEdge::Right | AxisEdge::Bottom, None) => RadialPos::Fraction(1.0),
+            (AxisEdge::Center, _) => RadialPos::Fraction(0.5),
+        }
+    }
+
+    let tokens: Vec<&str> = pos.split_whitespace().collect();
     let mut x: Option<RadialPos> = None;
     let mut y: Option<RadialPos> = None;
 
-    for t in pos.split_whitespace() {
-        match t {
-            "left" => x = Some(RadialPos::Fraction(0.0)),
-            "right" => x = Some(RadialPos::Fraction(1.0)),
-            "top" => y = Some(RadialPos::Fraction(0.0)),
-            "bottom" => y = Some(RadialPos::Fraction(1.0)),
-            "center" => { /* leaves the axis at its default 0.5 */ }
-            other => {
-                if let Some(p) = parse_radial_pos(other) {
-                    // First numeric goes to x, the second to y.
+    let mut i = 0;
+    while i < tokens.len() {
+        if let Some(e) = edge(tokens[i]) {
+            let next = tokens.get(i + 1).and_then(|t| {
+                if edge(t).is_some() {
+                    None
+                } else {
+                    parse_radial_pos(t)
+                }
+            });
+            match e {
+                AxisEdge::Left | AxisEdge::Right => x = Some(edge_pos(e, next)),
+                AxisEdge::Top | AxisEdge::Bottom => y = Some(edge_pos(e, next)),
+                AxisEdge::Center => {
                     if x.is_none() {
-                        x = Some(p);
+                        x = Some(half);
                     } else if y.is_none() {
-                        y = Some(p);
+                        y = Some(half);
                     }
                 }
             }
+            i += usize::from(next.is_some()) + 1;
+            continue;
         }
+        if let Some(p) = parse_radial_pos(tokens[i]) {
+            if x.is_none() {
+                x = Some(p);
+            } else if y.is_none() {
+                y = Some(p);
+            }
+        }
+        i += 1;
     }
 
     (x.unwrap_or(half), y.unwrap_or(half))
@@ -9821,107 +10142,202 @@ fn split_gradient_args(s: &str) -> Vec<String> {
     parts
 }
 
+#[derive(Debug, Clone, Copy)]
+struct GradientStopPosition {
+    fraction: f32,
+    length: f32,
+}
+
+impl GradientStopPosition {
+    fn zero() -> Self {
+        Self {
+            fraction: 0.0,
+            length: 0.0,
+        }
+    }
+
+    fn one() -> Self {
+        Self {
+            fraction: 1.0,
+            length: 0.0,
+        }
+    }
+}
+
+enum RawGradientItem {
+    Stop(Color, Vec<GradientStopPosition>),
+    Hint(GradientStopPosition),
+}
+
+fn parse_gradient_stop_position(token: &str) -> Option<GradientStopPosition> {
+    match parse_length(token)? {
+        CssValue::Percentage(p) => Some(GradientStopPosition {
+            fraction: p / 100.0,
+            length: 0.0,
+        }),
+        CssValue::Length(length) => Some(GradientStopPosition {
+            fraction: 0.0,
+            length,
+        }),
+        CssValue::Calc(tokens) => {
+            let mut total = GradientStopPosition::zero();
+            let mut op = CalcOp::Add;
+            for token in tokens {
+                match token {
+                    crate::parser::css::CalcToken::Op(next) => op = next,
+                    crate::parser::css::CalcToken::Percent(p) => {
+                        let value = GradientStopPosition {
+                            fraction: p / 100.0,
+                            length: 0.0,
+                        };
+                        apply_gradient_calc_component(&mut total, op, value)?;
+                    }
+                    crate::parser::css::CalcToken::Length(length) => {
+                        let value = GradientStopPosition {
+                            fraction: 0.0,
+                            length,
+                        };
+                        apply_gradient_calc_component(&mut total, op, value)?;
+                    }
+                    _ => return None,
+                }
+            }
+            Some(total)
+        }
+        _ => None,
+    }
+}
+
+fn apply_gradient_calc_component(
+    total: &mut GradientStopPosition,
+    op: CalcOp,
+    value: GradientStopPosition,
+) -> Option<()> {
+    match op {
+        CalcOp::Add => {
+            total.fraction += value.fraction;
+            total.length += value.length;
+            Some(())
+        }
+        CalcOp::Sub => {
+            total.fraction -= value.fraction;
+            total.length -= value.length;
+            Some(())
+        }
+        CalcOp::Mul | CalcOp::Div => None,
+    }
+}
+
+fn make_gradient_stop(color: Color, position: GradientStopPosition) -> GradientStop {
+    GradientStop {
+        color,
+        position: position.fraction,
+        position_length: position.length,
+    }
+}
+
+fn lerp_color(a: Color, b: Color, t: f32) -> Color {
+    let t = t.clamp(0.0, 1.0);
+    Color {
+        r: (f32::from(a.r) + (f32::from(b.r) - f32::from(a.r)) * t).round() as u8,
+        g: (f32::from(a.g) + (f32::from(b.g) - f32::from(a.g)) * t).round() as u8,
+        b: (f32::from(a.b) + (f32::from(b.b) - f32::from(a.b)) * t).round() as u8,
+        a: (f32::from(a.a) + (f32::from(b.a) - f32::from(a.a)) * t).round() as u8,
+    }
+}
+
+fn interpolate_stop_position(
+    a: GradientStopPosition,
+    b: GradientStopPosition,
+    t: f32,
+) -> GradientStopPosition {
+    GradientStopPosition {
+        fraction: a.fraction + (b.fraction - a.fraction) * t,
+        length: a.length + (b.length - a.length) * t,
+    }
+}
+
+fn hint_relative_position(
+    a: GradientStopPosition,
+    b: GradientStopPosition,
+    hint: GradientStopPosition,
+) -> Option<f32> {
+    if (a.length - b.length).abs() > 1e-6 || hint.length.abs() > 1e-6 {
+        return None;
+    }
+    let span = b.fraction - a.fraction;
+    if span.abs() <= 1e-6 {
+        return None;
+    }
+    Some(((hint.fraction - a.fraction) / span).clamp(0.0, 1.0))
+}
+
+fn color_hint_progress(t: f32, hint_t: f32, exponent: f32) -> f32 {
+    let spec = t.powf(exponent);
+    if hint_t < 0.5 && t < hint_t {
+        let piece = 0.5 * t / hint_t;
+        let weight = (3.0 * t / hint_t).clamp(0.0, 1.0);
+        piece + (spec - piece) * weight
+    } else {
+        spec
+    }
+}
+
 /// Parse gradient color stops from a list of comma-separated stop tokens.
 ///
-/// Each token is `color`, `color <pos>`, or `color <pos> <pos>` (a range/hard
-/// stop, expanded into two coincident-color stops). Positions are percentages
-/// (`0%`..`100%` → 0.0..1.0). lightningcss collapses adjacent equal-color stops
-/// into the range form (e.g. `red 0%, red 50%` → `red 0% 50%`), so range
-/// handling is required for hard color-stop and repeating gradients.
+/// Each token is `color`, `color <pos>`, `color <pos> <pos>`, or a standalone
+/// `<linear-color-hint>` between two color stops. Length and calc() positions
+/// are preserved until paint time because their percentage basis is the actual
+/// gradient line/radius.
 fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
-    // Pass 1: parse each part into (color, list of explicit fractional positions).
-    let mut raw: Vec<(Color, Vec<(f32, bool)>)> = Vec::new();
-    let stop_pos = |token: &str| -> Option<(f32, bool)> {
-        if let Some(n) = token.strip_suffix('%') {
-            return n.parse::<f32>().ok().map(|p| (p / 100.0, false));
-        }
-        parse_clip_len(token).map(|(v, _)| (v, true))
-    };
+    let mut items = Vec::new();
     for part in parts {
         let part = part.trim();
         if part.is_empty() {
             continue;
         }
-        // Split off trailing position tokens (percentages) from the leading color.
-        // Colors may contain spaces only inside `rgb(...)`/`rgba(...)`, which carry
-        // no internal spaces after lightningcss normalization, so a simple
-        // whitespace split is safe.
-        let tokens: Vec<&str> = part.split_whitespace().collect();
+        let tokens = split_css_components(part);
         if tokens.is_empty() {
             continue;
         }
-        // Find the boundary: trailing tokens that parse as a stop position.
+        if tokens.len() == 1
+            && let Some(position) = parse_gradient_stop_position(&tokens[0])
+        {
+            items.push(RawGradientItem::Hint(position));
+            continue;
+        }
+
         let mut split_at = tokens.len();
-        while split_at > 1 {
-            let t = tokens[split_at - 1];
-            if stop_pos(t).is_some() {
-                split_at -= 1;
-            } else {
-                break;
-            }
+        while split_at > 1 && parse_gradient_stop_position(&tokens[split_at - 1]).is_some() {
+            split_at -= 1;
         }
         let color_str = tokens[..split_at].join(" ");
         let color = parse_gradient_color(&color_str)?;
-        let positions: Vec<(f32, bool)> = tokens[split_at..]
+        let positions: Vec<GradientStopPosition> = tokens[split_at..]
             .iter()
-            .filter_map(|t| stop_pos(t))
+            .filter_map(|t| parse_gradient_stop_position(t))
             .collect();
-        raw.push((color, positions));
+        items.push(RawGradientItem::Stop(color, positions));
     }
-    let mut lens: Vec<f32> = raw
-        .iter()
-        .flat_map(|(_, positions)| {
-            positions
-                .iter()
-                .filter(|(_, is_len)| *is_len)
-                .map(|(p, _)| *p)
-        })
-        .collect();
-    lens.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let max_len = match lens.as_slice() {
-        [] => 0.0,
-        [only] => *only,
-        many => {
-            let max = many[many.len() - 1];
-            let prev = many[..many.len() - 1]
-                .iter()
-                .rev()
-                .copied()
-                .find(|v| *v > 0.0 && (*v - max).abs() > 1e-6)
-                .unwrap_or(max);
-            if prev > 0.0 && max / prev < 1.1 {
-                prev
-            } else {
-                max
-            }
-        }
-    };
 
-    // Pass 2: expand range stops and flatten into (color, Option<position>).
-    let mut flat: Vec<(Color, Option<f32>)> = Vec::new();
-    for (color, positions) in raw {
-        let positions: Vec<f32> = positions
-            .into_iter()
-            .map(|(p, is_len)| {
-                if is_len {
-                    if max_len > 0.0 {
-                        (p / max_len).clamp(0.0, 1.0)
-                    } else {
-                        0.0
-                    }
-                } else {
-                    p
-                }
-            })
-            .collect();
-        match positions.len() {
-            0 => flat.push((color, None)),
-            1 => flat.push((color, Some(positions[0]))),
-            _ => {
-                for p in positions {
-                    flat.push((color, Some(p)));
+    let mut flat: Vec<(Color, Option<GradientStopPosition>)> = Vec::new();
+    let mut hints: Vec<(usize, GradientStopPosition)> = Vec::new();
+    for item in items {
+        match item {
+            RawGradientItem::Hint(position) => {
+                if let Some(prev) = flat.len().checked_sub(1) {
+                    hints.push((prev, position));
                 }
             }
+            RawGradientItem::Stop(color, positions) => match positions.len() {
+                0 => flat.push((color, None)),
+                1 => flat.push((color, Some(positions[0]))),
+                _ => {
+                    for position in positions {
+                        flat.push((color, Some(position)));
+                    }
+                }
+            },
         }
     }
 
@@ -9929,13 +10345,11 @@ fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
     if n < 2 {
         return None;
     }
-
-    // Pass 3: fill missing positions (clamp ends, distribute interior runs).
     if flat[0].1.is_none() {
-        flat[0].1 = Some(0.0);
+        flat[0].1 = Some(GradientStopPosition::zero());
     }
     if flat[n - 1].1.is_none() {
-        flat[n - 1].1 = Some(1.0);
+        flat[n - 1].1 = Some(GradientStopPosition::one());
     }
     let mut i = 0;
     while i < n {
@@ -9948,28 +10362,65 @@ fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
         while j < n && flat[j].1.is_none() {
             j += 1;
         }
-        let p0 = flat[start].1.unwrap_or(0.0);
-        let p1 = flat[j].1.unwrap_or(1.0);
+        let p0 = flat[start].1.unwrap_or(GradientStopPosition::zero());
+        let p1 = flat[j].1.unwrap_or(GradientStopPosition::one());
         let span = (j - start) as f32;
         for (k, idx) in (i..j).enumerate() {
-            flat[idx].1 = Some(p0 + (p1 - p0) * (k as f32 + 1.0) / span);
+            let f = (k as f32 + 1.0) / span;
+            flat[idx].1 = Some(GradientStopPosition {
+                fraction: p0.fraction + (p1.fraction - p0.fraction) * f,
+                length: p0.length + (p1.length - p0.length) * f,
+            });
         }
         i = j;
     }
 
-    // Enforce non-decreasing positions (CSS clamps a smaller position up).
-    let mut last = 0.0_f32;
-    let stops: Vec<GradientStop> = flat
+    let mut stops: Vec<GradientStop> = flat
         .into_iter()
-        .map(|(color, pos)| {
-            let mut p = pos.unwrap_or(0.0);
-            if p < last {
-                p = last;
-            }
-            last = p;
-            GradientStop { color, position: p }
-        })
+        .map(|(color, pos)| make_gradient_stop(color, pos.unwrap_or(GradientStopPosition::zero())))
         .collect();
+
+    for (prev, hint_pos) in hints.into_iter().rev() {
+        if prev + 1 >= stops.len() {
+            continue;
+        }
+        let left = GradientStopPosition {
+            fraction: stops[prev].position,
+            length: stops[prev].position_length,
+        };
+        let right = GradientStopPosition {
+            fraction: stops[prev + 1].position,
+            length: stops[prev + 1].position_length,
+        };
+        let Some(hint_t) = hint_relative_position(left, right, hint_pos) else {
+            stops.insert(
+                prev + 1,
+                make_gradient_stop(
+                    lerp_color(stops[prev].color, stops[prev + 1].color, 0.5),
+                    hint_pos,
+                ),
+            );
+            continue;
+        };
+        if !(0.0..=1.0).contains(&hint_t) || hint_t <= 1e-6 || hint_t >= 1.0 - 1e-6 {
+            continue;
+        }
+        let exponent = 0.5_f32.ln() / hint_t.ln();
+        let mut hinted = Vec::new();
+        const HINT_STEPS: usize = 256;
+        for step in 1..HINT_STEPS {
+            let t = step as f32 / HINT_STEPS as f32;
+            hinted.push(make_gradient_stop(
+                lerp_color(
+                    stops[prev].color,
+                    stops[prev + 1].color,
+                    color_hint_progress(t, hint_t, exponent),
+                ),
+                interpolate_stop_position(left, right, t),
+            ));
+        }
+        stops.splice(prev + 1..prev + 1, hinted);
+    }
 
     if stops.len() >= 2 { Some(stops) } else { None }
 }
@@ -9977,21 +10428,11 @@ fn parse_gradient_stops(parts: &[String]) -> Option<Vec<GradientStop>> {
 fn max_gradient_length_stop(parts: &[String]) -> Option<f32> {
     let mut max_len = 0.0_f32;
     for part in parts {
-        let tokens: Vec<&str> = part.split_whitespace().collect();
-        let mut split_at = tokens.len();
-        while split_at > 1 {
-            let t = tokens[split_at - 1];
-            if let Some((v, false)) = parse_clip_len(t) {
-                max_len = max_len.max(v);
-                split_at -= 1;
-            } else if t
-                .strip_suffix('%')
-                .and_then(|n| n.parse::<f32>().ok())
-                .is_some()
+        for token in split_css_components(part) {
+            if let Some(pos) = parse_gradient_stop_position(&token)
+                && pos.length > 0.0
             {
-                split_at -= 1;
-            } else {
-                break;
+                max_len = max_len.max(pos.length);
             }
         }
     }
@@ -10050,7 +10491,10 @@ fn parse_gradient_color(val: &str) -> Option<Color> {
                     None
                 }
             } else {
-                None
+                match crate::parser::css::parse_color(&val) {
+                    Some(CssValue::Color(c)) => Some(c),
+                    _ => None,
+                }
             }
         }
     }

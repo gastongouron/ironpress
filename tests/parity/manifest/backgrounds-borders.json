@@ -583,7 +583,7 @@
     "description": "background-position: right 20px bottom 15px anchors a tile from named edges; catches one/two-value parsers that fall back to top-left.",
     "file": "cases/backgrounds-borders/background-position-edge-offsets.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-color-swatch"
@@ -600,7 +600,7 @@
     "description": "background-size: auto 60px preserves the image intrinsic ratio; catches implementations that treat mixed auto/length as plain auto.",
     "file": "cases/backgrounds-borders/background-size-auto-length.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-image-render",

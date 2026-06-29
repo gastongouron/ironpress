@@ -1629,6 +1629,421 @@ fn effective_transform_origin(style: &ComputedStyle) -> TransformOrigin {
     origin
 }
 
+fn filter_op_changes_color(op: &crate::style::computed::ColorFilterOp) -> bool {
+    !matches!(
+        op,
+        crate::style::computed::ColorFilterOp::Blur(_)
+            | crate::style::computed::ColorFilterOp::Flood { .. }
+            | crate::style::computed::ColorFilterOp::Offset { .. }
+            | crate::style::computed::ColorFilterOp::DropShadow(_)
+            | crate::style::computed::ColorFilterOp::MorphologyDilate(_)
+    )
+}
+
+fn filter_op_changes_geometry(op: &crate::style::computed::ColorFilterOp) -> bool {
+    matches!(
+        op,
+        crate::style::computed::ColorFilterOp::Blur(_)
+            | crate::style::computed::ColorFilterOp::DropShadow(_)
+            | crate::style::computed::ColorFilterOp::MorphologyDilate(_)
+    )
+}
+
+fn apply_filter_offset_ops_to_elements(
+    elements: &mut [LayoutElement],
+    ops: &[crate::style::computed::ColorFilterOp],
+) {
+    for op in ops {
+        if let crate::style::computed::ColorFilterOp::Offset {
+            dx,
+            dy: _,
+            keep_source,
+            region_x,
+            region_y: _,
+            region_width,
+            region_height: _,
+        } = *op
+        {
+            for element in elements.iter_mut() {
+                apply_filter_offset_to_element(element, dx, keep_source, region_x, region_width);
+            }
+        }
+    }
+}
+
+fn clipped_offset_bounds(
+    width: f32,
+    dx: f32,
+    keep_source: bool,
+    region_x: f32,
+    region_width: f32,
+) -> Option<(f32, f32)> {
+    if width <= 0.0 {
+        return None;
+    }
+    let region_left = region_x * width;
+    let region_right = (region_x + region_width) * width;
+    let shifted_left = dx.max(region_left);
+    let shifted_right = (dx + width).min(region_right);
+    if keep_source {
+        let right = width.max(shifted_right);
+        (right > 0.0).then_some((0.0, right))
+    } else if shifted_right > shifted_left {
+        Some((shifted_left, shifted_right))
+    } else {
+        None
+    }
+}
+
+fn apply_filter_offset_to_element(
+    element: &mut LayoutElement,
+    dx: f32,
+    keep_source: bool,
+    region_x: f32,
+    region_width: f32,
+) {
+    match element {
+        LayoutElement::TextBlock {
+            block_width,
+            offset_left,
+            background_color,
+            lines,
+            ..
+        } if lines.is_empty() && background_color.is_some() => {
+            if let Some(width) = *block_width
+                && let Some((left, right)) =
+                    clipped_offset_bounds(width, dx, keep_source, region_x, region_width)
+            {
+                *offset_left += left;
+                *block_width = Some((right - left).max(0.0));
+            }
+        }
+        LayoutElement::Container {
+            children,
+            block_width,
+            offset_left,
+            background_color,
+            ..
+        } if children.is_empty() && background_color.is_some() => {
+            if let Some(width) = *block_width
+                && let Some((left, right)) =
+                    clipped_offset_bounds(width, dx, keep_source, region_x, region_width)
+            {
+                *offset_left += left;
+                *block_width = Some((right - left).max(0.0));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn apply_filter_flood_ops_to_elements(
+    elements: &mut [LayoutElement],
+    ops: &[crate::style::computed::ColorFilterOp],
+) {
+    for op in ops {
+        if let crate::style::computed::ColorFilterOp::Flood {
+            color,
+            region_x,
+            region_y,
+            region_width,
+            region_height,
+        } = *op
+        {
+            for element in elements.iter_mut() {
+                apply_filter_flood_to_element(
+                    element,
+                    color,
+                    region_x,
+                    region_y,
+                    region_width,
+                    region_height,
+                );
+            }
+        }
+    }
+}
+
+fn flood_shadow(
+    width: f32,
+    height: f32,
+    color: (f32, f32, f32, f32),
+    region_x: f32,
+    region_y: f32,
+    region_width: f32,
+    region_height: f32,
+) -> Vec<crate::style::computed::BoxShadow> {
+    let left = (-region_x * width).max(0.0);
+    let right = ((region_x + region_width - 1.0) * width).max(0.0);
+    let top = (-region_y * height).max(0.0);
+    let bottom = ((region_y + region_height - 1.0) * height).max(0.0);
+    let vertical_spread = top.max(bottom);
+    let vertical_offset = (bottom - top) * 0.5;
+    let color = filtered_color_from_rgba(color);
+    let make_shadow = |offset_x: f32, spread: f32| crate::style::computed::BoxShadow {
+        offset_x,
+        offset_y: vertical_offset,
+        blur: 0.0,
+        spread,
+        color,
+        inset: false,
+    };
+    let mut shadows = vec![make_shadow(0.0, vertical_spread)];
+    if left > vertical_spread {
+        shadows.push(make_shadow(-(left - vertical_spread), vertical_spread));
+    }
+    if right > vertical_spread {
+        shadows.push(make_shadow(right - vertical_spread, vertical_spread));
+    }
+    shadows
+}
+
+fn apply_filter_flood_to_element(
+    element: &mut LayoutElement,
+    color: (f32, f32, f32, f32),
+    region_x: f32,
+    region_y: f32,
+    region_width: f32,
+    region_height: f32,
+) {
+    match element {
+        LayoutElement::TextBlock {
+            block_width,
+            block_height,
+            padding_top,
+            padding_bottom,
+            border,
+            lines,
+            box_shadow,
+            ..
+        } => {
+            let width = block_width.unwrap_or(0.0);
+            let text_h: f32 = lines.iter().map(|line| line.height).sum();
+            let height = block_height.unwrap_or(*padding_top + text_h + *padding_bottom)
+                + border.vertical_width();
+            if width > 0.0 && height > 0.0 {
+                box_shadow.extend(flood_shadow(
+                    width,
+                    height,
+                    color,
+                    region_x,
+                    region_y,
+                    region_width,
+                    region_height,
+                ));
+            }
+        }
+        LayoutElement::Container {
+            block_width,
+            block_height,
+            children,
+            padding_top,
+            padding_bottom,
+            border,
+            box_shadow,
+            ..
+        } => {
+            let width = block_width.unwrap_or(0.0);
+            let children_h: f32 = children.iter().map(estimate_element_height).sum();
+            let height = block_height.unwrap_or(*padding_top + children_h + *padding_bottom)
+                + border.vertical_width();
+            if width > 0.0 && height > 0.0 {
+                box_shadow.extend(flood_shadow(
+                    width,
+                    height,
+                    color,
+                    region_x,
+                    region_y,
+                    region_width,
+                    region_height,
+                ));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn filtered_color_from_rgba(color: (f32, f32, f32, f32)) -> crate::types::Color {
+    crate::types::Color {
+        r: (color.0 * 255.0).round().clamp(0.0, 255.0) as u8,
+        g: (color.1 * 255.0).round().clamp(0.0, 255.0) as u8,
+        b: (color.2 * 255.0).round().clamp(0.0, 255.0) as u8,
+        a: (color.3 * 255.0).round().clamp(0.0, 255.0) as u8,
+    }
+}
+
+fn filtered_rgb(
+    color: (f32, f32, f32),
+    ops: &[crate::style::computed::ColorFilterOp],
+    linear_rgb: bool,
+) -> (f32, f32, f32) {
+    let (r, g, b, _) =
+        apply_color_filters_to_color((color.0, color.1, color.2, 1.0), ops, linear_rgb);
+    (r, g, b)
+}
+
+fn filtered_rgba(
+    color: (f32, f32, f32, f32),
+    ops: &[crate::style::computed::ColorFilterOp],
+    linear_rgb: bool,
+) -> (f32, f32, f32, f32) {
+    apply_color_filters_to_color(color, ops, linear_rgb)
+}
+
+fn apply_filter_color_ops_to_elements(
+    elements: &mut [LayoutElement],
+    ops: &[crate::style::computed::ColorFilterOp],
+    linear_rgb: bool,
+) {
+    if !ops.iter().any(filter_op_changes_color) {
+        return;
+    }
+    for element in elements {
+        apply_filter_color_ops_to_element(element, ops, linear_rgb);
+    }
+}
+
+fn apply_filter_color_ops_to_element(
+    element: &mut LayoutElement,
+    ops: &[crate::style::computed::ColorFilterOp],
+    linear_rgb: bool,
+) {
+    match element {
+        LayoutElement::TextBlock {
+            lines,
+            background_color,
+            border,
+            box_shadow,
+            outline_color,
+            ..
+        } => {
+            if let Some(color) = background_color {
+                *color = filtered_rgba(*color, ops, linear_rgb);
+            }
+            apply_filter_color_ops_to_border(border, ops, linear_rgb);
+            for shadow in box_shadow {
+                shadow.color = filtered_color(shadow.color, ops, linear_rgb);
+            }
+            if let Some(color) = outline_color {
+                *color = filtered_rgb(*color, ops, linear_rgb);
+            }
+            for line in lines {
+                for run in &mut line.runs {
+                    apply_filter_color_ops_to_run(run, ops, linear_rgb);
+                }
+            }
+        }
+        LayoutElement::Container {
+            children,
+            background_color,
+            border,
+            box_shadow,
+            outline_color,
+            ..
+        } => {
+            if let Some(color) = background_color {
+                *color = filtered_rgba(*color, ops, linear_rgb);
+            }
+            apply_filter_color_ops_to_border(border, ops, linear_rgb);
+            for shadow in box_shadow {
+                shadow.color = filtered_color(shadow.color, ops, linear_rgb);
+            }
+            if let Some(color) = outline_color {
+                *color = filtered_rgb(*color, ops, linear_rgb);
+            }
+            apply_filter_color_ops_to_elements(children, ops, linear_rgb);
+        }
+        LayoutElement::FlexRow {
+            cells,
+            background_color,
+            border,
+            box_shadow,
+            ..
+        } => {
+            if let Some(color) = background_color {
+                *color = filtered_rgba(*color, ops, linear_rgb);
+            }
+            apply_filter_color_ops_to_border(border, ops, linear_rgb);
+            for shadow in box_shadow {
+                shadow.color = filtered_color(shadow.color, ops, linear_rgb);
+            }
+            for cell in cells {
+                if let Some(color) = &mut cell.background_color {
+                    *color = filtered_rgba(*color, ops, linear_rgb);
+                }
+                apply_filter_color_ops_to_border(&mut cell.border, ops, linear_rgb);
+                for shadow in &mut cell.box_shadow {
+                    shadow.color = filtered_color(shadow.color, ops, linear_rgb);
+                }
+                for line in &mut cell.lines {
+                    for run in &mut line.runs {
+                        apply_filter_color_ops_to_run(run, ops, linear_rgb);
+                    }
+                }
+                apply_filter_color_ops_to_elements(&mut cell.nested_elements, ops, linear_rgb);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn apply_filter_color_ops_to_run(
+    run: &mut TextRun,
+    ops: &[crate::style::computed::ColorFilterOp],
+    linear_rgb: bool,
+) {
+    run.color = filtered_rgb(run.color, ops, linear_rgb);
+    if let Some(color) = run.decoration_color {
+        run.decoration_color = Some(filtered_rgb(color, ops, linear_rgb));
+    }
+    if let Some(color) = run.background_color {
+        run.background_color = Some(filtered_rgba(color, ops, linear_rgb));
+    }
+    for shadow in &mut run.text_shadow {
+        shadow.color = filtered_color(shadow.color, ops, linear_rgb);
+    }
+    if let Some(inline_box) = &mut run.inline_box {
+        if let Some(color) = inline_box.background_color {
+            inline_box.background_color = Some(filtered_rgba(color, ops, linear_rgb));
+        }
+        apply_filter_color_ops_to_border(&mut inline_box.border, ops, linear_rgb);
+        for line in &mut inline_box.lines {
+            for run in &mut line.runs {
+                apply_filter_color_ops_to_run(run, ops, linear_rgb);
+            }
+        }
+    }
+}
+
+fn apply_filter_color_ops_to_border(
+    border: &mut LayoutBorder,
+    ops: &[crate::style::computed::ColorFilterOp],
+    linear_rgb: bool,
+) {
+    for side in [
+        &mut border.top,
+        &mut border.right,
+        &mut border.bottom,
+        &mut border.left,
+    ] {
+        side.color = filtered_rgb(side.color, ops, linear_rgb);
+    }
+}
+
+fn filtered_color(
+    color: crate::types::Color,
+    ops: &[crate::style::computed::ColorFilterOp],
+    linear_rgb: bool,
+) -> crate::types::Color {
+    let (r, g, b, a) = filtered_rgba(color.to_f32_rgba(), ops, linear_rgb);
+    crate::types::Color {
+        r: (r * 255.0).round().clamp(0.0, 255.0) as u8,
+        g: (g * 255.0).round().clamp(0.0, 255.0) as u8,
+        b: (b * 255.0).round().clamp(0.0, 255.0) as u8,
+        a: (a * 255.0).round().clamp(0.0, 255.0) as u8,
+    }
+}
+
 /// Flatten a list of DOM nodes into layout elements.
 ///
 /// Iterates over `nodes`, collecting inline-block groups and dispatching
@@ -2007,9 +2422,22 @@ pub(crate) fn flatten_element(
             filter_linear_rgb = use_linear_rgb;
         }
         style.color_filters.extend(ops);
+    } else if style.filter_url_id.is_some() {
+        style.blur_radius = 0.0;
+        style.color_filters.clear();
+        style.drop_shadow = None;
+        style.filter_url_id = None;
     }
-    if !style.color_filters.is_empty() {
+    let filter_ops = style.color_filters.clone();
+    if filter_ops.iter().any(filter_op_changes_geometry) {
+        let saved_ops = std::mem::take(&mut style.color_filters);
+        style.color_filters = saved_ops
+            .iter()
+            .copied()
+            .filter(filter_op_changes_geometry)
+            .collect();
         apply_color_filters_to_box(&mut style, filter_linear_rgb);
+        style.color_filters = saved_ops;
     }
 
     // Apply CSS counter operations for this element.
@@ -3346,6 +3774,13 @@ pub(crate) fn flatten_element(
         first_letter_style,
         env,
     );
+    apply_filter_offset_ops_to_elements(&mut output[fixed_output_start..], &filter_ops);
+    apply_filter_color_ops_to_elements(
+        &mut output[fixed_output_start..],
+        &filter_ops,
+        filter_linear_rgb,
+    );
+    apply_filter_flood_ops_to_elements(&mut output[fixed_output_start..], &filter_ops);
     if authored_fixed && style.z_index != 0 {
         mark_fixed_repeat(&mut output[fixed_output_start..]);
     }

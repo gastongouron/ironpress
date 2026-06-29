@@ -93,6 +93,45 @@ impl SvgTree {
     }
 }
 
+static SVG_DEFS_REGISTRY: std::sync::OnceLock<std::sync::Mutex<SvgDefs>> =
+    std::sync::OnceLock::new();
+
+fn remember_svg_defs(defs: &SvgDefs) {
+    if defs.gradients.is_empty()
+        && defs.radial_gradients.is_empty()
+        && defs.clip_paths.is_empty()
+        && defs.masks.is_empty()
+    {
+        return;
+    }
+    let registry = SVG_DEFS_REGISTRY.get_or_init(|| std::sync::Mutex::new(SvgDefs::default()));
+    if let Ok(mut stored) = registry.lock() {
+        stored
+            .gradients
+            .extend(defs.gradients.iter().map(|(id, val)| (id.clone(), val.clone())));
+        stored.radial_gradients.extend(
+            defs.radial_gradients
+                .iter()
+                .map(|(id, val)| (id.clone(), val.clone())),
+        );
+        stored.clip_paths.extend(
+            defs.clip_paths
+                .iter()
+                .map(|(id, val)| (id.clone(), val.clone())),
+        );
+        stored
+            .masks
+            .extend(defs.masks.iter().map(|(id, val)| (id.clone(), val.clone())));
+    }
+}
+
+pub(crate) fn collected_svg_defs_snapshot() -> SvgDefs {
+    SVG_DEFS_REGISTRY
+        .get()
+        .and_then(|registry| registry.lock().ok().map(|defs| defs.clone()))
+        .unwrap_or_default()
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ViewBox {
     pub min_x: f32,
@@ -106,6 +145,7 @@ pub struct SvgDefs {
     pub gradients: std::collections::HashMap<String, SvgLinearGradient>,
     pub radial_gradients: std::collections::HashMap<String, SvgRadialGradient>,
     pub clip_paths: std::collections::HashMap<String, SvgClipPath>,
+    pub masks: std::collections::HashMap<String, SvgMask>,
 }
 
 #[derive(Debug, Clone)]
@@ -150,6 +190,23 @@ pub struct SvgClipPath {
     pub clip_path_units: SvgClipPathUnits,
     pub transform: Option<SvgTransform>,
     pub children: Vec<SvgNode>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SvgMask {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub mask_type: SvgMaskType,
+    pub children: Vec<SvgNode>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SvgMaskType {
+    Alpha,
+    #[default]
+    Luminance,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -267,6 +324,7 @@ pub struct SvgStyle {
     pub fill: SvgPaint,
     pub stroke: SvgPaint,
     pub clip_path: Option<String>,
+    pub clip_rule: SvgClipRule,
     /// `stroke-width` is inherited in SVG.
     pub stroke_width: Option<f32>,
     /// Inherited SVG font-family, resolved to a PDF base family name.
@@ -286,6 +344,7 @@ impl Default for SvgStyle {
             fill: SvgPaint::Unspecified,
             stroke: SvgPaint::Unspecified,
             clip_path: None,
+            clip_rule: SvgClipRule::NonZero,
             stroke_width: None,
             font_family: None,
             font_bold: None,
@@ -302,6 +361,13 @@ pub enum SvgPreserveAspectRatio {
         align: SvgAlign,
         meet_or_slice: SvgMeetOrSlice,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SvgClipRule {
+    #[default]
+    NonZero,
+    EvenOdd,
 }
 
 impl Default for SvgPreserveAspectRatio {
@@ -405,6 +471,7 @@ pub fn parse_svg_from_element_with_ctx_and_viewport(
 
     let defs_raw = collect_svg_defs(&el.children);
     let defs = parse_svg_defs(&defs_raw);
+    remember_svg_defs(&defs);
 
     let root_style = parse_svg_style(el);
     let root_transform = el
@@ -526,6 +593,13 @@ fn parse_svg_defs(defs_raw: &HashMap<String, ElementNode>) -> SvgDefs {
                     && let Some(clip_path) = parse_svg_clip_path(el, defs_raw)
                 {
                     defs.clip_paths.insert(id, clip_path);
+                }
+            }
+            "mask" => {
+                if let Some(id) = el.attributes.get("id").cloned()
+                    && let Some(mask) = parse_svg_mask(el, defs_raw)
+                {
+                    defs.masks.insert(id, mask);
                 }
             }
             _ => {}
@@ -919,6 +993,47 @@ fn parse_svg_clip_path(
     })
 }
 
+fn parse_svg_mask(el: &ElementNode, defs_raw: &HashMap<String, ElementNode>) -> Option<SvgMask> {
+    let mask_type = el
+        .attributes
+        .get("mask-type")
+        .map(String::as_str)
+        .or_else(|| style_property_value(el, "mask-type"))
+        .map(|v| {
+            if v.trim().eq_ignore_ascii_case("alpha") {
+                SvgMaskType::Alpha
+            } else {
+                SvgMaskType::Luminance
+            }
+        })
+        .unwrap_or_default();
+    let x = attr_f32(el, "x");
+    let y = attr_f32(el, "y");
+    let width = el
+        .attributes
+        .get("width")
+        .and_then(|v| parse_absolute_length(v))
+        .unwrap_or(0.0);
+    let height = el
+        .attributes
+        .get("height")
+        .and_then(|v| parse_absolute_length(v))
+        .unwrap_or(0.0);
+    let mut ctx = SvgParseContext::new(defs_raw);
+    let children = parse_svg_children(&el.children, Some((width, height)), &mut ctx);
+    if children.is_empty() {
+        return None;
+    }
+    Some(SvgMask {
+        x,
+        y,
+        width,
+        height,
+        mask_type,
+        children,
+    })
+}
+
 fn parse_svg_gradient_coordinate(attr: Option<&String>, fallback: f32) -> f32 {
     let Some(value) = attr.map(String::as_str) else {
         return fallback;
@@ -958,6 +1073,14 @@ fn parse_svg_reference_id(raw: &str) -> Option<String> {
         return Some(id.to_string());
     }
     parse_svg_paint_server_reference(trimmed)
+}
+
+fn parse_svg_clip_rule(raw: &str) -> SvgClipRule {
+    if raw.trim().eq_ignore_ascii_case("evenodd") {
+        SvgClipRule::EvenOdd
+    } else {
+        SvgClipRule::NonZero
+    }
 }
 
 /// Resolve a CSS `filter: url(#id)` reference (css-filter-effects-1 §3) against
@@ -1047,6 +1170,10 @@ pub fn filter_element_color_ops(
                 dx: attr_f32(el, "dx") * 0.75,
                 dy: attr_f32(el, "dy") * 0.75,
                 keep_source,
+                region_x: filter_region_attr(filter_el, "x", -0.10),
+                region_y: filter_region_attr(filter_el, "y", -0.10),
+                region_width: filter_region_attr(filter_el, "width", 1.20),
+                region_height: filter_region_attr(filter_el, "height", 1.20),
             });
             continue;
         }
@@ -1072,8 +1199,15 @@ pub fn filter_element_color_ops(
                 .attributes
                 .get("mode")
                 .is_some_and(|v| v.eq_ignore_ascii_case("multiply"))
-            && let Some((r, g, b, _)) = flood_color
+            && let Some((r, g, b, a)) = flood_color
         {
+            ops.push(ColorFilterOp::Flood {
+                color: (r, g, b, a),
+                region_x: filter_region_attr(filter_el, "x", -0.10),
+                region_y: filter_region_attr(filter_el, "y", -0.10),
+                region_width: filter_region_attr(filter_el, "width", 1.20),
+                region_height: filter_region_attr(filter_el, "height", 1.20),
+            });
             let (r, g, b) = filter_rgb_constants(r, g, b, use_linear_rgb);
             ops.push(ColorFilterOp::Matrix([
                 r, 0.0, 0.0, 0.0, 0.0, 0.0, g, 0.0, 0.0, 0.0, 0.0, 0.0, b, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -1446,6 +1580,20 @@ fn attr_f32(el: &ElementNode, name: &str) -> f32 {
         .unwrap_or(0.0)
 }
 
+fn filter_region_attr(el: &ElementNode, name: &str, default: f32) -> f32 {
+    el.attributes.get(name).map_or(default, |raw| {
+        let value = raw.trim();
+        if let Some(pct) = value.strip_suffix('%') {
+            pct.trim()
+                .parse::<f32>()
+                .map(|v| v / 100.0)
+                .unwrap_or(default)
+        } else {
+            value.parse::<f32>().unwrap_or(default)
+        }
+    })
+}
+
 fn resolve_text_position(el: &ElementNode, viewport: Option<(f32, f32)>) -> (f32, f32) {
     let x = resolve_svg_text_coordinate(
         el.attributes.get("x").map(String::as_str),
@@ -1509,7 +1657,7 @@ pub(crate) fn parse_viewbox(val: &str) -> Option<ViewBox> {
 fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     fn parse_svg_paint(val: &str) -> Option<SvgPaint> {
         let val = val.trim();
-        if val.eq_ignore_ascii_case("none") {
+        if val.eq_ignore_ascii_case("none") || val.eq_ignore_ascii_case("transparent") {
             return Some(SvgPaint::None);
         }
         if val.eq_ignore_ascii_case("inherit") {
@@ -1565,6 +1713,14 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
     if let Some(path) = style_property_value(el, "clip-path").and_then(parse_svg_reference_id) {
         clip_path = Some(path);
     }
+    let mut clip_rule = el
+        .attributes
+        .get("clip-rule")
+        .map(|v| parse_svg_clip_rule(v))
+        .unwrap_or_default();
+    if let Some(rule) = style_property_value(el, "clip-rule").map(parse_svg_clip_rule) {
+        clip_rule = rule;
+    }
     let mut stroke_width = el
         .attributes
         .get("stroke-width")
@@ -1591,6 +1747,7 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         fill,
         stroke,
         clip_path,
+        clip_rule,
         stroke_width,
         font_family,
         font_bold,
