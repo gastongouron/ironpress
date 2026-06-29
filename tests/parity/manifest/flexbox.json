@@ -1202,7 +1202,7 @@
     "description": "justify-content:safe center falls back to start alignment when non-shrinking items overflow; catches implementations that strip safe and always perform unsafe centering.",
     "file": "cases/flexbox/flexbox-justify-safe-center-overflow.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1593,7 +1593,7 @@
     "description": "align-items:last baseline aligns a one-line item's baseline with the last baseline of a two-line flex item; catches unsupported last-baseline parsing.",
     "file": "cases/flexbox/flexbox-align-items-last-baseline.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1763,7 +1763,7 @@
     "description": "flex-basis:min-content uses the min-content contribution as the flex base size; catches parsers that fall back to auto or max-content sizing.",
     "file": "cases/flexbox/flexbox-flex-basis-min-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -2086,7 +2086,7 @@
     "description": "break-before:page on a column flex item creates a forced page break before that item; catches flex layout that ignores child break-before.",
     "file": "cases/flexbox/flexbox-break-before-item.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -2103,7 +2103,7 @@
     "description": "break-after:page on a column flex item creates a forced page break after that item; catches flex layout that ignores child break-after.",
     "file": "cases/flexbox/flexbox-break-after-item.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

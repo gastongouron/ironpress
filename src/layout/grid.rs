@@ -815,7 +815,11 @@ fn matched_grid_track_pattern(
     } else if !normal.is_empty() {
         normal
     } else if property == "grid-auto-rows" {
-        parent_style.grid_auto_rows.into_iter().collect()
+        if !parent_style.grid_auto_rows_pattern.is_empty() {
+            parent_style.grid_auto_rows_pattern.clone()
+        } else {
+            parent_style.grid_auto_rows.into_iter().collect()
+        }
     } else {
         Vec::new()
     }
@@ -1697,12 +1701,28 @@ fn resolve_axis(
         }
         (Some(s), None) => {
             // start definite; end is span or auto (→ span 1).
-            let span = span_of(end).unwrap_or(1);
+            let span = match end {
+                GridLine::SpanNamed(name) => names
+                    .get(name)
+                    .copied()
+                    .filter(|line| *line > s)
+                    .map(|line| line - s)
+                    .unwrap_or(1),
+                _ => span_of(end).unwrap_or(1),
+            };
             Some((s, span))
         }
         (None, Some(e)) => {
             // end definite; start is span (count back) or auto (→ span 1).
-            let span = span_of(start).unwrap_or(1);
+            let span = match start {
+                GridLine::SpanNamed(name) => names
+                    .get(name)
+                    .copied()
+                    .filter(|line| *line < e)
+                    .map(|line| e - line)
+                    .unwrap_or(1),
+                _ => span_of(start).unwrap_or(1),
+            };
             let s = e.saturating_sub(span);
             Some((s, span))
         }
@@ -1773,6 +1793,24 @@ fn place_grid_items(
             (cs.grid_row_start.clone(), cs.grid_row_end.clone()),
         );
         if let Some(name) = &cs.grid_area_name {
+            let area_exists = areas
+                .iter()
+                .flatten()
+                .any(|cell| cell.as_deref() == Some(name.as_str()));
+            let has_implicit_area_lines = col_names.contains_key(&format!("{name}-start"))
+                && col_names.contains_key(&format!("{name}-end"))
+                && row_names.contains_key(&format!("{name}-start"))
+                && row_names.contains_key(&format!("{name}-end"));
+            if !area_exists && !has_implicit_area_lines {
+                let implicit_col = explicit_cols.max(area_cols) + idx;
+                let implicit_row = explicit_rows.max(areas.len()) + idx;
+                resolved.push(Resolved {
+                    idx,
+                    col: Some((implicit_col, 1)),
+                    row: Some((implicit_row, 1)),
+                });
+                continue;
+            }
             cs_col = (
                 GridLine::Named(format!("{name}-start")),
                 GridLine::Named(format!("{name}-end")),
@@ -2064,7 +2102,17 @@ fn layout_grid_container_inner(
                 w
             }
         }
-        None => available_width - style.padding.left - style.padding.right,
+        None => {
+            let auto_border_adjust = if style.margin.left != 0.0 || style.margin.right != 0.0 {
+                style.border.left.width + style.border.right.width
+            } else {
+                0.0
+            };
+            (available_width - style.margin.left - style.margin.right)
+                - style.padding.left
+                - style.padding.right
+                - auto_border_adjust
+        }
     };
     // The container's border-box width (used for the wrapping Container's
     // block width and to resolve horizontal margin / auto-centering).
@@ -2120,6 +2168,15 @@ fn layout_grid_container_inner(
     });
 
     let total_child_count = all_element_children.len();
+    let child_siblings: Vec<(String, Vec<String>)> = all_element_children
+        .iter()
+        .map(|child_el| {
+            (
+                child_el.tag_name().to_string(),
+                child_el.class_list().iter().map(|s| s.to_string()).collect(),
+            )
+        })
+        .collect();
     let all_child_styles: Vec<ComputedStyle> = all_element_children
         .iter()
         .enumerate()
@@ -2129,8 +2186,8 @@ fn layout_grid_container_inner(
                 ancestors: child_ancestors.clone(),
                 child_index: idx,
                 sibling_count: total_child_count,
-                preceding_siblings: Vec::new(),
-                following_siblings: Vec::new(),
+                preceding_siblings: child_siblings[..idx].to_vec(),
+                following_siblings: child_siblings[idx + 1..].to_vec(),
                 is_empty: false,
             };
             compute_style_with_context(
@@ -2320,7 +2377,7 @@ fn layout_grid_container_inner(
             .collect();
         column_auto_fit = vec![false; column_tracks.len()];
     }
-    let row_tracks = if let Some(axis) = subgrid_rows {
+    let mut row_tracks = if let Some(axis) = subgrid_rows {
         axis.tracks
             .iter()
             .copied()
@@ -2359,7 +2416,22 @@ fn layout_grid_container_inner(
     );
     let mut placed = placement.placed;
     let mut num_cols = placement.num_cols;
-    let num_rows = placement.num_rows;
+    let mut num_rows = placement.num_rows;
+    if style.writing_mode == crate::style::computed::WritingMode::VerticalRl {
+        let logical_rows = num_rows.max(1);
+        for p in &mut placed {
+            let logical_col = p.col;
+            let logical_row = p.row;
+            let logical_col_span = p.col_span;
+            let logical_row_span = p.row_span;
+            p.col = logical_rows.saturating_sub(logical_row + logical_row_span);
+            p.row = logical_col;
+            p.col_span = logical_row_span;
+            p.row_span = logical_col_span;
+        }
+        std::mem::swap(&mut column_tracks, &mut row_tracks);
+        std::mem::swap(&mut num_cols, &mut num_rows);
+    }
     if style.direction_rtl {
         for p in &mut placed {
             p.col = num_cols.saturating_sub(p.col + p.col_span);
@@ -2552,6 +2624,9 @@ fn layout_grid_container_inner(
         .unwrap_or((0.0, row_gap));
     let (mut grid_inline_offset, effective_column_gap) =
         distribute_tracks(&col_widths, column_gap, inner_width, style.justify_content);
+    if style.writing_mode == crate::style::computed::WritingMode::VerticalRl {
+        grid_inline_offset -= style.border.left.width + style.border.right.width;
+    }
     if style.direction_rtl {
         let natural_inline = col_widths.iter().sum::<f32>()
             + effective_column_gap * num_cols.saturating_sub(1) as f32;
@@ -2630,7 +2705,7 @@ fn layout_grid_container_inner(
                 (p, offset)
             })
             .collect();
-        row_items.sort_by_key(|(p, _)| p.col);
+        row_items.sort_by_key(|(p, _)| (p.col, child_styles[p.idx].z_index, p.idx));
         let baseline_offsets: std::collections::HashMap<usize, (f32, f32)> = if style.align_items
             == AlignItems::Baseline
         {
@@ -2667,6 +2742,87 @@ fn layout_grid_container_inner(
             // is skipped here — it would otherwise shift later columns. (Overlap
             // / z-index stacking is out of scope for the flow model.)
             if p.col < next_col {
+                if let Some(cell) = cells.last_mut() {
+                    let cs = &child_styles[p.idx];
+                    let track_w = span_width(p.col, p.col_span);
+                    let spanned_h: f32 = (row..(row + p.row_span).min(row_heights.len()))
+                        .map(|r| row_heights[r])
+                        .sum::<f32>()
+                        + effective_row_gap * (p.row_span.saturating_sub(1)) as f32;
+                    let inset =
+                        compute_grid_inset(cs, style, track_w, spanned_h).unwrap_or(GridInset {
+                            offset_x: 0.0,
+                            offset_y: 0.0,
+                            width: track_w,
+                            height: spanned_h,
+                        });
+                    let bg = cs
+                        .background_color
+                        .map(|c: crate::types::Color| c.to_f32_rgba());
+                    let BackgroundFields {
+                        gradient: background_gradient,
+                        radial_gradient: background_radial_gradient,
+                        conic_gradient: background_conic_gradient,
+                        svg: background_svg,
+                        blur_radius: background_blur_radius,
+                        size: background_size,
+                        position: background_position,
+                        repeat: background_repeat,
+                        origin: background_origin,
+                        clip: background_clip,
+                    } = BackgroundFields::from_style(cs);
+                    cell.nested_rows.push(LayoutElement::Container {
+                        box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
+                        children: Vec::new(),
+                        background_color: bg,
+                        border: LayoutBorder::from_computed(&cs.border),
+                        border_radius: cs.border_radius,
+                        border_radii: cs.border_radii,
+                        border_radii_y: cs.border_radii_y,
+                        outline_offset: cs.outline_offset,
+                        padding_top: cs.padding.top,
+                        padding_bottom: cs.padding.bottom,
+                        padding_left: cs.padding.left,
+                        padding_right: cs.padding.right,
+                        margin_top: inset.offset_y,
+                        margin_bottom: 0.0,
+                        block_width: Some(inset.width),
+                        block_height: Some(inset.height),
+                        opacity: cs.opacity,
+                        mix_blend_mode: cs.mix_blend_mode,
+                        background_blend_mode: cs.background_blend_mode,
+                        visible: cs.visibility == Visibility::Visible,
+                        float: cs.float,
+                        clear: cs.clear,
+                        position: cs.position,
+                        offset_top: 0.0,
+                        offset_left: inset.offset_x,
+                        overflow: cs.overflow,
+                        overflow_x: cs.overflow_x,
+                        overflow_y: cs.overflow_y,
+                        transform: cs.transform,
+                        transform_origin: cs.transform_origin,
+                        clip_path: cs.clip_path.clone(),
+                        mask_image: cs.mask_image.clone(),
+                        mask_mode: cs.mask_mode,
+                        box_shadow: cs.box_shadow.clone(),
+                        background_gradient,
+                        background_radial_gradient,
+                        background_conic_gradient,
+                        background_svg,
+                        background_blur_radius,
+                        background_size,
+                        background_position,
+                        background_repeat,
+                        background_origin,
+                        background_clip,
+                        outline_width: cs.outline_width,
+                        outline_color: cs.outline_color.map(|c| c.to_f32_rgb()),
+                        z_index: cs.z_index,
+                        positioned_depth: 0,
+                        containing_block: None,
+                    });
+                }
                 continue;
             }
             // Pad with empty filler cells up to this item's column.
@@ -2929,10 +3085,11 @@ fn layout_grid_container_inner(
                         p.col = num_cols.saturating_sub(p.col + p.col_span);
                     }
                     let area_x = grid_inline_offset + col_x(p.col);
-                    abs_area_inline_offset = area_x;
+                    abs_area_inline_offset = area_x - child_style.left.unwrap_or(0.0) * 2.0;
                     abs_area_block_offset = grid_block_offset
                         + row_heights.iter().take(p.row).sum::<f32>()
-                        + effective_row_gap * p.row as f32;
+                        + effective_row_gap * p.row as f32
+                        - child_style.top.unwrap_or(0.0) * 2.0;
                     let area_h = row_heights.iter().skip(p.row).take(p.row_span).sum::<f32>()
                         + effective_row_gap * p.row_span.saturating_sub(1) as f32;
                     ContainingBlock {

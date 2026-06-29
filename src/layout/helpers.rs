@@ -1570,23 +1570,44 @@ fn apply_text_transform(text: &str, transform: crate::style::computed::TextTrans
 }
 
 pub(crate) fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
-    runs.iter()
-        .map(|run| {
+    let mut current = 0.0f32;
+    let mut widest = 0.0f32;
+    for run in runs {
+        if run.text.contains('\n') {
+            for (idx, segment) in run.text.split('\n').enumerate() {
+                if idx > 0 {
+                    widest = widest.max(current);
+                    current = 0.0;
+                }
+                if !segment.is_empty() {
+                    current += estimate_word_width(
+                        segment,
+                        run.font_size,
+                        &run.font_family,
+                        run.bold,
+                        run.italic,
+                        fonts,
+                    );
+                }
+            }
+        } else {
             // Atomic inline boxes (e.g. an image list marker) carry no text but
             // occupy their outer width of inline advance.
             if let Some(inline) = run.inline_box.as_deref() {
-                return inline.outer_width();
+                current += inline.outer_width();
+            } else {
+                current += estimate_word_width(
+                    &run.text,
+                    run.font_size,
+                    &run.font_family,
+                    run.bold,
+                    run.italic,
+                    fonts,
+                );
             }
-            estimate_word_width(
-                &run.text,
-                run.font_size,
-                &run.font_family,
-                run.bold,
-                run.italic,
-                fonts,
-            )
-        })
-        .sum()
+        }
+    }
+    widest.max(current)
 }
 
 pub(crate) fn pseudo_is_block_like(pseudo_style: &ComputedStyle) -> bool {

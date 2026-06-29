@@ -536,7 +536,7 @@
     "description": "Overlapping static grid items honor z-index, so an earlier higher-z-index inset item paints above a later lower-z-index item; catches source-order-only stacking.",
     "file": "cases/grid/grid-overlap-z-index.html",
     "kind": "interaction",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -604,7 +604,7 @@
     "description": "A non-rectangular named area invalidates grid-template-areas, so named placement falls back to auto; catches bounding-box rendering of invalid areas.",
     "file": "cases/grid/grid-invalid-template-areas.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1078,7 +1078,7 @@
     "description": "In column flow, dense packing should backfill a later one-row item into an earlier hole in the first column; catches testing only row dense or sparse column flow misses column-major dense search.",
     "file": "cases/grid/grid-column-dense-auto-placement-backfills-holes.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1132,7 +1132,7 @@
     "description": "grid-column: left / span right should span from the left named line to the next right named line, covering two tracks; catches approximating every named span as span 1 passes numeric span fixtures.",
     "file": "cases/grid/grid-span-named-line-searches-to-matching-line.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1204,7 +1204,7 @@
     "description": "An abspos child with grid-column:2 / 3 and grid-row:2 / 3 should use that grid area as its containing block; catches laying every absolute child against the grid padding box passes out-of-flow tests that do not set grid placement.",
     "file": "cases/grid/grid-absolute-grid-child-positions-against-its-specified-grid-area.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1403,7 +1403,7 @@
     "description": "In vertical-rl writing mode, the inline axis is vertical, so grid rows and columns map to different physical directions than horizontal-tb; catches a horizontal-only grid algorithm passes all default writing-mode fixtures.",
     "file": "cases/grid/grid-vertical-writing-mode-changes-grid-physical-axes.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -1421,7 +1421,7 @@
     "description": "Rows with different numbers of cell tokens make grid-template-areas invalid, so grid-area names should not resolve; catches padding shorter rows to a rectangle passes valid-area and non-rectangular invalid tests but accepts a distinct invalid syntax.",
     "file": "cases/grid/grid-unequal-grid-template-areas-row-lengths-invalidate-declaration.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",

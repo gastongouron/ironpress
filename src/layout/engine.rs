@@ -17,7 +17,7 @@ use super::flex::layout_flex_container;
 use super::grid::layout_grid_container;
 pub(crate) use super::helpers::*;
 use super::images::*;
-use super::inline::{element_is_inline_block, layout_inline_block_group};
+use super::inline::{element_is_inline_block, layout_inline_block_group_with_env};
 use super::table::flatten_table;
 
 #[cfg(test)]
@@ -2073,6 +2073,7 @@ fn flatten_nodes(
 
     // Accumulator for consecutive inline-block elements
     let mut ib_group: Vec<&ElementNode> = Vec::new();
+    let mut table_cell_group: Vec<&ElementNode> = Vec::new();
 
     // Helper closure-like macro for flushing an inline-block group.
     // We use a nested fn instead since closures can't borrow multiple fields.
@@ -2083,15 +2084,73 @@ fn flatten_nodes(
         parent_style: &ComputedStyle,
         ctx: &LayoutContext,
         output: &mut Vec<LayoutElement>,
-        rules: &[CssRule],
         ancestors: &[AncestorInfo],
-        fonts: &HashMap<String, TtfFont>,
+        env: &mut LayoutEnv,
     ) {
         if group.is_empty() {
             return;
         }
         let taken: Vec<&ElementNode> = group.drain(..).collect();
-        layout_inline_block_group(&taken, parent_style, ctx, output, rules, ancestors, fonts);
+        layout_inline_block_group_with_env(&taken, parent_style, ctx, output, ancestors, env);
+    }
+
+    fn anonymous_table_from_cells(cells: &[&ElementNode]) -> ElementNode {
+        let mut row = ElementNode::new(HtmlTag::Tr);
+        row.children = cells
+            .iter()
+            .map(|cell| DomNode::Element((*cell).clone()))
+            .collect();
+        let mut table = ElementNode::new(HtmlTag::Table);
+        table.children.push(DomNode::Element(row));
+        table
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn flush_table_cells(
+        group: &mut Vec<&ElementNode>,
+        parent_style: &ComputedStyle,
+        ctx: &LayoutContext,
+        output: &mut Vec<LayoutElement>,
+        rules: &[CssRule],
+        ancestors: &[AncestorInfo],
+        child_index: usize,
+        sibling_count: usize,
+        env: &mut LayoutEnv,
+    ) {
+        if group.is_empty() {
+            return;
+        }
+        let taken = std::mem::take(group);
+        let table = anonymous_table_from_cells(&taken);
+        let attrs = HashMap::new();
+        let table_style = compute_style_with_context(
+            HtmlTag::Table,
+            None,
+            parent_style,
+            rules,
+            "table",
+            &[],
+            None,
+            &attrs,
+            &SelectorContext {
+                ancestors: ancestors.to_vec(),
+                child_index,
+                sibling_count,
+                preceding_siblings: Vec::new(),
+                following_siblings: Vec::new(),
+                is_empty: false,
+            },
+        );
+        flatten_table(
+            &table,
+            &table_style,
+            ctx.available_width(),
+            output,
+            ancestors,
+            child_index,
+            sibling_count,
+            env,
+        );
     }
 
     for node in nodes {
@@ -2107,12 +2166,22 @@ fn flatten_nodes(
                         parent_style,
                         &ib_ctx,
                         output,
-                        list_ctx.map(|_| env.rules).unwrap_or(env.rules),
                         ancestors,
-                        env.fonts,
+                        env,
                     );
                 }
                 if !trimmed.is_empty() {
+                    flush_table_cells(
+                        &mut table_cell_group,
+                        parent_style,
+                        &ib_ctx,
+                        output,
+                        env.rules,
+                        ancestors,
+                        element_index,
+                        element_count,
+                        env,
+                    );
                     let mut text_runs = Vec::new();
                     push_text_run_with_fallback(
                         TextRun {
@@ -2242,14 +2311,24 @@ fn flatten_nodes(
                     &selector_ctx,
                 );
                 if let Some(name) = style.running_name.clone() {
-                    flush_ib(
-                        &mut ib_group,
+                    flush_table_cells(
+                        &mut table_cell_group,
                         parent_style,
                         &ib_ctx,
                         output,
                         env.rules,
                         ancestors,
-                        env.fonts,
+                        element_index,
+                        element_count,
+                        env,
+                    );
+                    flush_ib(
+                        &mut ib_group,
+                        parent_style,
+                        &ib_ctx,
+                        output,
+                        ancestors,
+                        env,
                     );
                     if let Some(running) =
                         build_running_element(name, el, &style, &ib_ctx, ancestors, env)
@@ -2264,6 +2343,17 @@ fn flatten_nodes(
                     continue;
                 }
 
+                if style.display == Display::TableCell {
+                    flush_ib(
+                        &mut ib_group,
+                        parent_style,
+                        &ib_ctx,
+                        output,
+                        ancestors,
+                        env,
+                    );
+                    table_cell_group.push(el);
+                } else
                 // Check if this element is inline-block
                 if element_is_inline_block(
                     el,
@@ -2274,17 +2364,38 @@ fn flatten_nodes(
                     element_count,
                     &preceding_siblings,
                 ) {
+                    flush_table_cells(
+                        &mut table_cell_group,
+                        parent_style,
+                        &ib_ctx,
+                        output,
+                        env.rules,
+                        ancestors,
+                        element_index,
+                        element_count,
+                        env,
+                    );
                     ib_group.push(el);
                 } else {
+                    flush_table_cells(
+                        &mut table_cell_group,
+                        parent_style,
+                        &ib_ctx,
+                        output,
+                        env.rules,
+                        ancestors,
+                        element_index,
+                        element_count,
+                        env,
+                    );
                     // Flush any pending inline-block group
                     flush_ib(
                         &mut ib_group,
                         parent_style,
                         &ib_ctx,
                         output,
-                        env.rules,
                         ancestors,
-                        env.fonts,
+                        env,
                     );
                     flatten_element(
                         el,
@@ -2311,14 +2422,24 @@ fn flatten_nodes(
         }
     }
     // Flush any remaining inline-block group at end of nodes
-    flush_ib(
-        &mut ib_group,
+    flush_table_cells(
+        &mut table_cell_group,
         parent_style,
         &ib_ctx,
         output,
         env.rules,
         ancestors,
-        env.fonts,
+        element_index,
+        element_count,
+        env,
+    );
+    flush_ib(
+        &mut ib_group,
+        parent_style,
+        &ib_ctx,
+        output,
+        ancestors,
+        env,
     );
 }
 
@@ -3059,7 +3180,8 @@ pub(crate) fn flatten_element(
     }
 
     // Table handling
-    if el.tag == HtmlTag::Table {
+    if el.tag == HtmlTag::Table || matches!(style.display, Display::Table | Display::InlineTable)
+    {
         flatten_table(
             el,
             &style,

@@ -3,18 +3,20 @@ use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
-    BoxSizing, ComputedStyle, ConicGradient, Display, LinearGradient, RadialGradient, TextAlign,
-    Transform, compute_style_with_context,
+    BoxSizing, ComputedStyle, ConicGradient, Display, GridTrack, LinearGradient, RadialGradient,
+    TextAlign, Transform, compute_style_with_context,
 };
 use std::collections::HashMap;
 
-use super::context::LayoutContext;
+use super::context::{LayoutContext, LayoutEnv};
 use super::engine::{BackgroundFields, FlexCell, LayoutBorder, LayoutElement, TextLine};
+use super::grid::layout_grid_container;
 use super::text::{
-    FlexTextRunCollector, TextWrapOptions, resolved_line_height_factor, wrap_text_runs,
+    FlexTextRunCollector, TextWrapOptions, estimate_word_width, resolved_line_height_factor,
+    wrap_text_runs,
 };
 
-/// Check if an element computes to `display: inline-block` given parent style and CSS rules.
+/// Check if an element computes to an atomic inline-level layout child.
 pub(crate) fn element_is_inline_block(
     el: &ElementNode,
     parent_style: &ComputedStyle,
@@ -45,7 +47,7 @@ pub(crate) fn element_is_inline_block(
         &selector_ctx,
     );
     // SVGs need individual block layout (they use cm operator for viewBox).
-    style.display == Display::InlineBlock
+    matches!(style.display, Display::InlineBlock | Display::InlineGrid)
         && el.tag != HtmlTag::Svg
         && !el
             .children
@@ -100,6 +102,41 @@ pub(crate) fn layout_inline_block_group(
     ancestors: &[AncestorInfo],
     fonts: &HashMap<String, TtfFont>,
 ) {
+    layout_inline_block_group_inner(elements, parent_style, ctx, output, rules, ancestors, fonts, None);
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn layout_inline_block_group_with_env(
+    elements: &[&ElementNode],
+    parent_style: &ComputedStyle,
+    ctx: &LayoutContext,
+    output: &mut Vec<LayoutElement>,
+    ancestors: &[AncestorInfo],
+    env: &mut LayoutEnv,
+) {
+    layout_inline_block_group_inner(
+        elements,
+        parent_style,
+        ctx,
+        output,
+        env.rules,
+        ancestors,
+        env.fonts,
+        Some(env),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn layout_inline_block_group_inner(
+    elements: &[&ElementNode],
+    parent_style: &ComputedStyle,
+    ctx: &LayoutContext,
+    output: &mut Vec<LayoutElement>,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    fonts: &HashMap<String, TtfFont>,
+    mut env: Option<&mut LayoutEnv>,
+) {
     let available_width = ctx.available_width();
     if elements.is_empty() {
         return;
@@ -133,6 +170,8 @@ pub(crate) fn layout_inline_block_group(
         margin_left: f32,
         margin_right: f32,
         box_shadow: Vec<crate::style::computed::BoxShadow>,
+        nested_elements: Vec<LayoutElement>,
+        is_inline_grid: bool,
         is_positioned: bool,
     }
 
@@ -195,6 +234,92 @@ pub(crate) fn layout_inline_block_group(
             following_siblings: Vec::new(),
             is_empty: false,
         });
+        if child_style.display == Display::InlineGrid && env.is_some() {
+            let env = env.as_deref_mut().expect("checked above");
+            let mut grid_style = child_style.clone();
+            grid_style.display = Display::Grid;
+            grid_style.margin = Default::default();
+            let track_len = |track: &GridTrack| match track {
+                GridTrack::Fixed(v) => *v,
+                GridTrack::Percent(p) => p * available_width,
+                GridTrack::Minmax(min, _) => *min,
+                _ => 0.0,
+            };
+            let intrinsic_w = child_style
+                .grid_template_columns
+                .iter()
+                .map(track_len)
+                .sum::<f32>()
+                + child_style.column_gap
+                    * child_style.grid_template_columns.len().saturating_sub(1) as f32;
+            let intrinsic_h = child_style
+                .grid_template_rows
+                .iter()
+                .map(track_len)
+                .sum::<f32>()
+                + child_style.row_gap
+                    * child_style.grid_template_rows.len().saturating_sub(1) as f32;
+            if grid_style.width.is_none() {
+                grid_style.width = Some(intrinsic_w);
+            }
+            if grid_style.height.is_none() && intrinsic_h > 0.0 {
+                grid_style.height = Some(intrinsic_h);
+            }
+            let border_box_w = child_style.width.unwrap_or(intrinsic_w).max(0.0);
+            let border_box_h = child_style.height.unwrap_or(intrinsic_h).max(0.0);
+            let mut nested_elements = Vec::new();
+            let child_ctx = ctx.with_parent_and_basis(
+                border_box_w.max(1.0),
+                border_box_w.max(1.0),
+                Some(border_box_h.max(1.0)),
+                child_style.font_size,
+            );
+            layout_grid_container(
+                child_el,
+                &grid_style,
+                &child_ctx,
+                &mut nested_elements,
+                &child_ancestors,
+                0,
+                env,
+            );
+            items.push(InlineBlockItem {
+                width: border_box_w,
+                height: border_box_h,
+                lines: Vec::new(),
+                background_color: None,
+                padding_top: 0.0,
+                padding_right: 0.0,
+                padding_bottom: 0.0,
+                padding_left: 0.0,
+                border: LayoutBorder::default(),
+                border_radius: 0.0,
+                transform: child_style.transform,
+                transform_origin: child_style.transform_origin,
+                background_gradient: None,
+                background_radial_gradient: None,
+                background_conic_gradient: None,
+                background_svg: None,
+                background_blur_radius: 0.0,
+                background_size: BackgroundSize::Auto,
+                background_position: BackgroundPosition::default(),
+                background_repeat: BackgroundRepeat::Repeat,
+                background_origin: BackgroundOrigin::Padding,
+                background_clip: BackgroundClip::Border,
+                text_align: child_style.text_align,
+                margin_left: child_style.margin.left,
+                margin_right: child_style.margin.right,
+                box_shadow: child_style.box_shadow.clone(),
+                nested_elements,
+                is_inline_grid: true,
+                is_positioned: matches!(
+                    child_style.position,
+                    crate::style::computed::Position::Relative
+                        | crate::style::computed::Position::Absolute
+                ),
+            });
+            continue;
+        }
         let mut runs = Vec::new();
         FlexTextRunCollector {
             runs: &mut runs,
@@ -320,6 +445,8 @@ pub(crate) fn layout_inline_block_group(
             margin_left: child_style.margin.left,
             margin_right: child_style.margin.right,
             box_shadow: child_style.box_shadow.clone(),
+            nested_elements: Vec::new(),
+            is_inline_grid: false,
             // CSS 2.1 §9.9.1: a positioned inline-block (relative/absolute) is
             // painted after all non-positioned in-flow siblings in the same
             // stacking context, so it must not be hidden under a later in-flow
@@ -374,6 +501,14 @@ pub(crate) fn layout_inline_block_group(
     // baseline, plus the strut's descent below it.
     let finish_row_height =
         |max_item_height: f32| -> f32 { max_item_height.max(strut_above) + strut_below };
+    let inline_grid_space = estimate_word_width(
+        " ",
+        parent_style.font_size,
+        &parent_family,
+        parent_style.font_weight == crate::style::computed::FontWeight::Bold,
+        parent_style.font_style == crate::style::computed::FontStyle::Italic,
+        fonts,
+    );
 
     for item in &items {
         let item_total_w = item.margin_left + item.width + item.margin_right;
@@ -387,6 +522,9 @@ pub(crate) fn layout_inline_block_group(
             max_item_height = 0.0;
         }
 
+        if item.is_inline_grid && !current_cells.is_empty() {
+            x += inline_grid_space;
+        }
         x += item.margin_left;
         current_cells.push(FlexCell {
             lines: item.lines.clone(),
@@ -422,7 +560,7 @@ pub(crate) fn layout_inline_block_group(
             transform: item.transform,
             transform_origin: item.transform_origin,
             box_shadow: item.box_shadow.clone(),
-            nested_elements: Vec::new(),
+            nested_elements: item.nested_elements.clone(),
             y_offset: 0.0,
             line_cross_size: 0.0,
             is_positioned: item.is_positioned,

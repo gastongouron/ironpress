@@ -30,6 +30,17 @@ pub enum Display {
     InlineBlock,
     Flex,
     Grid,
+    InlineGrid,
+    Table,
+    InlineTable,
+    TableRowGroup,
+    TableHeaderGroup,
+    TableFooterGroup,
+    TableRow,
+    TableCell,
+    TableColumnGroup,
+    TableColumn,
+    TableCaption,
     None,
 }
 
@@ -57,6 +68,7 @@ pub enum JustifyContent {
     FlexStart,
     FlexEnd,
     Center,
+    SafeCenter,
     SpaceBetween,
     SpaceAround,
     SpaceEvenly,
@@ -1562,6 +1574,7 @@ pub struct ComputedStyle {
     /// size, ignoring any `width`. Distinct from `auto` (which falls back to
     /// `width`). When set, `flex_basis`/`flex_basis_pct` are both `None`.
     pub flex_basis_content: bool,
+    pub flex_basis_keyword: Option<IntrinsicWidthKeyword>,
     pub gap: f32,
     pub overflow: Overflow,
     /// Per-axis computed overflow (after the CSS Overflow 3 inter-axis coercion).
@@ -1591,6 +1604,8 @@ pub struct ComputedStyle {
     pub grid_template_rows: Vec<GridTrack>,
     /// `grid-auto-rows` size in points for implicit rows (None = auto/content).
     pub grid_auto_rows: Option<f32>,
+    /// Full `grid-auto-rows` track-size pattern; repeated for implicit rows.
+    pub grid_auto_rows_pattern: Vec<f32>,
     /// `grid-auto-flow: column` is in effect (default is row).
     pub grid_auto_flow_column: bool,
     /// `justify-items` (inline-axis alignment of grid items in their tracks).
@@ -1788,6 +1803,8 @@ pub enum ObjectPositionComponent {
     Fraction(f32),
     /// Absolute offset of the object's start edge from the box start, in points.
     Length(f32),
+    /// Absolute offset from the far edge; resolved as free-space minus this length.
+    FarEdgeLength(f32),
 }
 
 impl ObjectPositionComponent {
@@ -1798,6 +1815,7 @@ impl ObjectPositionComponent {
         match self {
             ObjectPositionComponent::Fraction(f) => free_space * f,
             ObjectPositionComponent::Length(l) => l,
+            ObjectPositionComponent::FarEdgeLength(l) => free_space - l,
         }
     }
 }
@@ -1941,6 +1959,7 @@ impl Default for ComputedStyle {
             flex_basis: None,
             flex_basis_pct: None,
             flex_basis_content: false,
+            flex_basis_keyword: None,
             gap: 0.0,
             overflow: Overflow::Visible,
             overflow_x: Overflow::Visible,
@@ -1957,6 +1976,7 @@ impl Default for ComputedStyle {
             grid_template_columns: Vec::new(),
             grid_template_rows: Vec::new(),
             grid_auto_rows: None,
+            grid_auto_rows_pattern: Vec::new(),
             grid_auto_flow_column: false,
             justify_items: GridAlign::Stretch,
             grid_align_items: GridAlign::Stretch,
@@ -2192,6 +2212,7 @@ pub fn compute_style_with_context(
     style.flex_basis = None;
     style.flex_basis_pct = None;
     style.flex_basis_content = false;
+    style.flex_basis_keyword = None;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.overflow_x = Overflow::Visible;
@@ -2212,6 +2233,7 @@ pub fn compute_style_with_context(
     style.grid_template_column_line_names = Vec::new();
     style.grid_template_row_line_names = Vec::new();
     style.grid_auto_rows = None;
+    style.grid_auto_rows_pattern.clear();
     style.grid_auto_flow_column = false;
     style.grid_auto_flow_dense = false;
     style.grid_column_span = 1;
@@ -2522,6 +2544,7 @@ pub fn compute_pseudo_element_style(
     style.flex_basis = None;
     style.flex_basis_pct = None;
     style.flex_basis_content = false;
+    style.flex_basis_keyword = None;
     style.gap = 0.0;
     style.overflow = Overflow::Visible;
     style.overflow_x = Overflow::Visible;
@@ -2541,6 +2564,7 @@ pub fn compute_pseudo_element_style(
     style.grid_template_column_line_names = Vec::new();
     style.grid_template_row_line_names = Vec::new();
     style.grid_auto_rows = None;
+    style.grid_auto_rows_pattern.clear();
     style.grid_auto_flow_column = false;
     style.grid_auto_flow_dense = false;
     style.grid_column_span = 1;
@@ -2807,6 +2831,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
             style.flex_basis = default.flex_basis;
             style.flex_basis_pct = default.flex_basis_pct;
             style.flex_basis_content = default.flex_basis_content;
+            style.flex_basis_keyword = default.flex_basis_keyword;
         }
         "gap" => style.gap = default.gap,
         "text-overflow" => style.text_overflow = default.text_overflow,
@@ -2859,6 +2884,24 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         }
         _ => {}
     }
+}
+
+fn reset_all_to_initial(style: &mut ComputedStyle) {
+    let root_font_size = style.root_font_size;
+    let viewport_width = style.viewport_width;
+    let viewport_height = style.viewport_height;
+    let direction_rtl = style.direction_rtl;
+    let bidi_override = style.bidi_override;
+    let custom_properties = style.custom_properties.clone();
+
+    *style = ComputedStyle::default();
+
+    style.root_font_size = root_font_size;
+    style.viewport_width = viewport_width;
+    style.viewport_height = viewport_height;
+    style.direction_rtl = direction_rtl;
+    style.bidi_override = bidi_override;
+    style.custom_properties = custom_properties;
 }
 
 /// Restore a property to the parent's value (inherit behavior).
@@ -2997,6 +3040,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
             style.flex_basis = parent.flex_basis;
             style.flex_basis_pct = parent.flex_basis_pct;
             style.flex_basis_content = parent.flex_basis_content;
+            style.flex_basis_keyword = parent.flex_basis_keyword;
         }
         "gap" => style.gap = parent.gap,
         "text-overflow" => style.text_overflow = parent.text_overflow,
@@ -3154,13 +3198,23 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
             let lower = k.to_ascii_lowercase();
             match lower.as_str() {
                 "inherit" => {
-                    restore_from_parent(style, prop, parent);
+                    if prop == "all" {
+                        *style = parent.clone();
+                    } else {
+                        restore_from_parent(style, prop, parent);
+                    }
                 }
                 "initial" => {
-                    reset_to_initial(style, prop);
+                    if prop == "all" {
+                        reset_all_to_initial(style);
+                    } else {
+                        reset_to_initial(style, prop);
+                    }
                 }
                 "unset" => {
-                    if is_inherited_property(prop) {
+                    if prop == "all" {
+                        reset_all_to_initial(style);
+                    } else if is_inherited_property(prop) {
                         restore_from_parent(style, prop, parent);
                     } else {
                         reset_to_initial(style, prop);
@@ -3448,14 +3502,11 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "justify-content") {
         // css-align-3 §9: an optional `safe`/`unsafe` overflow-alignment prefix
         // may precede the positional keyword (`justify-content: safe center`).
-        // Strip it here; the layout enum does not yet track the overflow-safe
-        // fallback bit separately.
-        let kw = strip_overflow_position(k).0;
         // css-align-3 §6.2: `left`/`right` resolve against the INLINE axis. For a
         // row container that is the main axis (right→end, left→start); for a
         // column container the main axis is the block axis, so they behave as
         // `start`.
-        style.justify_content = parse_justify_content(kw, style.flex_direction.is_row());
+        style.justify_content = parse_justify_content(k, style.flex_direction.is_row());
     }
 
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "align-items") {
@@ -3591,10 +3642,21 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     // `grid-auto-rows` may arrive as a Length (single px/pt value) or Keyword.
     match get_non_special(map, "grid-auto-rows") {
-        Some(CssValue::Length(v)) => style.grid_auto_rows = Some(*v),
+        Some(CssValue::Length(v)) => {
+            style.grid_auto_rows = Some(*v);
+            style.grid_auto_rows_pattern = vec![*v];
+        }
         Some(CssValue::Keyword(k)) => {
-            if let Some(GridTrack::Fixed(v)) = parse_single_track(k) {
-                style.grid_auto_rows = Some(v);
+            let pattern: Vec<f32> = k
+                .split_whitespace()
+                .filter_map(|token| match parse_single_track(token) {
+                    Some(GridTrack::Fixed(v)) => Some(v),
+                    _ => None,
+                })
+                .collect();
+            if let Some(first) = pattern.first().copied() {
+                style.grid_auto_rows = Some(first);
+                style.grid_auto_rows_pattern = pattern;
             }
         }
         _ => {}
@@ -5726,23 +5788,14 @@ fn parse_object_position(raw: &str) -> Option<ObjectPosition> {
             })),
             // Offset from the far edge: percentage P% from the end == (100-P)%
             // from the start; a length L from the end aligns the object's end
-            // edge, i.e. object start at free_space - L (encoded as a length
-            // relative to the start once the box size is known — but object-fit
-            // boxes have no separate box size here, so far-edge lengths are rare;
-            // approximate using the fraction form is not possible, so we keep the
-            // exact start-relative length only for the near edges and fall back to
-            // a fraction for the far edge with a length we cannot resolve).
+            // edge at free_space - L, resolved once the object size is known.
             Some(Offset::Percent(p)) => Some(ObjectPositionComponent::Fraction(if from_start {
                 p / 100.0
             } else {
                 1.0 - p / 100.0
             })),
             Some(Offset::Length(l)) if from_start => Some(ObjectPositionComponent::Length(l)),
-            // Far-edge length offsets are uncommon for object-position; resolve
-            // them as the end edge minus the length is not expressible without the
-            // box size at parse time, so anchor to the end and ignore the small
-            // length (rare path).
-            Some(Offset::Length(_)) => Some(ObjectPositionComponent::Fraction(1.0)),
+            Some(Offset::Length(l)) => Some(ObjectPositionComponent::FarEdgeLength(l)),
         }
     }
 
@@ -8092,20 +8145,51 @@ fn parse_display_value(k: &str) -> Option<Display> {
     match lower.as_str() {
         "none" => return Some(Display::None),
         "inline" => return Some(Display::Inline),
-        "inline-block" => return Some(Display::InlineBlock),
-        "block" => return Some(Display::Block),
+        "inline-block" | "inline-flex" => return Some(Display::InlineBlock),
+        "block" | "-webkit-box" => return Some(Display::Block),
         "flex" => return Some(Display::Flex),
         "grid" => return Some(Display::Grid),
+        "inline-grid" => return Some(Display::InlineGrid),
+        "table" => return Some(Display::Table),
+        "inline-table" => return Some(Display::InlineTable),
+        "table-row-group" => return Some(Display::TableRowGroup),
+        "table-header-group" => return Some(Display::TableHeaderGroup),
+        "table-footer-group" => return Some(Display::TableFooterGroup),
+        "table-row" => return Some(Display::TableRow),
+        "table-cell" => return Some(Display::TableCell),
+        "table-column-group" => return Some(Display::TableColumnGroup),
+        "table-column" => return Some(Display::TableColumn),
+        "table-caption" => return Some(Display::TableCaption),
         _ => {}
     }
 
     let parts: Vec<&str> = lower.split_whitespace().collect();
     if parts.contains(&"none") {
         Some(Display::None)
+    } else if parts.contains(&"inline") && parts.contains(&"flex") {
+        Some(Display::InlineBlock)
     } else if parts.contains(&"flex") {
         Some(Display::Flex)
     } else if parts.contains(&"grid") {
-        Some(Display::Grid)
+        if parts.contains(&"inline") {
+            Some(Display::InlineGrid)
+        } else {
+            Some(Display::Grid)
+        }
+    } else if parts.contains(&"table") {
+        if parts.contains(&"caption") {
+            Some(Display::TableCaption)
+        } else if parts.contains(&"cell") {
+            Some(Display::TableCell)
+        } else if parts.contains(&"row") {
+            Some(Display::TableRow)
+        } else if parts.contains(&"column") {
+            Some(Display::TableColumn)
+        } else if parts.contains(&"inline") {
+            Some(Display::InlineTable)
+        } else {
+            Some(Display::Table)
+        }
     } else if parts.contains(&"inline")
         && (parts.contains(&"block") || parts.contains(&"flow-root"))
     {
@@ -8147,11 +8231,12 @@ fn split_alignment_components(k: &str) -> Vec<String> {
 }
 
 fn parse_justify_content(k: &str, is_row: bool) -> JustifyContent {
-    let kw = strip_overflow_position(k).0;
+    let (kw, safe) = strip_overflow_position(k);
     match kw {
         "flex-end" | "end" => JustifyContent::FlexEnd,
         "right" if is_row => JustifyContent::FlexEnd,
         "left" | "right" => JustifyContent::FlexStart,
+        "center" if safe => JustifyContent::SafeCenter,
         "center" => JustifyContent::Center,
         "space-between" => JustifyContent::SpaceBetween,
         "space-around" => JustifyContent::SpaceAround,
@@ -8261,18 +8346,25 @@ fn set_flex_basis_auto(style: &mut ComputedStyle, content_sized: bool) {
     style.flex_basis = None;
     style.flex_basis_pct = None;
     style.flex_basis_content = content_sized;
+    style.flex_basis_keyword = if content_sized {
+        Some(IntrinsicWidthKeyword::MaxContent)
+    } else {
+        None
+    };
 }
 
 fn set_flex_basis_length(style: &mut ComputedStyle, value: f32) {
     style.flex_basis = Some(value.max(0.0));
     style.flex_basis_pct = None;
     style.flex_basis_content = false;
+    style.flex_basis_keyword = None;
 }
 
 fn set_flex_basis_percentage(style: &mut ComputedStyle, pct: f32) {
     style.flex_basis_pct = Some((pct / 100.0).max(0.0));
     style.flex_basis = None;
     style.flex_basis_content = false;
+    style.flex_basis_keyword = None;
 }
 
 fn apply_flex_basis_value(
@@ -8323,11 +8415,17 @@ fn apply_flex_basis_token(
             set_flex_basis_auto(style, false);
             true
         }
-        "content" | "max-content" | "fit-content" | "min-content" => {
-            // Existing layout storage has a single intrinsic-content bit. It
-            // maps exactly to max-content/content; min-content still needs a
-            // layout-side intrinsic minimum implementation.
+        "content" | "max-content" => {
             set_flex_basis_auto(style, true);
+            true
+        }
+        "fit-content" | "min-content" => {
+            set_flex_basis_auto(style, true);
+            style.flex_basis_keyword = Some(if lower == "min-content" {
+                IntrinsicWidthKeyword::MinContent
+            } else {
+                IntrinsicWidthKeyword::FitContent
+            });
             true
         }
         _ => match parse_length(&lower) {
@@ -8345,6 +8443,7 @@ fn set_flex_basis_zero(style: &mut ComputedStyle) {
     style.flex_basis = Some(0.0);
     style.flex_basis_pct = None;
     style.flex_basis_content = false;
+    style.flex_basis_keyword = None;
 }
 
 fn apply_flex_shorthand(
@@ -8767,6 +8866,7 @@ fn apply_grid_template_shorthand(style: &mut ComputedStyle, value: &str) {
 fn apply_grid_shorthand(style: &mut ComputedStyle, value: &str) {
     reset_grid_template(style);
     style.grid_auto_rows = None;
+    style.grid_auto_rows_pattern.clear();
     style.grid_auto_flow_column = false;
     style.grid_auto_flow_dense = false;
 
@@ -8792,6 +8892,7 @@ fn apply_grid_shorthand(style: &mut ComputedStyle, value: &str) {
         if let Some(track) = row_tokens.first().and_then(|t| parse_single_track(t)) {
             if let Some(v) = fixed_grid_track_size(&track) {
                 style.grid_auto_rows = Some(v);
+                style.grid_auto_rows_pattern = vec![v];
             }
         }
         if !after_slash.trim().is_empty() {

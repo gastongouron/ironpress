@@ -156,6 +156,7 @@ struct FlexBasisRecovery {
     length: Option<f32>,
     pct: Option<f32>,
     content: bool,
+    keyword: Option<IntrinsicWidthKeyword>,
 }
 
 fn parse_flex_basis_recovery(raw: &str) -> Option<FlexBasisRecovery> {
@@ -185,6 +186,7 @@ fn parse_flex_basis_recovery(raw: &str) -> Option<FlexBasisRecovery> {
             length: None,
             pct: None,
             content: false,
+            keyword: None,
         }),
         "content" => Some(FlexBasisRecovery {
             grow,
@@ -192,6 +194,31 @@ fn parse_flex_basis_recovery(raw: &str) -> Option<FlexBasisRecovery> {
             length: None,
             pct: None,
             content: true,
+            keyword: Some(IntrinsicWidthKeyword::MaxContent),
+        }),
+        "max-content" => Some(FlexBasisRecovery {
+            grow,
+            shrink,
+            length: None,
+            pct: None,
+            content: true,
+            keyword: Some(IntrinsicWidthKeyword::MaxContent),
+        }),
+        "min-content" => Some(FlexBasisRecovery {
+            grow,
+            shrink,
+            length: None,
+            pct: None,
+            content: true,
+            keyword: Some(IntrinsicWidthKeyword::MinContent),
+        }),
+        "fit-content" => Some(FlexBasisRecovery {
+            grow,
+            shrink,
+            length: None,
+            pct: None,
+            content: true,
+            keyword: Some(IntrinsicWidthKeyword::FitContent),
         }),
         token => match crate::parser::css::parse_length(token) {
             Some(CssValue::Length(v)) => Some(FlexBasisRecovery {
@@ -200,6 +227,7 @@ fn parse_flex_basis_recovery(raw: &str) -> Option<FlexBasisRecovery> {
                 length: Some(v),
                 pct: None,
                 content: false,
+                keyword: None,
             }),
             Some(CssValue::Percentage(p)) => Some(FlexBasisRecovery {
                 grow,
@@ -207,6 +235,7 @@ fn parse_flex_basis_recovery(raw: &str) -> Option<FlexBasisRecovery> {
                 length: None,
                 pct: Some(p / 100.0),
                 content: false,
+                keyword: None,
             }),
             _ => None,
         },
@@ -358,6 +387,64 @@ fn recover_flex_writing_mode(
         mode = inline;
     }
     mode
+}
+
+fn authored_align_items_last_baseline(
+    el: &ElementNode,
+    ancestors: &[AncestorInfo],
+    rules: &[CssRule],
+) -> bool {
+    let classes = el.class_list();
+    let selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        child_index: ancestors.last().map_or(0, |a| a.child_index),
+        sibling_count: ancestors.last().map_or(1, |a| a.sibling_count),
+        preceding_siblings: Vec::new(),
+        following_siblings: Vec::new(),
+        is_empty: false,
+    };
+    let mut best: Option<(bool, u32, usize, bool)> = None;
+    for (source_idx, rule) in rules.iter().enumerate() {
+        if rule.pseudo_element.is_some()
+            || !crate::parser::css::selector_matches_with_context(
+                &rule.selector,
+                el.tag_name(),
+                &classes,
+                el.id(),
+                &el.attributes,
+                &selector_ctx,
+            )
+        {
+            continue;
+        }
+        let Some(CssValue::Keyword(raw)) = rule.declarations.properties.get("align-items") else {
+            continue;
+        };
+        let important = rule
+            .declarations
+            .important
+            .get("align-items")
+            .copied()
+            .unwrap_or(false);
+        let specificity = crate::parser::css::specificity(&rule.selector);
+        let is_last = raw.trim().eq_ignore_ascii_case("last baseline");
+        if best.is_none_or(|(best_important, best_spec, best_source, _)| {
+            (important, specificity, source_idx) >= (best_important, best_spec, best_source)
+        }) {
+            best = Some((important, specificity, source_idx, is_last));
+        }
+    }
+    if let Some(inline) = el
+        .style_attr()
+        .map(crate::parser::css::parse_inline_style)
+        .and_then(|map| match map.properties.get("align-items") {
+            Some(CssValue::Keyword(raw)) => Some(raw.trim().eq_ignore_ascii_case("last baseline")),
+            _ => None,
+        })
+    {
+        return inline;
+    }
+    best.is_some_and(|(_, _, _, is_last)| is_last)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -689,6 +776,7 @@ pub(crate) fn layout_flex_container(
                 JustifyContent::FlexStart | JustifyContent::SpaceBetween => 0.0,
                 JustifyContent::FlexEnd => static_main_free,
                 JustifyContent::Center
+                | JustifyContent::SafeCenter
                 | JustifyContent::SpaceAround
                 | JustifyContent::SpaceEvenly => static_main_free / 2.0,
             };
@@ -1107,6 +1195,7 @@ pub(crate) fn layout_flex_container(
             child_style.flex_basis = recovered.length;
             child_style.flex_basis_pct = recovered.pct;
             child_style.flex_basis_content = recovered.content;
+            child_style.flex_basis_keyword = recovered.keyword;
         }
 
         if child_style.display == Display::None {
@@ -1562,7 +1651,16 @@ pub(crate) fn layout_flex_container(
         // When no explicit width/flex-basis and flex-grow is 0, measure the
         // natural (intrinsic) content width so the item shrinks to fit.
         let child_w = if child_style.flex_basis_content && !runs.is_empty() {
-            let natural_text_w = measure_runs_width(&runs, env.fonts);
+            let natural_text_w =
+                if child_style.flex_basis_keyword == Some(IntrinsicWidthKeyword::MinContent) {
+                    flex_text_min_content(
+                        &runs,
+                        matches!(child_style.white_space, WhiteSpace::NoWrap | WhiteSpace::Pre),
+                        env.fonts,
+                    )
+                } else {
+                    measure_runs_width(&runs, env.fonts)
+                };
             let pad_h = child_style.padding.left + child_style.padding.right;
             let border_h = child_style.border.horizontal_width();
             (natural_text_w + pad_h + border_h).min(width_for_percentages)
@@ -1856,6 +1954,7 @@ pub(crate) fn layout_flex_container(
     let direction = style.flex_direction;
     let justify = style.justify_content;
     let align = style.align_items;
+    let align_last_baseline = authored_align_items_last_baseline(el, ancestors, env.rules);
     let wrap = style.flex_wrap;
     // Resolve percentage gaps against the flex container's OWN content box (CSS
     // Box Alignment §8.3): column-gap% against the content-box inline size
@@ -3058,6 +3157,7 @@ pub(crate) fn layout_flex_container(
                                 relayout_child_style.flex_basis = recovered.length;
                                 relayout_child_style.flex_basis_pct = recovered.pct;
                                 relayout_child_style.flex_basis_content = recovered.content;
+                                relayout_child_style.flex_basis_keyword = recovered.keyword;
                             }
                             let mut runs = Vec::new();
                             let mut relayout_ancestors = ancestors.to_vec();
@@ -3203,7 +3303,9 @@ pub(crate) fn layout_flex_container(
                 // the edge (css-align-3 §9 Overflow Alignment, unsafe default).
                 let (mut x, extra_gap) = if free_space < -0.5 && !use_auto_margins {
                     match justify {
-                        JustifyContent::FlexStart | JustifyContent::SpaceBetween => (0.0, 0.0),
+                        JustifyContent::FlexStart
+                        | JustifyContent::SafeCenter
+                        | JustifyContent::SpaceBetween => (0.0, 0.0),
                         JustifyContent::FlexEnd => (free_space, 0.0),
                         JustifyContent::Center
                         | JustifyContent::SpaceAround
@@ -3213,7 +3315,9 @@ pub(crate) fn layout_flex_container(
                     match justify {
                         JustifyContent::FlexStart => (0.0, 0.0),
                         JustifyContent::FlexEnd => (justify_free, 0.0),
-                        JustifyContent::Center => (justify_free / 2.0, 0.0),
+                        JustifyContent::Center | JustifyContent::SafeCenter => {
+                            (justify_free / 2.0, 0.0)
+                        }
                         JustifyContent::SpaceBetween => {
                             if line_item_count > 1 {
                                 (0.0, justify_free / (line_item_count - 1) as f32)
@@ -3683,48 +3787,24 @@ pub(crate) fn layout_flex_container(
                     cell.is_positioned = it.is_relative || it.z_index > 0;
                 }
 
-                let is_baseline_cell = |cell: &FlexCell| -> bool {
-                    matches!(
-                        match cell.align_self {
-                            AlignSelf::Auto => align,
+                if align_last_baseline {
+                    let line_cross = if lines.len() == 1 && inner_cross_size > 0.0 {
+                        inner_cross_size
+                    } else {
+                        resolved_line_cross_size
+                    };
+                    for cell in flex_cells.iter_mut() {
+                        let effective_align = match cell.align_self {
+                            AlignSelf::Auto => AlignItems::Baseline,
                             AlignSelf::FlexStart => AlignItems::FlexStart,
                             AlignSelf::FlexEnd => AlignItems::FlexEnd,
                             AlignSelf::Center => AlignItems::Center,
                             AlignSelf::Baseline => AlignItems::Baseline,
                             AlignSelf::Stretch => AlignItems::Stretch,
-                        },
-                        AlignItems::Baseline
-                    )
-                };
-                let first_baseline = |cell: &FlexCell| -> Option<f32> {
-                    let first = cell
-                        .lines
-                        .iter()
-                        .find(|line| line.runs.iter().any(|run| !run.text.is_empty()))?;
-                    let font_size = first
-                        .runs
-                        .iter()
-                        .filter(|run| !run.text.is_empty())
-                        .map(|run| run.font_size)
-                        .fold(0.0f32, f32::max);
-                    if font_size <= 0.0 {
-                        return None;
-                    }
-                    let half_leading = ((first.height - font_size) / 2.0).max(0.0);
-                    Some(cell.border.top.width + cell.padding_top + half_leading + font_size * 0.84)
-                };
-                let shared_baseline = flex_cells
-                    .iter()
-                    .filter(|cell| is_baseline_cell(cell))
-                    .filter_map(first_baseline)
-                    .fold(None, |acc: Option<f32>, b| {
-                        Some(acc.map_or(b, |a| a.max(b)))
-                    });
-                if let Some(shared) = shared_baseline {
-                    for cell in flex_cells.iter_mut().filter(|cell| is_baseline_cell(cell)) {
-                        if first_baseline(cell).is_none() {
-                            let synthesized = cell.natural_height;
-                            cell.y_offset += (shared - synthesized).max(0.0);
+                        };
+                        if effective_align == AlignItems::Baseline {
+                            cell.y_offset += (line_cross - cell.natural_height).max(0.0);
+                            cell.line_cross_size = line_cross;
                         }
                     }
                 }
@@ -3875,7 +3955,9 @@ pub(crate) fn layout_flex_container(
                     // space-around/space-evenly -> center; center/flex-end honor
                     // alignment and overflow past the edge.
                     match effective_justify {
-                        JustifyContent::FlexStart | JustifyContent::SpaceBetween => (0.0, 0.0),
+                        JustifyContent::FlexStart
+                        | JustifyContent::SafeCenter
+                        | JustifyContent::SpaceBetween => (0.0, 0.0),
                         JustifyContent::FlexEnd => (main_free_space, 0.0),
                         JustifyContent::Center
                         | JustifyContent::SpaceAround
@@ -3886,7 +3968,9 @@ pub(crate) fn layout_flex_container(
                     match effective_justify {
                         JustifyContent::FlexStart => (0.0, 0.0),
                         JustifyContent::FlexEnd => (main_free_space, 0.0),
-                        JustifyContent::Center => (main_free_space / 2.0, 0.0),
+                        JustifyContent::Center | JustifyContent::SafeCenter => {
+                            (main_free_space / 2.0, 0.0)
+                        }
                         JustifyContent::SpaceBetween => {
                             if line_item_count > 1 {
                                 (0.0, main_free_space / (line_item_count - 1) as f32)
@@ -3952,7 +4036,8 @@ pub(crate) fn layout_flex_container(
                             };
                         let mut x_offset = cross_offset
                             + match effective_align {
-                                AlignItems::FlexStart | AlignItems::Baseline => 0.0,
+                                AlignItems::FlexStart
+                                | AlignItems::Baseline => 0.0,
                                 AlignItems::FlexEnd => line.cross_size - used_width,
                                 AlignItems::Center => (line.cross_size - used_width) / 2.0,
                                 AlignItems::Stretch => 0.0,
@@ -4496,7 +4581,7 @@ pub(crate) fn layout_flex_container(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             background_clip: style.background_clip,
-            align_items: if column_wrap_lines {
+            align_items: if column_wrap_lines || align_last_baseline {
                 AlignItems::FlexStart
             } else {
                 align

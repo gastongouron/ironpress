@@ -125,6 +125,10 @@ pub(crate) fn layout_block_element(
             env.rules,
             env.fonts,
         );
+    } else if let (Some(ratio), Some(h)) = (style.aspect_ratio, style.height)
+        && ratio > 0.0
+    {
+        block_w = h * ratio + content_box_extra;
     } else if margin_h > 0.0 {
         block_w = (available_width - margin_h).max(0.0);
     }

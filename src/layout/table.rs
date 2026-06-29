@@ -159,10 +159,146 @@ enum BorderSideName {
     Left,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TableBoxRole {
+    Table,
+    Caption,
+    ColumnGroup,
+    Column,
+    HeaderGroup,
+    RowGroup,
+    FooterGroup,
+    Row,
+    Cell,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct BorderCandidate {
     side: LayoutBorderSide,
     hidden: bool,
+}
+
+fn table_box_role(el: &ElementNode, style: &ComputedStyle) -> Option<TableBoxRole> {
+    match el.tag {
+        HtmlTag::Table => return Some(TableBoxRole::Table),
+        HtmlTag::Caption => return Some(TableBoxRole::Caption),
+        HtmlTag::Colgroup => return Some(TableBoxRole::ColumnGroup),
+        HtmlTag::Col => return Some(TableBoxRole::Column),
+        HtmlTag::Thead => return Some(TableBoxRole::HeaderGroup),
+        HtmlTag::Tbody => return Some(TableBoxRole::RowGroup),
+        HtmlTag::Tfoot => return Some(TableBoxRole::FooterGroup),
+        HtmlTag::Tr => return Some(TableBoxRole::Row),
+        HtmlTag::Td | HtmlTag::Th => return Some(TableBoxRole::Cell),
+        _ => {}
+    }
+
+    match style.display {
+        Display::Table | Display::InlineTable => Some(TableBoxRole::Table),
+        Display::TableCaption => Some(TableBoxRole::Caption),
+        Display::TableColumnGroup => Some(TableBoxRole::ColumnGroup),
+        Display::TableColumn => Some(TableBoxRole::Column),
+        Display::TableHeaderGroup => Some(TableBoxRole::HeaderGroup),
+        Display::TableRowGroup => Some(TableBoxRole::RowGroup),
+        Display::TableFooterGroup => Some(TableBoxRole::FooterGroup),
+        Display::TableRow => Some(TableBoxRole::Row),
+        Display::TableCell => Some(TableBoxRole::Cell),
+        _ => None,
+    }
+}
+
+fn table_section_role(
+    section: Option<&ElementNode>,
+    table_style: &ComputedStyle,
+    rules: &[CssRule],
+    table_ancestors: &[AncestorInfo],
+    child_index: usize,
+    sibling_count: usize,
+) -> Option<TableBoxRole> {
+    let section = section?;
+    let style = compute_column_style(
+        section,
+        table_style,
+        rules,
+        table_ancestors,
+        child_index,
+        sibling_count,
+    );
+    table_box_role(section, &style)
+}
+
+fn table_child_role(
+    child_el: &ElementNode,
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    child_index: usize,
+    sibling_count: usize,
+) -> (ComputedStyle, Option<TableBoxRole>) {
+    let child_style = compute_column_style(
+        child_el,
+        parent_style,
+        rules,
+        ancestors,
+        child_index,
+        sibling_count,
+    );
+    let role = table_box_role(child_el, &child_style);
+    (child_style, role)
+}
+
+fn row_child_is_table_cell(
+    child_el: &ElementNode,
+    row_style: &ComputedStyle,
+    rules: &[CssRule],
+    row_ancestors: &[AncestorInfo],
+    child_index: usize,
+    sibling_count: usize,
+) -> bool {
+    let (_, role) = table_child_role(
+        child_el,
+        row_style,
+        rules,
+        row_ancestors,
+        child_index,
+        sibling_count,
+    );
+    role.is_none_or(|role| role == TableBoxRole::Cell)
+}
+
+fn table_row_cell_elements<'a>(
+    row: &'a ElementNode,
+    row_style: &ComputedStyle,
+    rules: &[CssRule],
+    row_ancestors: &[AncestorInfo],
+) -> Vec<&'a ElementNode> {
+    if table_box_role(row, row_style) != Some(TableBoxRole::Row) {
+        return vec![row];
+    }
+
+    let row_child_count = row
+        .children
+        .iter()
+        .filter(|child| matches!(child, DomNode::Element(_)))
+        .count();
+    row.children
+        .iter()
+        .filter_map(|child| match child {
+            DomNode::Element(cell_el) => Some(cell_el),
+            _ => None,
+        })
+        .enumerate()
+        .filter_map(|(row_child_idx, cell_el)| {
+            row_child_is_table_cell(
+                cell_el,
+                row_style,
+                rules,
+                row_ancestors,
+                row_child_idx,
+                row_child_count,
+            )
+            .then_some(cell_el)
+        })
+        .collect()
 }
 
 fn resolve_table_percentage_width(table_width: f32, percent: f32) -> f32 {
@@ -611,8 +747,8 @@ fn parse_table_attr_length(el: &ElementNode, attr: &str) -> Option<f32> {
 }
 
 fn attr_border(width: f32, light: bool) -> LayoutBorder {
-    let light_color = (0.88, 0.88, 0.88);
-    let dark_color = (0.55, 0.55, 0.55);
+    let light_color = (0.933, 0.933, 0.933);
+    let dark_color = (0.604, 0.604, 0.604);
     let side = |color| super::engine::LayoutBorderSide {
         width,
         color,
@@ -652,8 +788,8 @@ fn apply_cell_attribute_hints(
             && style.border.left.width == 0.0
         {
             let side = crate::style::computed::BorderSide {
-                width: (width / 2.0).max(1.0),
-                color: Some(crate::types::Color::rgb(128, 128, 128)),
+                width: width.min(0.75),
+                color: Some(crate::types::Color::rgb(238, 238, 238)),
                 style: BorderStyle::Solid,
             };
             style.border.top = side;
@@ -674,8 +810,20 @@ fn table_section_is_first_header_group(
     section: Option<&ElementNode>,
     first_header_section_key: Option<usize>,
     child_index: usize,
+    table_style: &ComputedStyle,
+    rules: &[CssRule],
+    table_ancestors: &[AncestorInfo],
+    sibling_count: usize,
 ) -> bool {
     section.is_some_and(|section| section.tag == HtmlTag::Thead)
+        && table_section_role(
+        section,
+        table_style,
+        rules,
+        table_ancestors,
+        child_index,
+        sibling_count,
+    ) == Some(TableBoxRole::HeaderGroup)
         && first_header_section_key == Some(table_section_key(section, child_index))
 }
 
@@ -846,7 +994,9 @@ fn compute_table_column_count(
             let DomNode::Element(cell_el) = child else {
                 continue;
             };
-            if cell_el.tag != HtmlTag::Td && cell_el.tag != HtmlTag::Th {
+            if table_box_role(cell_el, &ComputedStyle::default()) != Some(TableBoxRole::Cell)
+                && !matches!(cell_el.tag, HtmlTag::Div | HtmlTag::Span)
+            {
                 continue;
             }
             while occupied.get(col_pos).copied().unwrap_or(0) > 0 {
@@ -1097,7 +1247,9 @@ fn resolve_fixed_table_columns(
             let DomNode::Element(cell_el) = child else {
                 continue;
             };
-            if cell_el.tag != HtmlTag::Td && cell_el.tag != HtmlTag::Th {
+            if table_box_role(cell_el, &ComputedStyle::default()) != Some(TableBoxRole::Cell)
+                && !matches!(cell_el.tag, HtmlTag::Div | HtmlTag::Span)
+            {
                 continue;
             }
             let colspan = parse_cell_colspan(cell_el);
@@ -1134,6 +1286,13 @@ fn resolve_fixed_table_columns(
 
             if let Some(width) = resolve_cell_track_width(cell_el, &cell_style, table_width) {
                 apply_cell_width_to_columns(&mut col_widths, col_pos, colspan, width);
+            } else if colspan == 1 && col_pos < col_widths.len() {
+                let border_min =
+                    cell_style.border.horizontal_width() + cell_style.font_size * 0.25;
+                if border_min > 0.0 {
+                    col_widths[col_pos] =
+                        Some(col_widths[col_pos].map_or(border_min, |w| w.max(border_min)));
+                }
             }
 
             col_pos = col_pos.saturating_add(colspan);
@@ -1212,7 +1371,7 @@ fn collapse_outer_horizontal_borders(
         .children
         .iter()
         .filter_map(|child| match child {
-            DomNode::Element(e) if e.tag == HtmlTag::Td || e.tag == HtmlTag::Th => Some(e),
+            DomNode::Element(e) => Some(e),
             _ => None,
         })
         .collect();
@@ -1323,9 +1482,9 @@ pub(crate) fn flatten_table(
     let mut row_section_elements: Vec<Option<&ElementNode>> = Vec::new();
     let mut row_section_child_indices: Vec<usize> = Vec::new();
     let mut row_section_sibling_counts: Vec<usize> = Vec::new();
-    // First `<caption>` (caption-side:top is the only supported placement) and
-    // its position among the table's element children, for selector matching.
-    let mut caption: Option<(&ElementNode, usize)> = None;
+    // `<caption>` / `display: table-caption` boxes and their positions among
+    // the table's element children, for selector matching.
+    let mut captions: Vec<(&ElementNode, usize)> = Vec::new();
     let section_count = el
         .children
         .iter()
@@ -1333,13 +1492,19 @@ pub(crate) fn flatten_table(
         .count();
     for (section_child_idx, child) in el.children.iter().enumerate() {
         if let DomNode::Element(child_el) = child {
-            match child_el.tag {
-                HtmlTag::Caption => {
-                    if caption.is_none() {
-                        caption = Some((child_el, section_child_idx));
-                    }
+            let (_, child_role) = table_child_role(
+                child_el,
+                style,
+                rules,
+                &table_ancestors,
+                section_child_idx,
+                section_count,
+            );
+            match child_role {
+                Some(TableBoxRole::Caption) => {
+                    captions.push((child_el, section_child_idx));
                 }
-                HtmlTag::Tr => {
+                Some(TableBoxRole::Row) => {
                     // Direct <tr> child of <table> — standalone section
                     let idx = rows.len();
                     rows.push(child_el);
@@ -1349,17 +1514,46 @@ pub(crate) fn flatten_table(
                     row_section_child_indices.push(section_child_idx);
                     row_section_sibling_counts.push(section_count);
                 }
-                HtmlTag::Thead | HtmlTag::Tbody | HtmlTag::Tfoot => {
+                Some(TableBoxRole::HeaderGroup | TableBoxRole::RowGroup | TableBoxRole::FooterGroup) => {
+                    let mut section_ancestors = table_ancestors.clone();
+                    section_ancestors.push(AncestorInfo {
+                        element: child_el,
+                        child_index: section_child_idx,
+                        sibling_count: section_count,
+                        preceding_siblings: Vec::new(),
+                        following_siblings: Vec::new(),
+                        is_empty: false,
+                    });
+                    let group_style = compute_column_style(
+                        child_el,
+                        style,
+                        rules,
+                        &table_ancestors,
+                        section_child_idx,
+                        section_count,
+                    );
+                    let group_child_count = child_el
+                        .children
+                        .iter()
+                        .filter(|gc| matches!(gc, DomNode::Element(_)))
+                        .count();
                     let section_rows: Vec<&ElementNode> = child_el
                         .children
                         .iter()
-                        .filter_map(|gc| {
-                            if let DomNode::Element(g) = gc {
-                                if g.tag == HtmlTag::Tr {
-                                    return Some(g);
-                                }
-                            }
-                            None
+                        .enumerate()
+                        .filter_map(|(group_child_idx, gc)| {
+                            let DomNode::Element(g) = gc else {
+                                return None;
+                            };
+                            let (_, role) = table_child_role(
+                                g,
+                                &group_style,
+                                rules,
+                                &section_ancestors,
+                                group_child_idx,
+                                group_child_count,
+                            );
+                            matches!(role, Some(TableBoxRole::Row) | None).then_some(g)
                         })
                         .collect();
                     let section_size = section_rows.len();
@@ -1391,9 +1585,28 @@ pub(crate) fn flatten_table(
     // per-row section metadata travels with each row, so nth-child / descendant
     // selector matching is unaffected.
     let section_rank = |sec: &Option<&ElementNode>| -> u8 {
-        match sec {
-            Some(s) if s.tag == HtmlTag::Thead => 0,
-            Some(s) if s.tag == HtmlTag::Tfoot => 2,
+        match sec
+            .and_then(|s| {
+                let child_index = row_section_child_indices
+                    .iter()
+                    .zip(&row_section_elements)
+                    .find_map(|(idx, candidate)| {
+                        candidate
+                            .is_some_and(|candidate| std::ptr::eq(candidate, s))
+                            .then_some(*idx)
+                    })
+                    .unwrap_or(0);
+                table_section_role(
+                    Some(s),
+                    style,
+                    rules,
+                    &table_ancestors,
+                    child_index,
+                    section_count,
+                )
+            }) {
+            Some(TableBoxRole::HeaderGroup) => 0,
+            Some(TableBoxRole::FooterGroup) => 2,
             _ => 1, // tbody and standalone <tr>
         }
     };
@@ -1420,37 +1633,50 @@ pub(crate) fn flatten_table(
         .find_map(|(section, child_index)| {
             section
                 .filter(|section| section.tag == HtmlTag::Thead)
+                .filter(|_| {
+                    table_section_role(
+                        *section,
+                        style,
+                        rules,
+                        &table_ancestors,
+                        *child_index,
+                        section_count,
+                    ) == Some(TableBoxRole::HeaderGroup)
+                })
                 .map(|section| table_section_key(Some(section), *child_index))
         });
 
-    let caption_style_for_layout = caption.map(|(caption_el, caption_child_idx)| {
-        compute_caption_style(
-            caption_el,
-            caption_child_idx,
-            section_count,
-            style,
-            &table_ancestors,
-            rules,
-        )
-    });
-    let caption_min_width = if let (Some((caption_el, caption_child_idx)), Some(caption_style)) =
-        (caption, caption_style_for_layout.as_ref())
-    {
-        measure_caption_min_width(
-            caption_el,
-            caption_child_idx,
-            section_count,
-            caption_style,
-            &table_ancestors,
-            rules,
-            fonts,
-            filter_defs,
-            counter_state,
-            inner_width,
-        )
-    } else {
-        0.0
-    };
+    let caption_styles_for_layout: Vec<ComputedStyle> = captions
+        .iter()
+        .map(|(caption_el, caption_child_idx)| {
+            compute_caption_style(
+                caption_el,
+                *caption_child_idx,
+                section_count,
+                style,
+                &table_ancestors,
+                rules,
+            )
+        })
+        .collect();
+    let caption_min_width = captions
+        .iter()
+        .zip(&caption_styles_for_layout)
+        .map(|((caption_el, caption_child_idx), caption_style)| {
+            measure_caption_min_width(
+                caption_el,
+                *caption_child_idx,
+                section_count,
+                caption_style,
+                &table_ancestors,
+                rules,
+                fonts,
+                filter_defs,
+                counter_state,
+                inner_width,
+            )
+        })
+        .fold(0.0f32, f32::max);
 
     // Determine the table grid width with rowspan occupancy. A later row can
     // need extra columns when earlier rowspans occupy leading slots.
@@ -1472,37 +1698,57 @@ pub(crate) fn flatten_table(
         let mut col_idx = 0usize;
         for (section_child_idx, child) in el.children.iter().enumerate() {
             if let DomNode::Element(child_el) = child {
-                match child_el.tag {
-                    HtmlTag::Colgroup => {
+                let (child_style, child_role) = table_child_role(
+                    child_el,
+                    &column_parent_style,
+                    rules,
+                    &table_ancestors,
+                    section_child_idx,
+                    section_count,
+                );
+                match child_role {
+                    Some(TableBoxRole::ColumnGroup) => {
+                        let mut colgroup_ancestors = table_ancestors.clone();
+                        colgroup_ancestors.push(AncestorInfo {
+                            element: child_el,
+                            child_index: section_child_idx,
+                            sibling_count: section_count,
+                            preceding_siblings: Vec::new(),
+                            following_siblings: Vec::new(),
+                            is_empty: false,
+                        });
+                        let colgroup_basis_style = {
+                            let mut basis = child_style.clone();
+                            basis.width = Some(inner_width);
+                            basis
+                        };
+                        let col_child_count = child_el
+                            .children
+                            .iter()
+                            .filter(|gc| matches!(gc, DomNode::Element(_)))
+                            .count();
                         let cols: Vec<&ElementNode> = child_el
                             .children
                             .iter()
-                            .filter_map(|gc| match gc {
-                                DomNode::Element(g) if g.tag == HtmlTag::Col => Some(g),
-                                _ => None,
+                            .enumerate()
+                            .filter_map(|(col_child_idx, gc)| {
+                                let DomNode::Element(g) = gc else {
+                                    return None;
+                                };
+                                let (_, role) = table_child_role(
+                                    g,
+                                    &colgroup_basis_style,
+                                    rules,
+                                    &colgroup_ancestors,
+                                    col_child_idx,
+                                    col_child_count,
+                                );
+                                (role == Some(TableBoxRole::Column)).then_some(g)
                             })
                             .collect();
-                        let colgroup_style = compute_column_style(
-                            child_el,
-                            &column_parent_style,
-                            rules,
-                            &table_ancestors,
-                            section_child_idx,
-                            section_count,
-                        );
+                        let colgroup_style = child_style;
                         let colgroup_bg = style_background_rgba(&colgroup_style);
                         if !cols.is_empty() {
-                            let mut colgroup_basis_style = colgroup_style.clone();
-                            colgroup_basis_style.width = Some(inner_width);
-                            let mut colgroup_ancestors = table_ancestors.clone();
-                            colgroup_ancestors.push(AncestorInfo {
-                                element: child_el,
-                                child_index: section_child_idx,
-                                sibling_count: section_count,
-                                preceding_siblings: Vec::new(),
-                                following_siblings: Vec::new(),
-                                is_empty: false,
-                            });
                             let col_sibling_count = cols.len();
                             for (col_child_idx, col_el) in cols.into_iter().enumerate() {
                                 let span = parse_col_span(col_el);
@@ -1557,16 +1803,9 @@ pub(crate) fn flatten_table(
                             ),
                         );
                     }
-                    HtmlTag::Col => {
+                    Some(TableBoxRole::Column) => {
                         let span = parse_col_span(child_el);
-                        let col_style = compute_column_style(
-                            child_el,
-                            &column_parent_style,
-                            rules,
-                            &table_ancestors,
-                            section_child_idx,
-                            section_count,
-                        );
+                        let col_style = child_style;
                         let col_bg = style_background_rgba(&col_style);
                         let collapsed = col_style.visibility == Visibility::Collapse;
                         for info in column_info.iter_mut().skip(col_idx).take(span) {
@@ -1718,9 +1957,24 @@ pub(crate) fn flatten_table(
             }
             row_style.width = Some(inner_width);
             let mut col_pos: usize = 0;
+            let row_child_count = row
+                .children
+                .iter()
+                .filter(|child| matches!(child, DomNode::Element(_)))
+                .count();
+            let mut row_child_idx = 0usize;
             for child in &row.children {
                 if let DomNode::Element(cell_el) = child {
-                    if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
+                    let is_cell = row_child_is_table_cell(
+                        cell_el,
+                        &row_style,
+                        rules,
+                        &sizing_row_ctx.ancestors,
+                        row_child_idx,
+                        row_child_count,
+                    );
+                    row_child_idx += 1;
+                    if is_cell {
                         while col_pos < num_cols && sizing_occupied[col_pos] > 0 {
                             sizing_occupied[col_pos] -= 1;
                             col_pos += 1;
@@ -2125,11 +2379,26 @@ pub(crate) fn flatten_table(
                 row_style.width = Some(inner_width);
                 let mut cells = Vec::new();
                 let mut col_pos = 0usize;
+                let row_child_count = row
+                    .children
+                    .iter()
+                    .filter(|child| matches!(child, DomNode::Element(_)))
+                    .count();
+                let mut row_child_idx = 0usize;
                 for child in &row.children {
                     let DomNode::Element(cell_el) = child else {
                         continue;
                     };
-                    if cell_el.tag != HtmlTag::Td && cell_el.tag != HtmlTag::Th {
+                    let is_cell = row_child_is_table_cell(
+                        cell_el,
+                        &row_style,
+                        rules,
+                        &row_selector_ctx.ancestors,
+                        row_child_idx,
+                        row_child_count,
+                    );
+                    row_child_idx += 1;
+                    if !is_cell {
                         continue;
                     }
                     if col_pos >= num_cols {
@@ -2249,10 +2518,19 @@ pub(crate) fn flatten_table(
                     row_section_elements[row_idx],
                     first_header_section_key,
                     row_section_child_indices[row_idx],
+                    style,
+                    rules,
+                    &table_ancestors,
+                    row_section_sibling_counts[row_idx],
                 );
-                let is_footer = row_section_elements[row_idx]
-                    .map(|s| s.tag == HtmlTag::Tfoot)
-                    .unwrap_or(false);
+                let is_footer = table_section_role(
+                    row_section_elements[row_idx],
+                    style,
+                    rules,
+                    &table_ancestors,
+                    row_section_child_indices[row_idx],
+                    row_section_sibling_counts[row_idx],
+                ) == Some(TableBoxRole::FooterGroup);
                 output.push(LayoutElement::TableRow {
                     cells: Vec::new(),
                     col_widths: row_col_widths,
@@ -2279,14 +2557,9 @@ pub(crate) fn flatten_table(
 
         // Current logical column position in the grid
         let mut col_pos: usize = 0;
-        let mut child_iter = row.children.iter().filter_map(|child| {
-            if let DomNode::Element(cell_el) = child {
-                if cell_el.tag == HtmlTag::Td || cell_el.tag == HtmlTag::Th {
-                    return Some(cell_el);
-                }
-            }
-            None
-        });
+        let row_cell_elements =
+            table_row_cell_elements(row, &row_style, rules, &row_selector_ctx.ancestors);
+        let mut child_iter = row_cell_elements.into_iter();
 
         // Process cells, skipping occupied positions and inserting phantom cells
         let mut next_cell = child_iter.next();
@@ -2591,10 +2864,19 @@ pub(crate) fn flatten_table(
                 row_section_elements[row_idx],
                 first_header_section_key,
                 row_section_child_indices[row_idx],
+                style,
+                rules,
+                &table_ancestors,
+                row_section_sibling_counts[row_idx],
             );
-            let is_footer = row_section_elements[row_idx]
-                .map(|s| s.tag == HtmlTag::Tfoot)
-                .unwrap_or(false);
+            let is_footer = table_section_role(
+                row_section_elements[row_idx],
+                style,
+                rules,
+                &table_ancestors,
+                row_section_child_indices[row_idx],
+                row_section_sibling_counts[row_idx],
+            ) == Some(TableBoxRole::FooterGroup);
             output.push(LayoutElement::TableRow {
                 cells: row_cells,
                 col_widths: row_col_widths,
@@ -2688,7 +2970,11 @@ pub(crate) fn flatten_table(
     }
     let box_height = rows_height
         + edge_spacing_v * (emitted_rows.saturating_add(1) as f32)
-        + table_grid_inset * 2.0;
+        + if table_attr_border_width.is_some() {
+            0.0
+        } else {
+            table_grid_inset * 2.0
+        };
 
     // Width of the table content box: the resolved column widths plus, for
     // `separate` collapse, one horizontal `border-spacing` on each outer edge
@@ -2713,15 +2999,15 @@ pub(crate) fn flatten_table(
     // table's own `margin-bottom`, so the in-flow height below the rows matches
     // the box. A `caption-side: bottom` caption (appended after the rows) takes
     // over the table's `margin-bottom` instead, so the row keeps only the gap.
-    let caption_on_top = caption_style_for_layout
-        .as_ref()
+    let caption_on_top = caption_styles_for_layout
+        .first()
         .is_none_or(|caption_style| {
             matches!(
                 caption_style.caption_side,
                 crate::style::computed::CaptionSide::Top
             )
         });
-    let bottom_caption = caption.is_some() && !caption_on_top;
+    let bottom_caption = !captions.is_empty() && !caption_on_top;
     if let Some(LayoutElement::TableRow { margin_bottom, .. }) = output.last_mut() {
         *margin_bottom = edge_spacing_v
             + table_grid_inset
@@ -2732,7 +3018,7 @@ pub(crate) fn flatten_table(
             };
     }
 
-    let has_top_caption = caption.is_some() && caption_on_top;
+    let has_top_caption = !captions.is_empty() && caption_on_top;
 
     // The table's own `margin-top` is carried by whichever box comes first: a
     // top caption, otherwise the background box (if any), otherwise the first
@@ -2817,23 +3103,18 @@ pub(crate) fn flatten_table(
     // `<caption>` (caption-side:top) renders as a full-table-width block above
     // the rows: it carries the table's `margin-top` and pushes the rest of the
     // table down by its own height.
-    if let Some((caption_el, caption_child_idx)) = caption {
-        let caption_style = caption_style_for_layout.clone().unwrap_or_else(|| {
-            compute_caption_style(
-                caption_el,
-                caption_child_idx,
-                section_count,
-                style,
-                &table_ancestors,
-                rules,
-            )
-        });
+    for (caption_idx, ((caption_el, caption_child_idx), caption_style)) in captions
+        .iter()
+        .zip(caption_styles_for_layout.iter())
+        .enumerate()
+    {
+        let caption_style = caption_style.clone();
         let caption_inner =
             (box_width - caption_style.padding.left - caption_style.padding.right).max(1.0);
         let mut caption_ancestors = table_ancestors.clone();
         caption_ancestors.push(AncestorInfo {
             element: caption_el,
-            child_index: caption_child_idx,
+            child_index: *caption_child_idx,
             sibling_count: section_count,
             preceding_siblings: Vec::new(),
             following_siblings: Vec::new(),
@@ -2875,9 +3156,16 @@ pub(crate) fn flatten_table(
         // the table's `margin-bottom` instead (the rows already absorbed the
         // bottom border-spacing gap above).
         let (caption_margin_top, caption_margin_bottom) = if caption_on_top {
-            (style.margin.top, 0.0)
+            (if caption_idx == 0 { style.margin.top } else { 0.0 }, 0.0)
         } else {
-            (0.0, style.margin.bottom)
+            (
+                0.0,
+                if caption_idx + 1 == captions.len() {
+                    style.margin.bottom
+                } else {
+                    0.0
+                },
+            )
         };
         let caption_block = LayoutElement::TextBlock {
             box_decoration_break: crate::style::computed::BoxDecorationBreak::Slice,
@@ -2939,7 +3227,7 @@ pub(crate) fn flatten_table(
             heading_level: None,
         };
         if caption_on_top {
-            output.insert(table_output_start, caption_block);
+            output.insert(table_output_start + caption_idx, caption_block);
             margin_top_claimed = true;
         } else {
             output.push(caption_block);

@@ -252,7 +252,85 @@ pub(crate) fn preprocess_media_queries_with_context(
         output.push_str(&at_rule);
     }
 
-    lower_flow_root_display(&output)
+    lower_flow_root_display(&preprocess_cascade_layers(&output))
+}
+
+fn preprocess_cascade_layers(css: &str) -> String {
+    let mut unlayered = String::with_capacity(css.len());
+    let mut layer_order: Vec<String> = Vec::new();
+    let mut layer_blocks: Vec<(String, String)> = Vec::new();
+    let mut chars = css.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch != '@' {
+            unlayered.push(ch);
+            continue;
+        }
+
+        let mut at_rule = String::from('@');
+        while let Some(next) = chars.peek().copied() {
+            at_rule.push(next);
+            chars.next();
+            if next == '{' || next == ';' {
+                break;
+            }
+        }
+
+        if at_rule.starts_with("@layer") && at_rule.ends_with(';') {
+            let names = at_rule
+                .trim_end_matches(';')
+                .trim_start_matches("@layer")
+                .trim();
+            record_layer_names(names, &mut layer_order);
+            continue;
+        }
+
+        if at_rule.starts_with("@layer") && at_rule.ends_with('{') {
+            let name = at_rule
+                .trim_end_matches('{')
+                .trim_start_matches("@layer")
+                .trim()
+                .split(',')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            let content = extract_braced_content(&mut chars);
+            if name.is_empty() {
+                unlayered.push_str(&preprocess_cascade_layers(&content));
+            } else {
+                record_layer_names(&name, &mut layer_order);
+                layer_blocks.push((name, preprocess_cascade_layers(&content)));
+            }
+            continue;
+        }
+
+        unlayered.push_str(&at_rule);
+    }
+
+    let mut out = String::new();
+    for name in &layer_order {
+        for (_, content) in layer_blocks.iter().filter(|(layer, _)| layer == name) {
+            out.push_str(content);
+            out.push('\n');
+        }
+    }
+    for (name, content) in &layer_blocks {
+        if !layer_order.iter().any(|layer| layer == name) {
+            out.push_str(content);
+            out.push('\n');
+        }
+    }
+    out.push_str(&unlayered);
+    out
+}
+
+fn record_layer_names(names: &str, layer_order: &mut Vec<String>) {
+    for name in names.split(',').map(str::trim).filter(|name| !name.is_empty()) {
+        if !layer_order.iter().any(|known| known == name) {
+            layer_order.push(name.to_string());
+        }
+    }
 }
 
 /// Remove `/* ... */` CSS comments, leaving string literals (`'...'` / `"..."`)

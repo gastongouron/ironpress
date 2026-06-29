@@ -257,6 +257,46 @@ fn element_clear(element: &LayoutElement) -> Clear {
     }
 }
 
+fn extend_open_column_flex_decoration_to_break(
+    elements: &mut [(f32, LayoutElement)],
+    content_height: f32,
+) {
+    for idx in 0..elements.len().saturating_sub(1) {
+        let spacer_is_pullback = matches!(
+            &elements[idx + 1].1,
+            LayoutElement::TextBlock {
+                lines,
+                margin_top,
+                background_color: None,
+                border,
+                ..
+            } if lines.is_empty() && *margin_top < -0.5 && !border.has_any()
+        );
+        if !spacer_is_pullback {
+            continue;
+        }
+        let (y_pos, element) = &mut elements[idx];
+        let LayoutElement::TextBlock {
+            lines,
+            block_height: Some(block_height),
+            border,
+            ..
+        } = element
+        else {
+            continue;
+        };
+        if !lines.is_empty() || !border.has_any() {
+            continue;
+        }
+        let target_flow = (content_height - *y_pos).max(0.0);
+        let current_flow = *block_height + border.vertical_width();
+        if target_flow > current_flow + 0.5 {
+            border.bottom.width = 0.0;
+            *block_height = (target_flow - border.vertical_width()).max(0.0);
+        }
+    }
+}
+
 /// Whether a layout element is out of normal flow (absolutely positioned) and so
 /// contributes no height to its container and does not advance the flow cursor.
 fn element_is_absolute(element: &LayoutElement) -> bool {
@@ -2118,6 +2158,10 @@ pub(crate) fn paginate_with_first_page(
                     continue;
                 }
                 let consumed_height = y;
+                extend_open_column_flex_decoration_to_break(
+                    &mut current_elements,
+                    content_height,
+                );
                 // The page being finalized adopts the named margin in force while
                 // it was filled (if any), else the parity/`:first` override.
                 let margin_override = pending_named_page
@@ -2496,6 +2540,46 @@ pub(crate) fn paginate_with_first_page(
                 if let Some((first, rest)) =
                     split_fixed_height_text_block(&element, avail_below_box_top)
                 {
+                    y += margin_top_val;
+                    collect_footnotes_from_element(&first, &mut current_footnotes);
+                    current_elements.push((y, first));
+                    let consumed_height = content_height;
+                    let margin_override = pending_named_page
+                        .map(|geom| geom.margin)
+                        .or_else(|| page_margin_override(pages.len()));
+                    let page_size_override = pending_named_page.map(|geom| geom.page_size);
+                    pages.push(Page {
+                        elements: std::mem::take(&mut current_elements),
+                        running_elements: current_running_elements.clone(),
+                        footnotes: std::mem::take(&mut current_footnotes),
+                        margin_override,
+                        page_size_override,
+                        page_name: pending_named_page_name.clone(),
+                        is_blank: false,
+                    });
+                    content_height = pending_named_page
+                        .map(|geom| geom.content_height)
+                        .unwrap_or(default_content_height);
+                    for bg in &absolute_backgrounds {
+                        current_elements.push(bg.clone());
+                    }
+                    y = 0.0;
+                    prev_margin_bottom = 0.0;
+                    first_on_page = true;
+                    on_first_page = false;
+                    left_floats.clear();
+                    right_floats.clear();
+                    advance_positioned_ancestors_after_page_break(
+                        &mut positioned_y_by_depth,
+                        consumed_height,
+                    );
+                    work.push_front(rest);
+                    continue;
+                }
+            }
+            if in_table_body && elem_position == Position::Static && elem_float == Float::None {
+                let avail_below_box_top = effective_content_height - (y + margin_top_val);
+                if let Some((first, rest)) = split_table_row(&element, avail_below_box_top) {
                     y += margin_top_val;
                     collect_footnotes_from_element(&first, &mut current_footnotes);
                     current_elements.push((y, first));

@@ -611,7 +611,7 @@
     "description": "display:table/table-row/table-cell on divs lays out side-by-side cells with separated spacing; catches tag-only table layout that stacks CSS table boxes.",
     "file": "cases/tables/tables-css-display-table.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -766,7 +766,7 @@
     "description": "A div-based CSS table declares footer before body and header last; table display semantics put the header first and footer last. Catches wrong implementations where a renderer that only supports table-row/table-cell or follows DOM block order will show red footer first or stack all divs.",
     "file": "cases/tables/tables-css-row-groups-reorder.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -783,7 +783,7 @@
     "description": "A CSS display table uses non-col elements as table-column boxes to make a narrow red column and wide green column. Catches wrong implementations where a renderer without CSS table-column support sizes both cells equally or treats the column divs as visible blocks.",
     "file": "cases/tables/tables-css-table-columns-fixed.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -800,7 +800,7 @@
     "description": "A non-caption div inside a CSS table is made display:table-caption and should become a full-width caption above the row grid. Catches wrong implementations where a renderer that only recognizes the HTML caption tag ignores the div caption or lays it as a normal block inside the table.",
     "file": "cases/tables/tables-css-table-caption.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -817,7 +817,7 @@
     "description": "Two CSS table-caption boxes on the same CSS table use distinct colors and should both participate in the table wrapper before the rows. Catches wrong implementations where an implementation that stores only the first caption passes single-caption fixtures but drops the second caption entirely.",
     "file": "cases/tables/tables-multiple-captions.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1276,7 +1276,7 @@
     "description": "A CSS display table owns two table-header-group boxes; only the first is a header, the second is a normal row group. Catches wrong implementations where a renderer that repeats every header-group or cannot model display header groups passes single thead repetition but repeats the blue subheader incorrectly.",
     "file": "cases/tables/tables-second-header-group-not-repeat.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1293,7 +1293,7 @@
     "description": "A CSS table-row contains one explicit table-cell and one plain div; the div should be wrapped in an anonymous table-cell and appear as the second cell. Catches wrong implementations where a renderer filters row children to explicit table-cell boxes and silently drops the green div.",
     "file": "cases/tables/tables-anonymous-cell-in-row.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1310,7 +1310,7 @@
     "description": "Two inline siblings are display:table-cell without an explicit table or row; fixup creates an anonymous table and row. Catches wrong implementations where a renderer without fixup treats them as normal inline/block boxes and never applies table-cell equal-row layout.",
     "file": "cases/tables/tables-anonymous-table-cell-siblings.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1412,7 +1412,7 @@
     "description": "A cell declares colspan=1001 before a normal cell; browsers clamp overly large colspan values to the HTML maximum rather than creating an unbounded grid. Catches wrong implementations where a renderer that accepts the raw integer creates a huge table width or drops later cells, while ordinary small colspan tests pass.",
     "file": "cases/tables/tables-colspan-max-clamp.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

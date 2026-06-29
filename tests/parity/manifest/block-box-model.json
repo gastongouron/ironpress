@@ -922,7 +922,7 @@
     "file": "cases/block-box-model/block-display-inline-grid.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": ["probe-fill-box", "probe-block-flow"],
     "weight": 1,
     "pass_threshold_pct": 2.0,
