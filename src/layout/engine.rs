@@ -18,7 +18,10 @@ use super::flex::layout_flex_container;
 use super::grid::layout_grid_container;
 pub(crate) use super::helpers::*;
 use super::images::*;
-use super::inline::{element_is_inline_block, layout_inline_block_group_with_env};
+use super::inline::{
+    element_is_inline_block, layout_inline_block_group_with_env_and_spacing,
+    layout_inline_mixed_sequence_with_env,
+};
 use super::table::flatten_table;
 
 #[cfg(test)]
@@ -358,14 +361,77 @@ const FOOTNOTE_LINK_SEPARATOR: char = '\u{1f}';
 pub(crate) const FOOTNOTE_CALL_FONT_SCALE: f32 = 0.96;
 const TARGET_ANCHOR_PREFIX: &str = "ironpress-target-anchor:";
 
-pub(crate) fn encode_footnote_link(marker: &str, text: &str) -> String {
-    format!("{FOOTNOTE_LINK_PREFIX}{marker}{FOOTNOTE_LINK_SEPARATOR}{text}")
+#[derive(Debug, Clone)]
+pub(crate) struct FootnoteLinkData {
+    pub marker: String,
+    pub text: String,
+    pub marker_prefix: String,
+    pub body_color: (f32, f32, f32),
+    pub marker_color: (f32, f32, f32),
+    pub display_compact: bool,
+}
+
+pub(crate) fn encode_footnote_link_data(data: &FootnoteLinkData) -> String {
+    let clean = |value: &str| value.replace(FOOTNOTE_LINK_SEPARATOR, " ");
+    let fields = [
+        clean(&data.marker),
+        clean(&data.text),
+        clean(&data.marker_prefix),
+        data.body_color.0.to_string(),
+        data.body_color.1.to_string(),
+        data.body_color.2.to_string(),
+        data.marker_color.0.to_string(),
+        data.marker_color.1.to_string(),
+        data.marker_color.2.to_string(),
+        if data.display_compact {
+            "compact".to_string()
+        } else {
+            "block".to_string()
+        },
+    ];
+    let sep = FOOTNOTE_LINK_SEPARATOR.to_string();
+    format!("{FOOTNOTE_LINK_PREFIX}{}", fields.join(&sep))
 }
 
 pub(crate) fn decode_footnote_link(value: &str) -> Option<(String, String)> {
+    let data = decode_footnote_link_data(value)?;
+    Some((data.marker, data.text))
+}
+
+pub(crate) fn decode_footnote_link_data(value: &str) -> Option<FootnoteLinkData> {
     let payload = value.strip_prefix(FOOTNOTE_LINK_PREFIX)?;
-    let (marker, text) = payload.split_once(FOOTNOTE_LINK_SEPARATOR)?;
-    Some((marker.to_string(), text.to_string()))
+    let mut parts = payload.split(FOOTNOTE_LINK_SEPARATOR);
+    let marker = parts.next()?.to_string();
+    let text = parts.next()?.to_string();
+    let marker_prefix = parts
+        .next()
+        .map(str::to_string)
+        .unwrap_or_else(|| "{marker}. ".to_string());
+    let body_color = match (parts.next(), parts.next(), parts.next()) {
+        (Some(r), Some(g), Some(b)) => (
+            r.parse().unwrap_or(0.0),
+            g.parse().unwrap_or(0.0),
+            b.parse().unwrap_or(0.0),
+        ),
+        _ => (0.0, 0.0, 0.0),
+    };
+    let marker_color = match (parts.next(), parts.next(), parts.next()) {
+        (Some(r), Some(g), Some(b)) => (
+            r.parse().unwrap_or(0.0),
+            g.parse().unwrap_or(0.0),
+            b.parse().unwrap_or(0.0),
+        ),
+        _ => (0.0, 0.0, 0.0),
+    };
+    let display_compact = parts.next() == Some("compact");
+    Some(FootnoteLinkData {
+        marker,
+        text,
+        marker_prefix,
+        body_color,
+        marker_color,
+        display_compact,
+    })
 }
 
 pub(crate) fn is_internal_target_anchor(value: &str) -> bool {
@@ -457,6 +523,7 @@ pub struct FootnoteItem {
     pub marker_prefix: String,
     pub font_family: FontFamily,
     pub line_height_factor: f32,
+    pub display_compact: bool,
 }
 
 impl FootnoteItem {
@@ -1011,6 +1078,8 @@ pub struct Page {
     pub running_elements_started: std::collections::HashSet<String>,
     /// Named strings active on this page, keyed by `string-set` name.
     pub named_strings: HashMap<String, String>,
+    /// First named-string assignment that occurred on this page.
+    pub named_strings_first: HashMap<String, String>,
     /// CSS GCPM footnotes collected while laying out this page.
     pub footnotes: Vec<FootnoteItem>,
     /// Per-page margin override (CSS Paged Media 3 §3 page-context cascade).
@@ -2292,12 +2361,18 @@ fn flatten_nodes(
         .iter()
         .filter(|n| matches!(n, DomNode::Element(_)))
         .count();
+    if inline_mixed_sequence_needed(nodes, parent_style, env.rules, ancestors, element_count)
+        && layout_inline_mixed_sequence_with_env(nodes, parent_style, ctx, output, ancestors, env)
+    {
+        return;
+    }
     let mut element_index = 0;
     let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
     let all_element_siblings = element_sibling_list(nodes);
 
     // Accumulator for consecutive inline-block elements
-    let mut ib_group: Vec<&ElementNode> = Vec::new();
+    let mut ib_group: Vec<(&ElementNode, bool)> = Vec::new();
+    let mut pending_inline_space = false;
     let mut table_cell_group: Vec<&ElementNode> = Vec::new();
 
     // Helper closure-like macro for flushing an inline-block group.
@@ -2305,7 +2380,7 @@ fn flatten_nodes(
     #[allow(clippy::drain_collect)]
     #[inline]
     fn flush_ib(
-        group: &mut Vec<&ElementNode>,
+        group: &mut Vec<(&ElementNode, bool)>,
         parent_style: &ComputedStyle,
         ctx: &LayoutContext,
         output: &mut Vec<LayoutElement>,
@@ -2315,8 +2390,15 @@ fn flatten_nodes(
         if group.is_empty() {
             return;
         }
-        let taken: Vec<&ElementNode> = group.drain(..).collect();
-        layout_inline_block_group_with_env(&taken, parent_style, ctx, output, ancestors, env);
+        let taken: Vec<(&ElementNode, bool)> = group.drain(..).collect();
+        layout_inline_block_group_with_env_and_spacing(
+            &taken,
+            parent_style,
+            ctx,
+            output,
+            ancestors,
+            env,
+        );
     }
 
     fn anonymous_table_from_cells(cells: &[&ElementNode]) -> ElementNode {
@@ -2387,6 +2469,9 @@ fn flatten_nodes(
                 // not break the group — they should stay on the same row.
                 if !trimmed.is_empty() {
                     flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
+                    pending_inline_space = false;
+                } else if text.chars().any(char::is_whitespace) {
+                    pending_inline_space = true;
                 }
                 if !trimmed.is_empty() {
                     flush_table_cells(
@@ -2559,6 +2644,7 @@ fn flatten_nodes(
 
                 if style.display == Display::TableCell {
                     flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
+                    pending_inline_space = false;
                     table_cell_group.push(el);
                 } else
                 // Check if this element is inline-block
@@ -2582,7 +2668,8 @@ fn flatten_nodes(
                         element_count,
                         env,
                     );
-                    ib_group.push(el);
+                    ib_group.push((el, pending_inline_space));
+                    pending_inline_space = false;
                 } else {
                     flush_table_cells(
                         &mut table_cell_group,
@@ -2597,6 +2684,7 @@ fn flatten_nodes(
                     );
                     // Flush any pending inline-block group
                     flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
+                    pending_inline_space = false;
                     flatten_element(
                         el,
                         parent_style,
@@ -3770,6 +3858,13 @@ pub(crate) fn flatten_element(
                     // sits near the left of the slot, the remainder becomes the
                     // trailing gap so the list text keeps its position.
                     b.margin_right = (symbol_advance - b.margin_left - b.width).max(0.0);
+                    if list_ctx.is_none()
+                        && style.display == Display::ListItem
+                        && style.list_style_position == ListStylePosition::Inside
+                    {
+                        b.margin_left -= marker_style.font_size * 0.12;
+                        b.margin_right += marker_style.font_size * 0.56;
+                    }
                     b
                 })
             };
@@ -4111,6 +4206,67 @@ pub(crate) fn flatten_element(
     if authored_fixed && style.z_index != 0 {
         mark_fixed_repeat(&mut output[fixed_output_start..]);
     }
+}
+
+fn inline_mixed_sequence_needed(
+    nodes: &[DomNode],
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    element_count: usize,
+) -> bool {
+    let sibling_list = element_sibling_list(nodes);
+    let mut element_index = 0usize;
+    let mut preceding_siblings = Vec::new();
+    let mut saw_inline_formatting_context = false;
+
+    for node in nodes {
+        match node {
+            DomNode::Text(_) => {}
+            DomNode::Element(el) => {
+                let classes = el.class_list();
+                let selector_ctx = SelectorContext {
+                    ancestors: ancestors.to_vec(),
+                    child_index: element_index,
+                    sibling_count: element_count,
+                    preceding_siblings: preceding_siblings.clone(),
+                    following_siblings: forward_siblings(&sibling_list, element_index).to_vec(),
+                    is_empty: element_is_empty(el),
+                };
+                let style = compute_style_with_context(
+                    el.tag,
+                    el.style_attr(),
+                    parent_style,
+                    rules,
+                    el.tag_name(),
+                    &classes,
+                    el.id(),
+                    &el.attributes,
+                    &selector_ctx,
+                );
+                if matches!(
+                    style.display,
+                    Display::InlineFlex | Display::InlineGrid | Display::InlineTable
+                ) {
+                    saw_inline_formatting_context = true;
+                } else if style.display == Display::None
+                    || matches!(style.display, Display::Inline | Display::InlineBlock)
+                    || el.tag.is_inline()
+                {
+                    // Inline content can share the mixed row.
+                } else {
+                    return false;
+                }
+                preceding_siblings.push((
+                    el.tag_name().to_string(),
+                    el.class_list().iter().map(|s| s.to_string()).collect(),
+                ));
+                element_index += 1;
+            }
+        }
+    }
+
+    saw_inline_formatting_context
 }
 
 fn mark_fixed_repeat(elements: &mut [LayoutElement]) {

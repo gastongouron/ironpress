@@ -676,7 +676,7 @@
     "description": "background-image:image-set() paints its selected candidate; catches parsers that drop image-set() and leave the box white.",
     "file": "cases/backgrounds-borders/background-image-image-set.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-image-render",
@@ -1031,7 +1031,7 @@
       "linear-gradient",
       "background-image"
     ],
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-image-render",

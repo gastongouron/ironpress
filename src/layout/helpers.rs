@@ -1703,7 +1703,8 @@ pub(crate) fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFo
 }
 
 pub(crate) fn pseudo_is_block_like(pseudo_style: &ComputedStyle) -> bool {
-    pseudo_style.display == Display::Block || pseudo_style.position == Position::Absolute
+    matches!(pseudo_style.display, Display::Block | Display::ListItem)
+        || pseudo_style.position == Position::Absolute
 }
 
 pub(crate) fn append_pseudo_inline_run(
@@ -1806,8 +1807,10 @@ pub(crate) fn build_pseudo_block(
 
     let mut lines = Vec::new();
     let mut runs = Vec::new();
+    let mut marker_hang = 0.0;
     if !content_text.is_empty() {
         if list_item_marker {
+            let marker_start = runs.len();
             let marker_text = format_list_marker(&pseudo_style.list_style_type, 0);
             let marker_font = resolve_style_font_family(pseudo_style, fonts);
             let symbol_advance = estimate_word_width(
@@ -1873,6 +1876,7 @@ pub(crate) fn build_pseudo_block(
                     fonts,
                 );
             }
+            marker_hang = measure_runs_width(&runs[marker_start..], fonts);
         }
         push_text_run_with_fallback(
             TextRun {
@@ -1907,6 +1911,7 @@ pub(crate) fn build_pseudo_block(
                 resolved_line_height_factor(pseudo_style, fonts),
                 pseudo_style.overflow_wrap,
             )
+            .with_text_indent(pseudo_style.text_indent - marker_hang)
             .with_rtl(pseudo_style.direction_rtl)
             .with_bidi_override(pseudo_style.bidi_override),
             fonts,
@@ -2072,7 +2077,7 @@ pub(crate) fn build_pseudo_block(
         outline_offset: pseudo_style.outline_offset,
         outline_width: pseudo_style.outline_width,
         outline_color: pseudo_style.outline_color.map(|c| c.to_f32_rgb()),
-        text_indent: pseudo_style.text_indent,
+        text_indent: pseudo_style.text_indent - marker_hang,
         letter_spacing: pseudo_style.letter_spacing,
         word_spacing: pseudo_style.word_spacing,
         vertical_align: pseudo_style.vertical_align,

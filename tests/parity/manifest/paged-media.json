@@ -710,7 +710,7 @@
     "file": "cases/paged-media/paged-gcpm-string-element-last.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ],
@@ -1350,7 +1350,7 @@
     "file": "cases/paged-media/paged-footnote-display-compact.html",
     "oracle": "weasyprint",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-text-baseline"
     ],

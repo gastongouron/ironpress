@@ -937,7 +937,7 @@
     "file": "cases/block-box-model/block-display-list-item.html",
     "kind": "feature",
     "oracle": "chrome",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": ["probe-fill-box", "probe-block-flow", "probe-text-baseline"],
     "weight": 1,
     "pass_threshold_pct": 6.0,

@@ -1068,6 +1068,7 @@ pub struct GradientLayerBox {
     pub clip: Option<BackgroundClip>,
     pub attachment: Option<BackgroundAttachment>,
     pub border_image: bool,
+    pub paint_above_raster: bool,
 }
 
 /// A CSS linear gradient.
@@ -1626,6 +1627,8 @@ pub struct ComputedStyle {
     /// CSS `background-blend-mode`: how the element's background layers blend
     /// with each other and the background color.
     pub background_blend_mode: BlendMode,
+    /// CSS `isolation: isolate`.
+    pub isolation_isolate: bool,
     pub float: Float,
     pub clear: Clear,
     /// CSS `box-decoration-break`: how borders/padding/margin/background are
@@ -2055,6 +2058,7 @@ impl Default for ComputedStyle {
             opacity: 1.0,
             mix_blend_mode: BlendMode::default(),
             background_blend_mode: BlendMode::default(),
+            isolation_isolate: false,
             float: Float::None,
             clear: Clear::None,
             box_decoration_break: BoxDecorationBreak::Slice,
@@ -2315,6 +2319,7 @@ pub fn compute_style_with_context(
     style.margin_top_auto = false;
     style.margin_bottom_auto = false;
     style.opacity = 1.0;
+    style.isolation_isolate = false;
     // `unicode-bidi` is not inherited; initial is `normal`.
     style.bidi_override = false;
     style.bidi_plaintext = false;
@@ -2923,6 +2928,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "opacity" => style.opacity = default.opacity,
         "mix-blend-mode" => style.mix_blend_mode = default.mix_blend_mode,
         "background-blend-mode" => style.background_blend_mode = default.background_blend_mode,
+        "isolation" => style.isolation_isolate = default.isolation_isolate,
         "border-width" => {
             style.border.top.width = default.border.top.width;
             style.border.right.width = default.border.right.width;
@@ -3145,6 +3151,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "opacity" => style.opacity = parent.opacity,
         "mix-blend-mode" => style.mix_blend_mode = parent.mix_blend_mode,
         "background-blend-mode" => style.background_blend_mode = parent.background_blend_mode,
+        "isolation" => style.isolation_isolate = parent.isolation_isolate,
         "border-width" => {
             style.border.top.width = parent.border.top.width;
             style.border.right.width = parent.border.right.width;
@@ -3323,6 +3330,25 @@ fn apply_text_decoration_line(style: &mut ComputedStyle, value: &str) {
     style.text_decoration_underline = underline;
     style.text_decoration_overline = overline;
     style.text_decoration_line_through = line_through;
+}
+
+fn color_in_text_emphasis_shorthand(value: &str) -> Option<Color> {
+    if let Some(start) = value.find("rgb(").or_else(|| value.find("rgba("))
+        && let Some(end) = value[start..].find(')')
+    {
+        return match crate::parser::css::parse_color(&value[start..=start + end]) {
+            Some(CssValue::Color(color)) => Some(color),
+            _ => None,
+        };
+    }
+
+    value.split_whitespace().find_map(|token| {
+        if let Some(CssValue::Color(color)) = crate::parser::css::parse_color(token) {
+            Some(color)
+        } else {
+            None
+        }
+    })
 }
 
 fn apply_font_shorthand(
@@ -3795,7 +3821,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         apply_text_decoration_line(style, k);
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-decoration-style") {
-        style.text_decoration_style = if k == "wavy" {
+        style.text_decoration_style = if k.split_whitespace().any(|token| token == "wavy") {
             TextDecorationStyle::Wavy
         } else {
             TextDecorationStyle::Solid
@@ -4478,6 +4504,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "background-blend-mode") {
         style.background_blend_mode = BlendMode::from_background_value(k);
     }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "isolation") {
+        style.isolation_isolate = k.trim().eq_ignore_ascii_case("isolate");
+    }
 
     // Uniform `border-width`. Absolute lengths (pt) apply directly; a font-relative
     // width (em/ex/ch) arrives as CssValue::Number (an em factor) and resolves
@@ -4706,9 +4735,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
                     }
                     (0, Some(CssValue::Percentage(v))) => style.percentage_insets.top = Some(v),
                     (1, Some(CssValue::Percentage(v))) => style.percentage_insets.right = Some(v),
-                    (2, Some(CssValue::Percentage(v))) => {
-                        style.percentage_insets.bottom = Some(v)
-                    }
+                    (2, Some(CssValue::Percentage(v))) => style.percentage_insets.bottom = Some(v),
                     (3, Some(CssValue::Percentage(v))) => style.percentage_insets.left = Some(v),
                     _ => {}
                 }
@@ -5352,10 +5379,7 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "text-emphasis") {
         style.text_emphasis_mark = k.split_whitespace().any(|t| matches!(t, "dot" | "filled"));
-        if let Some(CssValue::Color(c)) = k
-            .split_whitespace()
-            .find_map(crate::parser::css::parse_color)
-        {
+        if let Some(c) = color_in_text_emphasis_shorthand(k) {
             style.text_decoration_color = Some(c);
         }
     }
@@ -5562,7 +5586,9 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
     // Route the gradient layer's own size/position/repeat entry onto the gradient
     // struct so the renderer can paint it as a positioned, sized tile.
     if let Some(gradient_idx) = gradient_layer_index {
-        let gradient_box = resolve_gradient_layer_box(map, gradient_idx);
+        let mut gradient_box = resolve_gradient_layer_box(map, gradient_idx);
+        gradient_box.paint_above_raster =
+            raster_layer_index.is_some_and(|raster_idx| gradient_idx < raster_idx);
         if let Some(ref mut lg) = style.background_gradient {
             lg.layer_box = gradient_box;
         }
@@ -6904,6 +6930,7 @@ fn resolve_gradient_layer_box(map: &StyleMap, gradient_idx: usize) -> GradientLa
         clip,
         attachment,
         border_image: false,
+        paint_above_raster: false,
     }
 }
 
@@ -7108,10 +7135,26 @@ fn extract_image_set_url(value: &str) -> Option<String> {
         return None;
     }
     let inner = &trimmed[trimmed.find('(')? + 1..trimmed.len() - 1];
-    let start = inner.find("url(")?;
-    let tail = &inner[start..];
-    let end = tail.find(')')?;
-    Some(tail[..=end].to_string())
+    let inner = inner.trim();
+    let lower_inner = inner.to_ascii_lowercase();
+    if let Some(start) = lower_inner.find("url(") {
+        let tail = &inner[start..];
+        let end = tail.find(')')?;
+        return Some(tail[..=end].to_string());
+    }
+    let mut chars = inner.char_indices();
+    let (_, first) = chars.next()?;
+    if first == '"' || first == '\'' {
+        let rest = &inner[first.len_utf8()..];
+        let end = rest.find(first)?;
+        let source = &rest[..end];
+        return (!source.is_empty()).then(|| source.to_string());
+    }
+    let end = inner
+        .find(|ch: char| ch == ',' || ch.is_whitespace())
+        .unwrap_or(inner.len());
+    let source = inner[..end].trim();
+    (!source.is_empty()).then(|| source.to_string())
 }
 
 fn parse_border_image_gradient(value: &str) -> Option<LinearGradient> {

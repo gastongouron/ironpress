@@ -1,6 +1,6 @@
 use super::engine::{
     FOOTNOTE_CALL_FONT_SCALE, FootnoteItem, LayoutElement, Page, PageBreakSide, TableCell,
-    decode_footnote_link, layout_element_paint_order, table_cell_content_height,
+    decode_footnote_link_data, layout_element_paint_order, table_cell_content_height,
 };
 use crate::style::computed::{
     BorderCollapse, BoxDecorationBreak, Clear, Float, ObjectFit, Position,
@@ -20,24 +20,31 @@ fn advance_positioned_ancestors_after_page_break(
 fn collect_footnotes_from_element(element: &LayoutElement, out: &mut Vec<FootnoteItem>) {
     match element {
         LayoutElement::TextBlock { lines, .. } => {
+            let mut seen_links = HashSet::new();
             for line in lines {
                 for run in &line.runs {
-                    let Some((marker, text)) =
-                        run.link_url.as_deref().and_then(decode_footnote_link)
+                    let Some(link) = run.link_url.as_deref() else {
+                        continue;
+                    };
+                    if !seen_links.insert(link.to_string()) {
+                        continue;
+                    }
+                    let Some(data) = decode_footnote_link_data(link)
                     else {
                         continue;
                     };
                     out.push(FootnoteItem {
-                        marker,
-                        text,
+                        marker: data.marker,
+                        text: data.text,
                         font_size: run.font_size / FOOTNOTE_CALL_FONT_SCALE,
                         bold: run.bold,
                         italic: run.italic,
-                        color: run.color,
-                        marker_color: run.color,
-                        marker_prefix: "{marker}. ".to_string(),
+                        color: data.body_color,
+                        marker_color: data.marker_color,
+                        marker_prefix: data.marker_prefix,
                         font_family: run.font_family.clone(),
                         line_height_factor: run.line_height_factor,
+                        display_compact: data.display_compact,
                     });
                 }
             }
@@ -1831,6 +1838,7 @@ pub(crate) fn paginate_with_first_page(
     let mut current_running_elements: HashMap<String, LayoutElement> = HashMap::new();
     let mut current_running_elements_started: HashSet<String> = HashSet::new();
     let mut current_named_strings: HashMap<String, String> = HashMap::new();
+    let mut current_named_strings_first: HashMap<String, String> = HashMap::new();
     let mut current_footnotes: Vec<FootnoteItem> = Vec::new();
     // Page 1 starts with body/html margin-top applied; continuation pages
     // start flush against the page margin (Chrome's print-model: body margin
@@ -1904,6 +1912,9 @@ pub(crate) fn paginate_with_first_page(
             continue;
         }
         if let LayoutElement::NamedString { name, value } = element {
+            current_named_strings_first
+                .entry(name.clone())
+                .or_insert_with(|| value.clone());
             current_named_strings.insert(name, value);
             continue;
         }
@@ -2191,12 +2202,14 @@ pub(crate) fn paginate_with_first_page(
                     running_elements: current_running_elements.clone(),
                     running_elements_started: std::mem::take(&mut current_running_elements_started),
                     named_strings: current_named_strings.clone(),
+                    named_strings_first: current_named_strings_first.clone(),
                     footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
                     page_name: pending_named_page_name.clone(),
                     is_blank: false,
                 });
+                current_named_strings_first.clear();
                 // After page 1 is finalized, page 2+ use the default geometry —
                 // unless this break starts a named page (resolved just below).
                 content_height = default_content_height;
@@ -2245,12 +2258,14 @@ pub(crate) fn paginate_with_first_page(
                             running_elements: current_running_elements.clone(),
                             running_elements_started: HashSet::new(),
                             named_strings: current_named_strings.clone(),
+                            named_strings_first: current_named_strings_first.clone(),
                             footnotes: Vec::new(),
                             margin_override,
                             page_size_override,
                             page_name: pending_named_page_name.clone(),
                             is_blank: true,
                         });
+                        current_named_strings_first.clear();
                     }
                 }
                 y = 0.0;
@@ -2525,12 +2540,14 @@ pub(crate) fn paginate_with_first_page(
                             &mut current_running_elements_started,
                         ),
                         named_strings: current_named_strings.clone(),
+                        named_strings_first: current_named_strings_first.clone(),
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
                         page_name: pending_named_page_name.clone(),
                         is_blank: false,
                     });
+                    current_named_strings_first.clear();
                     content_height = pending_named_page
                         .map(|geom| geom.content_height)
                         .unwrap_or(default_content_height);
@@ -2583,12 +2600,14 @@ pub(crate) fn paginate_with_first_page(
                             &mut current_running_elements_started,
                         ),
                         named_strings: current_named_strings.clone(),
+                        named_strings_first: current_named_strings_first.clone(),
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
                         page_name: pending_named_page_name.clone(),
                         is_blank: false,
                     });
+                    current_named_strings_first.clear();
                     content_height = pending_named_page
                         .map(|geom| geom.content_height)
                         .unwrap_or(default_content_height);
@@ -2627,12 +2646,14 @@ pub(crate) fn paginate_with_first_page(
                             &mut current_running_elements_started,
                         ),
                         named_strings: current_named_strings.clone(),
+                        named_strings_first: current_named_strings_first.clone(),
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
                         page_name: pending_named_page_name.clone(),
                         is_blank: false,
                     });
+                    current_named_strings_first.clear();
                     content_height = pending_named_page
                         .map(|geom| geom.content_height)
                         .unwrap_or(default_content_height);
@@ -2677,12 +2698,14 @@ pub(crate) fn paginate_with_first_page(
                 running_elements: current_running_elements.clone(),
                 running_elements_started: std::mem::take(&mut current_running_elements_started),
                 named_strings: current_named_strings.clone(),
+                named_strings_first: current_named_strings_first.clone(),
                 footnotes: std::mem::take(&mut current_footnotes),
                 margin_override,
                 page_size_override,
                 page_name: pending_named_page_name.clone(),
                 is_blank: false,
             });
+            current_named_strings_first.clear();
             // Continuations inside named content keep that named fragmentainer.
             content_height = pending_named_page
                 .map(|geom| geom.content_height)
@@ -2792,12 +2815,14 @@ pub(crate) fn paginate_with_first_page(
                     running_elements: current_running_elements.clone(),
                     running_elements_started: std::mem::take(&mut current_running_elements_started),
                     named_strings: current_named_strings.clone(),
+                    named_strings_first: current_named_strings_first.clone(),
                     footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
                     page_name: pending_named_page_name.clone(),
                     is_blank: false,
                 });
+                current_named_strings_first.clear();
                 // Continuations inside named content keep that named fragmentainer.
                 content_height = pending_named_page
                     .map(|geom| geom.content_height)
@@ -2879,6 +2904,7 @@ pub(crate) fn paginate_with_first_page(
             running_elements: current_running_elements.clone(),
             running_elements_started: std::mem::take(&mut current_running_elements_started),
             named_strings: current_named_strings.clone(),
+            named_strings_first: current_named_strings_first.clone(),
             footnotes: std::mem::take(&mut current_footnotes),
             margin_override,
             page_size_override,
@@ -2893,6 +2919,7 @@ pub(crate) fn paginate_with_first_page(
             running_elements: current_running_elements,
             running_elements_started: current_running_elements_started,
             named_strings: current_named_strings,
+            named_strings_first: current_named_strings_first,
             footnotes: current_footnotes,
             margin_override: page_margin_override(0),
             page_size_override: None,

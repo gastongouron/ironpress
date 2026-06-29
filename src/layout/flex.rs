@@ -546,6 +546,75 @@ fn flex_intrinsic_container_width(
     Some(content + style.padding.left + style.padding.right + style.border.horizontal_width())
 }
 
+fn flex_cell_first_baseline(
+    cell: &FlexCell,
+    fonts: &std::collections::HashMap<String, crate::parser::ttf::TtfFont>,
+) -> f32 {
+    let Some(first) = cell
+        .lines
+        .iter()
+        .find(|line| line.runs.iter().any(|run| !run.text.is_empty()))
+    else {
+        return cell.natural_height;
+    };
+    let mut ascender = 0.0f32;
+    let mut descender = 0.0f32;
+    let mut pdf_descender = 0.0f32;
+    for run in first.runs.iter().filter(|run| !run.text.is_empty()) {
+        let (asc, desc) =
+            crate::fonts::font_metrics_ratios(&run.font_family, run.bold, run.italic, fonts);
+        ascender = ascender.max(asc * run.font_size);
+        descender = descender.max(desc * run.font_size);
+        let pdf_desc = match &run.font_family {
+            crate::style::computed::FontFamily::Custom(name) => {
+                crate::system_fonts::find_font(fonts, name, run.bold, run.italic)
+                    .map(|(_, ttf)| {
+                        ttf.pdf_vertical_metrics().descender_ratio(ttf.units_per_em)
+                            * run.font_size
+                    })
+                    .unwrap_or(desc * run.font_size)
+            }
+            _ => desc * run.font_size,
+        };
+        pdf_descender = pdf_descender.max(pdf_desc);
+    }
+    let half_leading = ((first.height - (ascender + descender)) / 2.0).max(0.0);
+    let layout_baseline = half_leading + ascender;
+    let pdf_baseline = (first.height - pdf_descender).max(0.0);
+    cell.border.top.width + cell.padding_top + (layout_baseline + pdf_baseline) * 0.5
+}
+
+fn apply_row_baseline_offsets(
+    cells: &mut [FlexCell],
+    fonts: &std::collections::HashMap<String, crate::parser::ttf::TtfFont>,
+) {
+    let max_baseline = cells
+        .iter()
+        .map(|cell| flex_cell_first_baseline(cell, fonts))
+        .fold(0.0f32, f32::max);
+    if max_baseline <= 0.0 {
+        return;
+    }
+    for cell in cells {
+        let own = flex_cell_first_baseline(cell, fonts);
+        cell.y_offset += (max_baseline - own).max(0.0);
+    }
+}
+
+fn clear_item_background_runs(
+    runs: &mut [TextRun],
+    item_background: Option<(f32, f32, f32, f32)>,
+) {
+    let Some(bg) = item_background else {
+        return;
+    };
+    for run in runs {
+        if run.background_color == Some(bg) {
+            run.background_color = None;
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_flex_container(
     el: &ElementNode,
@@ -1645,6 +1714,10 @@ pub(crate) fn layout_flex_container(
             None,
             (0.0, 0.0),
             &child_ancestors,
+        );
+        clear_item_background_runs(
+            &mut runs,
+            child_style.background_color.map(|color| color.to_f32_rgba()),
         );
 
         // `flex-basis: content` sizes the flex base to the item's max-content
@@ -3189,6 +3262,12 @@ pub(crate) fn layout_flex_container(
                                 (0.0, 0.0),
                                 &relayout_ancestors,
                             );
+                            clear_item_background_runs(
+                                &mut runs,
+                                relayout_child_style
+                                    .background_color
+                                    .map(|color| color.to_f32_rgba()),
+                            );
                             let content_w = (final_w
                                 - relayout_child_style.padding.left
                                 - relayout_child_style.padding.right
@@ -4537,6 +4616,15 @@ pub(crate) fn layout_flex_container(
     // y_offset and line_cross_size handle per-line alignment internally.
     if (direction.is_row() || column_wrap_lines) && !all_flex_cells.is_empty() {
         all_flex_cells.sort_by_key(|cell| cell.z_index);
+        let mut resolved_row_align = if column_wrap_lines || align_last_baseline {
+            AlignItems::FlexStart
+        } else {
+            align
+        };
+        if direction.is_row() && resolved_row_align == AlignItems::Baseline {
+            apply_row_baseline_offsets(&mut all_flex_cells, env.fonts);
+            resolved_row_align = AlignItems::FlexStart;
+        }
         let row_height = if column_wrap_lines || (direction.is_row() && style.height.is_some()) {
             inner_cross_size
         } else if lines.len() == 1 {
@@ -4588,11 +4676,7 @@ pub(crate) fn layout_flex_container(
             background_repeat: style.background_repeat,
             background_origin: style.background_origin,
             background_clip: style.background_clip,
-            align_items: if column_wrap_lines || align_last_baseline {
-                AlignItems::FlexStart
-            } else {
-                align
-            },
+            align_items: resolved_row_align,
             positioned_depth: abs_cb_depth,
         });
     }

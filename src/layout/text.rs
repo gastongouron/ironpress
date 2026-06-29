@@ -1,4 +1,4 @@
-use crate::parser::css::{AncestorInfo, CssRule, SelectorContext};
+use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 // Re-export OverflowWrap so callers of TextWrapOptions::new can use it
@@ -12,9 +12,86 @@ use crate::style::computed::{
 use std::collections::HashMap;
 
 use super::engine::{
-    CounterState, FOOTNOTE_CALL_FONT_SCALE, InlineBox, LayoutBorder, TextLine, TextRun,
-    decode_footnote_link, encode_footnote_link,
+    CounterState, FOOTNOTE_CALL_FONT_SCALE, FootnoteLinkData, InlineBox, LayoutBorder, TextLine,
+    TextRun, decode_footnote_link, encode_footnote_link_data,
 };
+
+fn footnote_authored_keyword(
+    el: &ElementNode,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+    selector_ctx: &SelectorContext,
+    property: &str,
+) -> Option<String> {
+    match super::helpers::authored_property_value(el, rules, ancestors, selector_ctx, property)? {
+        CssValue::Keyword(value) => Some(value.to_ascii_lowercase()),
+        _ => None,
+    }
+}
+
+fn footnote_pseudo_declaration<'a>(
+    rules: &'a [CssRule],
+    pseudo_name: &str,
+    property: &str,
+) -> Option<&'a CssValue> {
+    let suffix = format!("::{pseudo_name}");
+    rules
+        .iter()
+        .filter(|rule| rule.pseudo_element.is_none())
+        .filter(|rule| rule.selector.trim().ends_with(&suffix))
+        .filter_map(|rule| rule.declarations.get(property))
+        .next_back()
+}
+
+fn resolve_footnote_content_expr(raw: &str, marker: &str) -> String {
+    let mut out = String::new();
+    let mut i = 0;
+    while i < raw.len() {
+        let rest = &raw[i..];
+        let Some(ch) = rest.chars().next() else {
+            break;
+        };
+        if ch.is_whitespace() {
+            i += ch.len_utf8();
+        } else if ch == '"' || ch == '\'' {
+            let after = &rest[ch.len_utf8()..];
+            if let Some(end) = after.find(ch) {
+                out.push_str(&after[..end]);
+                i += ch.len_utf8() + end + ch.len_utf8();
+            } else {
+                out.push_str(after);
+                break;
+            }
+        } else if rest.len() >= 8 && rest[..8].eq_ignore_ascii_case("counter(") {
+            if let Some(end) = rest.find(')') {
+                let name = rest[8..end].split(',').next().unwrap_or("").trim();
+                if name.eq_ignore_ascii_case("footnote") {
+                    out.push_str(marker);
+                }
+                i += end + 1;
+            } else {
+                break;
+            }
+        } else {
+            i += ch.len_utf8();
+        }
+    }
+    out
+}
+
+fn footnote_pseudo_content(rules: &[CssRule], pseudo_name: &str, marker: &str) -> Option<String> {
+    match footnote_pseudo_declaration(rules, pseudo_name, "content")? {
+        CssValue::Keyword(raw) => Some(resolve_footnote_content_expr(raw, marker)),
+        _ => None,
+    }
+}
+
+fn footnote_pseudo_color(rules: &[CssRule], pseudo_name: &str) -> Option<(f32, f32, f32)> {
+    match footnote_pseudo_declaration(rules, pseudo_name, "color")? {
+        CssValue::Color(color) => Some(color.to_f32_rgb()),
+        _ => None,
+    }
+}
 
 fn resolve_target_attrs_in_last_run(runs: &mut [TextRun], el: &ElementNode) {
     let Some(run) = runs.last_mut() else {
@@ -2104,9 +2181,39 @@ fn collect_text_runs_inner(
                                         .count() as i32
                                     + 1)
                                 .to_string();
+                                let call_text = footnote_pseudo_content(
+                                    rules,
+                                    "footnote-call",
+                                    &marker,
+                                )
+                                .unwrap_or_else(|| format!("{marker} "));
+                                let marker_prefix = footnote_pseudo_content(
+                                    rules,
+                                    "footnote-marker",
+                                    &marker,
+                                )
+                                .unwrap_or_else(|| "{marker}. ".to_string());
+                                let marker_color = footnote_pseudo_color(
+                                    rules,
+                                    "footnote-marker",
+                                )
+                                .unwrap_or_else(|| style.color.to_f32_rgb());
+                                let call_color = footnote_pseudo_color(
+                                    rules,
+                                    "footnote-call",
+                                )
+                                .unwrap_or_else(|| style.color.to_f32_rgb());
+                                let display_compact = footnote_authored_keyword(
+                                    el,
+                                    rules,
+                                    ancestors,
+                                    &selector_ctx,
+                                    "footnote-display",
+                                )
+                                .is_some_and(|value| value == "compact");
                                 push_styled_run(
                                     TextRun {
-                                        text: format!("{marker} "),
+                                        text: call_text,
                                         font_size: style.font_size * FOOTNOTE_CALL_FONT_SCALE,
                                         bold: style_run_bold(&style),
                                         italic: style_run_italic(&style),
@@ -2114,10 +2221,16 @@ fn collect_text_runs_inner(
                                         line_through: false,
                                         overline: false,
                                         decoration_color: None,
-                                        color: style.color.to_f32_rgb(),
-                                        link_url: Some(encode_footnote_link(
-                                            &marker,
-                                            &footnote_text,
+                                        color: call_color,
+                                        link_url: Some(encode_footnote_link_data(
+                                            &FootnoteLinkData {
+                                                marker: marker.clone(),
+                                                text: footnote_text,
+                                                marker_prefix,
+                                                body_color: style.color.to_f32_rgb(),
+                                                marker_color,
+                                                display_compact,
+                                            },
                                         )),
                                         font_family: resolve_style_font_family(&style, fonts),
                                         background_color: None,

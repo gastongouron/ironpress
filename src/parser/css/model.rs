@@ -139,6 +139,15 @@ impl StyleMap {
         }
         self.properties.insert(key.to_string(), value);
         self.important.insert(key.to_string(), is_important);
+        if key == "font"
+            && let Some(CssValue::Keyword(font)) = self.properties.get(key)
+            && let Some(family) = font_shorthand_family(font)
+        {
+            self.properties
+                .insert("font-family".to_string(), CssValue::Keyword(family));
+            self.important
+                .insert("font-family".to_string(), is_important);
+        }
     }
 
     pub fn get(&self, key: &str) -> Option<&CssValue> {
@@ -160,6 +169,56 @@ impl StyleMap {
             self.set_with_importance(key, value.clone(), other.is_important(key));
         }
     }
+}
+
+fn font_shorthand_family(value: &str) -> Option<String> {
+    let mut saw_size = false;
+    let mut skip_line_height = false;
+    let mut family = Vec::new();
+
+    for token in value.split_whitespace() {
+        if !saw_size {
+            let size = token.split_once('/').map_or(token, |(size, _)| size);
+            if css_font_size_token(size) {
+                saw_size = true;
+                skip_line_height = token.ends_with('/');
+            }
+            continue;
+        }
+        if token == "/" {
+            skip_line_height = true;
+            continue;
+        }
+        if skip_line_height {
+            skip_line_height = false;
+            continue;
+        }
+        family.push(token);
+    }
+
+    let family = family.join(" ");
+    (!family.trim().is_empty()).then_some(family)
+}
+
+fn css_font_size_token(token: &str) -> bool {
+    let token = token.trim();
+    token
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_digit() || ch == '.')
+        || matches!(
+            token.to_ascii_lowercase().as_str(),
+            "xx-small"
+                | "x-small"
+                | "small"
+                | "medium"
+                | "large"
+                | "x-large"
+                | "xx-large"
+                | "xxx-large"
+                | "smaller"
+                | "larger"
+        )
 }
 
 /// Pseudo-element type for `::before`, `::after`, and `::marker`.

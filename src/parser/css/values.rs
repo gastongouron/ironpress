@@ -482,7 +482,10 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
         return Some(CssValue::Keyword(lower));
     }
 
-    if matches!(property, "mix-blend-mode" | "background-blend-mode") {
+    if matches!(
+        property,
+        "mix-blend-mode" | "background-blend-mode" | "isolation"
+    ) {
         return Some(CssValue::Keyword(lower));
     }
 
@@ -598,6 +601,15 @@ pub(crate) fn parse_property_value(property: &str, val: &str) -> Option<CssValue
             | "mask-border-slice"
             | "mask-border-width"
             | "mask-border-repeat"
+            | "-webkit-mask"
+            | "-webkit-mask-image"
+            | "-webkit-mask-mode"
+            | "-webkit-mask-repeat"
+            | "-webkit-mask-position"
+            | "-webkit-mask-size"
+            | "-webkit-mask-origin"
+            | "-webkit-mask-clip"
+            | "-webkit-mask-composite"
             | "box-shadow"
             | "text-shadow"
             | "unicode-bidi"

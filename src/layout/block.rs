@@ -1,4 +1,4 @@
-use crate::parser::css::{AncestorInfo, PseudoElement, SelectorContext};
+use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
@@ -25,7 +25,8 @@ use super::helpers::{
     selector_context_from_ancestors,
 };
 use super::inline::{
-    element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
+    element_has_css_display_block, element_is_inline_block, layout_inline_block_group_with_spacing,
+    layout_inline_mixed_sequence_with_env,
 };
 use super::paginate::estimate_element_height;
 use super::text::{
@@ -1407,6 +1408,17 @@ pub(crate) fn layout_block_element(
                     _ => {} // Block children handled by needs_wrapper
                 }
             }
+        } else if inline_mixed_block_sequence_needed(el, style, env.rules, child_ancestors)
+            && layout_inline_mixed_sequence_with_env(
+                &el.children,
+                style,
+                &ctx.with_parent(inner_width, Some(available_height), style.font_size),
+                output,
+                child_ancestors,
+                env,
+            )
+        {
+            // The mixed inline-row path emitted the inline content as one row.
         } else {
             collect_text_runs(
                 &el.children,
@@ -1897,9 +1909,16 @@ pub(crate) fn layout_block_element(
         // Accumulate preceding element siblings so sibling combinators (`+`, `~`)
         // resolve during the cascade (these call sites previously passed `&[]`).
         let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
-        let mut ib_group_wrapper: Vec<&ElementNode> = Vec::new();
+        let mut ib_group_wrapper: Vec<(&ElementNode, bool)> = Vec::new();
+        let mut pending_inline_space = false;
         for child in &el.children {
-            if let DomNode::Element(child_el) = child {
+            match child {
+                DomNode::Text(text) => {
+                    if text.chars().any(char::is_whitespace) {
+                        pending_inline_space = true;
+                    }
+                }
+                DomNode::Element(child_el) => {
                 // `element_is_inline_block` checks the *computed* display, so
                 // it correctly matches inline tags (e.g. `<span>`) styled with
                 // `display: inline-block`. Don't gate on `recurses_as_layout_child`
@@ -1914,13 +1933,15 @@ pub(crate) fn layout_block_element(
                     child_el_count,
                     &preceding_siblings,
                 ) {
-                    ib_group_wrapper.push(child_el);
+                    ib_group_wrapper.push((child_el, pending_inline_space));
+                    pending_inline_space = false;
                 } else {
                     // Flush any pending inline-block group
                     if !ib_group_wrapper.is_empty() {
                         #[allow(clippy::drain_collect)]
-                        let taken: Vec<&ElementNode> = ib_group_wrapper.drain(..).collect();
-                        layout_inline_block_group(
+                        let taken: Vec<(&ElementNode, bool)> =
+                            ib_group_wrapper.drain(..).collect();
+                        layout_inline_block_group_with_spacing(
                             &taken,
                             style,
                             &ib_ctx,
@@ -1930,6 +1951,7 @@ pub(crate) fn layout_block_element(
                             env.fonts,
                         );
                     }
+                    pending_inline_space = false;
                     if recurses_as_layout_child(child_el.tag)
                         || element_has_css_display_block(
                             child_el,
@@ -1984,12 +2006,13 @@ pub(crate) fn layout_block_element(
                 ));
                 child_el_idx += 1;
             }
+            }
         }
         // Flush remaining inline-block group
         if !ib_group_wrapper.is_empty() {
             #[allow(clippy::drain_collect)]
-            let taken: Vec<&ElementNode> = ib_group_wrapper.drain(..).collect();
-            layout_inline_block_group(
+            let taken: Vec<(&ElementNode, bool)> = ib_group_wrapper.drain(..).collect();
+            layout_inline_block_group_with_spacing(
                 &taken,
                 style,
                 &ib_ctx,
@@ -2372,9 +2395,16 @@ pub(crate) fn layout_block_element(
         }
         let mut child_el_idx = 0;
         let mut preceding_siblings: Vec<(String, Vec<String>)> = Vec::new();
-        let mut ib_group: Vec<&ElementNode> = Vec::new();
+        let mut ib_group: Vec<(&ElementNode, bool)> = Vec::new();
+        let mut pending_inline_space = false;
         for child in &el.children {
-            if let DomNode::Element(child_el) = child {
+            match child {
+                DomNode::Text(text) => {
+                    if text.chars().any(char::is_whitespace) {
+                        pending_inline_space = true;
+                    }
+                }
+                DomNode::Element(child_el) => {
                 if recurses_as_layout_child(child_el.tag)
                     && element_is_inline_block(
                         child_el,
@@ -2386,13 +2416,14 @@ pub(crate) fn layout_block_element(
                         &preceding_siblings,
                     )
                 {
-                    ib_group.push(child_el);
+                    ib_group.push((child_el, pending_inline_space));
+                    pending_inline_space = false;
                 } else {
                     // Flush any pending inline-block group
                     if !ib_group.is_empty() {
                         #[allow(clippy::drain_collect)]
-                        let taken: Vec<&ElementNode> = ib_group.drain(..).collect();
-                        layout_inline_block_group(
+                        let taken: Vec<(&ElementNode, bool)> = ib_group.drain(..).collect();
+                        layout_inline_block_group_with_spacing(
                             &taken,
                             style,
                             &ib_ctx,
@@ -2402,6 +2433,7 @@ pub(crate) fn layout_block_element(
                             env.fonts,
                         );
                     }
+                    pending_inline_space = false;
                     if recurses_as_layout_child(child_el.tag)
                         || element_has_css_display_block(
                             child_el,
@@ -2437,12 +2469,13 @@ pub(crate) fn layout_block_element(
                 ));
                 child_el_idx += 1;
             }
+            }
         }
         // Flush remaining inline-block group
         if !ib_group.is_empty() {
             #[allow(clippy::drain_collect)]
-            let taken: Vec<&ElementNode> = ib_group.drain(..).collect();
-            layout_inline_block_group(
+            let taken: Vec<(&ElementNode, bool)> = ib_group.drain(..).collect();
+            layout_inline_block_group_with_spacing(
                 &taken,
                 style,
                 &ib_ctx,
@@ -2662,6 +2695,79 @@ fn overflow_keyword_to_computed(value: LayoutOverflowKeyword) -> Overflow {
         LayoutOverflowKeyword::Scroll => Overflow::Scroll,
         LayoutOverflowKeyword::Auto => Overflow::Auto,
     }
+}
+
+fn inline_mixed_block_sequence_needed(
+    el: &ElementNode,
+    parent_style: &ComputedStyle,
+    rules: &[CssRule],
+    ancestors: &[AncestorInfo],
+) -> bool {
+    let element_count = el
+        .children
+        .iter()
+        .filter(|child| matches!(child, DomNode::Element(_)))
+        .count();
+    let sibling_list = super::engine::element_sibling_list(&el.children);
+    let mut element_index = 0usize;
+    let mut preceding_siblings = Vec::new();
+    let mut saw_inline_formatting_context = false;
+
+    for child in &el.children {
+        match child {
+            DomNode::Text(_) => {}
+            DomNode::Element(child_el) => {
+                let classes = child_el.class_list();
+                let selector_ctx = SelectorContext {
+                    ancestors: ancestors.to_vec(),
+                    child_index: element_index,
+                    sibling_count: element_count,
+                    preceding_siblings: preceding_siblings.clone(),
+                    following_siblings: super::engine::forward_siblings(
+                        &sibling_list,
+                        element_index,
+                    )
+                    .to_vec(),
+                    is_empty: false,
+                };
+                let style = compute_style_with_context(
+                    child_el.tag,
+                    child_el.style_attr(),
+                    parent_style,
+                    rules,
+                    child_el.tag_name(),
+                    &classes,
+                    child_el.id(),
+                    &child_el.attributes,
+                    &selector_ctx,
+                );
+                if matches!(
+                    style.display,
+                    Display::InlineFlex | Display::InlineGrid | Display::InlineTable
+                ) {
+                    saw_inline_formatting_context = true;
+                } else if style.display == Display::None
+                    || matches!(style.display, Display::Inline | Display::InlineBlock)
+                    || child_el.tag.is_inline()
+                {
+                    // Still inline content.
+                } else {
+                    return false;
+                }
+                preceding_siblings.push((
+                    child_el.tag_name().to_string(),
+                    child_el
+                        .class_list()
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                ));
+                element_index += 1;
+            }
+        }
+    }
+
+    saw_inline_formatting_context
 }
 
 fn layout_element_is_absolute(element: &LayoutElement) -> bool {

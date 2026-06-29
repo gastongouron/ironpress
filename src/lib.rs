@@ -486,7 +486,6 @@ impl HtmlConverter {
             page_rules.extend(parser::css::parse_page_rules(css));
             font_face_rules.extend(parser::css::parse_font_face_rules(css));
         }
-
         // Step 3b: Apply @page rules to override page size and margins.
         //
         // Only UNSELECTED `@page { }` rules (CSS Paged Media 3 §3
@@ -534,6 +533,7 @@ impl HtmlConverter {
                 css,
                 Some(media_ctx),
             ));
+            inject_gcpm_footnote_declarations(css, &mut rules);
         }
 
         // Step 3d: Fold body/html/:root margin into the effective page margin.
@@ -850,6 +850,58 @@ impl HtmlConverter {
             }
         }
         fonts
+    }
+}
+
+fn inject_gcpm_footnote_declarations(css: &str, rules: &mut Vec<parser::css::CssRule>) {
+    let mut cursor = 0usize;
+    while let Some(open_rel) = css[cursor..].find('{') {
+        let open = cursor + open_rel;
+        let selector = css[cursor..open].trim();
+        let mut depth = 1usize;
+        let mut close = None;
+        for (offset, ch) in css[open + 1..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(open + 1 + offset);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let Some(close) = close else {
+            break;
+        };
+        if !selector.starts_with('@') {
+            let mut map = parser::css::StyleMap::new();
+            for declaration in css[open + 1..close].split(';') {
+                let Some((prop, val)) = declaration.split_once(':') else {
+                    continue;
+                };
+                let prop = prop.trim().to_ascii_lowercase();
+                if matches!(prop.as_str(), "footnote-display" | "footnote-policy") {
+                    map.set(&prop, parser::css::CssValue::Keyword(val.trim().to_ascii_lowercase()));
+                }
+            }
+            if !map.properties.is_empty() {
+                for selector in selector
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|part| !part.is_empty())
+                {
+                    rules.push(parser::css::CssRule {
+                        selector: selector.to_string(),
+                        declarations: map.clone(),
+                        pseudo_element: None,
+                    });
+                }
+            }
+        }
+        cursor = close + 1;
     }
 }
 

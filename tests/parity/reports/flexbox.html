@@ -1,129 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · flexbox</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>flexbox — 96.00%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 120 · PARTIAL 0 · FAIL 5 · UNKNOWN 0 · 125 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-display">display <span class="sc">60%</span></a> <a href="#feat-fragmentation">fragmentation <span class="sc">67%</span></a> <a href="#feat-automatic-minimum-size">automatic-minimum-size <span class="sc">75%</span></a> <a href="#feat-align-items">align-items <span class="sc">92%</span></a> <a href="#feat-absolute-positioning">absolute-positioning <span class="sc">100%</span></a> <a href="#feat-abspos-flex-child">abspos-flex-child <span class="sc">100%</span></a> <a href="#feat-align-content">align-content <span class="sc">100%</span></a> <a href="#feat-align-self">align-self <span class="sc">100%</span></a> <a href="#feat-aspect-ratio">aspect-ratio <span class="sc">100%</span></a> <a href="#feat-auto-margins">auto-margins <span class="sc">100%</span></a> <a href="#feat-flex">flex <span class="sc">100%</span></a> <a href="#feat-flex-basis">flex-basis <span class="sc">100%</span></a> <a href="#feat-flex-direction">flex-direction <span class="sc">100%</span></a> <a href="#feat-flex-flow">flex-flow <span class="sc">100%</span></a> <a href="#feat-flex-grow">flex-grow <span class="sc">100%</span></a> <a href="#feat-flex-item">flex-item <span class="sc">100%</span></a> <a href="#feat-flex-item-positioning">flex-item-positioning <span class="sc">100%</span></a> <a href="#feat-flex-items">flex-items <span class="sc">100%</span></a> <a href="#feat-flex-shorthand">flex-shorthand <span class="sc">100%</span></a> <a href="#feat-flex-shrink">flex-shrink <span class="sc">100%</span></a> <a href="#feat-flex-wrap">flex-wrap <span class="sc">100%</span></a> <a href="#feat-gap">gap <span class="sc">100%</span></a> <a href="#feat-intrinsic-sizing">intrinsic-sizing <span class="sc">100%</span></a> <a href="#feat-justify-content">justify-content <span class="sc">100%</span></a> <a href="#feat-margin">margin <span class="sc">100%</span></a> <a href="#feat-max-width">max-width <span class="sc">100%</span></a> <a href="#feat-min-height">min-height <span class="sc">100%</span></a> <a href="#feat-min-width">min-width <span class="sc">100%</span></a> <a href="#feat-nested-flex">nested-flex <span class="sc">100%</span></a> <a href="#feat-order">order <span class="sc">100%</span></a> <a href="#feat-painting">painting <span class="sc">100%</span></a> <a href="#feat-percent-height">percent-height <span class="sc">100%</span></a> <a href="#feat-place-content">place-content <span class="sc">100%</span></a> <a href="#feat-place-items">place-items <span class="sc">100%</span></a> <a href="#feat-place-self">place-self <span class="sc">100%</span></a> <a href="#feat-writing-mode">writing-mode <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="ColorValue">ColorValue</option><option value="Extra">Extra</option><option value="GeometryShift">GeometryShift</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-display">display — 60.00% <span class="meta">PASS 3 · PARTIAL 0 · FAIL 2</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="Extra" data-diff="53.3232"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">53.32%</span> <strong>flexbox-display-inline-flex</strong> · inline-flex · <span class="real">REAL</span><span class="chip cls" style="background:#1a9e3c">Extra</span><span class="chip">−72.0px B</span><span class="chip">missing 85.2%</span><span class="chip">extra 85.3%</span><span class="chip">ΔE 40.8</span></div><div class="pglabel">page 1</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-inline-flex.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-inline-flex.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-inline-flex.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="pglabel">page 2</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-inline-flex.p2.png" alt="Chrome ref p2"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-inline-flex.p2.png" alt="ironpress p2"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-inline-flex.p2.diff.png" alt="classed diff p2"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> extra paint where Chrome is blank (85.3%)</div><div class="desc">display:inline-flex creates an inline-level flex container that shares the line with surrounding text; catches parsers that only recognize block-level display:flex.</div><details><summary>regions (3)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>0,0 → 133,78</td><td class="num">51.94</td><td>ΔE 46.5 ΔRGB(-151,71,142) shift(0.0,0.3)</td><td>extra paint where Chrome is blank (51.9%)</td></tr><tr><td><span class="chip cls" style="background:#e600e6">Missing</span></td><td>135,8 → 149,26</td><td class="num">0.69</td><td></td><td>feature not rendered — candidate blank where Chrome paints</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>2,96 → 15,114</td><td class="num">0.69</td><td></td><td>extra paint where Chrome is blank (0.7%)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-display-inline-flex.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 320px 160px; margin: 0; }
-<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>    body { font-size: 24px; padding: 24px; }
-<span class="ln">10</span>    .chip { display: inline-flex; width: 120px; height: 42px; gap: 10px; background: #d6dde2; vertical-align: top; }
-<span class="ln">11</span>    .chip div { width: 55px; height: 42px; }
-<span class="ln">12</span>    .a { background: #c0392b; }
-<span class="ln">13</span>    .b { background: #2980b9; }
-<span class="ln">14</span>  &lt;/style&gt;
-<span class="ln">15</span>&lt;/head&gt;
-<span class="ln">16</span>&lt;body&gt;&lt;span&gt;L&lt;/span&gt;&lt;span class=&quot;chip&quot;&gt;&lt;div class=&quot;a&quot;&gt;&lt;/div&gt;&lt;div class=&quot;b&quot;&gt;&lt;/div&gt;&lt;/span&gt;&lt;span&gt;R&lt;/span&gt;&lt;/body&gt;
-<span class="ln">17</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="48.8235"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">48.82%</span> <strong>flexbox-display-inline-flex-two-keyword</strong> · inline-flex-two-keyword · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">+7.0px B</span><span class="chip">missing 19.4%</span><span class="chip">ΔE 39.0</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-inline-flex-two-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-inline-flex-two-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-inline-flex-two-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+46,+110,+53) (ΔE 39.0)</div><div class="desc">display:inline flex creates an inline-level flex container in a text line; catches parsers that ignore the two-keyword form and lose child sizing.</div><details><summary>regions (4)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 280,34</td><td class="num">47.78</td><td>ΔE 38.2 ΔRGB(46,110,53)</td><td>fill recolour ΔRGB(+46,+110,+53) (ΔE 38.2)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>123,9 → 133,22</td><td class="num">0.73</td><td>ΔE 91.9 ΔRGB(238,238,238)</td><td>fill recolour ΔRGB(+238,+238,+238) (ΔE 91.9)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>2,18 → 10,22</td><td class="num">0.27</td><td>ΔRGB(161,161,161) shift(0.0,-0.9)</td><td>box +7.0px on bottom edge (size/box-model mismatch)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>2,7 → 4,9</td><td class="num">0.05</td><td>ΔRGB(-15,-15,-15) shift(-0.2,-0.5)</td><td>box +7.0px on bottom edge (size/box-model mismatch)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-display-inline-flex-two-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
-<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>    body { padding: 20px; font-size: 18px; }
-<span class="ln">10</span>    .host { background: #eeeeee; }
-<span class="ln">11</span>    .iflex { display: inline flex; width: 100px; height: 34px; vertical-align: middle; background: #dbeafe; }
-<span class="ln">12</span>    .box { display: block; width: 45px; height: 30px; }
-<span class="ln">13</span>    .a { background: #c0392b; }
-<span class="ln">14</span>    .b { background: #2980b9; }
-<span class="ln">15</span>  &lt;/style&gt;
-<span class="ln">16</span>&lt;/head&gt;
-<span class="ln">17</span>&lt;body&gt;
-<span class="ln">18</span>  &lt;p class=&quot;host&quot;&gt;L &lt;span class=&quot;iflex&quot;&gt;&lt;span class=&quot;box a&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box b&quot;&gt;&lt;/span&gt;&lt;/span&gt; R&lt;/p&gt;
-<span class="ln">19</span>&lt;/body&gt;
-<span class="ln">20</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-display-block-flex</strong> · block-flex<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-block-flex.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-block-flex.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-block-flex.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">display:block flex uses modern two-keyword display syntax to create a block-level flex container; catches parsers that only recognize display:flex and stack children.</div><details open class="src"><summary>source · cases/flexbox/flexbox-display-block-flex.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
-<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>    body { padding: 20px; }
-<span class="ln">10</span>    .flex { display: block flex; width: 210px; border: 2px solid #222222; }
-<span class="ln">11</span>    .box { width: 60px; height: 50px; }
-<span class="ln">12</span>    .a { background: #c0392b; }
-<span class="ln">13</span>    .b { background: #2980b9; }
-<span class="ln">14</span>    .c { background: #27ae60; }
-<span class="ln">15</span>  &lt;/style&gt;
-<span class="ln">16</span>&lt;/head&gt;
-<span class="ln">17</span>&lt;body&gt;
-<span class="ln">18</span>  &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">19</span>    &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">20</span>    &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">21</span>    &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">22</span>  &lt;/div&gt;
-<span class="ln">23</span>&lt;/body&gt;
-<span class="ln">24</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-display-contents-items</strong> · contents-flex-items<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-contents-items.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-contents-items.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-contents-items.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A display:contents child of a flex container is box-suppressed so its element children become flex items; catches wrappers that incorrectly become one flex item.</div><details open class="src"><summary>source · cases/flexbox/flexbox-display-contents-items.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
-<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>    body { padding: 20px; }
-<span class="ln">10</span>    .flex { display: flex; gap: 10px; width: 250px; border: 2px solid #222222; }
-<span class="ln">11</span>    .contents { display: contents; }
-<span class="ln">12</span>    .box { width: 60px; height: 50px; }
-<span class="ln">13</span>    .a { background: #c0392b; }
-<span class="ln">14</span>    .b { background: #2980b9; }
-<span class="ln">15</span>    .c { background: #27ae60; }
-<span class="ln">16</span>  &lt;/style&gt;
-<span class="ln">17</span>&lt;/head&gt;
-<span class="ln">18</span>&lt;body&gt;
-<span class="ln">19</span>  &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">20</span>    &lt;div class=&quot;contents&quot;&gt;
-<span class="ln">21</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">22</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">23</span>    &lt;/div&gt;
-<span class="ln">24</span>    &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">25</span>  &lt;/div&gt;
-<span class="ln">26</span>&lt;/body&gt;
-<span class="ln">27</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-display-flex</strong> · flex<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-flex.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-flex.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-flex.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">display:flex lays three fixed-size boxes in a row along the main axis with default packing.</div><details open class="src"><summary>source · cases/flexbox/flexbox-display-flex.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox display:flex&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 518px 135px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  .wrap { padding: 20px; }
-<span class="ln">12</span>  .flex {
-<span class="ln">13</span>    display: flex;
-<span class="ln">14</span>    width: 400px;
-<span class="ln">15</span>    border: 2px solid #222222;
-<span class="ln">16</span>    background: #eeeeee;
-<span class="ln">17</span>  }
-<span class="ln">18</span>  .box {
-<span class="ln">19</span>    width: 90px;
-<span class="ln">20</span>    height: 90px;
-<span class="ln">21</span>    border: 2px solid #102a43;
-<span class="ln">22</span>  }
-<span class="ln">23</span>  .a { background: #c0392b; }
-<span class="ln">24</span>  .b { background: #2980b9; }
-<span class="ln">25</span>  .c { background: #27ae60; }
-<span class="ln">26</span>&lt;/style&gt;
-<span class="ln">27</span>&lt;/head&gt;
-<span class="ln">28</span>&lt;body&gt;
-<span class="ln">29</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">30</span>    &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">31</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">32</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">33</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">34</span>    &lt;/div&gt;
-<span class="ln">35</span>  &lt;/div&gt;
-<span class="ln">36</span>&lt;/body&gt;
-<span class="ln">37</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-fragmentation">fragmentation — 66.67% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="0.1132"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">0.11%</span> <strong>flexbox-fragmentation-wrap-pages</strong> · wrapped-lines-across-pages · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px B</span><span class="chip">ΔE 78.1</span><span class="chip">shift (-0.4,0.1)px</span></div><div class="pglabel">page 1</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-fragmentation-wrap-pages.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-fragmentation-wrap-pages.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-fragmentation-wrap-pages.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="pglabel">page 2</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-fragmentation-wrap-pages.p2.png" alt="Chrome ref p2"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-fragmentation-wrap-pages.p2.png" alt="ironpress p2"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-fragmentation-wrap-pages.p2.diff.png" alt="classed diff p2"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+176,+15,-24) (ΔE 78.1)</div><div class="desc">A wrapped row flex container whose lines exceed one page fragments between flex lines; catches paginators that paint the flex layout as one overflowing atomic row.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td>ΔE 78.1 ΔRGB(204,204,204)</td><td>fill recolour ΔRGB(+204,+204,+204) (ΔE 78.1)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>219,0 → 220,1</td><td class="num">0.00</td><td>shift(-0.4,0.1)</td><td>content shifted (-0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 3,3</td><td class="num">0.00</td><td>shift(0.4,0.1)</td><td>content shifted (0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>61,2 → 62,3</td><td class="num">0.00</td><td>ΔRGB(176,15,-24) shift(-0.4,0.1)</td><td>content shifted (-0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>72,2 → 73,3</td><td class="num">0.00</td><td>shift(0.4,0.1)</td><td>content shifted (0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>131,2 → 132,3</td><td class="num">0.00</td><td>shift(-0.4,0.1)</td><td>content shifted (-0.4,0.1)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-fragmentation-wrap-pages.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>parity · flexbox</title><style>:root{--bg:#fff;--fg:#1f2328;--muted:#57606a;--line:#d0d7de;--card:#f6f8fa;}*{box-sizing:border-box}body{margin:0;padding:24px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:var(--fg);background:var(--bg)}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}a{color:#0969da;text-decoration:none}a:hover{text-decoration:underline}.meta{color:var(--muted);font-size:13px;margin:0 0 16px}.badge{display:inline-block;padding:1px 8px;border-radius:999px;color:#fff;font-weight:600;font-size:12px}table{border-collapse:collapse;width:100%;margin:8px 0 24px;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--card);position:sticky;top:0;cursor:pointer;user-select:none}tr:nth-child(even) td{background:#fafbfc}.num{text-align:right;font-variant-numeric:tabular-nums}.trip{display:flex;gap:4px;flex-wrap:nowrap}.trip figure{margin:0;flex:1;min-width:0}.trip figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.trip img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.desc{color:var(--muted);max-width:34ch}.real{color:#cf222e;font-weight:600}.confound{color:#9a6700}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}.jump{font-size:13px;margin:4px 0 18px;line-height:2.1}.jump a{display:inline-block;padding:2px 8px;margin:2px 2px 2px 0;border:1px solid var(--line);border-radius:999px;background:var(--card)}.jump .sc{color:var(--muted);font-variant-numeric:tabular-nums}section.feat{margin:0 0 26px}section.feat h2{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--line);padding-bottom:4px}section.feat h2 .top{margin-left:auto;font-size:12px;font-weight:400}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;margin-top:10px}.card{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}.chead{font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details{margin:4px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--card)}summary{cursor:pointer;font-weight:600}.featlist{margin:6px 0 4px;columns:2;font-size:13px;list-style:none;padding:0}.featlist li{break-inside:avoid;margin:2px 0}.chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);font-variant-numeric:tabular-nums}.chip.cls{color:#fff;border:0}.quad{display:flex;gap:4px;flex-wrap:nowrap;margin:4px 0}.pglabel{font-size:11px;font-weight:600;color:var(--muted);margin:6px 0 0}.quad figure{margin:0;flex:1;min-width:0}.quad figcaption{font-size:11px;color:var(--muted);text-align:center;margin-top:2px}.quad img{width:100%;max-width:240px;height:auto;border:1px solid var(--line);background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/16px 16px;display:block}.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin:4px 0;padding:4px 6px;border:1px dashed var(--line);border-radius:6px}.legend .lg{display:inline-flex;align-items:center;gap:4px}.legend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(0,0,0,.15)}.legend .note{flex-basis:100%;color:#9a6700;font-style:italic}.regtbl{font-size:12px;margin:6px 0 2px}.regtbl th{position:static;cursor:default}.src{margin:4px 0}.src pre{margin:0;max-height:280px;overflow:auto;background:#0d1117;color:#e6edf3;border-radius:6px;padding:8px 10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.src code{white-space:pre}.src .ln{color:#6e7681;display:inline-block;width:3ch;text-align:right;margin-right:12px;user-select:none}.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;font-size:13px}.filterbar label{color:var(--muted)}.filterbar select,.filterbar input{font:13px inherit;padding:2px 6px;border:1px solid var(--line);border-radius:6px}.fxrow.hidden{display:none}</style><script>function sortTable(t,col){var tb=t.tBodies[0];var rows=[].slice.call(tb.rows);var asc=t.getAttribute('data-sort')!=col+'a';rows.sort(function(a,b){var x=a.cells[col].getAttribute('data-k')||a.cells[col].innerText;var y=b.cells[col].getAttribute('data-k')||b.cells[col].innerText;var nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny)){return asc?nx-ny:ny-nx;}return asc?x.localeCompare(y):y.localeCompare(x);});rows.forEach(function(r){tb.appendChild(r);});t.setAttribute('data-sort',col+(asc?'a':'d'));}function filterCards(){var st=(document.getElementById('f-status')||{}).value||'';var cl=(document.getElementById('f-class')||{}).value||'';var md=parseFloat((document.getElementById('f-diff')||{}).value)||0;var cards=document.querySelectorAll('.card.fxrow');var shown=0;cards.forEach(function(c){var ok=(!st||c.getAttribute('data-status')===st)&&(!cl||c.getAttribute('data-class')===cl)&&(parseFloat(c.getAttribute('data-diff'))>=md);c.classList.toggle('hidden',!ok);if(ok)shown++;});var fc=document.getElementById('f-count');if(fc)fc.textContent=shown+' / '+cards.length+' fixtures';}function sortCards(){var mode=(document.getElementById('f-sort')||{}).value||'fail';var rank={FAIL:0,PARTIAL:1,PASS:2,UNKNOWN:3};document.querySelectorAll('.cards').forEach(function(grid){var cards=[].slice.call(grid.querySelectorAll('.card.fxrow'));cards.sort(function(a,b){var da=parseFloat(a.getAttribute('data-diff'))||0,db=parseFloat(b.getAttribute('data-diff'))||0;if(mode==='diffd')return db-da;if(mode==='diffa')return da-db;var ra=rank[a.getAttribute('data-status')],rb=rank[b.getAttribute('data-status')];return ra!==rb?ra-rb:db-da;});cards.forEach(function(c){grid.appendChild(c);});});}function filterWorklist(){var cl=(document.getElementById('wl-class')||{}).value||'';document.querySelectorAll('tr.wl').forEach(function(r){r.style.display=(!cl||r.getAttribute('data-class')===cl)?'':'none';});}</script></head><body><h1>flexbox — 97.60%</h1><p class="meta"><a href="index.html">&larr; all categories</a> · PASS 122 · PARTIAL 0 · FAIL 3 · UNKNOWN 0 · 125 fixtures · V2 classed-diff · 300 DPI</p><nav class="jump"><strong>Features:</strong> <a href="#feat-fragmentation">fragmentation <span class="sc">67%</span></a> <a href="#feat-automatic-minimum-size">automatic-minimum-size <span class="sc">75%</span></a> <a href="#feat-display">display <span class="sc">80%</span></a> <a href="#feat-absolute-positioning">absolute-positioning <span class="sc">100%</span></a> <a href="#feat-abspos-flex-child">abspos-flex-child <span class="sc">100%</span></a> <a href="#feat-align-content">align-content <span class="sc">100%</span></a> <a href="#feat-align-items">align-items <span class="sc">100%</span></a> <a href="#feat-align-self">align-self <span class="sc">100%</span></a> <a href="#feat-aspect-ratio">aspect-ratio <span class="sc">100%</span></a> <a href="#feat-auto-margins">auto-margins <span class="sc">100%</span></a> <a href="#feat-flex">flex <span class="sc">100%</span></a> <a href="#feat-flex-basis">flex-basis <span class="sc">100%</span></a> <a href="#feat-flex-direction">flex-direction <span class="sc">100%</span></a> <a href="#feat-flex-flow">flex-flow <span class="sc">100%</span></a> <a href="#feat-flex-grow">flex-grow <span class="sc">100%</span></a> <a href="#feat-flex-item">flex-item <span class="sc">100%</span></a> <a href="#feat-flex-item-positioning">flex-item-positioning <span class="sc">100%</span></a> <a href="#feat-flex-items">flex-items <span class="sc">100%</span></a> <a href="#feat-flex-shorthand">flex-shorthand <span class="sc">100%</span></a> <a href="#feat-flex-shrink">flex-shrink <span class="sc">100%</span></a> <a href="#feat-flex-wrap">flex-wrap <span class="sc">100%</span></a> <a href="#feat-gap">gap <span class="sc">100%</span></a> <a href="#feat-intrinsic-sizing">intrinsic-sizing <span class="sc">100%</span></a> <a href="#feat-justify-content">justify-content <span class="sc">100%</span></a> <a href="#feat-margin">margin <span class="sc">100%</span></a> <a href="#feat-max-width">max-width <span class="sc">100%</span></a> <a href="#feat-min-height">min-height <span class="sc">100%</span></a> <a href="#feat-min-width">min-width <span class="sc">100%</span></a> <a href="#feat-nested-flex">nested-flex <span class="sc">100%</span></a> <a href="#feat-order">order <span class="sc">100%</span></a> <a href="#feat-painting">painting <span class="sc">100%</span></a> <a href="#feat-percent-height">percent-height <span class="sc">100%</span></a> <a href="#feat-place-content">place-content <span class="sc">100%</span></a> <a href="#feat-place-items">place-items <span class="sc">100%</span></a> <a href="#feat-place-self">place-self <span class="sc">100%</span></a> <a href="#feat-writing-mode">writing-mode <span class="sc">100%</span></a> </nav><div class="filterbar"><label>status <select id="f-status" onchange="filterCards()"><option value="">all</option><option value="FAIL">FAIL</option><option value="PARTIAL">PARTIAL</option><option value="PASS">PASS</option><option value="UNKNOWN">UNKNOWN</option></select></label><label>class <select id="f-class" onchange="filterCards()"><option value="">all</option><option value="AaOnly">AaOnly</option><option value="ColorValue">ColorValue</option><option value="Extra">Extra</option><option value="GeometryShift">GeometryShift</option></select></label><label>min diff% <input id="f-diff" type="number" min="0" step="1" value="0" style="width:6ch" oninput="filterCards()"></label><label>sort <select id="f-sort" onchange="sortCards()"><option value="fail">FAIL-first</option><option value="diffd">diff% high→low</option><option value="diffa">diff% low→high</option></select></label><span id="f-count" class="meta"></span></div><section class="feat"><h2 id="feat-fragmentation">fragmentation — 66.67% <span class="meta">PASS 2 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="0.1132"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">0.11%</span> <strong>flexbox-fragmentation-wrap-pages</strong> · wrapped-lines-across-pages · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">−0.3px B</span><span class="chip">ΔE 78.1</span><span class="chip">shift (-0.4,0.1)px</span></div><div class="pglabel">page 1</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-fragmentation-wrap-pages.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-fragmentation-wrap-pages.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-fragmentation-wrap-pages.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="pglabel">page 2</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-fragmentation-wrap-pages.p2.png" alt="Chrome ref p2"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-fragmentation-wrap-pages.p2.png" alt="ironpress p2"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-fragmentation-wrap-pages.p2.diff.png" alt="classed diff p2"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+176,+15,-24) (ΔE 78.1)</div><div class="desc">A wrapped row flex container whose lines exceed one page fragments between flex lines; catches paginators that paint the flex layout as one overflowing atomic row.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>0,0 → 1,1</td><td class="num">0.00</td><td>ΔE 78.1 ΔRGB(204,204,204)</td><td>fill recolour ΔRGB(+204,+204,+204) (ΔE 78.1)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>219,0 → 220,1</td><td class="num">0.00</td><td>shift(-0.4,0.1)</td><td>content shifted (-0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,2 → 3,3</td><td class="num">0.00</td><td>shift(0.4,0.1)</td><td>content shifted (0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>61,2 → 62,3</td><td class="num">0.00</td><td>ΔRGB(176,15,-24) shift(-0.4,0.1)</td><td>content shifted (-0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>72,2 → 73,3</td><td class="num">0.00</td><td>shift(0.4,0.1)</td><td>content shifted (0.4,0.1)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>131,2 → 132,3</td><td class="num">0.00</td><td>shift(-0.4,0.1)</td><td>content shifted (-0.4,0.1)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-fragmentation-wrap-pages.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
@@ -278,66 +153,44 @@
 <span class="ln">19</span>  &lt;/div&gt;
 <span class="ln">20</span>&lt;/body&gt;
 <span class="ln">21</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-align-items">align-items — 91.67% <span class="meta">PASS 11 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="ColorValue" data-diff="10.8397"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">10.84%</span> <strong>flexbox-baseline-empty-synthesis</strong> · baseline-empty-item · <span class="real">REAL</span><span class="chip cls" style="background:#2850ff">ColorValue</span><span class="chip">+7.7px T</span><span class="chip">extra 1.9%</span><span class="chip">ΔE 38.2</span><span class="chip">shift (0.0,-1.1)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-baseline-empty-synthesis.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-baseline-empty-synthesis.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-baseline-empty-synthesis.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> fill recolour ΔRGB(+158,+23,+9) (ΔE 38.2)</div><div class="desc">align-items:baseline synthesizes a baseline for an empty fixed-size item rather than falling back to cross-start; catches baseline code that only handles text baselines.</div><details><summary>regions (3)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>109,10 → 179,31</td><td class="num">4.27</td><td>ΔE 38.2 ΔRGB(-197,-110,-53)</td><td>fill recolour ΔRGB(-197,-110,-53) (ΔE 38.2)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>109,42 → 179,63</td><td class="num">4.27</td><td>ΔE 38.2 ΔRGB(197,110,53) shift(0.0,-1.1)</td><td>fill recolour ΔRGB(+197,+110,+53) (ΔE 38.2)</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>8,0 → 91,10</td><td class="num">2.31</td><td>ΔE 36.0 ΔRGB(158,23,9)</td><td>extra paint where Chrome is blank (2.3%)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-baseline-empty-synthesis.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-display">display — 80.00% <span class="meta">PASS 4 · PARTIAL 0 · FAIL 1</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="FAIL" data-class="Extra" data-diff="54.5259"><div class="chead"><span class="badge" style="background:#cf222e">FAIL</span> <span class="num">54.53%</span> <strong>flexbox-display-inline-flex-two-keyword</strong> · inline-flex-two-keyword · <span class="real">REAL</span><span class="chip cls" style="background:#1a9e3c">Extra</span><span class="chip">−41.3px B</span><span class="chip">extra 53.9%</span><span class="chip">ΔE 9.2</span><span class="chip">shift (0.0,-1.1)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-inline-flex-two-keyword.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-inline-flex-two-keyword.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-inline-flex-two-keyword.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> extra paint where Chrome is blank (53.9%)</div><div class="desc">display:inline flex creates an inline-level flex container in a text line; catches parsers that ignore the two-keyword form and lose child sizing.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>0,34 → 280,75</td><td class="num">53.91</td><td></td><td>extra paint where Chrome is blank (53.9%)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>125,12 → 133,22</td><td class="num">0.18</td><td>ΔRGB(60,60,60) shift(0.1,-0.8)</td><td>box −41.3px on bottom edge (size/box-model mismatch)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>123,7 → 132,11</td><td class="num">0.13</td><td>ΔRGB(-126,-126,-126) shift(-0.0,-0.6)</td><td>box −41.3px on bottom edge (size/box-model mismatch)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>2,18 → 10,22</td><td class="num">0.12</td><td>ΔRGB(161,161,161) shift(0.0,-0.9)</td><td>box −41.3px on bottom edge (size/box-model mismatch)</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>116,0 → 116,34</td><td class="num">0.05</td><td>ΔE 9.2 ΔRGB(19,4,-16)</td><td>fill recolour ΔRGB(+19,+4,-16) (ΔE 9.2)</td></tr><tr><td><span class="chip cls" style="background:#b8860b">GeometrySize</span></td><td>61,0 → 61,30</td><td class="num">0.05</td><td>shift(-0.3,0.0)</td><td>box −41.3px on bottom edge (size/box-model mismatch)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-display-inline-flex-two-keyword.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 340px 160px; margin: 0; }
+<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
 <span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>    body { padding: 20px; }
-<span class="ln">10</span>    .flex { display: flex; align-items: baseline; width: 280px; height: 120px; background: #eeeeee; border: 2px solid #222222; }
-<span class="ln">11</span>    .text { font-size: 64px; line-height: 64px; background: #c0392b; color: #ffffff; padding: 0 6px; }
-<span class="ln">12</span>    .empty { width: 70px; height: 32px; background: #2980b9; margin-left: 12px; }
-<span class="ln">13</span>  &lt;/style&gt;
-<span class="ln">14</span>&lt;/head&gt;
-<span class="ln">15</span>&lt;body&gt;&lt;div class=&quot;flex&quot;&gt;&lt;div class=&quot;text&quot;&gt;Aa&lt;/div&gt;&lt;div class=&quot;empty&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/body&gt;
-<span class="ln">16</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.866"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.87%</span> <strong>flexbox-align-items-baseline</strong> · baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 4.8</span><span class="chip">shift (0.0,-0.5)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (0.0,-0.5)px beyond page-origin calibration</div><div class="desc">align-items:baseline aligns the first text baselines of differently-sized items.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,28 → 122,29</td><td class="num">0.11</td><td>shift(0.0,-0.5)</td><td>content shifted (0.0,-0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,68 → 122,69</td><td class="num">0.11</td><td>shift(0.0,-0.5)</td><td>content shifted (0.0,-0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>4,30 → 120,31</td><td class="num">0.11</td><td>shift(0.0,-0.5)</td><td>content shifted (0.0,-0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>4,67 → 120,67</td><td class="num">0.11</td><td>shift(0.0,-0.5)</td><td>content shifted (0.0,-0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>242,20 → 362,20</td><td class="num">0.06</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>242,72 → 362,72</td><td class="num">0.06</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">9</span>    body { padding: 20px; font-size: 18px; }
+<span class="ln">10</span>    .host { background: #eeeeee; }
+<span class="ln">11</span>    .iflex { display: inline flex; width: 100px; height: 34px; vertical-align: middle; background: #dbeafe; }
+<span class="ln">12</span>    .box { display: block; width: 45px; height: 30px; }
+<span class="ln">13</span>    .a { background: #c0392b; }
+<span class="ln">14</span>    .b { background: #2980b9; }
+<span class="ln">15</span>  &lt;/style&gt;
+<span class="ln">16</span>&lt;/head&gt;
+<span class="ln">17</span>&lt;body&gt;
+<span class="ln">18</span>  &lt;p class=&quot;host&quot;&gt;L &lt;span class=&quot;iflex&quot;&gt;&lt;span class=&quot;box a&quot;&gt;&lt;/span&gt;&lt;span class=&quot;box b&quot;&gt;&lt;/span&gt;&lt;/span&gt; R&lt;/p&gt;
+<span class="ln">19</span>&lt;/body&gt;
+<span class="ln">20</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.9741"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.97%</span> <strong>flexbox-display-inline-flex</strong> · inline-flex<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 4.9</span><span class="chip">shift (0.5,0.0)px</span></div><div class="pglabel">page 1</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-inline-flex.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-inline-flex.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-inline-flex.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="pglabel">page 2</div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-inline-flex.p2.png" alt="Chrome ref p2"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-inline-flex.p2.png" alt="ironpress p2"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-inline-flex.p2.diff.png" alt="classed diff p2"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (0.5,0.0)px beyond page-origin calibration</div><div class="desc">display:inline-flex creates an inline-level flex container that shares the line with surrounding text; catches parsers that only recognize block-level display:flex.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>66,0 → 66,42</td><td class="num">0.43</td><td>shift(0.5,0.0)</td><td>content shifted (0.5,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>76,0 → 76,42</td><td class="num">0.22</td><td>shift(0.3,0.0)</td><td>content shifted (0.3,0.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>3,24 → 11,24</td><td class="num">0.04</td><td>shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>133,9 → 141,9</td><td class="num">0.04</td><td>shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>136,16 → 140,17</td><td class="num">0.03</td><td>ΔRGB(11,11,11) shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>136,10 → 140,10</td><td class="num">0.02</td><td>shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-display-inline-flex.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox align-items:baseline&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 537px 201px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  .wrap { padding: 20px; }
-<span class="ln">12</span>  /* align-items:baseline lines up the first text baseline of each item, so the
-<span class="ln">13</span>     differently-sized text sits on a common baseline. */
-<span class="ln">14</span>  .flex {
-<span class="ln">15</span>    display: flex;
-<span class="ln">16</span>    align-items: baseline;
-<span class="ln">17</span>    width: 420px;
-<span class="ln">18</span>    height: 160px;
-<span class="ln">19</span>    border: 2px solid #222222;
-<span class="ln">20</span>    background: #eeeeee;
-<span class="ln">21</span>    font-family: ParitySans;
-<span class="ln">22</span>  }
-<span class="ln">23</span>  .box {
-<span class="ln">24</span>    width: 120px;
-<span class="ln">25</span>    border: 2px solid #102a43;
-<span class="ln">26</span>    color: #ffffff;
-<span class="ln">27</span>    padding: 6px;
-<span class="ln">28</span>  }
-<span class="ln">29</span>  .a { background: #c0392b; font-size: 16px; }
-<span class="ln">30</span>  .b { background: #2980b9; font-size: 40px; }
-<span class="ln">31</span>  .c { background: #27ae60; font-size: 24px; }
-<span class="ln">32</span>&lt;/style&gt;
-<span class="ln">33</span>&lt;/head&gt;
-<span class="ln">34</span>&lt;body&gt;
-<span class="ln">35</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">36</span>    &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">37</span>      &lt;div class=&quot;box a&quot;&gt;Ag&lt;/div&gt;
-<span class="ln">38</span>      &lt;div class=&quot;box b&quot;&gt;Ag&lt;/div&gt;
-<span class="ln">39</span>      &lt;div class=&quot;box c&quot;&gt;Ag&lt;/div&gt;
-<span class="ln">40</span>    &lt;/div&gt;
-<span class="ln">41</span>  &lt;/div&gt;
-<span class="ln">42</span>&lt;/body&gt;
-<span class="ln">43</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.4597"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.46%</span> <strong>flexbox-align-items-first-baseline</strong> · first-baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 5.1</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-first-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-first-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-first-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">align-items:first baseline parses as baseline alignment for differently sized text flex items; catches fallback to stretch or cross-start.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>45,2 → 72,62</td><td class="num">0.27</td><td>shift(0.2,-0.2)</td><td>content shifted (0.2,-0.2)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>17,38 → 30,39</td><td class="num">0.02</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>18,35 → 28,35</td><td class="num">0.01</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#2850ff">ColorValue</span></td><td>21,16 → 26,17</td><td class="num">0.01</td><td>ΔRGB(7,24,26) shift(0.0,-0.3)</td><td>fill recolour ΔRGB(+7,+24,+26) (ΔE 0.0)</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>55,34 → 60,34</td><td class="num">0.01</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>56,39 → 60,39</td><td class="num">0.00</td><td>ΔRGB(13,8,4) shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-first-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>  &lt;style&gt;
+<span class="ln">6</span>    @page { size: 320px 160px; margin: 0; }
+<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>    body { font-size: 24px; padding: 24px; }
+<span class="ln">10</span>    .chip { display: inline-flex; width: 120px; height: 42px; gap: 10px; background: #d6dde2; vertical-align: top; }
+<span class="ln">11</span>    .chip div { width: 55px; height: 42px; }
+<span class="ln">12</span>    .a { background: #c0392b; }
+<span class="ln">13</span>    .b { background: #2980b9; }
+<span class="ln">14</span>  &lt;/style&gt;
+<span class="ln">15</span>&lt;/head&gt;
+<span class="ln">16</span>&lt;body&gt;&lt;span&gt;L&lt;/span&gt;&lt;span class=&quot;chip&quot;&gt;&lt;div class=&quot;a&quot;&gt;&lt;/div&gt;&lt;div class=&quot;b&quot;&gt;&lt;/div&gt;&lt;/span&gt;&lt;span&gt;R&lt;/span&gt;&lt;/body&gt;
+<span class="ln">17</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-display-block-flex</strong> · block-flex<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-block-flex.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-block-flex.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-block-flex.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">display:block flex uses modern two-keyword display syntax to create a block-level flex container; catches parsers that only recognize display:flex and stack children.</div><details open class="src"><summary>source · cases/flexbox/flexbox-display-block-flex.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
@@ -346,140 +199,73 @@
 <span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>    body { padding: 20px; }
-<span class="ln">10</span>    .flex { display: flex; align-items: first baseline; width: 230px; height: 110px; border: 2px solid #222222; background: #eeeeee; }
-<span class="ln">11</span>    .item { padding: 0 8px; color: #ffffff; }
-<span class="ln">12</span>    .big { font-size: 40px; background: #c0392b; }
-<span class="ln">13</span>    .small { font-size: 16px; background: #2980b9; }
-<span class="ln">14</span>  &lt;/style&gt;
-<span class="ln">15</span>&lt;/head&gt;
-<span class="ln">16</span>&lt;body&gt;
-<span class="ln">17</span>  &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">18</span>    &lt;div class=&quot;item big&quot;&gt;A&lt;/div&gt;
-<span class="ln">19</span>    &lt;div class=&quot;item small&quot;&gt;B&lt;/div&gt;
-<span class="ln">20</span>  &lt;/div&gt;
-<span class="ln">21</span>&lt;/body&gt;
-<span class="ln">22</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.0281"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.03%</span> <strong>flexbox-align-items-last-baseline</strong> · last-baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-last-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-last-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-last-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">align-items:last baseline aligns a one-line item&#39;s baseline with the last baseline of a two-line flex item; catches unsupported last-baseline parsing.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>62,98 → 62,128</td><td class="num">0.03</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-last-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">10</span>    .flex { display: block flex; width: 210px; border: 2px solid #222222; }
+<span class="ln">11</span>    .box { width: 60px; height: 50px; }
+<span class="ln">12</span>    .a { background: #c0392b; }
+<span class="ln">13</span>    .b { background: #2980b9; }
+<span class="ln">14</span>    .c { background: #27ae60; }
+<span class="ln">15</span>  &lt;/style&gt;
+<span class="ln">16</span>&lt;/head&gt;
+<span class="ln">17</span>&lt;body&gt;
+<span class="ln">18</span>  &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">19</span>    &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">20</span>    &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">21</span>    &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">22</span>  &lt;/div&gt;
+<span class="ln">23</span>&lt;/body&gt;
+<span class="ln">24</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-display-contents-items</strong> · contents-flex-items<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-contents-items.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-contents-items.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-contents-items.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A display:contents child of a flex container is box-suppressed so its element children become flex items; catches wrappers that incorrectly become one flex item.</div><details open class="src"><summary>source · cases/flexbox/flexbox-display-contents-items.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
 <span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 320px 200px; margin: 0; }
+<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
 <span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
 <span class="ln">9</span>    body { padding: 20px; }
-<span class="ln">10</span>    .flex { display: flex; align-items: last baseline; width: 260px; height: 130px; border: 2px solid #222222; background: #eeeeee; }
-<span class="ln">11</span>    .multi, .one { font-size: 20px; line-height: 1.5; padding: 0 8px; color: #ffffff; }
-<span class="ln">12</span>    .multi { background: #c0392b; }
-<span class="ln">13</span>    .one { background: #2980b9; }
-<span class="ln">14</span>  &lt;/style&gt;
-<span class="ln">15</span>&lt;/head&gt;
-<span class="ln">16</span>&lt;body&gt;
-<span class="ln">17</span>  &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">18</span>    &lt;div class=&quot;multi&quot;&gt;A&lt;br&gt;B&lt;/div&gt;
-<span class="ln">19</span>    &lt;div class=&quot;one&quot;&gt;C&lt;/div&gt;
-<span class="ln">20</span>  &lt;/div&gt;
-<span class="ln">21</span>&lt;/body&gt;
-<span class="ln">22</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-center</strong> · center<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-center.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-center.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-center.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-center.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">10</span>    .flex { display: flex; gap: 10px; width: 250px; border: 2px solid #222222; }
+<span class="ln">11</span>    .contents { display: contents; }
+<span class="ln">12</span>    .box { width: 60px; height: 50px; }
+<span class="ln">13</span>    .a { background: #c0392b; }
+<span class="ln">14</span>    .b { background: #2980b9; }
+<span class="ln">15</span>    .c { background: #27ae60; }
+<span class="ln">16</span>  &lt;/style&gt;
+<span class="ln">17</span>&lt;/head&gt;
+<span class="ln">18</span>&lt;body&gt;
+<span class="ln">19</span>  &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">20</span>    &lt;div class=&quot;contents&quot;&gt;
+<span class="ln">21</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">22</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">23</span>    &lt;/div&gt;
+<span class="ln">24</span>    &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">25</span>  &lt;/div&gt;
+<span class="ln">26</span>&lt;/body&gt;
+<span class="ln">27</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-display-flex</strong> · flex<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-display-flex.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-display-flex.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-display-flex.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">display:flex lays three fixed-size boxes in a row along the main axis with default packing.</div><details open class="src"><summary>source · cases/flexbox/flexbox-display-flex.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox align-items:center&lt;/title&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox display:flex&lt;/title&gt;
 <span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 537px 241px; margin: 0; }
+<span class="ln">7</span>  @page { size: 518px 135px; margin: 0; }
 <span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
 <span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
 <span class="ln">10</span>  html, body { background: #ffffff; }
 <span class="ln">11</span>  .wrap { padding: 20px; }
 <span class="ln">12</span>  .flex {
 <span class="ln">13</span>    display: flex;
-<span class="ln">14</span>    align-items: center;
-<span class="ln">15</span>    width: 420px;
-<span class="ln">16</span>    height: 200px;
-<span class="ln">17</span>    border: 2px solid #222222;
-<span class="ln">18</span>    background: #eeeeee;
-<span class="ln">19</span>  }
-<span class="ln">20</span>  .box {
-<span class="ln">21</span>    width: 80px;
-<span class="ln">22</span>    border: 2px solid #102a43;
-<span class="ln">23</span>  }
-<span class="ln">24</span>  .a { background: #c0392b; height: 60px; }
-<span class="ln">25</span>  .b { background: #2980b9; height: 100px; }
-<span class="ln">26</span>  .c { background: #27ae60; height: 140px; }
-<span class="ln">27</span>&lt;/style&gt;
-<span class="ln">28</span>&lt;/head&gt;
-<span class="ln">29</span>&lt;body&gt;
-<span class="ln">30</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">31</span>    &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">32</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">33</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">34</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">35</span>    &lt;/div&gt;
-<span class="ln">36</span>  &lt;/div&gt;
-<span class="ln">37</span>&lt;/body&gt;
-<span class="ln">38</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-flex-end</strong> · flex-end<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-flex-end.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-flex-end.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-flex-end.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:flex-end anchors differently-tall items to the cross-end (bottom) edge.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-flex-end.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox align-items:flex-end&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 478px 201px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  .wrap { padding: 20px; }
-<span class="ln">12</span>  /* align-items:flex-end anchors items to the cross-end (bottom) edge. */
-<span class="ln">13</span>  .flex {
-<span class="ln">14</span>    display: flex;
-<span class="ln">15</span>    align-items: flex-end;
-<span class="ln">16</span>    width: 360px;
-<span class="ln">17</span>    height: 160px;
-<span class="ln">18</span>    border: 2px solid #222222;
-<span class="ln">19</span>    background: #eeeeee;
-<span class="ln">20</span>  }
-<span class="ln">21</span>  .box { width: 90px; border: 2px solid #102a43; }
-<span class="ln">22</span>  .a { background: #c0392b; height: 60px; }
-<span class="ln">23</span>  .b { background: #2980b9; height: 110px; }
-<span class="ln">24</span>  .c { background: #27ae60; height: 80px; }
-<span class="ln">25</span>&lt;/style&gt;
-<span class="ln">26</span>&lt;/head&gt;
-<span class="ln">27</span>&lt;body&gt;
-<span class="ln">28</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">29</span>    &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">30</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">31</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">32</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">33</span>    &lt;/div&gt;
-<span class="ln">34</span>  &lt;/div&gt;
-<span class="ln">35</span>&lt;/body&gt;
-<span class="ln">36</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-flex-start</strong> · flex-start<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-flex-start.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-flex-start.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-flex-start.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:flex-start anchors differently-tall items to the cross-start (top) edge.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-flex-start.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox align-items:flex-start&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 478px 201px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  .wrap { padding: 20px; }
-<span class="ln">12</span>  /* align-items:flex-start anchors differently-tall items to the cross-start
-<span class="ln">13</span>     (top) edge of a tall row container. */
-<span class="ln">14</span>  .flex {
-<span class="ln">15</span>    display: flex;
-<span class="ln">16</span>    align-items: flex-start;
-<span class="ln">17</span>    width: 360px;
-<span class="ln">18</span>    height: 160px;
-<span class="ln">19</span>    border: 2px solid #222222;
-<span class="ln">20</span>    background: #eeeeee;
-<span class="ln">21</span>  }
-<span class="ln">22</span>  .box { width: 90px; border: 2px solid #102a43; }
-<span class="ln">23</span>  .a { background: #c0392b; height: 60px; }
-<span class="ln">24</span>  .b { background: #2980b9; height: 110px; }
-<span class="ln">25</span>  .c { background: #27ae60; height: 80px; }
+<span class="ln">14</span>    width: 400px;
+<span class="ln">15</span>    border: 2px solid #222222;
+<span class="ln">16</span>    background: #eeeeee;
+<span class="ln">17</span>  }
+<span class="ln">18</span>  .box {
+<span class="ln">19</span>    width: 90px;
+<span class="ln">20</span>    height: 90px;
+<span class="ln">21</span>    border: 2px solid #102a43;
+<span class="ln">22</span>  }
+<span class="ln">23</span>  .a { background: #c0392b; }
+<span class="ln">24</span>  .b { background: #2980b9; }
+<span class="ln">25</span>  .c { background: #27ae60; }
 <span class="ln">26</span>&lt;/style&gt;
 <span class="ln">27</span>&lt;/head&gt;
 <span class="ln">28</span>&lt;body&gt;
@@ -492,170 +278,6 @@
 <span class="ln">35</span>  &lt;/div&gt;
 <span class="ln">36</span>&lt;/body&gt;
 <span class="ln">37</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-min-height</strong> · min-height<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-min-height.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-min-height.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-min-height.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A non-stretch (align-items:center) item honors its min-height and overflows the shorter container line symmetrically (css-flexbox-1 §9.4 step 11).</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-min-height.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox align-items:center honoring min-height&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 537px 200px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  .wrap { padding: 50px; }
-<span class="ln">12</span>  /* A non-stretch (align-items:center) item still honors its min-height
-<span class="ln">13</span>     (css-flexbox-1 §9.4 step 11). Item .a is floored to 160px and, being
-<span class="ln">14</span>     taller than the 100px container line, overflows it symmetrically; .b and
-<span class="ln">15</span>     .c keep their 60px height. */
-<span class="ln">16</span>  .flex {
-<span class="ln">17</span>    display: flex;
-<span class="ln">18</span>    align-items: center;
-<span class="ln">19</span>    width: 420px;
-<span class="ln">20</span>    height: 100px;
-<span class="ln">21</span>    border: 2px solid #222222;
-<span class="ln">22</span>    background: #eeeeee;
-<span class="ln">23</span>  }
-<span class="ln">24</span>  .box {
-<span class="ln">25</span>    width: 80px;
-<span class="ln">26</span>    height: 60px;
-<span class="ln">27</span>    border: 2px solid #102a43;
-<span class="ln">28</span>  }
-<span class="ln">29</span>  .a { background: #c0392b; min-height: 160px; }
-<span class="ln">30</span>  .b { background: #2980b9; }
-<span class="ln">31</span>  .c { background: #27ae60; }
-<span class="ln">32</span>&lt;/style&gt;
-<span class="ln">33</span>&lt;/head&gt;
-<span class="ln">34</span>&lt;body&gt;
-<span class="ln">35</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">36</span>    &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">37</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">38</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">39</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">40</span>    &lt;/div&gt;
-<span class="ln">41</span>  &lt;/div&gt;
-<span class="ln">42</span>&lt;/body&gt;
-<span class="ln">43</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-safe-center</strong> · safe-center<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-safe-center.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-safe-center.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-safe-center.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:safe center is equivalent to center when the item fits; catches parsers that reject the safe overflow-alignment prefix.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-safe-center.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
-<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>    body { padding: 20px; }
-<span class="ln">10</span>    .flex { display: flex; align-items: safe center; width: 160px; height: 100px; border: 2px solid #222222; }
-<span class="ln">11</span>    .item { width: 70px; height: 40px; background: #c0392b; }
-<span class="ln">12</span>  &lt;/style&gt;
-<span class="ln">13</span>&lt;/head&gt;
-<span class="ln">14</span>&lt;body&gt;
-<span class="ln">15</span>  &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">16</span>    &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
-<span class="ln">17</span>  &lt;/div&gt;
-<span class="ln">18</span>&lt;/body&gt;
-<span class="ln">19</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-stretch</strong> · stretch<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-stretch.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-stretch.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-stretch.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-stretch.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox align-items:stretch&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 537px 221px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  .wrap { padding: 20px; }
-<span class="ln">12</span>  .flex {
-<span class="ln">13</span>    display: flex;
-<span class="ln">14</span>    align-items: stretch;
-<span class="ln">15</span>    width: 420px;
-<span class="ln">16</span>    height: 180px;
-<span class="ln">17</span>    border: 2px solid #222222;
-<span class="ln">18</span>    background: #eeeeee;
-<span class="ln">19</span>  }
-<span class="ln">20</span>  .box {
-<span class="ln">21</span>    width: 80px;
-<span class="ln">22</span>    border: 2px solid #102a43;
-<span class="ln">23</span>  }
-<span class="ln">24</span>  .a { background: #c0392b; }
-<span class="ln">25</span>  .b { background: #2980b9; }
-<span class="ln">26</span>  .c { background: #27ae60; }
-<span class="ln">27</span>&lt;/style&gt;
-<span class="ln">28</span>&lt;/head&gt;
-<span class="ln">29</span>&lt;body&gt;
-<span class="ln">30</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">31</span>    &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">32</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">33</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">34</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">35</span>    &lt;/div&gt;
-<span class="ln">36</span>  &lt;/div&gt;
-<span class="ln">37</span>&lt;/body&gt;
-<span class="ln">38</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-stretch-max-height</strong> · stretch-max-height<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-stretch-max-height.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-stretch-max-height.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-stretch-max-height.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:stretch clamps the used cross size to the item&#39;s max-height (css-flexbox-1 §9.4 step 11): the capped item stays top-anchored at its max-height while its siblings stretch to the full container height.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-stretch-max-height.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
-<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>&lt;title&gt;flexbox align-items:stretch clamped by max-height&lt;/title&gt;
-<span class="ln">6</span>&lt;style&gt;
-<span class="ln">7</span>  @page { size: 537px 241px; margin: 0; }
-<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
-<span class="ln">10</span>  html, body { background: #ffffff; }
-<span class="ln">11</span>  .wrap { padding: 20px; }
-<span class="ln">12</span>  /* align-items:stretch grows auto-height items to the line cross size, but the
-<span class="ln">13</span>     used cross size is clamped by the item&#39;s max-height (css-flexbox-1 §9.4
-<span class="ln">14</span>     step 11). Item .a is capped at 50px and stays top-anchored; .b and .c
-<span class="ln">15</span>     stretch to the full container content height. */
-<span class="ln">16</span>  .flex {
-<span class="ln">17</span>    display: flex;
-<span class="ln">18</span>    align-items: stretch;
-<span class="ln">19</span>    width: 420px;
-<span class="ln">20</span>    height: 200px;
-<span class="ln">21</span>    border: 2px solid #222222;
-<span class="ln">22</span>    background: #eeeeee;
-<span class="ln">23</span>  }
-<span class="ln">24</span>  .box {
-<span class="ln">25</span>    width: 80px;
-<span class="ln">26</span>    border: 2px solid #102a43;
-<span class="ln">27</span>  }
-<span class="ln">28</span>  .a { background: #c0392b; max-height: 50px; }
-<span class="ln">29</span>  .b { background: #2980b9; }
-<span class="ln">30</span>  .c { background: #27ae60; }
-<span class="ln">31</span>&lt;/style&gt;
-<span class="ln">32</span>&lt;/head&gt;
-<span class="ln">33</span>&lt;body&gt;
-<span class="ln">34</span>  &lt;div class=&quot;wrap&quot;&gt;
-<span class="ln">35</span>    &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">36</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
-<span class="ln">37</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
-<span class="ln">38</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
-<span class="ln">39</span>    &lt;/div&gt;
-<span class="ln">40</span>  &lt;/div&gt;
-<span class="ln">41</span>&lt;/body&gt;
-<span class="ln">42</span>&lt;/html&gt;
-</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-column-align-items-center</strong> · column-center<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-column-align-items-center.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-column-align-items-center.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-column-align-items-center.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:center in flex-direction:column centers fixed-width items on the horizontal cross axis; catches row-only cross-axis placement or unwanted stretch.</div><details open class="src"><summary>source · cases/flexbox/flexbox-column-align-items-center.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
-<span class="ln">2</span>&lt;html&gt;
-<span class="ln">3</span>&lt;head&gt;
-<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
-<span class="ln">5</span>  &lt;style&gt;
-<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
-<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
-<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
-<span class="ln">9</span>    body { padding: 20px; }
-<span class="ln">10</span>    .flex { display: flex; flex-direction: column; align-items: center; width: 180px; height: 130px; border: 2px solid #222222; }
-<span class="ln">11</span>    .item { width: 60px; height: 45px; }
-<span class="ln">12</span>    .a { background: #c0392b; }
-<span class="ln">13</span>    .b { background: #2980b9; }
-<span class="ln">14</span>  &lt;/style&gt;
-<span class="ln">15</span>&lt;/head&gt;
-<span class="ln">16</span>&lt;body&gt;
-<span class="ln">17</span>  &lt;div class=&quot;flex&quot;&gt;
-<span class="ln">18</span>    &lt;div class=&quot;item a&quot;&gt;&lt;/div&gt;
-<span class="ln">19</span>    &lt;div class=&quot;item b&quot;&gt;&lt;/div&gt;
-<span class="ln">20</span>  &lt;/div&gt;
-<span class="ln">21</span>&lt;/body&gt;
-<span class="ln">22</span>&lt;/html&gt;
 </code></pre></details></div></div></section><section class="feat"><h2 id="feat-absolute-positioning">absolute-positioning — 100.00% <span class="meta">PASS 1 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-abspos-order-paint</strong> · order-painting<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-abspos-order-paint.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-abspos-order-paint.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-abspos-order-paint.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">An absolutely positioned flex child paints as order:0 relative to ordered flex items; catches renderers that append all absolute children above flex content.</div><details open class="src"><summary>source · cases/flexbox/flexbox-abspos-order-paint.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
 <span class="ln">2</span>&lt;html&gt;
 <span class="ln">3</span>&lt;head&gt;
@@ -1118,7 +740,385 @@
 <span class="ln">45</span>  &lt;/div&gt;
 <span class="ln">46</span>&lt;/body&gt;
 <span class="ln">47</span>&lt;/html&gt;
-</code></pre></details></div></div></section><section class="feat"><h2 id="feat-align-self">align-self — 100.00% <span class="meta">PASS 4 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="1.0803"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.08%</span> <strong>flexbox-align-self-baseline</strong> · baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 4.8</span><span class="chip">shift (0.0,0.6)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-self-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-self-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-self-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (0.0,0.6)px beyond page-origin calibration</div><div class="desc">align-self:baseline opts a single item into baseline alignment within the line.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,64 → 122,65</td><td class="num">0.17</td><td>shift(0.0,0.6)</td><td>content shifted (0.0,0.6)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>4,23 → 120,24</td><td class="num">0.17</td><td>shift(0.0,0.6)</td><td>content shifted (0.0,0.6)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>4,62 → 120,63</td><td class="num">0.17</td><td>shift(0.0,0.6)</td><td>content shifted (0.0,0.6)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,21 → 122,21</td><td class="num">0.11</td><td>shift(0.0,0.5)</td><td>content shifted (0.0,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>244,64 → 360,64</td><td class="num">0.11</td><td>shift(0.0,0.5)</td><td>content shifted (0.0,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>242,17 → 362,17</td><td class="num">0.06</td><td>shift(-0.0,0.3)</td><td>content shifted (-0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-self-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-align-items">align-items — 100.00% <span class="meta">PASS 12 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="1.9208"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">1.92%</span> <strong>flexbox-align-items-baseline</strong> · baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 4.9</span><span class="chip">shift (0.0,1.8)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (0.0,1.8)px beyond page-origin calibration</div><div class="desc">align-items:baseline aligns the first text baselines of differently-sized items.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>4,31 → 120,32</td><td class="num">0.28</td><td>shift(0.0,1.0)</td><td>content shifted (0.0,1.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,29 → 122,30</td><td class="num">0.23</td><td>shift(0.0,0.8)</td><td>content shifted (0.0,0.8)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,69 → 122,70</td><td class="num">0.23</td><td>shift(0.0,0.8)</td><td>content shifted (0.0,0.8)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>4,67 → 120,68</td><td class="num">0.22</td><td>shift(0.0,0.8)</td><td>content shifted (0.0,0.8)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>242,20 → 362,21</td><td class="num">0.17</td><td>shift(-0.0,0.6)</td><td>content shifted (-0.0,0.6)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>242,72 → 362,73</td><td class="num">0.17</td><td>shift(0.0,0.6)</td><td>content shifted (0.0,0.6)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox align-items:baseline&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 537px 201px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  .wrap { padding: 20px; }
+<span class="ln">12</span>  /* align-items:baseline lines up the first text baseline of each item, so the
+<span class="ln">13</span>     differently-sized text sits on a common baseline. */
+<span class="ln">14</span>  .flex {
+<span class="ln">15</span>    display: flex;
+<span class="ln">16</span>    align-items: baseline;
+<span class="ln">17</span>    width: 420px;
+<span class="ln">18</span>    height: 160px;
+<span class="ln">19</span>    border: 2px solid #222222;
+<span class="ln">20</span>    background: #eeeeee;
+<span class="ln">21</span>    font-family: ParitySans;
+<span class="ln">22</span>  }
+<span class="ln">23</span>  .box {
+<span class="ln">24</span>    width: 120px;
+<span class="ln">25</span>    border: 2px solid #102a43;
+<span class="ln">26</span>    color: #ffffff;
+<span class="ln">27</span>    padding: 6px;
+<span class="ln">28</span>  }
+<span class="ln">29</span>  .a { background: #c0392b; font-size: 16px; }
+<span class="ln">30</span>  .b { background: #2980b9; font-size: 40px; }
+<span class="ln">31</span>  .c { background: #27ae60; font-size: 24px; }
+<span class="ln">32</span>&lt;/style&gt;
+<span class="ln">33</span>&lt;/head&gt;
+<span class="ln">34</span>&lt;body&gt;
+<span class="ln">35</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">36</span>    &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">37</span>      &lt;div class=&quot;box a&quot;&gt;Ag&lt;/div&gt;
+<span class="ln">38</span>      &lt;div class=&quot;box b&quot;&gt;Ag&lt;/div&gt;
+<span class="ln">39</span>      &lt;div class=&quot;box c&quot;&gt;Ag&lt;/div&gt;
+<span class="ln">40</span>    &lt;/div&gt;
+<span class="ln">41</span>  &lt;/div&gt;
+<span class="ln">42</span>&lt;/body&gt;
+<span class="ln">43</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.6683"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.67%</span> <strong>flexbox-align-items-first-baseline</strong> · first-baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 5.0</span><span class="chip">shift (0.0,1.9)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-first-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-first-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-first-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (0.0,1.9)px beyond page-origin calibration</div><div class="desc">align-items:first baseline parses as baseline alignment for differently sized text flex items; catches fallback to stretch or cross-start.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>45,2 → 72,62</td><td class="num">0.40</td><td>shift(0.1,0.5)</td><td>content shifted (0.1,0.5)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>55,35 → 60,36</td><td class="num">0.02</td><td>ΔRGB(-20,-11,-6) shift(0.0,0.9)</td><td>content shifted (0.0,0.9)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>17,38 → 30,39</td><td class="num">0.02</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>18,35 → 28,35</td><td class="num">0.01</td><td>shift(0.0,-0.3)</td><td>content shifted (0.0,-0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>55,34 → 60,34</td><td class="num">0.01</td><td>shift(0.0,1.9)</td><td>content shifted (0.0,1.9)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#1a9e3c">Extra</span></td><td>57,40 → 61,40</td><td class="num">0.01</td><td>shift(-0.2,0.3)</td><td>extra paint where Chrome is blank (0.0%)</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-first-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>  &lt;style&gt;
+<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
+<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>    body { padding: 20px; }
+<span class="ln">10</span>    .flex { display: flex; align-items: first baseline; width: 230px; height: 110px; border: 2px solid #222222; background: #eeeeee; }
+<span class="ln">11</span>    .item { padding: 0 8px; color: #ffffff; }
+<span class="ln">12</span>    .big { font-size: 40px; background: #c0392b; }
+<span class="ln">13</span>    .small { font-size: 16px; background: #2980b9; }
+<span class="ln">14</span>  &lt;/style&gt;
+<span class="ln">15</span>&lt;/head&gt;
+<span class="ln">16</span>&lt;body&gt;
+<span class="ln">17</span>  &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">18</span>    &lt;div class=&quot;item big&quot;&gt;A&lt;/div&gt;
+<span class="ln">19</span>    &lt;div class=&quot;item small&quot;&gt;B&lt;/div&gt;
+<span class="ln">20</span>  &lt;/div&gt;
+<span class="ln">21</span>&lt;/body&gt;
+<span class="ln">22</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.1335"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.13%</span> <strong>flexbox-baseline-empty-synthesis</strong> · baseline-empty-item<span class="chip cls" style="background:#d2691e">GeometryShift</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-baseline-empty-synthesis.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-baseline-empty-synthesis.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-baseline-empty-synthesis.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">align-items:baseline synthesizes a baseline for an empty fixed-size item rather than falling back to cross-start; catches baseline code that only handles text baselines.</div><details><summary>regions (2)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>109,24 → 179,24</td><td class="num">0.07</td><td>shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>109,56 → 179,56</td><td class="num">0.07</td><td>shift(0.0,0.3)</td><td>content shifted (0.0,0.3)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-baseline-empty-synthesis.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>  &lt;style&gt;
+<span class="ln">6</span>    @page { size: 340px 160px; margin: 0; }
+<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>    body { padding: 20px; }
+<span class="ln">10</span>    .flex { display: flex; align-items: baseline; width: 280px; height: 120px; background: #eeeeee; border: 2px solid #222222; }
+<span class="ln">11</span>    .text { font-size: 64px; line-height: 64px; background: #c0392b; color: #ffffff; padding: 0 6px; }
+<span class="ln">12</span>    .empty { width: 70px; height: 32px; background: #2980b9; margin-left: 12px; }
+<span class="ln">13</span>  &lt;/style&gt;
+<span class="ln">14</span>&lt;/head&gt;
+<span class="ln">15</span>&lt;body&gt;&lt;div class=&quot;flex&quot;&gt;&lt;div class=&quot;text&quot;&gt;Aa&lt;/div&gt;&lt;div class=&quot;empty&quot;&gt;&lt;/div&gt;&lt;/div&gt;&lt;/body&gt;
+<span class="ln">16</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="0.0281"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.03%</span> <strong>flexbox-align-items-last-baseline</strong> · last-baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-last-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-last-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-last-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted ~0.0px beyond page-origin calibration</div><div class="desc">align-items:last baseline aligns a one-line item&#39;s baseline with the last baseline of a two-line flex item; catches unsupported last-baseline parsing.</div><details><summary>regions (1)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>62,98 → 62,128</td><td class="num">0.03</td><td>shift(-0.3,0.0)</td><td>content shifted (-0.3,0.0)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-last-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>  &lt;style&gt;
+<span class="ln">6</span>    @page { size: 320px 200px; margin: 0; }
+<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>    body { padding: 20px; }
+<span class="ln">10</span>    .flex { display: flex; align-items: last baseline; width: 260px; height: 130px; border: 2px solid #222222; background: #eeeeee; }
+<span class="ln">11</span>    .multi, .one { font-size: 20px; line-height: 1.5; padding: 0 8px; color: #ffffff; }
+<span class="ln">12</span>    .multi { background: #c0392b; }
+<span class="ln">13</span>    .one { background: #2980b9; }
+<span class="ln">14</span>  &lt;/style&gt;
+<span class="ln">15</span>&lt;/head&gt;
+<span class="ln">16</span>&lt;body&gt;
+<span class="ln">17</span>  &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">18</span>    &lt;div class=&quot;multi&quot;&gt;A&lt;br&gt;B&lt;/div&gt;
+<span class="ln">19</span>    &lt;div class=&quot;one&quot;&gt;C&lt;/div&gt;
+<span class="ln">20</span>  &lt;/div&gt;
+<span class="ln">21</span>&lt;/body&gt;
+<span class="ln">22</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-center</strong> · center<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-center.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-center.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-center.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:center centers differently-tall boxes on the cross axis of a fixed-height row container.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-center.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox align-items:center&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 537px 241px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  .wrap { padding: 20px; }
+<span class="ln">12</span>  .flex {
+<span class="ln">13</span>    display: flex;
+<span class="ln">14</span>    align-items: center;
+<span class="ln">15</span>    width: 420px;
+<span class="ln">16</span>    height: 200px;
+<span class="ln">17</span>    border: 2px solid #222222;
+<span class="ln">18</span>    background: #eeeeee;
+<span class="ln">19</span>  }
+<span class="ln">20</span>  .box {
+<span class="ln">21</span>    width: 80px;
+<span class="ln">22</span>    border: 2px solid #102a43;
+<span class="ln">23</span>  }
+<span class="ln">24</span>  .a { background: #c0392b; height: 60px; }
+<span class="ln">25</span>  .b { background: #2980b9; height: 100px; }
+<span class="ln">26</span>  .c { background: #27ae60; height: 140px; }
+<span class="ln">27</span>&lt;/style&gt;
+<span class="ln">28</span>&lt;/head&gt;
+<span class="ln">29</span>&lt;body&gt;
+<span class="ln">30</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">31</span>    &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">32</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">33</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">34</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">35</span>    &lt;/div&gt;
+<span class="ln">36</span>  &lt;/div&gt;
+<span class="ln">37</span>&lt;/body&gt;
+<span class="ln">38</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-flex-end</strong> · flex-end<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-flex-end.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-flex-end.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-flex-end.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:flex-end anchors differently-tall items to the cross-end (bottom) edge.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-flex-end.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox align-items:flex-end&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 478px 201px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  .wrap { padding: 20px; }
+<span class="ln">12</span>  /* align-items:flex-end anchors items to the cross-end (bottom) edge. */
+<span class="ln">13</span>  .flex {
+<span class="ln">14</span>    display: flex;
+<span class="ln">15</span>    align-items: flex-end;
+<span class="ln">16</span>    width: 360px;
+<span class="ln">17</span>    height: 160px;
+<span class="ln">18</span>    border: 2px solid #222222;
+<span class="ln">19</span>    background: #eeeeee;
+<span class="ln">20</span>  }
+<span class="ln">21</span>  .box { width: 90px; border: 2px solid #102a43; }
+<span class="ln">22</span>  .a { background: #c0392b; height: 60px; }
+<span class="ln">23</span>  .b { background: #2980b9; height: 110px; }
+<span class="ln">24</span>  .c { background: #27ae60; height: 80px; }
+<span class="ln">25</span>&lt;/style&gt;
+<span class="ln">26</span>&lt;/head&gt;
+<span class="ln">27</span>&lt;body&gt;
+<span class="ln">28</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">29</span>    &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">30</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">31</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">32</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">33</span>    &lt;/div&gt;
+<span class="ln">34</span>  &lt;/div&gt;
+<span class="ln">35</span>&lt;/body&gt;
+<span class="ln">36</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-flex-start</strong> · flex-start<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-flex-start.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-flex-start.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-flex-start.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:flex-start anchors differently-tall items to the cross-start (top) edge.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-flex-start.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox align-items:flex-start&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 478px 201px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  .wrap { padding: 20px; }
+<span class="ln">12</span>  /* align-items:flex-start anchors differently-tall items to the cross-start
+<span class="ln">13</span>     (top) edge of a tall row container. */
+<span class="ln">14</span>  .flex {
+<span class="ln">15</span>    display: flex;
+<span class="ln">16</span>    align-items: flex-start;
+<span class="ln">17</span>    width: 360px;
+<span class="ln">18</span>    height: 160px;
+<span class="ln">19</span>    border: 2px solid #222222;
+<span class="ln">20</span>    background: #eeeeee;
+<span class="ln">21</span>  }
+<span class="ln">22</span>  .box { width: 90px; border: 2px solid #102a43; }
+<span class="ln">23</span>  .a { background: #c0392b; height: 60px; }
+<span class="ln">24</span>  .b { background: #2980b9; height: 110px; }
+<span class="ln">25</span>  .c { background: #27ae60; height: 80px; }
+<span class="ln">26</span>&lt;/style&gt;
+<span class="ln">27</span>&lt;/head&gt;
+<span class="ln">28</span>&lt;body&gt;
+<span class="ln">29</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">30</span>    &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">31</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">32</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">33</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">34</span>    &lt;/div&gt;
+<span class="ln">35</span>  &lt;/div&gt;
+<span class="ln">36</span>&lt;/body&gt;
+<span class="ln">37</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-min-height</strong> · min-height<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-min-height.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-min-height.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-min-height.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">A non-stretch (align-items:center) item honors its min-height and overflows the shorter container line symmetrically (css-flexbox-1 §9.4 step 11).</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-min-height.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox align-items:center honoring min-height&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 537px 200px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  .wrap { padding: 50px; }
+<span class="ln">12</span>  /* A non-stretch (align-items:center) item still honors its min-height
+<span class="ln">13</span>     (css-flexbox-1 §9.4 step 11). Item .a is floored to 160px and, being
+<span class="ln">14</span>     taller than the 100px container line, overflows it symmetrically; .b and
+<span class="ln">15</span>     .c keep their 60px height. */
+<span class="ln">16</span>  .flex {
+<span class="ln">17</span>    display: flex;
+<span class="ln">18</span>    align-items: center;
+<span class="ln">19</span>    width: 420px;
+<span class="ln">20</span>    height: 100px;
+<span class="ln">21</span>    border: 2px solid #222222;
+<span class="ln">22</span>    background: #eeeeee;
+<span class="ln">23</span>  }
+<span class="ln">24</span>  .box {
+<span class="ln">25</span>    width: 80px;
+<span class="ln">26</span>    height: 60px;
+<span class="ln">27</span>    border: 2px solid #102a43;
+<span class="ln">28</span>  }
+<span class="ln">29</span>  .a { background: #c0392b; min-height: 160px; }
+<span class="ln">30</span>  .b { background: #2980b9; }
+<span class="ln">31</span>  .c { background: #27ae60; }
+<span class="ln">32</span>&lt;/style&gt;
+<span class="ln">33</span>&lt;/head&gt;
+<span class="ln">34</span>&lt;body&gt;
+<span class="ln">35</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">36</span>    &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">37</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">38</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">39</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">40</span>    &lt;/div&gt;
+<span class="ln">41</span>  &lt;/div&gt;
+<span class="ln">42</span>&lt;/body&gt;
+<span class="ln">43</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-safe-center</strong> · safe-center<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-safe-center.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-safe-center.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-safe-center.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:safe center is equivalent to center when the item fits; catches parsers that reject the safe overflow-alignment prefix.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-safe-center.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>  &lt;style&gt;
+<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
+<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>    body { padding: 20px; }
+<span class="ln">10</span>    .flex { display: flex; align-items: safe center; width: 160px; height: 100px; border: 2px solid #222222; }
+<span class="ln">11</span>    .item { width: 70px; height: 40px; background: #c0392b; }
+<span class="ln">12</span>  &lt;/style&gt;
+<span class="ln">13</span>&lt;/head&gt;
+<span class="ln">14</span>&lt;body&gt;
+<span class="ln">15</span>  &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">16</span>    &lt;div class=&quot;item&quot;&gt;&lt;/div&gt;
+<span class="ln">17</span>  &lt;/div&gt;
+<span class="ln">18</span>&lt;/body&gt;
+<span class="ln">19</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-stretch</strong> · stretch<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-stretch.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-stretch.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-stretch.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:stretch expands auto-height boxes to fill the cross-axis height of the container.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-stretch.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox align-items:stretch&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 537px 221px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  .wrap { padding: 20px; }
+<span class="ln">12</span>  .flex {
+<span class="ln">13</span>    display: flex;
+<span class="ln">14</span>    align-items: stretch;
+<span class="ln">15</span>    width: 420px;
+<span class="ln">16</span>    height: 180px;
+<span class="ln">17</span>    border: 2px solid #222222;
+<span class="ln">18</span>    background: #eeeeee;
+<span class="ln">19</span>  }
+<span class="ln">20</span>  .box {
+<span class="ln">21</span>    width: 80px;
+<span class="ln">22</span>    border: 2px solid #102a43;
+<span class="ln">23</span>  }
+<span class="ln">24</span>  .a { background: #c0392b; }
+<span class="ln">25</span>  .b { background: #2980b9; }
+<span class="ln">26</span>  .c { background: #27ae60; }
+<span class="ln">27</span>&lt;/style&gt;
+<span class="ln">28</span>&lt;/head&gt;
+<span class="ln">29</span>&lt;body&gt;
+<span class="ln">30</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">31</span>    &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">32</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">33</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">34</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">35</span>    &lt;/div&gt;
+<span class="ln">36</span>  &lt;/div&gt;
+<span class="ln">37</span>&lt;/body&gt;
+<span class="ln">38</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-align-items-stretch-max-height</strong> · stretch-max-height<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-items-stretch-max-height.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-items-stretch-max-height.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-items-stretch-max-height.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:stretch clamps the used cross size to the item&#39;s max-height (css-flexbox-1 §9.4 step 11): the capped item stays top-anchored at its max-height while its siblings stretch to the full container height.</div><details open class="src"><summary>source · cases/flexbox/flexbox-align-items-stretch-max-height.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
+<span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>&lt;title&gt;flexbox align-items:stretch clamped by max-height&lt;/title&gt;
+<span class="ln">6</span>&lt;style&gt;
+<span class="ln">7</span>  @page { size: 537px 241px; margin: 0; }
+<span class="ln">8</span>  html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">9</span>  * { margin: 0; box-sizing: border-box; }
+<span class="ln">10</span>  html, body { background: #ffffff; }
+<span class="ln">11</span>  .wrap { padding: 20px; }
+<span class="ln">12</span>  /* align-items:stretch grows auto-height items to the line cross size, but the
+<span class="ln">13</span>     used cross size is clamped by the item&#39;s max-height (css-flexbox-1 §9.4
+<span class="ln">14</span>     step 11). Item .a is capped at 50px and stays top-anchored; .b and .c
+<span class="ln">15</span>     stretch to the full container content height. */
+<span class="ln">16</span>  .flex {
+<span class="ln">17</span>    display: flex;
+<span class="ln">18</span>    align-items: stretch;
+<span class="ln">19</span>    width: 420px;
+<span class="ln">20</span>    height: 200px;
+<span class="ln">21</span>    border: 2px solid #222222;
+<span class="ln">22</span>    background: #eeeeee;
+<span class="ln">23</span>  }
+<span class="ln">24</span>  .box {
+<span class="ln">25</span>    width: 80px;
+<span class="ln">26</span>    border: 2px solid #102a43;
+<span class="ln">27</span>  }
+<span class="ln">28</span>  .a { background: #c0392b; max-height: 50px; }
+<span class="ln">29</span>  .b { background: #2980b9; }
+<span class="ln">30</span>  .c { background: #27ae60; }
+<span class="ln">31</span>&lt;/style&gt;
+<span class="ln">32</span>&lt;/head&gt;
+<span class="ln">33</span>&lt;body&gt;
+<span class="ln">34</span>  &lt;div class=&quot;wrap&quot;&gt;
+<span class="ln">35</span>    &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">36</span>      &lt;div class=&quot;box a&quot;&gt;&lt;/div&gt;
+<span class="ln">37</span>      &lt;div class=&quot;box b&quot;&gt;&lt;/div&gt;
+<span class="ln">38</span>      &lt;div class=&quot;box c&quot;&gt;&lt;/div&gt;
+<span class="ln">39</span>    &lt;/div&gt;
+<span class="ln">40</span>  &lt;/div&gt;
+<span class="ln">41</span>&lt;/body&gt;
+<span class="ln">42</span>&lt;/html&gt;
+</code></pre></details></div><div class="card fxrow" data-status="PASS" data-class="AaOnly" data-diff="0"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">0.00%</span> <strong>flexbox-column-align-items-center</strong> · column-center<span class="chip cls" style="background:#9a6700">AaOnly</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-column-align-items-center.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-column-align-items-center.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-column-align-items-center.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> differences confined to glyph AA edges — measurement ceiling, not a bug</div><div class="desc">align-items:center in flex-direction:column centers fixed-width items on the horizontal cross axis; catches row-only cross-axis placement or unwanted stretch.</div><details open class="src"><summary>source · cases/flexbox/flexbox-column-align-items-center.html</summary><pre><code><span class="ln">1</span>&lt;!doctype html&gt;
+<span class="ln">2</span>&lt;html&gt;
+<span class="ln">3</span>&lt;head&gt;
+<span class="ln">4</span>  &lt;meta charset=&quot;utf-8&quot;&gt;
+<span class="ln">5</span>  &lt;style&gt;
+<span class="ln">6</span>    @page { size: 320px 180px; margin: 0; }
+<span class="ln">7</span>    html { font-family: ParitySans; line-height: 1.5; }
+<span class="ln">8</span>    * { margin: 0; box-sizing: border-box; }
+<span class="ln">9</span>    body { padding: 20px; }
+<span class="ln">10</span>    .flex { display: flex; flex-direction: column; align-items: center; width: 180px; height: 130px; border: 2px solid #222222; }
+<span class="ln">11</span>    .item { width: 60px; height: 45px; }
+<span class="ln">12</span>    .a { background: #c0392b; }
+<span class="ln">13</span>    .b { background: #2980b9; }
+<span class="ln">14</span>  &lt;/style&gt;
+<span class="ln">15</span>&lt;/head&gt;
+<span class="ln">16</span>&lt;body&gt;
+<span class="ln">17</span>  &lt;div class=&quot;flex&quot;&gt;
+<span class="ln">18</span>    &lt;div class=&quot;item a&quot;&gt;&lt;/div&gt;
+<span class="ln">19</span>    &lt;div class=&quot;item b&quot;&gt;&lt;/div&gt;
+<span class="ln">20</span>  &lt;/div&gt;
+<span class="ln">21</span>&lt;/body&gt;
+<span class="ln">22</span>&lt;/html&gt;
+</code></pre></details></div></div></section><section class="feat"><h2 id="feat-align-self">align-self — 100.00% <span class="meta">PASS 4 · PARTIAL 0 · FAIL 0</span><a class="top" href="index.html">all categories ↑</a></h2><div class="cards"><div class="card fxrow" data-status="PASS" data-class="GeometryShift" data-diff="2.9164"><div class="chead"><span class="badge" style="background:#1a7f37">PASS</span> <span class="num">2.92%</span> <strong>flexbox-align-self-baseline</strong> · baseline<span class="chip cls" style="background:#d2691e">GeometryShift</span><span class="chip">ΔE 55.5</span><span class="chip">shift (0.0,1.9)px</span></div><div class="quad"><figure><img loading="lazy" src="../refs/flexbox/flexbox-align-self-baseline.png" alt="Chrome ref"><figcaption>Chrome ref</figcaption></figure><figure><img loading="lazy" src="../out/flexbox/flexbox-align-self-baseline.png" alt="ironpress"><figcaption>ironpress</figcaption></figure><figure><img loading="lazy" src="flexbox/flexbox-align-self-baseline.diff.png" alt="classed diff"><figcaption>classed diff</figcaption></figure></div><div class="legend"><strong>diff colours:</strong><span class="lg"><span class="sw" style="background:rgb(230,0,230)"></span>Missing</span><span class="lg"><span class="sw" style="background:rgb(0,200,60)"></span>Extra</span><span class="lg"><span class="sw" style="background:rgb(40,80,255)"></span>ColorErr</span><span class="lg"><span class="sw" style="background:rgb(255,150,30)"></span>GeomShift</span><span class="lg"><span class="sw" style="background:rgb(255,240,150)"></span>AA edge</span><span class="lg"><span class="sw" style="background:rgb(245,245,245)"></span>Match</span><span class="note">AA / edge-jitter = cross-rasterizer measurement ceiling, not a bug.</span></div><div class="desc"><strong>why:</strong> content shifted (0.0,1.9)px beyond page-origin calibration</div><div class="desc">align-self:baseline opts a single item into baseline alignment within the line.</div><details><summary>regions (6)</summary><table class="regtbl"><thead><tr><th>class</th><th>bbox (CSS px)</th><th class="num">area%</th><th>magnitude</th><th>reason</th></tr></thead><tbody><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,62 → 122,66</td><td class="num">0.79</td><td>ΔRGB(-222,-196,-171) shift(0.0,1.3)</td><td>content shifted (0.0,1.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>2,21 → 122,25</td><td class="num">0.73</td><td>ΔRGB(46,181,171) shift(0.0,1.3)</td><td>content shifted (0.0,1.3)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>242,66 → 362,68</td><td class="num">0.29</td><td>shift(0.0,1.0)</td><td>content shifted (0.0,1.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>244,19 → 360,20</td><td class="num">0.28</td><td>shift(0.0,1.0)</td><td>content shifted (0.0,1.0)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>244,64 → 360,65</td><td class="num">0.28</td><td>shift(0.0,0.9)</td><td>content shifted (0.0,0.9)px beyond page-origin calibration</td></tr><tr><td><span class="chip cls" style="background:#d2691e">GeometryShift</span></td><td>242,17 → 362,18</td><td class="num">0.23</td><td>shift(-0.0,0.8)</td><td>content shifted (-0.0,0.8)px beyond page-origin calibration</td></tr></tbody></table></details><details open class="src"><summary>source · cases/flexbox/flexbox-align-self-baseline.html</summary><pre><code><span class="ln">1</span>&lt;!DOCTYPE html&gt;
 <span class="ln">2</span>&lt;html lang=&quot;en&quot;&gt;
 <span class="ln">3</span>&lt;head&gt;
 <span class="ln">4</span>&lt;meta charset=&quot;utf-8&quot;&gt;

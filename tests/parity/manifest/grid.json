@@ -621,7 +621,7 @@
     "description": "An inline-grid between two inline labels should remain on the same text line and occupy only its grid width; catches treating inline-grid as block or ignoring it still passes block-level display:grid fixtures.",
     "file": "cases/grid/grid-inline-grid-participates-in-inline-flow.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",

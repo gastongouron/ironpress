@@ -1151,7 +1151,7 @@
     "description": "display:inline-flex creates an inline-level flex container that shares the line with surrounding text; catches parsers that only recognize block-level display:flex.",
     "file": "cases/flexbox/flexbox-display-inline-flex.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
@@ -1236,7 +1236,7 @@
     "description": "align-items:baseline synthesizes a baseline for an empty fixed-size item rather than falling back to cross-start; catches baseline code that only handles text baselines.",
     "file": "cases/flexbox/flexbox-baseline-empty-synthesis.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-text-baseline"
