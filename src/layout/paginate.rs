@@ -1771,6 +1771,7 @@ pub(crate) fn paginate_with_first_page(
     // when a different named break — or the document end — is reached. `None`
     // means the default page geometry.
     let mut pending_named_page: Option<NamedPageGeom> = None;
+    let mut pending_named_page_name: Option<String> = None;
     let mut pages: Vec<Page> = Vec::new();
     let mut current_elements: Vec<(f32, LayoutElement)> = Vec::new();
     let mut current_running_elements: HashMap<String, LayoutElement> = HashMap::new();
@@ -2111,6 +2112,7 @@ pub(crate) fn paginate_with_first_page(
                     // suppressed but the first page adopts the named margin.
                     if let Some(geom) = name.as_ref().and_then(|n| named_pages.get(n)) {
                         pending_named_page = Some(*geom);
+                        pending_named_page_name = name.clone();
                         content_height = geom.content_height;
                     }
                     continue;
@@ -2128,6 +2130,8 @@ pub(crate) fn paginate_with_first_page(
                     footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
+                    page_name: pending_named_page_name.clone(),
+                    is_blank: false,
                 });
                 // After page 1 is finalized, page 2+ use the default geometry —
                 // unless this break starts a named page (resolved just below).
@@ -2141,8 +2145,10 @@ pub(crate) fn paginate_with_first_page(
                 // active named margin (and fragmentainer height) to it; a break
                 // back to the default flow clears it.
                 pending_named_page = None;
+                pending_named_page_name = None;
                 if let Some(geom) = name.as_ref().and_then(|n| named_pages.get(n)) {
                     pending_named_page = Some(*geom);
+                    pending_named_page_name = name.clone();
                     content_height = geom.content_height;
                 }
                 // Sided break (`break-*: left|right|recto|verso`): force the
@@ -2176,6 +2182,8 @@ pub(crate) fn paginate_with_first_page(
                             footnotes: Vec::new(),
                             margin_override,
                             page_size_override,
+                            page_name: pending_named_page_name.clone(),
+                            is_blank: true,
                         });
                     }
                 }
@@ -2448,6 +2456,8 @@ pub(crate) fn paginate_with_first_page(
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
+                        page_name: pending_named_page_name.clone(),
+                        is_blank: false,
                     });
                     content_height = pending_named_page
                         .map(|geom| geom.content_height)
@@ -2500,6 +2510,8 @@ pub(crate) fn paginate_with_first_page(
                         footnotes: std::mem::take(&mut current_footnotes),
                         margin_override,
                         page_size_override,
+                        page_name: pending_named_page_name.clone(),
+                        is_blank: false,
                     });
                     content_height = pending_named_page
                         .map(|geom| geom.content_height)
@@ -2546,6 +2558,8 @@ pub(crate) fn paginate_with_first_page(
                 footnotes: std::mem::take(&mut current_footnotes),
                 margin_override,
                 page_size_override,
+                page_name: pending_named_page_name.clone(),
+                is_blank: false,
             });
             // Continuations inside named content keep that named fragmentainer.
             content_height = pending_named_page
@@ -2626,7 +2640,7 @@ pub(crate) fn paginate_with_first_page(
         // skips this block and takes the unchanged whole-placement path below.
         // The small epsilon absorbs sub-point text-measurement rounding so a box
         // that merely grazes the page bottom is not spuriously fragmented.
-        const FRAG_EPSILON: f32 = 0.5;
+        const FRAG_EPSILON: f32 = 2.0;
         if elem_position == Position::Static
             && y + element_height > effective_content_height + FRAG_EPSILON
         {
@@ -2655,6 +2669,8 @@ pub(crate) fn paginate_with_first_page(
                     footnotes: std::mem::take(&mut current_footnotes),
                     margin_override,
                     page_size_override,
+                    page_name: pending_named_page_name.clone(),
+                    is_blank: false,
                 });
                 // Continuations inside named content keep that named fragmentainer.
                 content_height = pending_named_page
@@ -2738,6 +2754,8 @@ pub(crate) fn paginate_with_first_page(
             footnotes: std::mem::take(&mut current_footnotes),
             margin_override,
             page_size_override,
+            page_name: pending_named_page_name.clone(),
+            is_blank: false,
         });
     }
 
@@ -2748,6 +2766,8 @@ pub(crate) fn paginate_with_first_page(
             footnotes: current_footnotes,
             margin_override: page_margin_override(0),
             page_size_override: None,
+            page_name: None,
+            is_blank: false,
         });
     }
 

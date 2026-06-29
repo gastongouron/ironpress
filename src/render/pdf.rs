@@ -1215,6 +1215,46 @@ pub struct PageDecoration {
     pub margin_boxes: Vec<crate::parser::css::MarginBox>,
 }
 
+fn page_margin_box_applies(
+    selector: &crate::parser::css::PageSelector,
+    page: &Page,
+    page_num: usize,
+) -> bool {
+    use crate::parser::css::PageSelector;
+    match selector {
+        PageSelector::None => true,
+        PageSelector::First => page_num == 1,
+        PageSelector::Left => page_num % 2 == 0,
+        PageSelector::Right => page_num % 2 == 1,
+        PageSelector::Blank => page.is_blank,
+        PageSelector::Named(name) => page.page_name.as_deref() == Some(name.as_str()),
+    }
+}
+
+fn page_counter_value(
+    mb: &crate::parser::css::MarginBox,
+    page_num: usize,
+) -> usize {
+    if let Some(reset) = mb.page_counter_reset {
+        let step = mb.page_counter_increment.unwrap_or(1);
+        (reset + step * (page_num as i32 - 1)).max(0) as usize
+    } else if let Some(step) = mb.page_counter_increment {
+        (step * page_num as i32).max(0) as usize
+    } else {
+        page_num
+    }
+}
+
+fn page_selector_specificity(selector: &crate::parser::css::PageSelector) -> (u8, u8, u8) {
+    use crate::parser::css::PageSelector;
+    match selector {
+        PageSelector::None => (0, 0, 0),
+        PageSelector::Named(_) => (1, 0, 0),
+        PageSelector::First | PageSelector::Blank => (0, 1, 0),
+        PageSelector::Left | PageSelector::Right => (0, 0, 1),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_running_margin_element(
     content: &mut String,
@@ -1228,17 +1268,25 @@ fn render_running_margin_element(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) -> bool {
-    let LayoutElement::TextBlock { lines, .. } = element else {
+    let LayoutElement::TextBlock {
+        lines,
+        background_color,
+        block_width,
+        block_height,
+        ..
+    } = element
+    else {
         return false;
     };
     if lines.is_empty() {
         return false;
     }
 
-    let element_w = lines
+    let text_w_max = lines
         .iter()
         .map(|line| estimate_line_width_with_fonts(line, custom_fonts))
         .fold(0.0f32, f32::max);
+    let element_w = block_width.unwrap_or(text_w_max);
     let x = match align {
         crate::parser::css::MarginBoxAlign::Left => margin.left,
         crate::parser::css::MarginBoxAlign::Center => page_size.width / 2.0 - element_w / 2.0,
@@ -1248,7 +1296,16 @@ fn render_running_margin_element(
         crate::parser::css::MarginBoxBand::Top => page_size.height - margin.top / 2.0,
         crate::parser::css::MarginBoxBand::Bottom => margin.bottom / 2.0,
     };
-    let total_h: f32 = lines.iter().map(|line| line.height).sum();
+    let total_h: f32 = block_height.unwrap_or_else(|| lines.iter().map(|line| line.height).sum());
+    if let Some((r, g, b, a)) = background_color {
+        if *a > 0.0 {
+            content.push_str(&format!("{r} {g} {b} rg\n"));
+            content.push_str(&format!(
+                "{x} {} {element_w} {total_h} re f\n",
+                band_center_y - total_h / 2.0
+            ));
+        }
+    }
     let mut line_top = band_center_y + total_h / 2.0;
     for line in lines {
         let metrics = line_box_metrics(line, custom_fonts);
@@ -1855,15 +1912,46 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     // CSS `transform-origin: 50% 50%`).  The combined matrix is:
                     //   T(cx,cy) · M · T(-cx,-cy)
                     // which in PDF `cm` notation is a single 6-value matrix.
-                    let needs_transform = transform.is_some();
-                    if let Some(t) = transform {
+                    let projected_transform = transform.filter(is_projected_transform);
+                    if let Some(t) = projected_transform
+                        && lines.is_empty()
+                        && background_gradient.is_none()
+                        && background_radial_gradient.is_none()
+                        && background_conic_gradient.is_none()
+                        && background_svg.is_none()
+                        && *border_radius == 0.0
+                    {
+                        let (ox, oy) = transform_origin.resolve(render_width, border_box_h);
+                        let projected_origin = crate::style::computed::TransformOrigin {
+                            x_fraction: 0.0,
+                            x_length: ox,
+                            y_fraction: 0.0,
+                            y_length: oy,
+                            z_length: transform_origin.z_length,
+                        };
+                        render_projected_solid_box(
+                            &mut content,
+                            &t,
+                            projected_origin,
+                            block_x,
+                            block_bottom,
+                            render_width,
+                            border_box_h,
+                            *background_color,
+                            border,
+                        );
+                        continue;
+                    }
+
+                    let needs_transform = transform.is_some_and(|t| !is_projected_transform(&t));
+                    if let Some(t) = transform.filter(|t| !is_projected_transform(t)) {
                         // Resolve the transform-origin pivot (px from the box's
                         // top-left) into PDF bottom-up coordinates.
                         let (ox, oy) = transform_origin.resolve(render_width, border_box_h);
                         let cx = block_x + ox;
                         let cy = block_bottom + border_box_h - oy;
                         content.push_str("q\n");
-                        push_transform_cm(&mut content, t, cx, cy, render_width, border_box_h);
+                        push_transform_cm(&mut content, &t, cx, cy, render_width, border_box_h);
                     }
 
                     // CSS `overflow: hidden`/`clip`/`scroll`/`auto` clips at the
@@ -6078,17 +6166,37 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
             // left/center/right horizontal alignment. Side boxes (`@left-*`/
             // `@right-*`) have no horizontal band and are not rendered.
             for mb in &dec.margin_boxes {
-                use crate::parser::css::{MarginBoxAlign, MarginBoxBand, MarginContentToken};
-                let Some(band) = mb.position.band() else {
+                use crate::parser::css::MarginContentToken;
+                if !page_margin_box_applies(&mb.selector, page, page_num) {
                     continue;
-                };
+                }
+                if dec.margin_boxes.iter().any(|other| {
+                        other.position == mb.position
+                            && page_margin_box_applies(&other.selector, page, page_num)
+                            && page_selector_specificity(&other.selector)
+                                > page_selector_specificity(&mb.selector)
+                    })
+                {
+                    continue;
+                }
+                if matches!(mb.selector, crate::parser::css::PageSelector::None)
+                    && dec.margin_boxes.iter().any(|other| {
+                        other.position == mb.position
+                            && !matches!(other.selector, crate::parser::css::PageSelector::None)
+                            && page_margin_box_applies(&other.selector, page, page_num)
+                    })
+                {
+                    continue;
+                }
+                let band = mb.position.band();
                 let mut running_element: Option<&LayoutElement> = None;
                 let mut text = String::new();
+                let page_counter = page_counter_value(mb, page_num);
                 for tok in &mb.content {
                     match tok {
                         MarginContentToken::Literal(s) => text.push_str(s),
                         MarginContentToken::PageNumber => {
-                            text.push_str(&page_num.to_string());
+                            text.push_str(&page_counter.to_string());
                         }
                         MarginContentToken::PageCount => {
                             text.push_str(&total_pages.to_string());
@@ -6096,10 +6204,12 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         MarginContentToken::Element(name) => {
                             running_element = page.running_elements.get(name);
                         }
+                        MarginContentToken::NamedString(_, _) => {}
                     }
                 }
                 if let Some(element) = running_element {
-                    if render_running_margin_element(
+                    if let Some(band) = band
+                        && render_running_margin_element(
                         &mut content,
                         element,
                         mb.position.align(),
@@ -6117,22 +6227,106 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                 if text.is_empty() {
                     continue;
                 }
-                const MB_FONT_SIZE: f32 = 9.0;
+                let mb_font_size = mb.font_size.unwrap_or(12.0);
                 let text_w =
-                    crate::fonts::str_width(&text, MB_FONT_SIZE, &FontFamily::Helvetica, false);
-                let x = match mb.position.align() {
-                    MarginBoxAlign::Left => margin.left,
-                    MarginBoxAlign::Center => center_x - text_w / 2.0,
-                    MarginBoxAlign::Right => page_size.width - margin.right - text_w,
+                    crate::fonts::str_width(&text, mb_font_size, &FontFamily::Helvetica, false);
+                let (x, y) = match mb.position {
+                    crate::parser::css::MarginBoxPosition::TopLeftCorner => {
+                        (margin.left / 2.0 - text_w / 2.0, page_size.height - margin.top / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::TopLeft => {
+                        (margin.left, page_size.height - margin.top / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::TopCenter => {
+                        (center_x - text_w / 2.0, page_size.height - margin.top / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::TopRight => {
+                        (page_size.width - margin.right - text_w, page_size.height - margin.top / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::TopRightCorner => {
+                        (page_size.width - margin.right / 2.0 - text_w / 2.0, page_size.height - margin.top / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::BottomLeftCorner => {
+                        (margin.left / 2.0 - text_w / 2.0, margin.bottom / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::BottomLeft => (margin.left, margin.bottom / 2.0),
+                    crate::parser::css::MarginBoxPosition::BottomCenter => {
+                        (center_x - text_w / 2.0, margin.bottom / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::BottomRight => {
+                        (page_size.width - margin.right - text_w, margin.bottom / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::BottomRightCorner => {
+                        (page_size.width - margin.right / 2.0 - text_w / 2.0, margin.bottom / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::LeftTop => {
+                        (margin.left / 2.0 - text_w / 2.0, page_size.height - margin.top)
+                    }
+                    crate::parser::css::MarginBoxPosition::LeftMiddle => {
+                        (margin.left / 2.0 - text_w / 2.0, page_size.height / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::LeftBottom => {
+                        (margin.left / 2.0 - text_w / 2.0, margin.bottom)
+                    }
+                    crate::parser::css::MarginBoxPosition::RightTop => {
+                        (page_size.width - margin.right / 2.0 - text_w / 2.0, page_size.height - margin.top)
+                    }
+                    crate::parser::css::MarginBoxPosition::RightMiddle => {
+                        (page_size.width - margin.right / 2.0 - text_w / 2.0, page_size.height / 2.0)
+                    }
+                    crate::parser::css::MarginBoxPosition::RightBottom => {
+                        (page_size.width - margin.right / 2.0 - text_w / 2.0, margin.bottom)
+                    }
                 };
-                let y = match band {
-                    MarginBoxBand::Top => page_size.height - margin.top / 2.0,
-                    MarginBoxBand::Bottom => margin.bottom / 2.0,
-                };
+                if let Some(bg) = mb.background_color {
+                    let (r, g, b, a) = bg.to_f32_rgba();
+                    if a > 0.0 {
+                        let full_horizontal_slot = mb.font_size.is_some();
+                        let (bg_x, bg_y, bg_w, bg_h) = match mb.position {
+                            crate::parser::css::MarginBoxPosition::TopLeftCorner
+                            | crate::parser::css::MarginBoxPosition::TopLeft
+                            | crate::parser::css::MarginBoxPosition::TopCenter
+                            | crate::parser::css::MarginBoxPosition::TopRight
+                            | crate::parser::css::MarginBoxPosition::TopRightCorner
+                                if full_horizontal_slot =>
+                            {
+                                (0.0, page_size.height - margin.top, page_size.width, margin.top)
+                            }
+                            crate::parser::css::MarginBoxPosition::BottomLeftCorner
+                            | crate::parser::css::MarginBoxPosition::BottomLeft
+                            | crate::parser::css::MarginBoxPosition::BottomCenter
+                            | crate::parser::css::MarginBoxPosition::BottomRight
+                            | crate::parser::css::MarginBoxPosition::BottomRightCorner
+                                if full_horizontal_slot =>
+                            {
+                                (0.0, 0.0, page_size.width, margin.bottom)
+                            }
+                            crate::parser::css::MarginBoxPosition::LeftTop
+                            | crate::parser::css::MarginBoxPosition::LeftMiddle
+                            | crate::parser::css::MarginBoxPosition::LeftBottom => {
+                                (0.0, 0.0, margin.left, page_size.height)
+                            }
+                            crate::parser::css::MarginBoxPosition::RightTop
+                            | crate::parser::css::MarginBoxPosition::RightMiddle
+                            | crate::parser::css::MarginBoxPosition::RightBottom => {
+                                (page_size.width - margin.right, 0.0, margin.right, page_size.height)
+                            }
+                            _ => (
+                                x - 4.0,
+                                y - mb_font_size * 0.35,
+                                text_w + 8.0,
+                                mb_font_size * 1.2,
+                            ),
+                        };
+                        content.push_str(&format!("{r} {g} {b} rg\n"));
+                        content.push_str(&format!("{bg_x} {bg_y} {bg_w} {bg_h} re f\n"));
+                    }
+                }
+                let (r, g, b) = mb.color.unwrap_or(crate::types::Color::BLACK).to_f32_rgb();
                 let encoded = encode_pdf_text(&text);
                 content.push_str("BT\n");
-                content.push_str("/Helvetica 9 Tf\n");
-                content.push_str("0.4 0.4 0.4 rg\n");
+                content.push_str(&format!("/Helvetica {mb_font_size} Tf\n"));
+                content.push_str(&format!("{r} {g} {b} rg\n"));
                 content.push_str(&format!("{x} {y} Td\n"));
                 content.push_str(&format!("({encoded}) Tj\n"));
                 content.push_str("ET\n");
@@ -6509,6 +6703,113 @@ fn push_transform_cm(
         z(ne),
         z(nf)
     ));
+}
+
+fn is_projected_transform(t: &crate::style::computed::Transform) -> bool {
+    matches!(
+        t,
+        crate::style::computed::Transform::Matrix3d(_)
+            | crate::style::computed::Transform::Project3d { .. }
+    )
+}
+
+fn project_transform_point(
+    t: &crate::style::computed::Transform,
+    origin: crate::style::computed::TransformOrigin,
+    x: f32,
+    y: f32,
+) -> (f32, f32) {
+    let (matrix, parent_perspective) = match *t {
+        crate::style::computed::Transform::Matrix3d(m) => (m, None),
+        crate::style::computed::Transform::Project3d {
+            matrix,
+            perspective,
+            perspective_origin_x,
+            perspective_origin_y,
+        } => (
+            matrix,
+            Some((perspective, perspective_origin_x, perspective_origin_y)),
+        ),
+        _ => return (x, y),
+    };
+    let lx = x - origin.x_length;
+    let ly = y - origin.y_length;
+    let lz = -origin.z_length;
+    let tx = matrix[0] * lx + matrix[4] * ly + matrix[8] * lz + matrix[12];
+    let ty = matrix[1] * lx + matrix[5] * ly + matrix[9] * lz + matrix[13];
+    let tz = matrix[2] * lx + matrix[6] * ly + matrix[10] * lz + matrix[14];
+    let tw = matrix[3] * lx + matrix[7] * ly + matrix[11] * lz + matrix[15];
+    let mut px = if tw != 0.0 { tx / tw } else { tx } + origin.x_length;
+    let mut py = if tw != 0.0 { ty / tw } else { ty } + origin.y_length;
+    let pz = if tw != 0.0 { tz / tw } else { tz } + origin.z_length;
+    if let Some((d, ox, oy)) = parent_perspective {
+        let denom = d + pz;
+        if denom != 0.0 {
+            let scale = d / denom;
+            px = ox + (px - ox) * scale;
+            py = oy + (py - oy) * scale;
+        }
+    }
+    (px, py)
+}
+
+fn projected_quad_path(
+    t: &crate::style::computed::Transform,
+    origin: crate::style::computed::TransformOrigin,
+    x: f32,
+    top_y: f32,
+    w: f32,
+    h: f32,
+    inset: f32,
+) -> String {
+    let local = [
+        (inset, inset),
+        (w - inset, inset),
+        (w - inset, h - inset),
+        (inset, h - inset),
+    ];
+    let mut pts = [(0.0, 0.0); 4];
+    for (i, (lx, ly)) in local.into_iter().enumerate() {
+        let (px, py) = project_transform_point(t, origin, lx, ly);
+        pts[i] = (x + px, top_y - py);
+    }
+    format!(
+        "{} {} m\n{} {} l\n{} {} l\n{} {} l\nh\n",
+        pts[0].0, pts[0].1, pts[1].0, pts[1].1, pts[2].0, pts[2].1, pts[3].0, pts[3].1
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_projected_solid_box(
+    content: &mut String,
+    t: &crate::style::computed::Transform,
+    origin: crate::style::computed::TransformOrigin,
+    x: f32,
+    bottom_y: f32,
+    w: f32,
+    h: f32,
+    background_color: Option<(f32, f32, f32, f32)>,
+    border: &crate::layout::engine::LayoutBorder,
+) {
+    let top_y = bottom_y + h;
+    if let Some((r, g, b, _a)) = background_color {
+        content.push_str(&format!("{r} {g} {b} rg\n"));
+        content.push_str(&projected_quad_path(t, origin, x, top_y, w, h, 0.0));
+        content.push_str("f\n");
+    }
+    let bw = border
+        .top
+        .width
+        .max(border.right.width)
+        .max(border.bottom.width)
+        .max(border.left.width);
+    if bw > 0.0 {
+        let (r, g, b) = border.top.color;
+        content.push_str(&format!("{r} {g} {b} rg\n"));
+        content.push_str(&projected_quad_path(t, origin, x, top_y, w, h, 0.0));
+        content.push_str(&projected_quad_path(t, origin, x, top_y, w, h, bw));
+        content.push_str("f*\n");
+    }
 }
 
 /// Emit a circle/ellipse as four cubic Bézier arcs (PDF `c` operators) starting
@@ -7201,6 +7502,8 @@ fn render_container_children(
                 background_blend_mode: tb_bg_blend,
                 block_width: tb_block_width,
                 clip_rect: tb_clip_rect,
+                transform: tb_transform,
+                transform_origin: tb_transform_origin,
                 text_indent: tb_text_indent,
                 letter_spacing: tb_letter_spacing,
                 word_spacing: tb_word_spacing,
@@ -7222,6 +7525,37 @@ fn render_container_children(
                         abs_child_anchor(tb_containing_block, abs_origins, self_pad_origin);
                     let abs_x = anchor_x + offset_left;
                     let abs_y = anchor_y - offset_top;
+
+                    if let Some(t) = tb_transform
+                        && is_projected_transform(t)
+                        && lines.is_empty()
+                        && tb_bg_gradient.is_none()
+                        && tb_bg_radial.is_none()
+                        && tb_bg_conic.is_none()
+                        && tb_bg_svg.is_none()
+                        && *tb_border_radius == 0.0
+                    {
+                        let (ox, oy) = tb_transform_origin.resolve(abs_w, abs_h);
+                        let projected_origin = crate::style::computed::TransformOrigin {
+                            x_fraction: 0.0,
+                            x_length: ox,
+                            y_fraction: 0.0,
+                            y_length: oy,
+                            z_length: tb_transform_origin.z_length,
+                        };
+                        render_projected_solid_box(
+                            content,
+                            t,
+                            projected_origin,
+                            abs_x,
+                            abs_y - abs_h,
+                            abs_w,
+                            abs_h,
+                            *background_color,
+                            border,
+                        );
+                        continue;
+                    }
 
                     // `mix-blend-mode`: composite the whole element (background +
                     // text) with the backdrop. Scope the blend gstate to a
@@ -8137,6 +8471,43 @@ fn render_container_children(
                 // so the subtree (wrappers + children) is always emitted; the
                 // box's own decoration is gated on `nk_visible` further down.
                 {
+                    if let Some(t) = nk_transform
+                        && is_projected_transform(t)
+                        && nested_kids.is_empty()
+                        && background_gradient.is_none()
+                        && background_radial_gradient.is_none()
+                        && background_conic_gradient.is_none()
+                        && nk_bg_svg.is_none()
+                        && *cont_br == 0.0
+                    {
+                        let (ox, oy) = nk_transform_origin.resolve(nk_w, nk_total_h);
+                        let projected_origin = crate::style::computed::TransformOrigin {
+                            x_fraction: 0.0,
+                            x_length: ox,
+                            y_fraction: 0.0,
+                            y_length: oy,
+                            z_length: nk_transform_origin.z_length,
+                        };
+                        render_projected_solid_box(
+                            content,
+                            t,
+                            projected_origin,
+                            nk_x,
+                            nk_top_y - nk_total_h,
+                            nk_w,
+                            nk_total_h,
+                            *background_color,
+                            border,
+                        );
+                        if nk_is_float {
+                            prev_margin_bottom = 0.0;
+                        } else if !nk_is_abs {
+                            cursor_y -= nk_total_h + margin_bottom;
+                            y = cursor_y;
+                            prev_margin_bottom = *margin_bottom;
+                        }
+                        continue;
+                    }
                     // `mix-blend-mode`: composite the whole box (background + border +
                     // children) with the backdrop. Outermost q..Q so the blend gstate
                     // scopes the entire element and is restored by `Q` afterwards.
@@ -15428,6 +15799,8 @@ mod tests {
             footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
+            page_name: None,
+            is_blank: false,
         }
     }
 
@@ -15581,6 +15954,8 @@ mod tests {
             footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
+            page_name: None,
+            is_blank: false,
         }];
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);
@@ -15625,6 +16000,8 @@ mod tests {
             footnotes: Vec::new(),
             margin_override: None,
             page_size_override: None,
+            page_name: None,
+            is_blank: false,
         }];
         let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
         let content = String::from_utf8_lossy(&pdf);

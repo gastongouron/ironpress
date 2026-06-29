@@ -707,6 +707,15 @@ pub enum Transform {
     /// At render time the effective translation is
     /// `e + e_w*w + e_h*h` / `f + f_w*w + f_h*h`.
     Matrix(f32, f32, f32, f32, f32, f32),
+    /// CSS 3D matrix in the column-major order used by `matrix3d()`.
+    Matrix3d([f32; 16]),
+    /// Child 3D transform projected through a parent `perspective` property.
+    Project3d {
+        matrix: [f32; 16],
+        perspective: f32,
+        perspective_origin_x: f32,
+        perspective_origin_y: f32,
+    },
     /// Composed matrix carrying percentage-translate coefficients (see above).
     /// Only emitted when a chained transform contains a `%` translate; plain
     /// chains collapse to [`Transform::Matrix`].
@@ -749,6 +758,8 @@ impl Transform {
                 [1.0, 0.0, 0.0, 1.0, ex, ey]
             }
             Transform::Matrix(a, b, c, d, e, f) => [a, b, c, d, e, f],
+            Transform::Matrix3d(m) => matrix3d_affine_projection(&m),
+            Transform::Project3d { matrix, .. } => matrix3d_affine_projection(&matrix),
             Transform::MatrixPct {
                 a,
                 b,
@@ -765,6 +776,21 @@ impl Transform {
     }
 }
 
+fn matrix3d_affine_projection(m: &[f32; 16]) -> [f32; 6] {
+    let w0 = m[15];
+    if w0 == 0.0 {
+        return [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+    }
+    [
+        m[0] / w0,
+        m[1] / w0,
+        m[4] / w0,
+        m[5] / w0,
+        m[12] / w0,
+        m[13] / w0,
+    ]
+}
+
 /// CSS `transform-origin`: the pivot point for an element's transform.
 ///
 /// Each axis is `fraction * dimension + length`, where `fraction` resolves
@@ -776,6 +802,14 @@ pub struct TransformOrigin {
     pub x_length: f32,
     pub y_fraction: f32,
     pub y_length: f32,
+    pub z_length: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TransformBox {
+    #[default]
+    BorderBox,
+    ContentBox,
 }
 
 impl Default for TransformOrigin {
@@ -785,6 +819,7 @@ impl Default for TransformOrigin {
             x_length: 0.0,
             y_fraction: 0.5,
             y_length: 0.0,
+            z_length: 0.0,
         }
     }
 }
@@ -1510,6 +1545,11 @@ pub struct ComputedStyle {
     pub transform: Option<Transform>,
     /// CSS `transform-origin` pivot (defaults to the box centre).
     pub transform_origin: TransformOrigin,
+    /// CSS `perspective` property for projecting transformed children.
+    pub perspective: Option<f32>,
+    /// CSS `perspective-origin`, resolved against this box.
+    pub perspective_origin: TransformOrigin,
+    pub transform_box: TransformBox,
     pub clip_path: Option<ClipPath>,
     /// CSS `mask-image` source (css-masking-1 §3.1). `None` = `mask-image: none`.
     /// Only the primary (first) layer is modelled.
@@ -1862,6 +1902,9 @@ impl Default for ComputedStyle {
             visibility: Visibility::Visible,
             transform: None,
             transform_origin: TransformOrigin::default(),
+            perspective: None,
+            perspective_origin: TransformOrigin::default(),
+            transform_box: TransformBox::BorderBox,
             clip_path: None,
             mask_image: None,
             mask_mode: MaskMode::default(),
@@ -2106,6 +2149,9 @@ pub fn compute_style_with_context(
     style.overflow_y = Overflow::Visible;
     style.visibility = Visibility::Visible;
     style.transform = None;
+    style.perspective = None;
+    style.perspective_origin = TransformOrigin::default();
+    style.transform_box = TransformBox::BorderBox;
     style.clip_path = None;
     style.mask_image = None;
     style.mask_mode = MaskMode::default();
@@ -2431,6 +2477,9 @@ pub fn compute_pseudo_element_style(
     style.overflow_x = Overflow::Visible;
     style.overflow_y = Overflow::Visible;
     style.transform = None;
+    style.perspective = None;
+    style.perspective_origin = TransformOrigin::default();
+    style.transform_box = TransformBox::BorderBox;
     style.clip_path = None;
     style.mask_image = None;
     style.mask_mode = MaskMode::default();
@@ -2692,6 +2741,8 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
             style.overflow_y = default.overflow_y;
         }
         "transform" => style.transform = default.transform,
+        "perspective" => style.perspective = default.perspective,
+        "transform-box" => style.transform_box = default.transform_box,
         "box-shadow" => style.box_shadow = default.box_shadow.clone(),
         "flex-direction" => style.flex_direction = default.flex_direction,
         "justify-content" => style.justify_content = default.justify_content,
@@ -2879,6 +2930,8 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
             style.overflow_y = parent.overflow_y;
         }
         "transform" => style.transform = parent.transform,
+        "perspective" => style.perspective = parent.perspective,
+        "transform-box" => style.transform_box = parent.transform_box,
         "box-shadow" => style.box_shadow = parent.box_shadow.clone(),
         "flex-direction" => style.flex_direction = parent.flex_direction,
         "justify-content" => style.justify_content = parent.justify_content,
@@ -4375,9 +4428,58 @@ pub(crate) fn apply_style_map(style: &mut ComputedStyle, map: &StyleMap, parent:
         }
     }
 
+    let mut individual = Vec::new();
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "translate")
+        && k.trim() != "none"
+        && let Some(t) = parse_individual_translate(k, style.font_size, style.root_font_size)
+    {
+        individual.push(t);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "rotate")
+        && k.trim() != "none"
+        && let Some(t) = parse_individual_rotate(k)
+    {
+        individual.push(t);
+    }
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "scale")
+        && k.trim() != "none"
+        && let Some(t) = parse_individual_scale(k)
+    {
+        individual.push(t);
+    }
+    if !individual.is_empty() {
+        if let Some(t) = style.transform {
+            individual.push(t);
+        }
+        style.transform = compose_transforms(&individual);
+    }
+
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "transform-origin") {
         if let Some(origin) = parse_transform_origin(k, style.font_size, style.root_font_size) {
             style.transform_origin = origin;
+        }
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "transform-box") {
+        style.transform_box = match k.trim().to_ascii_lowercase().as_str() {
+            "content-box" => TransformBox::ContentBox,
+            _ => TransformBox::BorderBox,
+        };
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "perspective") {
+        let trimmed = k.trim();
+        style.perspective = if trimmed.eq_ignore_ascii_case("none") {
+            None
+        } else {
+            parse_transform_length(trimmed, style.font_size, style.root_font_size)
+                .and_then(|(v, is_pct)| (!is_pct && v > 0.0).then_some(v))
+        };
+    }
+
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "perspective-origin") {
+        if let Some(origin) = parse_transform_origin(k, style.font_size, style.root_font_size) {
+            style.perspective_origin = origin;
         }
     }
 
@@ -6359,10 +6461,20 @@ fn parse_single_transform(val: &str, font_size: f32, root_font_size: f32) -> Opt
         return Some(Transform::Rotate(parse_angle_deg(inner)?));
     }
 
-    // rotateZ() is the 2D z-axis rotation (== rotate()). rotateX/rotateY are 3D
-    // rotations about an in-plane axis; with no perspective they collapse to a
-    // horizontal/vertical scale-by-cos. We approximate them as that scale so the
-    // whole list is not discarded (Chrome renders the projected footprint).
+    if let Some(inner) = val
+        .strip_prefix("perspective(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let (d, is_pct) = len(inner.trim())?;
+        if is_pct || d <= 0.0 {
+            return None;
+        }
+        let mut m = matrix3d_identity();
+        m[11] = -1.0 / d;
+        return Some(Transform::Matrix3d(m));
+    }
+
+    // rotateZ() is the 2D z-axis rotation (== rotate()).
     if let Some(inner) = val
         .strip_prefix("rotateZ(")
         .and_then(|s| s.strip_suffix(')'))
@@ -6370,18 +6482,31 @@ fn parse_single_transform(val: &str, font_size: f32, root_font_size: f32) -> Opt
         return Some(Transform::Rotate(parse_angle_deg(inner)?));
     }
     if let Some(inner) = val
-        .strip_prefix("rotateX(")
-        .and_then(|s| s.strip_suffix(')'))
-    {
-        let rad = parse_angle_deg(inner)? * std::f32::consts::PI / 180.0;
-        return Some(Transform::Scale(1.0, rad.cos()));
-    }
-    if let Some(inner) = val
         .strip_prefix("rotateY(")
         .and_then(|s| s.strip_suffix(')'))
     {
-        let rad = parse_angle_deg(inner)? * std::f32::consts::PI / 180.0;
-        return Some(Transform::Scale(rad.cos(), 1.0));
+        return Some(Transform::Matrix3d(matrix3d_rotate_y(parse_angle_deg(inner)?)));
+    }
+
+    if let Some(inner) = val
+        .strip_prefix("rotateX(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        return Some(Transform::Matrix3d(matrix3d_rotate_x(parse_angle_deg(inner)?)));
+    }
+
+    if let Some(inner) = val
+        .strip_prefix("rotate3d(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let parts: Vec<&str> = inner.split(',').map(str::trim).collect();
+        if parts.len() == 4 {
+            let x = parts[0].parse::<f32>().ok()?;
+            let y = parts[1].parse::<f32>().ok()?;
+            let z = parts[2].parse::<f32>().ok()?;
+            let deg = parse_angle_deg(parts[3])?;
+            return Some(Transform::Matrix3d(matrix3d_rotate_axis(x, y, z, deg)?));
+        }
     }
 
     if let Some(inner) = val
@@ -6419,6 +6544,19 @@ fn parse_single_transform(val: &str, font_size: f32, root_font_size: f32) -> Opt
     }
 
     if let Some(inner) = val
+        .strip_prefix("scale3d(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let parts: Vec<&str> = inner.split(',').map(str::trim).collect();
+        if parts.len() == 3 {
+            let sx = parts[0].parse::<f32>().ok()?;
+            let sy = parts[1].parse::<f32>().ok()?;
+            let sz = parts[2].parse::<f32>().ok()?;
+            return Some(Transform::Matrix3d(matrix3d_scale(sx, sy, sz)));
+        }
+    }
+
+    if let Some(inner) = val
         .strip_prefix("translateX(")
         .and_then(|s| s.strip_suffix(')'))
     {
@@ -6446,6 +6584,33 @@ fn parse_single_transform(val: &str, font_size: f32, root_font_size: f32) -> Opt
         } else if parts.len() == 1 {
             let x = len(parts[0].trim())?;
             return Some(mk_translate(Some(x), None));
+        }
+    }
+
+    if let Some(inner) = val
+        .strip_prefix("translateZ(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let (z, z_pct) = len(inner.trim())?;
+        if z_pct {
+            return None;
+        }
+        return Some(Transform::Matrix3d(matrix3d_translate(0.0, 0.0, z)));
+    }
+
+    if let Some(inner) = val
+        .strip_prefix("translate3d(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let parts: Vec<&str> = inner.split(',').map(str::trim).collect();
+        if parts.len() == 3 {
+            let (x, x_pct) = len(parts[0])?;
+            let (y, y_pct) = len(parts[1])?;
+            let (z, z_pct) = len(parts[2])?;
+            if x_pct || y_pct || z_pct {
+                return None;
+            }
+            return Some(Transform::Matrix3d(matrix3d_translate(x, y, z)));
         }
     }
 
@@ -6498,7 +6663,119 @@ fn parse_single_transform(val: &str, font_size: f32, root_font_size: f32) -> Opt
         ));
     }
 
+    if let Some(inner) = val
+        .strip_prefix("matrix3d(")
+        .and_then(|s| s.strip_suffix(')'))
+    {
+        let toks: Vec<&str> = inner.split(',').collect();
+        if toks.len() != 16 {
+            return None;
+        }
+        let mut nums = [0.0_f32; 16];
+        for (i, tok) in toks.iter().enumerate() {
+            nums[i] = tok.trim().parse::<f32>().ok()?;
+        }
+        nums[12] *= 0.75;
+        nums[13] *= 0.75;
+        nums[14] *= 0.75;
+        return Some(Transform::Matrix3d(nums));
+    }
+
     None
+}
+
+fn matrix3d_identity() -> [f32; 16] {
+    [
+        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]
+}
+
+fn matrix3d_translate(tx: f32, ty: f32, tz: f32) -> [f32; 16] {
+    let mut m = matrix3d_identity();
+    m[12] = tx;
+    m[13] = ty;
+    m[14] = tz;
+    m
+}
+
+fn matrix3d_scale(sx: f32, sy: f32, sz: f32) -> [f32; 16] {
+    [
+        sx, 0.0, 0.0, 0.0, 0.0, sy, 0.0, 0.0, 0.0, 0.0, sz, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]
+}
+
+fn matrix3d_rotate_x(deg: f32) -> [f32; 16] {
+    let rad = deg * std::f32::consts::PI / 180.0;
+    let (c, s) = (rad.cos(), rad.sin());
+    [
+        1.0, 0.0, 0.0, 0.0, 0.0, c, s, 0.0, 0.0, -s, c, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]
+}
+
+fn matrix3d_rotate_y(deg: f32) -> [f32; 16] {
+    let rad = deg * std::f32::consts::PI / 180.0;
+    let (c, s) = (rad.cos(), rad.sin());
+    [
+        c, 0.0, -s, 0.0, 0.0, 1.0, 0.0, 0.0, s, 0.0, c, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]
+}
+
+fn matrix3d_rotate_axis(x: f32, y: f32, z: f32, deg: f32) -> Option<[f32; 16]> {
+    let len = (x * x + y * y + z * z).sqrt();
+    if len == 0.0 {
+        return None;
+    }
+    let (x, y, z) = (x / len, y / len, z / len);
+    let rad = deg * std::f32::consts::PI / 180.0;
+    let (c, s) = (rad.cos(), rad.sin());
+    let t = 1.0 - c;
+    Some([
+        t * x * x + c,
+        t * x * y + s * z,
+        t * x * z - s * y,
+        0.0,
+        t * x * y - s * z,
+        t * y * y + c,
+        t * y * z + s * x,
+        0.0,
+        t * x * z + s * y,
+        t * y * z - s * x,
+        t * z * z + c,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    ])
+}
+
+fn matrix3d_multiply(lhs: &[f32; 16], rhs: &[f32; 16]) -> [f32; 16] {
+    let mut out = [0.0; 16];
+    for col in 0..4 {
+        for row in 0..4 {
+            out[col * 4 + row] = lhs[row] * rhs[col * 4]
+                + lhs[4 + row] * rhs[col * 4 + 1]
+                + lhs[8 + row] * rhs[col * 4 + 2]
+                + lhs[12 + row] * rhs[col * 4 + 3];
+        }
+    }
+    out
+}
+
+fn transform_to_matrix3d(t: &Transform) -> [f32; 16] {
+    match *t {
+        Transform::Matrix3d(m) | Transform::Project3d { matrix: m, .. } => m,
+        Transform::Rotate(_)
+        | Transform::Scale(_, _)
+        | Transform::Translate { .. }
+        | Transform::Matrix(_, _, _, _, _, _)
+        | Transform::MatrixPct { .. } => {
+            let [a, b, c, d, e, f] = t.to_css_matrix(0.0, 0.0);
+            [
+                a, b, 0.0, 0.0, c, d, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, e, f, 0.0, 1.0,
+            ]
+        }
+    }
 }
 
 /// Extended affine matrix carrying percentage-translate coefficients:
@@ -6527,6 +6804,14 @@ fn transform_to_ext(t: &Transform) -> ExtMatrix {
             [1.0, 0.0, 0.0, 1.0, e, f, e_w, 0.0, 0.0, f_h]
         }
         Transform::Matrix(a, b, c, d, e, f) => [a, b, c, d, e, f, 0.0, 0.0, 0.0, 0.0],
+        Transform::Matrix3d(m) => {
+            let [a, b, c, d, e, f] = matrix3d_affine_projection(&m);
+            [a, b, c, d, e, f, 0.0, 0.0, 0.0, 0.0]
+        }
+        Transform::Project3d { matrix, .. } => {
+            let [a, b, c, d, e, f] = matrix3d_affine_projection(&matrix);
+            [a, b, c, d, e, f, 0.0, 0.0, 0.0, 0.0]
+        }
         Transform::MatrixPct {
             a,
             b,
@@ -6606,26 +6891,146 @@ fn parse_transform_origin(
     // swapped (e.g. `top left`). Otherwise the first token is the x axis.
     let is_vertical = |s: &str| s.eq_ignore_ascii_case("top") || s.eq_ignore_ascii_case("bottom");
     let is_horizontal = |s: &str| s.eq_ignore_ascii_case("left") || s.eq_ignore_ascii_case("right");
-    // A trailing third token is the z-offset (3D); ignored in 2D rendering.
-    let (x_tok, y_tok) = match tokens.as_slice() {
-        [a] => (*a, "center"),
-        [a, b] | [a, b, _] => {
+    let (x_tok, y_tok, z_tok) = match tokens.as_slice() {
+        [a] => (*a, "center", None),
+        [a, b] => {
             if is_vertical(a) || is_horizontal(b) {
-                (*b, *a) // swapped: vertical keyword came first
+                (*b, *a, None) // swapped: vertical keyword came first
             } else {
-                (*a, *b)
+                (*a, *b, None)
+            }
+        }
+        [a, b, z] => {
+            if is_vertical(a) || is_horizontal(b) {
+                (*b, *a, Some(*z))
+            } else {
+                (*a, *b, Some(*z))
             }
         }
         _ => return None,
     };
     let (x_fraction, x_length) = parse_origin_component(x_tok, font_size, root_font_size)?;
     let (y_fraction, y_length) = parse_origin_component(y_tok, font_size, root_font_size)?;
+    let z_length = z_tok
+        .and_then(|z| parse_abs_length_pt(z, font_size, root_font_size))
+        .unwrap_or(0.0);
     Some(TransformOrigin {
         x_fraction,
         x_length,
         y_fraction,
         y_length,
+        z_length,
     })
+}
+
+fn compose_transforms(transforms: &[Transform]) -> Option<Transform> {
+    if transforms.is_empty() {
+        return None;
+    }
+    if transforms
+        .iter()
+        .any(|t| matches!(t, Transform::Matrix3d(_) | Transform::Project3d { .. }))
+    {
+        let mut result = matrix3d_identity();
+        for t in transforms {
+            result = matrix3d_multiply(&result, &transform_to_matrix3d(t));
+        }
+        Some(Transform::Matrix3d(result))
+    } else {
+        let mut result: ExtMatrix = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        for t in transforms {
+            result = multiply_ext(&result, &transform_to_ext(t));
+        }
+        if result[6] == 0.0 && result[7] == 0.0 && result[8] == 0.0 && result[9] == 0.0 {
+            Some(Transform::Matrix(
+                result[0], result[1], result[2], result[3], result[4], result[5],
+            ))
+        } else {
+            Some(Transform::MatrixPct {
+                a: result[0],
+                b: result[1],
+                c: result[2],
+                d: result[3],
+                e: result[4],
+                f: result[5],
+                e_w: result[6],
+                e_h: result[7],
+                f_w: result[8],
+                f_h: result[9],
+            })
+        }
+    }
+}
+
+fn parse_individual_translate(
+    val: &str,
+    font_size: f32,
+    root_font_size: f32,
+) -> Option<Transform> {
+    let parts: Vec<&str> = val.split_whitespace().collect();
+    let len = |s: &str| parse_transform_length(s, font_size, root_font_size);
+    match parts.as_slice() {
+        [x] => {
+            let (tx, tx_pct) = len(x)?;
+            Some(Transform::Translate {
+                tx,
+                ty: 0.0,
+                tx_pct,
+                ty_pct: false,
+            })
+        }
+        [x, y] => {
+            let (tx, tx_pct) = len(x)?;
+            let (ty, ty_pct) = len(y)?;
+            Some(Transform::Translate {
+                tx,
+                ty,
+                tx_pct,
+                ty_pct,
+            })
+        }
+        [x, y, z] => {
+            let (tx, tx_pct) = len(x)?;
+            let (ty, ty_pct) = len(y)?;
+            let (tz, tz_pct) = len(z)?;
+            if tx_pct || ty_pct || tz_pct {
+                return None;
+            }
+            Some(Transform::Matrix3d(matrix3d_translate(tx, ty, tz)))
+        }
+        _ => None,
+    }
+}
+
+fn parse_individual_rotate(val: &str) -> Option<Transform> {
+    let parts: Vec<&str> = val.split_whitespace().collect();
+    match parts.as_slice() {
+        [angle] => Some(Transform::Rotate(parse_angle_deg(angle)?)),
+        [x, y, z, angle] => Some(Transform::Matrix3d(matrix3d_rotate_axis(
+            x.parse().ok()?,
+            y.parse().ok()?,
+            z.parse().ok()?,
+            parse_angle_deg(angle)?,
+        )?)),
+        _ => None,
+    }
+}
+
+fn parse_individual_scale(val: &str) -> Option<Transform> {
+    let parts: Vec<&str> = val.split_whitespace().collect();
+    match parts.as_slice() {
+        [s] => {
+            let s = s.parse().ok()?;
+            Some(Transform::Scale(s, s))
+        }
+        [sx, sy] => Some(Transform::Scale(sx.parse().ok()?, sy.parse().ok()?)),
+        [sx, sy, sz] => Some(Transform::Matrix3d(matrix3d_scale(
+            sx.parse().ok()?,
+            sy.parse().ok()?,
+            sz.parse().ok()?,
+        ))),
+        _ => None,
+    }
 }
 
 fn parse_transform(val: &str, font_size: f32, root_font_size: f32) -> Option<Transform> {
@@ -6658,6 +7063,22 @@ fn parse_transform(val: &str, font_size: f32, root_font_size: f32) -> Option<Tra
         return parse_single_transform(functions[0], font_size, root_font_size);
     }
 
+    let parsed: Vec<Transform> = functions
+        .iter()
+        .map(|func| parse_single_transform(func, font_size, root_font_size))
+        .collect::<Option<Vec<_>>>()?;
+
+    if parsed
+        .iter()
+        .any(|t| matches!(t, Transform::Matrix3d(_) | Transform::Project3d { .. }))
+    {
+        let mut result = matrix3d_identity();
+        for t in &parsed {
+            result = matrix3d_multiply(&result, &transform_to_matrix3d(t));
+        }
+        return Some(Transform::Matrix3d(result));
+    }
+
     // Multiple transforms — compose into a single matrix.
     // CSS: transforms are applied right-to-left, but the `cm` operator
     // in PDF also post-multiplies, so we compose left-to-right here and
@@ -6665,9 +7086,8 @@ fn parse_transform(val: &str, font_size: f32, root_font_size: f32) -> Option<Tra
     // Percentage `translate()` components are carried as box-size coefficients
     // (see `ExtMatrix`) so they survive composition without the box size.
     let mut result: ExtMatrix = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-    for func in &functions {
-        let t = parse_single_transform(func, font_size, root_font_size)?;
-        result = multiply_ext(&result, &transform_to_ext(&t));
+    for t in &parsed {
+        result = multiply_ext(&result, &transform_to_ext(t));
     }
 
     // Collapse to the cheaper `Matrix` form when no percentage translate is

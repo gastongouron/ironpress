@@ -5,8 +5,9 @@ use crate::style::computed::{
     AlignItems, BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat,
     BackgroundSize, BorderCollapse, BorderSides, BoxShadow, Clear, ComputedStyle, ConicGradient,
     Display, Float, FontFamily, FontStyle, FontWeight, LinearGradient, ListStylePosition,
-    ListStyleType, Overflow, Position, RadialGradient, TextAlign, Transform, TransformOrigin,
-    VerticalAlign, Visibility, compute_pseudo_element_style, compute_style_with_context,
+    ListStyleType, Overflow, Position, RadialGradient, TextAlign, Transform, TransformBox,
+    TransformOrigin, VerticalAlign, Visibility, compute_pseudo_element_style,
+    compute_style_with_context,
 };
 use crate::types::{Margin, PageSize};
 use std::collections::HashMap;
@@ -989,6 +990,10 @@ pub struct Page {
     /// Per-page physical page-size override selected by a named `@page` rule.
     /// `None` means the document-global page size is used.
     pub page_size_override: Option<PageSize>,
+    /// Active named page, when selected by the CSS `page` property.
+    pub page_name: Option<String>,
+    /// True for an inserted blank page from a forced left/right/recto/verso break.
+    pub is_blank: bool,
 }
 
 /// Lay out the DOM nodes into pages.
@@ -1553,7 +1558,7 @@ fn build_running_element(
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
             transform: None,
-            transform_origin: style.transform_origin,
+            transform_origin: effective_transform_origin(style),
             border_radius: style.border_radius,
             border_radii: style.border_radii,
             border_radii_y: style.border_radii_y,
@@ -1580,6 +1585,48 @@ fn build_running_element(
             heading_level: heading_level(el.tag),
         }),
     })
+}
+
+fn effective_transform(
+    style: &ComputedStyle,
+    parent_style: &ComputedStyle,
+    ctx: &LayoutContext,
+) -> Option<Transform> {
+    let transform = style.transform?;
+    if let (Transform::Matrix3d(matrix), Some(perspective)) = (transform, parent_style.perspective)
+    {
+        let parent_w = parent_style.width.unwrap_or(ctx.parent.content_width);
+        let parent_h = parent_style
+            .height
+            .or(ctx.parent.content_height)
+            .unwrap_or(ctx.viewport.height);
+        let (px, py) = parent_style.perspective_origin.resolve(parent_w, parent_h);
+        let child_x = style.left.unwrap_or(0.0);
+        let child_y = style.top.unwrap_or(0.0);
+        Some(Transform::Project3d {
+            matrix,
+            perspective,
+            perspective_origin_x: px - child_x,
+            perspective_origin_y: py - child_y,
+        })
+    } else {
+        Some(transform)
+    }
+}
+
+fn effective_transform_origin(style: &ComputedStyle) -> TransformOrigin {
+    let mut origin = style.transform_origin;
+    // Minimal `transform-box: content-box` support for block boxes: shift a
+    // top-left content-box origin to the border-box coordinate space used by
+    // layout/rendering. Other origins keep the border-box default.
+    if origin.x_fraction == 0.0
+        && origin.y_fraction == 0.0
+        && style.transform_box == TransformBox::ContentBox
+    {
+        origin.x_length += style.border.left.width + style.padding.left;
+        origin.y_length += style.border.top.width + style.padding.top;
+    }
+    origin
 }
 
 /// Flatten a list of DOM nodes into layout elements.
@@ -2318,8 +2365,8 @@ pub(crate) fn flatten_element(
             box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
-            transform: style.transform,
-            transform_origin: style.transform_origin,
+            transform: effective_transform(&style, parent_style, ctx),
+            transform_origin: effective_transform_origin(&style),
             border_radius: style.border_radius,
             border_radii: style.border_radii,
             border_radii_y: style.border_radii_y,
@@ -2486,8 +2533,8 @@ pub(crate) fn flatten_element(
             box_shadow: style.box_shadow.clone(),
             visible: style.visibility == Visibility::Visible,
             clip_rect: None,
-            transform: style.transform,
-            transform_origin: style.transform_origin,
+            transform: effective_transform(&style, parent_style, ctx),
+            transform_origin: effective_transform_origin(&style),
             border_radius: style.border_radius,
             border_radii: style.border_radii,
             border_radii_y: style.border_radii_y,
@@ -3124,8 +3171,8 @@ pub(crate) fn flatten_element(
                 box_shadow: style.box_shadow.clone(),
                 visible: style.visibility == Visibility::Visible,
                 clip_rect: None,
-                transform: style.transform,
-                transform_origin: style.transform_origin,
+                transform: effective_transform(&style, parent_style, ctx),
+                transform_origin: effective_transform_origin(&style),
                 border_radius: style.border_radius,
                 border_radii: style.border_radii,
                 border_radii_y: style.border_radii_y,

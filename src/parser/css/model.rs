@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use crate::parser::dom::ElementNode;
 use crate::types::Color;
 
@@ -386,6 +385,8 @@ pub enum MarginContentToken {
     PageCount,
     /// `element(name)` — resolved to a captured `position: running(name)` box.
     Element(String),
+    /// `string(name, page-policy)` — resolved from `string-set` captures.
+    NamedString(String, Option<String>),
 }
 
 /// A parsed page-margin box (CSS Paged Media 3 §5): its position and the
@@ -394,6 +395,13 @@ pub enum MarginContentToken {
 pub struct MarginBox {
     /// The box position within the page margin area.
     pub position: MarginBoxPosition,
+    /// The page selector that owns this margin box.
+    pub selector: PageSelector,
+    pub page_counter_reset: Option<i32>,
+    pub page_counter_increment: Option<i32>,
+    pub color: Option<Color>,
+    pub background_color: Option<Color>,
+    pub font_size: Option<f32>,
     /// The `content` value parsed into a token list (literals + counters).
     pub content: Vec<MarginContentToken>,
 }
@@ -417,6 +425,10 @@ pub struct PageRule {
     pub margin_bottom: Option<f32>,
     /// Left margin in points (if specified).
     pub margin_left: Option<f32>,
+    /// `counter-reset: page <n>` in the page context.
+    pub page_counter_reset: Option<i32>,
+    /// `counter-increment: page <n>` in the page context.
+    pub page_counter_increment: Option<i32>,
     /// The raw declaration block of the `@page` rule (the text between `{` and
     /// `}`), retained verbatim so a CSS-aware parser can later extract the
     /// `@page` background (CSS Paged Media 3 §3.1 bleed-area background). Kept

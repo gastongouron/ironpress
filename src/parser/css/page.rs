@@ -1,5 +1,5 @@
 use super::{
-    FontFaceRule, MarginBox, MarginBoxPosition, MarginContentToken, PageRule, PageSelector,
+    CssValue, FontFaceRule, MarginBox, MarginBoxPosition, MarginContentToken, PageRule, PageSelector,
     extract_url_path,
     model::{FontFaceSource, UnicodeRange},
     preprocess_media_queries,
@@ -325,24 +325,40 @@ pub(crate) fn extract_page_rules(css: &str) -> Vec<PageRule> {
         // Media 3 §5) out FIRST so they do not corrupt the `;`-split + lowercase
         // pass in `parse_page_declarations`; `clean_decls` is the size/margin/
         // background remainder.
-        let (margin_boxes, clean_decls) = split_margin_boxes(declarations);
+        let selector = classify_page_selector(selector_text);
+        let (mut margin_boxes, clean_decls) = split_margin_boxes(declarations);
         match parse_page_declarations(&clean_decls) {
             Some(mut rule) => {
-                rule.selector = classify_page_selector(selector_text);
-                rule.margin_boxes = margin_boxes;
+                rule.selector = selector.clone();
+                for mb in &mut margin_boxes {
+                    mb.selector = selector.clone();
+                    mb.page_counter_reset = rule.page_counter_reset;
+                    mb.page_counter_increment = rule.page_counter_increment;
+                }
+                rule.margin_boxes = margin_boxes.clone();
                 page_rules.push(rule);
             }
             None if !margin_boxes.is_empty() => {
+                for mb in &mut margin_boxes {
+                    mb.selector = selector.clone();
+                }
                 // A `@page` rule carrying ONLY margin boxes (no size/margin/
                 // background) must still be retained so the running header/footer
                 // is not dropped.
                 page_rules.push(PageRule {
-                    selector: classify_page_selector(selector_text),
-                    margin_boxes,
+                    selector: selector.clone(),
+                    margin_boxes: margin_boxes.clone(),
                     ..PageRule::default()
                 });
             }
             None => {}
+        }
+        if selector != PageSelector::None && !margin_boxes.is_empty() {
+            page_rules.push(PageRule {
+                selector: PageSelector::None,
+                margin_boxes,
+                ..PageRule::default()
+            });
         }
         remaining = &after_brace[close_pos + 1..];
     }
@@ -484,8 +500,19 @@ pub(crate) fn split_margin_boxes(decls: &str) -> (Vec<MarginBox>, String) {
             break;
         };
         if let Some(position) = MarginBoxPosition::from_at_name(name) {
-            if let Some(content) = extract_content_decl(&body_region[..close]) {
-                boxes.push(MarginBox { position, content });
+            if let Some((content, color, background_color, font_size)) =
+                extract_margin_box_decls(&body_region[..close])
+            {
+                boxes.push(MarginBox {
+                    position,
+                    selector: PageSelector::None,
+                    page_counter_reset: None,
+                    page_counter_increment: None,
+                    color,
+                    background_color,
+                    font_size,
+                    content,
+                });
             }
         }
         // Resume after the at-rule's matching `}` (drop it from `leftover`).
@@ -494,16 +521,41 @@ pub(crate) fn split_margin_boxes(decls: &str) -> (Vec<MarginBox>, String) {
     (boxes, leftover)
 }
 
-/// Find a `content:` declaration inside a margin-box body and parse its value.
-fn extract_content_decl(body: &str) -> Option<Vec<MarginContentToken>> {
+type ParsedMarginBoxDecls = (
+    Vec<MarginContentToken>,
+    Option<crate::types::Color>,
+    Option<crate::types::Color>,
+    Option<f32>,
+);
+
+/// Find supported declarations inside a margin-box body and parse them.
+fn extract_margin_box_decls(body: &str) -> Option<ParsedMarginBoxDecls> {
+    let mut content = None;
+    let mut color = None;
+    let mut background_color = None;
+    let mut font_size = None;
     for decl in body.split(';') {
         if let Some((prop, val)) = decl.split_once(':') {
-            if prop.trim().eq_ignore_ascii_case("content") {
-                return Some(parse_margin_box_content(val.trim()));
+            let prop = prop.trim();
+            let val = val.trim();
+            if prop.eq_ignore_ascii_case("content") {
+                content = Some(parse_margin_box_content(val));
+            } else if prop.eq_ignore_ascii_case("color") {
+                if let Some(CssValue::Color(c)) = super::parse_color(val) {
+                    color = Some(c);
+                }
+            } else if prop.eq_ignore_ascii_case("background")
+                || prop.eq_ignore_ascii_case("background-color")
+            {
+                if let Some(CssValue::Color(c)) = super::parse_color(val) {
+                    background_color = Some(c);
+                }
+            } else if prop.eq_ignore_ascii_case("font-size") {
+                font_size = parse_page_length(val);
             }
         }
     }
-    None
+    content.map(|content| (content, color, background_color, font_size))
 }
 
 /// Parse a margin-box `content` value (CSS Paged Media 3 §5.3) into a token
@@ -549,9 +601,24 @@ pub(crate) fn parse_margin_box_content(val: &str) -> Vec<MarginContentToken> {
             }
         } else if rest.len() >= 8 && rest[..8].eq_ignore_ascii_case("element(") {
             if let Some(end) = rest.find(')') {
-                let name = rest[8..end].trim();
+                let name = rest[8..end].split(',').next().unwrap_or("").trim();
                 if !name.is_empty() {
                     tokens.push(MarginContentToken::Element(name.to_ascii_lowercase()));
+                }
+                i += end + 1;
+            } else {
+                break;
+            }
+        } else if rest.len() >= 7 && rest[..7].eq_ignore_ascii_case("string(") {
+            if let Some(end) = rest.find(')') {
+                let mut parts = rest[7..end].split(',').map(str::trim);
+                let name = parts.next().unwrap_or("");
+                let policy = parts.next().filter(|s| !s.is_empty());
+                if !name.is_empty() {
+                    tokens.push(MarginContentToken::NamedString(
+                        name.to_ascii_lowercase(),
+                        policy.map(|s| s.to_ascii_lowercase()),
+                    ));
                 }
                 i += end + 1;
             } else {
@@ -691,6 +758,18 @@ pub(crate) fn parse_page_declarations(decls: &str) -> Option<PageRule> {
             p if p.starts_with("background") => {
                 has_any = true;
             }
+            "counter-reset" => {
+                if let Some(value) = parse_page_counter_op(val, "page") {
+                    rule.page_counter_reset = Some(value);
+                    has_any = true;
+                }
+            }
+            "counter-increment" => {
+                if let Some(value) = parse_page_counter_op(val, "page") {
+                    rule.page_counter_increment = Some(value);
+                    has_any = true;
+                }
+            }
             _ => {}
         }
     }
@@ -701,6 +780,15 @@ pub(crate) fn parse_page_declarations(decls: &str) -> Option<PageRule> {
     } else {
         None
     }
+}
+
+fn parse_page_counter_op(val: &str, name: &str) -> Option<i32> {
+    let mut parts = val.split_whitespace();
+    let counter = parts.next()?.trim().to_ascii_lowercase();
+    if counter != name {
+        return None;
+    }
+    Some(parts.next().and_then(|v| v.parse().ok()).unwrap_or(0))
 }
 
 /// Parse a page size value. Returns (width, height) in points.
