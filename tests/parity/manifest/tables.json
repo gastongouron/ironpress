@@ -1242,7 +1242,7 @@
     "description": "The second table row declares break-before:page on a short page and should begin page two. Catches wrong implementations where a paginator that only honors breaks on block elements inside cells keeps both rows on page one.",
     "file": "cases/tables/tables-break-before-row.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -1259,7 +1259,7 @@
     "description": "A tbody with two rows has break-inside:avoid and fits on a fresh page but not in the remaining space after a header row. Catches wrong implementations where a row-only paginator splits the tbody after its first row even though moving the group would preserve it.",
     "file": "cases/tables/tables-break-inside-avoid-tbody.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"

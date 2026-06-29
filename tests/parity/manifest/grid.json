@@ -415,7 +415,7 @@
     "description": "repeat(auto-fill, 80px) resolves the repetition count from a 500px grid and keeps five cells on one row; catches hard-coded three-repeat expansion.",
     "file": "cases/grid/grid-repeat-auto-fill-count.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -432,7 +432,7 @@
     "description": "repeat(auto-fit, minmax(80px, 1fr)) collapses the unused repeated track and stretches four occupied columns; catches auto-fill or fixed-repeat behavior.",
     "file": "cases/grid/grid-repeat-auto-fit-collapse.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow"
@@ -449,7 +449,7 @@
     "description": "fit-content(120px) clamps the first track while a 1fr track takes the remainder; catches implementations that approximate fit-content as auto.",
     "file": "cases/grid/grid-fit-content-track.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -467,7 +467,7 @@
     "description": "min-content and max-content columns size the same breakable text differently; catches engines that map both intrinsic keywords to auto.",
     "file": "cases/grid/grid-intrinsic-track-keywords.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-block-flow",
@@ -750,7 +750,7 @@
     "description": "Percentage row tracks in a definite-height grid should resolve from the grid content-box height; catches a row resolver that only handles fixed lengths passes column percentage tests.",
     "file": "cases/grid/grid-percentage-rows-resolve-against-grid-height.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -768,7 +768,7 @@
     "description": "An auto row containing wrapping text should grow to the full multi-line content height before the next row starts; catches measuring only one line of text passes empty or single-line auto row fixtures.",
     "file": "cases/grid/grid-auto-rows-use-wrapped-content-height.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -787,7 +787,7 @@
     "description": "A wide item spanning two auto columns should contribute to both tracks instead of leaving them at zero or only measuring single-span items; catches measuring only items with col_span == 1 passes simple auto-column fixtures.",
     "file": "cases/grid/grid-spanning-item-contributes-to-auto-columns.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -824,7 +824,7 @@
     "description": "A minmax(auto,1fr) column with a long unbreakable word should not shrink below the word's min-content contribution; catches coercing auto minimum to zero passes simple flexible minmax tests.",
     "file": "cases/grid/grid-minmax-auto-minimum-honors-content.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",
@@ -843,7 +843,7 @@
     "description": "A minmax(min-content,max-content) track should size from intrinsic text constraints, not as a generic auto track; catches mapping intrinsic keywords to auto passes round-1 min-content/max-content tests only when not nested in minmax.",
     "file": "cases/grid/grid-minmax-intrinsic-endpoints-are-distinct.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "oracle": "chrome",
     "depends_on": [
       "probe-fill-box",

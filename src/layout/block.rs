@@ -1,4 +1,4 @@
-use crate::parser::css::{AncestorInfo, SelectorContext};
+use crate::parser::css::{AncestorInfo, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
@@ -15,8 +15,8 @@ use super::engine::{
 };
 use super::helpers::{
     BackgroundFields, append_pseudo_inline_run, aspect_ratio_height,
-    authored_intrinsic_width_keyword, build_pseudo_block, collects_as_inline_text,
-    has_background_paint, heading_level,
+    authored_intrinsic_width_keyword, authored_pseudo_keyword_property, build_pseudo_block,
+    collects_as_inline_text, has_background_paint, heading_level,
     patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
     recurses_as_layout_child, resolve_abs_containing_block, resolve_content_box_height,
     resolve_inset, resolve_padding_box_height, resolve_relative_offsets,
@@ -389,6 +389,26 @@ pub(crate) fn layout_block_element(
     let after_is_abs = after_style
         .as_ref()
         .is_some_and(|s| s.position == Position::Absolute);
+    let pseudo_selector_ctx = SelectorContext {
+        ancestors: ancestors.to_vec(),
+        ..SelectorContext::default()
+    };
+    let before_is_list_item = authored_pseudo_keyword_property(
+        el,
+        env.rules,
+        &pseudo_selector_ctx,
+        PseudoElement::Before,
+        "display",
+    )
+    .is_some_and(|value| value.split_whitespace().any(|part| part == "list-item"));
+    let after_is_list_item = authored_pseudo_keyword_property(
+        el,
+        env.rules,
+        &pseudo_selector_ctx,
+        PseudoElement::After,
+        "display",
+    )
+    .is_some_and(|value| value.split_whitespace().any(|part| part == "list-item"));
     // A non-absolute block-level `::before`/`::after` (e.g.
     // `.card::before { content: "HEADER"; display: block }`) is an in-flow
     // block-level child of the originating element: it must be laid out INSIDE
@@ -434,6 +454,7 @@ pub(crate) fn layout_block_element(
                 None,
                 positioned_depth,
                 env.counter_state,
+                before_is_list_item,
             ));
         }
     }
@@ -1668,6 +1689,7 @@ pub(crate) fn layout_block_element(
                     None,
                     positioned_depth,
                     env.counter_state,
+                    before_is_list_item,
                 ));
             }
         }
@@ -1795,6 +1817,7 @@ pub(crate) fn layout_block_element(
                     None,
                     positioned_depth,
                     env.counter_state,
+                    after_is_list_item,
                 ));
             }
         }
@@ -1920,6 +1943,7 @@ pub(crate) fn layout_block_element(
                     cb_info,
                     positioned_depth,
                     env.counter_state,
+                    before_is_list_item,
                 );
                 if abs_origin_shift > 0.0
                     && let LayoutElement::TextBlock { offset_top, .. } = &mut pseudo
@@ -1940,6 +1964,7 @@ pub(crate) fn layout_block_element(
                     cb_info,
                     positioned_depth,
                     env.counter_state,
+                    after_is_list_item,
                 );
                 if abs_origin_shift > 0.0
                     && let LayoutElement::TextBlock { offset_top, .. } = &mut pseudo

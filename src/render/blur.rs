@@ -104,6 +104,7 @@ pub(crate) fn blur_shadow_rect(
     width_pt: f32,
     height_pt: f32,
     radius_pt: f32,
+    radius_y_pt: f32,
     blur_pt: f32,
     color: (f32, f32, f32, f32),
     filter_dpi: f32,
@@ -133,26 +134,26 @@ pub(crate) fn blur_shadow_rect(
     paint.set_color(color8(r, g, b, a));
     paint.anti_alias = true;
 
-    let radius_px = (radius_pt / PT_PER_PX * s)
-        .min(box_w as f32 / 2.0)
-        .min(box_h as f32 / 2.0);
-    if radius_px > 0.5 {
+    let radius_px = (radius_pt / PT_PER_PX * s).min(box_w as f32 / 2.0);
+    let radius_y_px = (radius_y_pt / PT_PER_PX * s).min(box_h as f32 / 2.0);
+    if radius_px > 0.5 || radius_y_px > 0.5 {
         let mut pb = tiny_skia::PathBuilder::new();
-        let rr = radius_px;
+        let rx = radius_px;
+        let ry = radius_y_px;
         let (x0, y0) = (ox, oy);
         let (x1, y1) = (ox + box_w as f32, oy + box_h as f32);
         // Rounded rect via 4 quadratic-ish corners (use cubic-free arcs through
         // line + quad approximations is unnecessary; tiny-skia has no arc API,
         // so approximate corners with quad beziers — visually exact after blur).
-        pb.move_to(x0 + rr, y0);
-        pb.line_to(x1 - rr, y0);
-        pb.quad_to(x1, y0, x1, y0 + rr);
-        pb.line_to(x1, y1 - rr);
-        pb.quad_to(x1, y1, x1 - rr, y1);
-        pb.line_to(x0 + rr, y1);
-        pb.quad_to(x0, y1, x0, y1 - rr);
-        pb.line_to(x0, y0 + rr);
-        pb.quad_to(x0, y0, x0 + rr, y0);
+        pb.move_to(x0 + rx, y0);
+        pb.line_to(x1 - rx, y0);
+        pb.quad_to(x1, y0, x1, y0 + ry);
+        pb.line_to(x1, y1 - ry);
+        pb.quad_to(x1, y1, x1 - rx, y1);
+        pb.line_to(x0 + rx, y1);
+        pb.quad_to(x0, y1, x0, y1 - ry);
+        pb.line_to(x0, y0 + ry);
+        pb.quad_to(x0, y0, x0 + rx, y0);
         pb.close();
         if let Some(path) = pb.finish() {
             pixmap.fill_path(

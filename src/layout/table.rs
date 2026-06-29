@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use super::context::{LayoutContext, LayoutEnv, ParentBox, Viewport};
 use super::engine::{
     collects_as_inline_text, flatten_element, has_background_paint, recurses_as_layout_child,
-    CounterState, LayoutBorder, LayoutBorderSide, LayoutElement, TextLine, TextRun,
+    CounterState, LayoutBorder, LayoutBorderSide, LayoutElement, PageBreakSide, TextLine, TextRun,
 };
 use super::paginate::{estimate_element_height, table_row_content_width};
 use super::text::{
@@ -668,6 +668,15 @@ fn table_section_key(el: Option<&ElementNode>, child_index: usize) -> usize {
     el.map_or(child_index, |section| {
         section as *const ElementNode as usize
     })
+}
+
+fn table_section_is_first_header_group(
+    section: Option<&ElementNode>,
+    first_header_section_key: Option<usize>,
+    child_index: usize,
+) -> bool {
+    section.is_some_and(|section| section.tag == HtmlTag::Thead)
+        && first_header_section_key == Some(table_section_key(section, child_index))
 }
 
 fn distribute_extra_width(widths: &mut [f32], extra: f32) {
@@ -1403,6 +1412,17 @@ pub(crate) fn flatten_table(
         row_section_sibling_counts = apply(&order, &row_section_sibling_counts);
     }
 
+    // CSS Tables defines only the first table-header-group as a repeated header;
+    // later header-group boxes are treated as ordinary row groups.
+    let first_header_section_key = row_section_elements
+        .iter()
+        .zip(&row_section_child_indices)
+        .find_map(|(section, child_index)| {
+            section
+                .filter(|section| section.tag == HtmlTag::Thead)
+                .map(|section| table_section_key(Some(section), *child_index))
+        });
+
     let caption_style_for_layout = caption.map(|(caption_el, caption_child_idx)| {
         compute_caption_style(
             caption_el,
@@ -2049,6 +2069,18 @@ pub(crate) fn flatten_table(
         let section_collapsed = row_parent_style
             .as_ref()
             .is_some_and(|section_style| section_style.visibility == Visibility::Collapse);
+        let section_starts_here = row_section_indices[row_idx] == 0;
+        let section_break_before = section_starts_here
+            && row_parent_style
+                .as_ref()
+                .is_some_and(|section_style| section_style.page_break_before);
+        let section_break_side = row_parent_style
+            .as_ref()
+            .map(|section_style| PageBreakSide::from(section_style.break_before))
+            .unwrap_or_default();
+        let section_break_inside_avoid = row_parent_style
+            .as_ref()
+            .is_some_and(|section_style| section_style.break_inside_avoid);
         let row_selector_ctx = SelectorContext {
             ancestors: row_ancestors,
             child_index: section_idx,
@@ -2072,6 +2104,16 @@ pub(crate) fn flatten_table(
         if row_style.display == Display::None {
             continue;
         }
+        if row_style.page_break_before || section_break_before {
+            let side = if row_style.page_break_before {
+                PageBreakSide::from(row_style.break_before)
+            } else {
+                section_break_side
+            };
+            output.push(LayoutElement::PageBreak(side, None));
+        }
+        let row_break_inside_avoid =
+            style.break_inside_avoid || section_break_inside_avoid || row_style.break_inside_avoid;
         if row_style.visibility == Visibility::Collapse || section_collapsed {
             // CSS Tables collapses the row's content and height, but in the
             // collapsed-border model the row's own cell borders still
@@ -2178,7 +2220,7 @@ pub(crate) fn flatten_table(
                         is_header: false,
                         is_footer: false,
                         offset_left: style.margin.left.max(0.0) + table_grid_inset,
-                        break_inside_avoid: style.break_inside_avoid,
+                        break_inside_avoid: row_break_inside_avoid,
                     });
                 }
             } else {
@@ -2203,9 +2245,11 @@ pub(crate) fn flatten_table(
                 if style.direction_rtl {
                     row_col_widths.reverse();
                 }
-                let is_header = row_section_elements[row_idx]
-                    .map(|s| s.tag == HtmlTag::Thead)
-                    .unwrap_or(false);
+                let is_header = table_section_is_first_header_group(
+                    row_section_elements[row_idx],
+                    first_header_section_key,
+                    row_section_child_indices[row_idx],
+                );
                 let is_footer = row_section_elements[row_idx]
                     .map(|s| s.tag == HtmlTag::Tfoot)
                     .unwrap_or(false);
@@ -2224,7 +2268,7 @@ pub(crate) fn flatten_table(
                     is_header,
                     is_footer,
                     offset_left: style.margin.left.max(0.0) + table_grid_inset,
-                    break_inside_avoid: style.break_inside_avoid,
+                    break_inside_avoid: row_break_inside_avoid,
                 });
             }
             continue;
@@ -2543,9 +2587,11 @@ pub(crate) fn flatten_table(
                 row_cells.reverse();
                 row_col_widths.reverse();
             }
-            let is_header = row_section_elements[row_idx]
-                .map(|s| s.tag == HtmlTag::Thead)
-                .unwrap_or(false);
+            let is_header = table_section_is_first_header_group(
+                row_section_elements[row_idx],
+                first_header_section_key,
+                row_section_child_indices[row_idx],
+            );
             let is_footer = row_section_elements[row_idx]
                 .map(|s| s.tag == HtmlTag::Tfoot)
                 .unwrap_or(false);
@@ -2574,7 +2620,7 @@ pub(crate) fn flatten_table(
                 // the table box) right from the containing block's content edge,
                 // mirroring how `margin_top` shifts it down.
                 offset_left: style.margin.left.max(0.0) + table_grid_inset,
-                break_inside_avoid: style.break_inside_avoid,
+                break_inside_avoid: row_break_inside_avoid,
             });
         }
     }

@@ -1,4 +1,4 @@
-use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
+use crate::parser::css::{AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
@@ -17,6 +17,55 @@ pub(crate) fn authored_keyword_property(
     property: &str,
 ) -> Option<String> {
     match authored_property_value(el, rules, ancestors, selector_ctx, property)? {
+        CssValue::Keyword(value) => Some(value.to_ascii_lowercase()),
+        _ => None,
+    }
+}
+
+pub(crate) fn authored_pseudo_keyword_property(
+    el: &ElementNode,
+    rules: &[CssRule],
+    selector_ctx: &SelectorContext,
+    pseudo: PseudoElement,
+    property: &str,
+) -> Option<String> {
+    let mut winner: Option<(bool, u8, u32, usize, CssValue)> = None;
+    let classes = el.class_list();
+    let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
+
+    for (source_idx, rule) in rules.iter().enumerate() {
+        if rule.pseudo_element != Some(pseudo) {
+            continue;
+        }
+        if !crate::parser::css::selector_matches_with_context(
+            &rule.selector,
+            el.tag_name(),
+            &class_refs,
+            el.id(),
+            &el.attributes,
+            selector_ctx,
+        ) {
+            continue;
+        }
+        let Some(value) = rule.declarations.get(property) else {
+            continue;
+        };
+        let candidate = (
+            rule.declarations.is_important(property),
+            0,
+            crate::parser::css::specificity(&rule.selector),
+            source_idx,
+            value.clone(),
+        );
+        if winner
+            .as_ref()
+            .is_none_or(|current| candidate_key(&candidate) >= candidate_key(current))
+        {
+            winner = Some(candidate);
+        }
+    }
+
+    match winner.map(|(_, _, _, _, value)| value)? {
         CssValue::Keyword(value) => Some(value.to_ascii_lowercase()),
         _ => None,
     }
@@ -96,7 +145,10 @@ pub(crate) fn selector_context_from_ancestors<'a>(
     ancestors: &[AncestorInfo<'a>],
     el: &'a ElementNode,
 ) -> SelectorContext<'a> {
-    if let Some(current) = ancestors.last().filter(|info| std::ptr::eq(info.element, el)) {
+    if let Some(current) = ancestors
+        .last()
+        .filter(|info| std::ptr::eq(info.element, el))
+    {
         SelectorContext {
             ancestors: ancestors[..ancestors.len().saturating_sub(1)].to_vec(),
             child_index: current.child_index,
@@ -1070,6 +1122,8 @@ pub(crate) fn apply_first_line_style(
             continue;
         }
         run.color = fl.color.to_f32_rgb();
+        run.text = apply_text_transform(&run.text, fl.text_transform);
+        run.font_size = fl.font_size;
         run.bold = fl.font_weight == FontWeight::Bold;
         run.italic = fl.font_style == FontStyle::Italic;
         run.underline = fl.text_decoration_underline;
@@ -1078,6 +1132,20 @@ pub(crate) fn apply_first_line_style(
         run.font_family = family.clone();
         run.background_color = fl.background_color.map(|c| c.to_f32_rgba());
         run.line_height_factor = line_height;
+    }
+    let first_height = first
+        .runs
+        .iter()
+        .map(|run| {
+            if let Some(inline) = run.inline_box.as_deref() {
+                inline.height
+            } else {
+                run.font_size * run.line_height_factor
+            }
+        })
+        .fold(0.0f32, f32::max);
+    if first_height > 0.0 {
+        first.height = first_height;
     }
 }
 
@@ -1380,6 +1448,7 @@ pub(crate) fn push_block_pseudo(
                 pseudo_cb,
                 positioned_ancestor_depth,
                 counter_state,
+                false,
             ));
         }
     }
@@ -1387,6 +1456,7 @@ pub(crate) fn push_block_pseudo(
 
 /// Build a `LayoutElement::TextBlock` for a `::before` or `::after` pseudo-element
 /// that uses `display: block` (or `position: absolute`).
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_pseudo_block(
     pseudo_style: &ComputedStyle,
     el: &ElementNode,
@@ -1395,6 +1465,7 @@ pub(crate) fn build_pseudo_block(
     containing_block_info: Option<ContainingBlock>,
     positioned_ancestor_depth: usize,
     counter_state: &CounterState,
+    list_item_marker: bool,
 ) -> LayoutElement {
     let content_text = resolve_content_with_quotes(
         &pseudo_style.content,
@@ -1433,6 +1504,73 @@ pub(crate) fn build_pseudo_block(
     let mut lines = Vec::new();
     let mut runs = Vec::new();
     if !content_text.is_empty() {
+        if list_item_marker {
+            let marker_text = format_list_marker(pseudo_style.list_style_type, 0);
+            let marker_font = resolve_style_font_family(pseudo_style, fonts);
+            let symbol_advance = estimate_word_width(
+                &marker_text,
+                pseudo_style.font_size,
+                &marker_font,
+                pseudo_style.font_weight == FontWeight::Bold,
+                pseudo_style.font_style == FontStyle::Italic,
+                fonts,
+            );
+            if let Some(mut bullet) = build_list_bullet_marker(
+                pseudo_style.list_style_type,
+                pseudo_style.font_size,
+                pseudo_style.color.to_f32_rgb(),
+                symbol_advance,
+            ) {
+                bullet.margin_right = (symbol_advance - bullet.margin_left - bullet.width).max(0.0);
+                runs.push(TextRun {
+                    text: String::new(),
+                    font_size: pseudo_style.font_size,
+                    bold: false,
+                    italic: false,
+                    underline: false,
+                    line_through: false,
+                    overline: false,
+                    decoration_color: None,
+                    color: pseudo_style.color.to_f32_rgb(),
+                    link_url: None,
+                    font_family: marker_font.clone(),
+                    background_color: None,
+                    padding: (0.0, 0.0),
+                    border_radius: 0.0,
+                    line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
+                    inline_box: Some(Box::new(bullet)),
+                    disable_ligatures: false,
+                    vertical_align: VerticalAlign::Baseline,
+                    text_shadow: pseudo_style.text_shadow.clone(),
+                });
+            } else {
+                push_text_run_with_fallback(
+                    TextRun {
+                        text: marker_text,
+                        font_size: pseudo_style.font_size,
+                        bold: pseudo_style.font_weight == FontWeight::Bold,
+                        italic: pseudo_style.font_style == FontStyle::Italic,
+                        underline: false,
+                        line_through: false,
+                        overline: false,
+                        decoration_color: None,
+                        color: pseudo_style.color.to_f32_rgb(),
+                        link_url: None,
+                        font_family: marker_font,
+                        background_color: None,
+                        padding: (0.0, 0.0),
+                        border_radius: 0.0,
+                        line_height_factor: resolved_line_height_factor(pseudo_style, fonts),
+                        inline_box: None,
+                        disable_ligatures: false,
+                        vertical_align: VerticalAlign::Baseline,
+                        text_shadow: pseudo_style.text_shadow.clone(),
+                    },
+                    &mut runs,
+                    fonts,
+                );
+            }
+        }
         push_text_run_with_fallback(
             TextRun {
                 text: content_text,
@@ -2140,8 +2278,12 @@ pub(crate) fn resolve_relative_offsets(
 ) -> (f32, f32) {
     let top = resolve_inset(style.top, style.percentage_insets.top, height_reference)
         .or_else(|| {
-            resolve_inset(style.bottom, style.percentage_insets.bottom, height_reference)
-                .map(|bottom| -bottom)
+            resolve_inset(
+                style.bottom,
+                style.percentage_insets.bottom,
+                height_reference,
+            )
+            .map(|bottom| -bottom)
         })
         .unwrap_or(0.0);
     let left = resolve_inset(style.left, style.percentage_insets.left, width_reference)

@@ -1446,6 +1446,7 @@ pub(crate) fn paginate_with_first_page(
     let mut in_table = false;
     #[allow(unused_assignments)]
     let mut in_table_body = false;
+    let mut previous_table_row_break_inside_avoid = false;
 
     // Content height of a table row = the tallest cell's content height (the same
     // measure used for the repeated-header advance), excluding row margins.
@@ -1481,6 +1482,7 @@ pub(crate) fn paginate_with_first_page(
         // Track <thead>/<tfoot> rows so we can repeat them across page breaks
         // that occur mid-table: the header at each page top, the footer at each
         // page bottom. Reset when leaving the table.
+        let mut suppress_repeated_headers_after_break = false;
         match &element {
             LayoutElement::TableRow {
                 is_header,
@@ -1488,6 +1490,9 @@ pub(crate) fn paginate_with_first_page(
                 break_inside_avoid,
                 ..
             } => {
+                let table_avoid_group_starts_here =
+                    *break_inside_avoid && !previous_table_row_break_inside_avoid;
+                previous_table_row_break_inside_avoid = *break_inside_avoid;
                 if !in_table {
                     // First row of a new table: scan ahead over the rest of this
                     // table's contiguous row run to collect the `<tfoot>` rows
@@ -1534,6 +1539,27 @@ pub(crate) fn paginate_with_first_page(
                         }
                     }
                 }
+                if table_keep_break_height.is_none() && table_avoid_group_starts_here {
+                    let mut total = estimate_element_height(&element);
+                    for w in work.iter() {
+                        match w {
+                            LayoutElement::TableRow {
+                                break_inside_avoid: true,
+                                is_header: w_header,
+                                is_footer: w_footer,
+                                ..
+                            } if *w_header == *is_header && *w_footer == *is_footer => {
+                                total += estimate_element_height(w);
+                            }
+                            _ => break,
+                        }
+                    }
+                    if total <= content_height {
+                        table_keep_break_height = Some(total);
+                    }
+                }
+                suppress_repeated_headers_after_break =
+                    table_keep_break_height.is_some() && table_avoid_group_starts_here;
                 // A header is collected for repetition; a footer is handled by the
                 // running-footer placement (below / at page breaks); only ordinary
                 // body rows count as "table body" for fit/break decisions.
@@ -1548,6 +1574,7 @@ pub(crate) fn paginate_with_first_page(
                 pending_footer_height = 0.0;
                 in_table = false;
                 in_table_body = false;
+                previous_table_row_break_inside_avoid = false;
             }
         }
 
@@ -2115,7 +2142,10 @@ pub(crate) fn paginate_with_first_page(
             );
             // Re-emit <thead> rows at the top of the new page if we're in the
             // middle of a table body (Chrome parity for long tables).
-            if in_table_body && !pending_table_headers.is_empty() {
+            if in_table_body
+                && !suppress_repeated_headers_after_break
+                && !pending_table_headers.is_empty()
+            {
                 for header in pending_table_headers.clone() {
                     let header_h = match &header {
                         LayoutElement::TableRow { cells, .. } => cells

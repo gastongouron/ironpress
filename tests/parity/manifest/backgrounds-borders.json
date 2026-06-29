@@ -640,7 +640,7 @@
       "box-shadow",
       "border-radius"
     ],
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",
@@ -991,7 +991,7 @@
     "description": "background-blend-mode:multiply blends a blue image layer with a yellow background color; catches engines that paint the image normally.",
     "file": "cases/backgrounds-borders/background-blend-mode-multiply-image.html",
     "kind": "feature",
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-image-render",
@@ -1152,7 +1152,7 @@
       "box-shadow",
       "border-radius"
     ],
-    "expected_support": "unsupported",
+    "expected_support": "implemented",
     "depends_on": [
       "probe-fill-box",
       "probe-border-box",

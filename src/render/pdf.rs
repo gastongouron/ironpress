@@ -970,6 +970,49 @@ fn begin_blend_mode(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn finish_transparency_group(
+    content: &mut String,
+    group_start: usize,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+    page_ext_gstates: &mut Vec<(String, f32)>,
+    opacity: f32,
+    blend_mode: crate::style::computed::BlendMode,
+    bbox_x: f32,
+    bbox_y: f32,
+    bbox_w: f32,
+    bbox_h: f32,
+) {
+    if group_start >= content.len() || bbox_w <= 0.0 || bbox_h <= 0.0 {
+        return;
+    }
+    let group_stream = content[group_start..].to_string();
+    if group_stream.trim().is_empty() {
+        return;
+    }
+    content.truncate(group_start);
+
+    let bbox_pad = 4096.0;
+    let form_ref = pdf_writer.add_transparency_group_form(
+        group_stream,
+        bbox_x - bbox_pad,
+        bbox_y - bbox_pad,
+        bbox_w + 2.0 * bbox_pad,
+        bbox_h + 2.0 * bbox_pad,
+    );
+    page_images.push(form_ref.clone());
+
+    content.push_str("q\n");
+    begin_blend_mode(content, page_ext_gstates, blend_mode);
+    if opacity < 1.0 {
+        let gs_name = format!("GSgrp{}", form_ref.obj_id);
+        page_ext_gstates.push((gs_name.clone(), opacity));
+        content.push_str(&format!("/{gs_name} gs\n"));
+    }
+    content.push_str(&format!("/{} Do\nQ\n", form_ref.name));
+}
+
 /// Stroke the CSS `border` frame of an image box. `(box_x, box_bottom)` is the
 /// bottom-left corner of the box in PDF (bottom-up) coordinates; `box_w`/`box_h`
 /// are the border-box dimensions. With `box-sizing: border-box` the frame is
@@ -1731,6 +1774,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     background_repeat,
                     background_origin,
                     background_clip,
+                    background_blend_mode,
                     border_radius,
                     border_radii: tb_radii,
                     border_radii_y: tb_radii_y,
@@ -1856,6 +1900,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         render_width,
                         border_box_h,
                         *border_radius,
+                        *tb_radii,
+                        *tb_radii_y,
                         &mut page_ext_gstates,
                         &mut bg_alpha_counter,
                         &mut pdf_writer,
@@ -1955,6 +2001,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         *background_position,
                         *background_repeat,
                     );
+                    let tb_bg_blended =
+                        *background_blend_mode != crate::style::computed::BlendMode::Normal;
                     let (tb_clip_rx, tb_clip_ry) = background_clip_radii(
                         *background_clip,
                         [tb_bl, tb_br, tb_bt, tb_bb],
@@ -2029,6 +2077,14 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     // Draw linear gradient if specified
                     if let Some(gradient) = background_gradient {
                         let gradient = linear_with_background_layer(gradient, tb_layer_box);
+                        if tb_bg_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                *background_blend_mode,
+                            );
+                        }
                         // Clip to the background-clip box (rounded if needed).
                         if tb_gradient_clip {
                             push_background_clip_box(
@@ -2056,11 +2112,22 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         if tb_gradient_clip {
                             content.push_str("Q\n");
                         }
+                        if tb_bg_blended {
+                            content.push_str("Q\n");
+                        }
                     }
 
                     // Draw radial gradient if specified
                     if let Some(gradient) = background_radial_gradient {
                         let gradient = radial_with_background_layer(gradient, tb_layer_box);
+                        if tb_bg_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                *background_blend_mode,
+                            );
+                        }
                         if tb_gradient_clip {
                             push_background_clip_box(
                                 &mut content,
@@ -2087,11 +2154,22 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         if tb_gradient_clip {
                             content.push_str("Q\n");
                         }
+                        if tb_bg_blended {
+                            content.push_str("Q\n");
+                        }
                     }
 
                     // Draw conic gradient if specified
                     if let Some(gradient) = background_conic_gradient {
                         let gradient = conic_with_background_layer(gradient, tb_layer_box);
+                        if tb_bg_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                *background_blend_mode,
+                            );
+                        }
                         if tb_gradient_clip {
                             push_background_clip_box(
                                 &mut content,
@@ -2114,6 +2192,9 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             &mut page_images,
                         );
                         if tb_gradient_clip {
+                            content.push_str("Q\n");
+                        }
+                        if tb_bg_blended {
                             content.push_str("Q\n");
                         }
                     }
@@ -2166,6 +2247,14 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 (border_box_h - border_vert).max(0.0),
                             ),
                         };
+                        if tb_bg_blended {
+                            content.push_str("q\n");
+                            begin_blend_mode(
+                                &mut content,
+                                &mut page_ext_gstates,
+                                *background_blend_mode,
+                            );
+                        }
                         render_svg_background(
                             &mut content,
                             svg_tree,
@@ -2185,6 +2274,9 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             )
                             .with_border_radii(tb_clip_rx, tb_clip_ry),
                         );
+                        if tb_bg_blended {
+                            content.push_str("Q\n");
+                        }
                     }
 
                     // Draw border if specified.  The border paints INSIDE the
@@ -3259,6 +3351,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         *container_width,
                         full_height,
                         *border_radius,
+                        [*border_radius; 4],
+                        [*border_radius; 4],
                         &mut page_ext_gstates,
                         &mut bg_alpha_counter,
                         &mut pdf_writer,
@@ -3773,6 +3867,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 cell.width,
                                 cell_render_h,
                                 cell.border_radius,
+                                [cell.border_radius; 4],
+                                [cell.border_radius; 4],
                                 &mut page_ext_gstates,
                                 &mut bg_alpha_counter,
                                 &mut pdf_writer,
@@ -4792,6 +4888,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     background_repeat: c_bg_repeat,
                     background_origin: c_bg_origin,
                     background_clip: c_bg_clip,
+                    background_blend_mode: c_bg_blend,
                     background_blur_radius: c_bg_blur,
                     z_index: _,
                     positioned_depth: c_positioned_depth,
@@ -4835,12 +4932,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     // CSS `opacity`). Wraps everything below in its own q..Q so the
                     // ExtGState alpha applies to the entire box uniformly.
                     let c_needs_opacity = *c_opacity < 1.0;
-                    if c_needs_opacity {
-                        let gs_name = format!("GScontainerop{elem_idx}");
-                        page_ext_gstates.push((gs_name.clone(), *c_opacity));
-                        content.push_str("q\n");
-                        content.push_str(&format!("/{gs_name} gs\n"));
-                    }
+                    let c_group_start = c_needs_opacity.then_some(content.len());
 
                     // Apply a CSS transform around the box centre (wrap the whole
                     // element, incl. shadow + children, in q..Q). Shares the same
@@ -4903,6 +4995,8 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             container_w,
                             total_h,
                             *c_border_radius,
+                            *c_border_radii,
+                            *c_border_radii_y,
                             &mut page_ext_gstates,
                             &mut bg_alpha_counter,
                             &mut pdf_writer,
@@ -5017,9 +5111,15 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                         let gradient_clip = *c_border_radius > 0.0 || c_needs_clip;
                         let c_layer_box =
                             background_layer_box(*c_bg_size, *c_bg_position, *c_bg_repeat);
+                        let c_bg_blended =
+                            *c_bg_blend != crate::style::computed::BlendMode::Normal;
                         // Draw container linear gradient
                         if let Some(gradient) = c_bg_gradient {
                             let gradient = linear_with_background_layer(gradient, c_layer_box);
+                            if c_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
+                            }
                             if gradient_clip {
                                 push_background_clip_box(
                                     &mut content,
@@ -5046,11 +5146,18 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             if gradient_clip {
                                 content.push_str("Q\n");
                             }
+                            if c_bg_blended {
+                                content.push_str("Q\n");
+                            }
                         }
 
                         // Draw container radial gradient
                         if let Some(gradient) = c_bg_radial {
                             let gradient = radial_with_background_layer(gradient, c_layer_box);
+                            if c_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
+                            }
                             if gradient_clip {
                                 push_background_clip_box(
                                     &mut content,
@@ -5077,11 +5184,18 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             if gradient_clip {
                                 content.push_str("Q\n");
                             }
+                            if c_bg_blended {
+                                content.push_str("Q\n");
+                            }
                         }
 
                         // Draw container conic gradient
                         if let Some(gradient) = c_bg_conic {
                             let gradient = conic_with_background_layer(gradient, c_layer_box);
+                            if c_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
+                            }
                             if gradient_clip {
                                 push_background_clip_box(
                                     &mut content,
@@ -5104,6 +5218,9 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                 &mut page_images,
                             );
                             if gradient_clip {
+                                content.push_str("Q\n");
+                            }
+                            if c_bg_blended {
                                 content.push_str("Q\n");
                             }
                         }
@@ -5132,6 +5249,10 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                                     (total_h - c_bt - c_bb - *c_pt - *c_pb).max(0.0),
                                 ),
                             };
+                            if c_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(&mut content, &mut page_ext_gstates, *c_bg_blend);
+                            }
                             render_svg_background(
                                 &mut content,
                                 svg_tree,
@@ -5151,6 +5272,9 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                             )
                             .with_border_radii(c_clip_rx, c_clip_ry),
                         );
+                            if c_bg_blended {
+                                content.push_str("Q\n");
+                            }
                         }
 
                         // Draw inset box-shadow (after container background, before borders).
@@ -5578,9 +5702,20 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
                     if c_needs_transform {
                         content.push_str("Q\n");
                     }
-                    // Close the opacity group (must be the outermost q..Q).
-                    if c_needs_opacity {
-                        content.push_str("Q\n");
+                    if let Some(group_start) = c_group_start {
+                        finish_transparency_group(
+                            &mut content,
+                            group_start,
+                            &mut pdf_writer,
+                            &mut page_images,
+                            &mut page_ext_gstates,
+                            *c_opacity,
+                            crate::style::computed::BlendMode::Normal,
+                            container_x,
+                            container_y_top - total_h,
+                            container_w,
+                            total_h,
+                        );
                     }
                 }
                 LayoutElement::Image {
@@ -6080,6 +6215,10 @@ fn estimate_run_width(run: &TextRun) -> f32 {
     crate::fonts::str_width(&run.text, run.font_size, &run.font_family, run.bold)
 }
 
+fn letter_spacing_extra(letter_spacing: f32, glyph_count: usize) -> f32 {
+    letter_spacing * glyph_count.saturating_sub(1) as f32
+}
+
 /// Resolve the PDF font resource name for a text run.
 ///
 /// Custom Type0 fonts are only safe when we also have shaped glyph output.
@@ -6180,6 +6319,7 @@ struct ShapedTextRender<'a> {
     /// PDF `Tw` operator (it only applies to single-byte code 32), so this
     /// must be baked into the TJ array as a negative adjustment instead.
     word_spacing: f32,
+    letter_spacing: f32,
     /// Synthetic-italic shear (the text-matrix `c` term): a face with no genuine
     /// italic gets an algorithmic oblique slant (CSS Fonts 4 `font-synthesis:
     /// style`). 0 = upright. Matches Skia/Chrome's synthetic skew (0.25).
@@ -6201,6 +6341,7 @@ impl<'a> ShapedTextRender<'a> {
             shaped,
             prepared_font,
             word_spacing: 0.0,
+            letter_spacing: 0.0,
             shear: 0.0,
         }
     }
@@ -6262,7 +6403,8 @@ fn format_pdf_number(value: f32) -> String {
 
 fn append_positioned_shaped_text(content: &mut String, render: ShapedTextRender<'_>) {
     let mut cursor_x = render.origin.x;
-    for glyph in &render.shaped.glyphs {
+    let last_idx = render.shaped.glyphs.len().saturating_sub(1);
+    for (idx, glyph) in render.shaped.glyphs.iter().enumerate() {
         let draw_x = cursor_x + glyph.x_offset;
         let draw_y = render.origin.y + glyph.y_offset;
         let encoded = encode_pdf_hex_glyph(render.pdf_glyph_id(glyph.glyph_id));
@@ -6274,6 +6416,9 @@ fn append_positioned_shaped_text(content: &mut String, render: ShapedTextRender<
         ));
         content.push_str(&format!("<{encoded}> Tj\n"));
         cursor_x += glyph.x_advance;
+        if idx < last_idx {
+            cursor_x += render.letter_spacing;
+        }
         // Identity-H ignores the PDF `Tw` operator, so widen the gap after
         // each space cluster by advancing the cursor manually.
         if render.word_spacing.abs() > f32::EPSILON && glyph.unicode.as_slice() == [0x0020] {
@@ -6848,6 +6993,8 @@ fn render_container_children(
                 block_width: tb_block_width,
                 clip_rect: tb_clip_rect,
                 text_indent: tb_text_indent,
+                letter_spacing: tb_letter_spacing,
+                word_spacing: tb_word_spacing,
                 containing_block: tb_containing_block,
                 ..
             } => {
@@ -7073,6 +7220,10 @@ fn render_container_children(
                     }
                     continue;
                 }
+
+                let tb_grouped =
+                    *tb_opacity < 1.0 || *tb_mix_blend != crate::style::computed::BlendMode::Normal;
+                let tb_group_start = tb_grouped.then_some(content.len());
 
                 // Draw child background
                 if let Some((r, g, b, a)) = background_color {
@@ -7329,7 +7480,10 @@ fn render_container_children(
                     let merged = merge_runs(&line.runs);
                     let line_width: f32 = merged
                         .iter()
-                        .map(|r| estimate_run_width_with_fonts(r, custom_fonts))
+                        .map(|r| {
+                            estimate_run_width_with_fonts(r, custom_fonts)
+                                + letter_spacing_extra(*tb_letter_spacing, r.text.chars().count())
+                        })
                         .sum();
                     // CSS `text-indent` shifts only the first line's start. List
                     // items pass a negative value so an `outside` marker (the
@@ -7379,6 +7533,12 @@ fn render_container_children(
                         line_bottom_y
                     };
                     let mut lx = text_x;
+                    if *tb_letter_spacing != 0.0 {
+                        content.push_str(&format!("{tb_letter_spacing} Tc\n"));
+                    }
+                    if *tb_word_spacing != 0.0 {
+                        content.push_str(&format!("{tb_word_spacing} Tw\n"));
+                    }
                     for run in &merged {
                         // Atomic inline box (e.g. a `list-style-image` marker):
                         // paint the box/image and advance by its outer width;
@@ -7409,7 +7569,8 @@ fn render_container_children(
                         if run.text.is_empty() {
                             continue;
                         }
-                        let run_width = estimate_run_width_with_fonts(run, custom_fonts);
+                        let run_width = estimate_run_width_with_fonts(run, custom_fonts)
+                            + letter_spacing_extra(*tb_letter_spacing, run.text.chars().count());
                         // Per-run inline background (e.g. a `::first-letter`/
                         // `::first-line` `background-color`, or a highlighted
                         // inline span): paint the rectangle behind the glyphs
@@ -7461,16 +7622,37 @@ fn render_container_children(
                             crate::layout::text::line_primary_font_size(&merged),
                             custom_fonts,
                             prepared_custom_fonts,
-                            0.0,
+                            *tb_word_spacing,
                             pdf_writer,
                             page_images,
                         );
-                        lx += rw;
+                        lx += rw + letter_spacing_extra(*tb_letter_spacing, run.text.chars().count());
+                    }
+                    if *tb_letter_spacing != 0.0 {
+                        content.push_str("0 Tc\n");
+                    }
+                    if *tb_word_spacing != 0.0 {
+                        content.push_str("0 Tw\n");
                     }
                     text_y -= metrics.descender + metrics.half_leading;
                 }
                 if tb_needs_clip {
                     content.push_str("Q\n");
+                }
+                if let Some(group_start) = tb_group_start {
+                    finish_transparency_group(
+                        content,
+                        group_start,
+                        pdf_writer,
+                        page_images,
+                        page_ext_gstates,
+                        *tb_opacity,
+                        *tb_mix_blend,
+                        render_x,
+                        render_y - child_h,
+                        render_w,
+                        child_h,
+                    );
                 }
                 if is_float {
                     // A float does not advance the flow cursor (its bottom is
@@ -7701,21 +7883,12 @@ fn render_container_children(
                     // children) with the backdrop. Outermost q..Q so the blend gstate
                     // scopes the entire element and is restored by `Q` afterwards.
                     let nk_blended = *nk_mix_blend != crate::style::computed::BlendMode::Normal;
-                    if nk_blended {
-                        content.push_str("q\n");
-                        begin_blend_mode(content, page_ext_gstates, *nk_mix_blend);
-                    }
+                    let nk_needs_opacity = *nk_opacity < 1.0;
+                    let nk_grouped = nk_blended || nk_needs_opacity;
+                    let nk_group_start = nk_grouped.then_some(content.len());
                     // Apply CSS opacity to the whole subtree as one group (background +
                     // border + children composite together), mirroring the top-level
                     // arm. Outermost q..Q so the alpha applies to the entire box.
-                    let nk_needs_opacity = *nk_opacity < 1.0;
-                    if nk_needs_opacity {
-                        let gs_name = format!("GScca{bg_alpha_counter}");
-                        *bg_alpha_counter += 1;
-                        page_ext_gstates.push((gs_name.clone(), *nk_opacity));
-                        content.push_str("q\n");
-                        content.push_str(&format!("/{gs_name} gs\n"));
-                    }
 
                     // Apply a CSS transform around the box centre (wrap all drawing
                     // in q..Q), mirroring the top-level arm. Without this, transforms
@@ -7768,6 +7941,8 @@ fn render_container_children(
                             nk_w,
                             nk_total_h,
                             *cont_br,
+                            *cont_radii,
+                            *cont_radii_y,
                             page_ext_gstates,
                             bg_alpha_counter,
                             pdf_writer,
@@ -7942,6 +8117,10 @@ fn render_container_children(
                                 ),
                                 BackgroundOrigin::Padding => (nk_x, bg_y, nk_w, nk_total_h),
                             };
+                            if nk_bg_blended {
+                                content.push_str("q\n");
+                                begin_blend_mode(content, page_ext_gstates, *nk_bg_blend);
+                            }
                             render_svg_background(
                                 content,
                                 svg_tree,
@@ -7965,6 +8144,9 @@ fn render_container_children(
                                     *nk_bg_repeat,
                                 ),
                             );
+                            if nk_bg_blended {
+                                content.push_str("Q\n");
+                            }
                         }
 
                         // Draw inset box-shadow (after the backgrounds, before the
@@ -8301,13 +8483,20 @@ fn render_container_children(
                     if nk_needs_transform {
                         content.push_str("Q\n");
                     }
-                    // Close the opacity group (outermost q..Q).
-                    if nk_needs_opacity {
-                        content.push_str("Q\n");
-                    }
-                    // Close the mix-blend-mode scope (restores the prior gstate).
-                    if nk_blended {
-                        content.push_str("Q\n");
+                    if let Some(group_start) = nk_group_start {
+                        finish_transparency_group(
+                            content,
+                            group_start,
+                            pdf_writer,
+                            page_images,
+                            page_ext_gstates,
+                            *nk_opacity,
+                            *nk_mix_blend,
+                            nk_x,
+                            nk_top_y - nk_total_h,
+                            nk_w,
+                            nk_total_h,
+                        );
                     }
                 } // end nested-container subtree (wrappers + children)
                 // Out-of-flow containers (absolute / float) don't advance the
@@ -9859,7 +10048,7 @@ fn render_run_text_with_faux_bold(
     let shaped = crate::text::shape_text_run(run, custom_fonts);
     let run_width = shaped.as_ref().map_or_else(
         || estimate_run_width_with_fonts(run, custom_fonts),
-        |run| run.width,
+        |shaped| shaped.width,
     );
     let custom_font =
         crate::text::resolve_custom_font(&run.font_family, run.bold, run.italic, custom_fonts);
@@ -11934,6 +12123,8 @@ fn render_box_shadows(
     box_w: f32,
     box_h: f32,
     border_radius: f32,
+    border_radii: [f32; 4],
+    border_radii_y: [f32; 4],
     page_ext_gstates: &mut Vec<(String, f32)>,
     gs_counter: &mut usize,
     pdf_writer: &mut PdfWriter,
@@ -11948,6 +12139,8 @@ fn render_box_shadows(
             box_w,
             box_h,
             border_radius,
+            border_radii,
+            border_radii_y,
             page_ext_gstates,
             gs_counter,
             pdf_writer,
@@ -12004,6 +12197,8 @@ fn render_box_shadow(
     box_w: f32,
     box_h: f32,
     border_radius: f32,
+    border_radii: [f32; 4],
+    border_radii_y: [f32; 4],
     page_ext_gstates: &mut Vec<(String, f32)>,
     gs_counter: &mut usize,
     pdf_writer: &mut PdfWriter,
@@ -12032,6 +12227,32 @@ fn render_box_shadow(
     let sy = box_y_bottom - shadow.offset_y - spread;
     let sw = box_w + spread * 2.0;
     let sh = box_h + spread * 2.0;
+    let has_axis_radii = radii_any(border_radii) || radii_any(border_radii_y);
+    let (shadow_radii, shadow_radii_y) = if has_axis_radii {
+        (
+            border_radii.map(|r| (r + spread).max(0.0)),
+            border_radii_y.map(|r| (r + spread).max(0.0)),
+        )
+    } else {
+        let base_radius_y = if border_radius >= box_h / 2.0 {
+            box_h / 2.0
+        } else {
+            border_radius
+        };
+        let rx = if border_radius > 0.0 {
+            (border_radius + spread).max(0.0)
+        } else {
+            0.0
+        };
+        let ry = if border_radius > 0.0 {
+            (base_radius_y + spread).max(0.0)
+        } else {
+            0.0
+        };
+        ([rx; 4], [ry; 4])
+    };
+    let shadow_radius_x = shadow_radii.iter().copied().fold(0.0, f32::max);
+    let shadow_radius_y = shadow_radii_y.iter().copied().fold(0.0, f32::max);
 
     if blur <= 0.5 {
         // No blur — solid shadow
@@ -12042,9 +12263,11 @@ fn render_box_shadow(
             content.push_str(&format!("/{gs_name} gs\n"));
         }
         content.push_str(&format!("{sr} {sg} {sb} rg\n"));
-        if border_radius > 0.0 {
-            content.push_str(&rounded_rect_path(sx, sy, sw, sh, border_radius));
-            content.push_str("\nf\n");
+        if shadow_radius_x > 0.0 || shadow_radius_y > 0.0 {
+            if let Some(path) = rounded_box_path(sx, sy, sw, sh, shadow_radii, shadow_radii_y) {
+                content.push_str(&path);
+                content.push_str("f\n");
+            }
         } else {
             content.push_str(&format!("{sx} {sy} {sw} {sh} re\nf\n"));
         }
@@ -12057,17 +12280,13 @@ fn render_box_shadow(
     // True gaussian blur: rasterize the (rounded) shadow rect, gaussian-blur it
     // (σ = blur/2), and embed as an image XObject. The shadow's corner radius
     // tracks the box radius grown by spread (the spread expands the radius too).
-    let shadow_radius = if border_radius > 0.0 {
-        (border_radius + spread).max(0.0)
-    } else {
-        0.0
-    };
     let _ = layers;
     let _ = ALPHA_NORMALIZER;
     if let Some(blurred) = crate::render::blur::blur_shadow_rect(
         sw,
         sh,
-        shadow_radius,
+        shadow_radius_x,
+        shadow_radius_y,
         blur,
         (sr, sg, sb, base_alpha),
         pdf_writer.opts.filter_dpi,
@@ -12104,9 +12323,11 @@ fn render_box_shadow(
         content.push_str(&format!("/{gs_name} gs\n"));
     }
     content.push_str(&format!("{sr} {sg} {sb} rg\n"));
-    if border_radius > 0.0 {
-        content.push_str(&rounded_rect_path(sx, sy, sw, sh, border_radius));
-        content.push_str("\nf\n");
+    if shadow_radius_x > 0.0 || shadow_radius_y > 0.0 {
+        if let Some(path) = rounded_box_path(sx, sy, sw, sh, shadow_radii, shadow_radii_y) {
+            content.push_str(&path);
+            content.push_str("f\n");
+        }
     } else {
         content.push_str(&format!("{sx} {sy} {sw} {sh} re\nf\n"));
     }
@@ -12700,7 +12921,8 @@ end\n",
     cmap
 }
 
-/// A reference to an image XObject used on a page.
+/// A reference to an XObject used on a page.
+#[derive(Clone)]
 pub(crate) struct ImageRef {
     pub name: String,
     pub obj_id: usize,
@@ -13181,6 +13403,29 @@ impl PdfWriter {
 
     fn next_id(&self) -> usize {
         self.objects.len() + 1
+    }
+
+    fn add_transparency_group_form(
+        &mut self,
+        stream: String,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    ) -> ImageRef {
+        let form_id = self.next_id();
+        let x1 = x + w;
+        let y1 = y + h;
+        let bytes = stream.into_bytes();
+        self.objects.push(format!(
+            "{form_id} 0 obj\n<< /Type /XObject /Subtype /Form /FormType 1 /BBox [{x} {y} {x1} {y1}] /Group << /Type /Group /S /Transparency /CS /DeviceRGB /I true /K false >> /Resources __IP_PAGE_RESOURCES__ /Length {len} >>\nstream\n",
+            len = bytes.len(),
+        ));
+        self.binary_objects.insert(form_id, bytes);
+        ImageRef {
+            name: format!("Fm{form_id}"),
+            obj_id: form_id,
+        }
     }
 
     /// Add an image as a PDF XObject and return its object ID.
@@ -14113,6 +14358,12 @@ impl PdfWriter {
         all_objects.push(format!(
             "{resources_id} 0 obj\n<< {resource_parts} >>\nendobj",
         ));
+        let resources_ref = format!("{resources_id} 0 R");
+        for obj in &mut all_objects {
+            if obj.contains("__IP_PAGE_RESOURCES__") {
+                *obj = obj.replace("__IP_PAGE_RESOURCES__", &resources_ref);
+            }
+        }
 
         // Update page objects to include parent, resources, and annotations
         let pages_id = resources_id + 1;

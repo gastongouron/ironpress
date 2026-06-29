@@ -163,6 +163,34 @@ impl CounterState {
             .and_then(|s| s.last().copied())
             .unwrap_or(0)
     }
+    fn has_current(&self, name: &str) -> bool {
+        self.stacks.get(name).is_some_and(|s| !s.is_empty())
+    }
+    fn push_reset(&mut self, name: &str, value: i32) {
+        self.stacks.entry(name.to_string()).or_default().push(value);
+    }
+    fn increment(&mut self, name: &str, value: i32) {
+        let stack = self.stacks.entry(name.to_string()).or_default();
+        if stack.is_empty() {
+            stack.push(0);
+        }
+        if let Some(top) = stack.last_mut() {
+            *top += value;
+        }
+    }
+    fn set_current(&mut self, name: &str, value: i32) {
+        let stack = self.stacks.entry(name.to_string()).or_default();
+        if stack.is_empty() {
+            stack.push(value);
+        } else if let Some(top) = stack.last_mut() {
+            *top = value;
+        }
+    }
+    fn pop_name(&mut self, name: &str) {
+        if let Some(stack) = self.stacks.get_mut(name) {
+            stack.pop();
+        }
+    }
     pub(crate) fn get_all(&self, name: &str, sep: &str) -> String {
         self.get_all_styled(name, sep, ListStyleType::Decimal)
     }
@@ -185,7 +213,7 @@ impl CounterState {
 #[derive(Debug, Clone)]
 pub(crate) enum ListContext {
     Unordered { indent: f32 },
-    Ordered { index: usize, indent: f32 },
+    Ordered { index: i32, step: i32, indent: f32 },
 }
 
 pub use super::table::TableCell;
@@ -2608,17 +2636,21 @@ pub(crate) fn flatten_element(
         };
         let total_indent = parent_indent + list_indent;
         let mut ctx = if el.tag == HtmlTag::Ol {
-            // `<ol start="N">` sets the first item's marker number (default 1).
-            // The marker pipeline numbers from a `usize`, so a (rare) negative
-            // start is clamped to 0 rather than wrapping.
+            let li_count = el
+                .children
+                .iter()
+                .filter(|c| matches!(c, DomNode::Element(child) if child.tag == HtmlTag::Li))
+                .count() as i32;
+            let reversed = el.attributes.contains_key("reversed");
+            let step = if reversed { -1 } else { 1 };
             let start = el
                 .attributes
                 .get("start")
-                .and_then(|s| s.trim().parse::<i64>().ok())
-                .unwrap_or(1)
-                .max(0) as usize;
+                .and_then(|s| s.trim().parse::<i32>().ok())
+                .unwrap_or(if reversed { li_count } else { 1 });
             ListContext::Ordered {
                 index: start,
+                step,
                 indent: total_indent,
             }
         } else {
@@ -2626,6 +2658,14 @@ pub(crate) fn flatten_element(
                 indent: total_indent,
             }
         };
+        let auto_list_item_counter = el.tag == HtmlTag::Ol
+            && !style
+                .counter_reset
+                .iter()
+                .any(|(name, _)| name == "list-item");
+        if auto_list_item_counter && let ListContext::Ordered { index, step, .. } = &ctx {
+            env.counter_state.push_reset("list-item", *index - *step);
+        }
         let child_el_count = el
             .children
             .iter()
@@ -2652,8 +2692,8 @@ pub(crate) fn flatten_element(
                         &[],
                         env,
                     );
-                    if let ListContext::Ordered { index, .. } = &mut ctx {
-                        *index += 1;
+                    if let ListContext::Ordered { index, step, .. } = &mut ctx {
+                        *index += *step;
                     }
                 } else {
                     let child_ctx = layout_ctx
@@ -2684,12 +2724,37 @@ pub(crate) fn flatten_element(
         // with the element). This branch `return`s before `route_element`'s own
         // `pop_resets`, so it must undo the push applied in `flatten_element`.
         env.counter_state.pop_resets(&style.counter_reset);
+        if auto_list_item_counter {
+            env.counter_state.pop_name("list-item");
+        }
         return;
     }
 
     // Li handling — prepend bullet/number marker
     if el.tag == HtmlTag::Li {
-        // counter_state resets/increments already applied at top of flatten_element
+        // counter_state resets/increments already applied at top of flatten_element.
+        // Ordered list items also participate in the implicit `list-item`
+        // counter: absent an explicit `counter-increment: list-item ...`, every
+        // item increments by the list direction before marker and generated
+        // content are resolved.
+        if let Some(ListContext::Ordered { index, step, .. }) = list_ctx {
+            let explicit_list_item_increment = style
+                .counter_increment
+                .iter()
+                .any(|(name, _)| name == "list-item");
+            if let Some(value) = el
+                .attributes
+                .get("value")
+                .and_then(|s| s.trim().parse::<i32>().ok())
+            {
+                env.counter_state.set_current("list-item", value - *step);
+            } else if !env.counter_state.has_current("list-item") {
+                env.counter_state.set_current("list-item", index - *step);
+            }
+            if !explicit_list_item_increment {
+                env.counter_state.increment("list-item", *step);
+            }
+        }
 
         let inner_width = available_width - style.padding.left - style.padding.right;
         let mut runs = Vec::new();
@@ -2715,6 +2780,16 @@ pub(crate) fn flatten_element(
             &el.attributes,
             &li_selector_ctx,
             PseudoElement::Before,
+        );
+        let li_after = compute_pseudo_element_style(
+            &style,
+            env.rules,
+            el.tag_name(),
+            &classes,
+            el.id(),
+            &el.attributes,
+            &li_selector_ctx,
+            PseudoElement::After,
         );
         let has_custom_before = li_before.as_ref().is_some_and(|s| !s.content.is_empty());
         if has_custom_before {
@@ -2775,7 +2850,13 @@ pub(crate) fn flatten_element(
                 // which Chrome honours verbatim. Number it against the running
                 // ordered index.
                 Some(ListContext::Ordered { index, .. }) => {
-                    format_list_marker(style.list_style_type, *index)
+                    let marker_value = env.counter_state.get("list-item");
+                    let marker_value = if marker_value == 0 {
+                        *index
+                    } else {
+                        marker_value
+                    };
+                    format_list_marker(style.list_style_type, marker_value.max(0) as usize)
                 }
                 None => format_list_marker(style.list_style_type, 0),
             }
@@ -2957,6 +3038,13 @@ pub(crate) fn flatten_element(
             ancestors,
             env.counter_state,
         );
+        append_pseudo_inline_run(
+            &mut runs,
+            li_after.as_ref(),
+            el,
+            env.fonts,
+            env.counter_state,
+        );
 
         // "Loose" list items (Markdown with blank lines between items) wrap each
         // item's content in a <p>. When the <li> has no direct inline content
@@ -3014,13 +3102,13 @@ pub(crate) fn flatten_element(
                 margin_bottom: style.margin.bottom + extra_margin_bottom,
                 text_align: style.text_align,
                 writing_mode: crate::style::computed::WritingMode::HorizontalTb,
-                background_color: None,
+                background_color: style.background_color.map(|c| c.to_f32_rgba()),
                 padding_top: style.padding.top,
                 padding_bottom: style.padding.bottom,
-                padding_left: list_indent + style.padding.left,
+                padding_left: style.padding.left,
                 padding_right: style.padding.right,
-                border: LayoutBorder::default(),
-                block_width: None,
+                border: LayoutBorder::from_computed(&style.border),
+                block_width: Some(available_width),
                 block_height: None,
                 opacity: style.opacity,
                 mix_blend_mode: style.mix_blend_mode,
@@ -3029,7 +3117,7 @@ pub(crate) fn flatten_element(
                 clear: style.clear,
                 position: style.position,
                 offset_top: style.top.unwrap_or(0.0),
-                offset_left: style.left.unwrap_or(0.0),
+                offset_left: style.left.unwrap_or(0.0) + list_indent,
                 offset_bottom: style.bottom.unwrap_or(0.0),
                 offset_right: style.right.unwrap_or(0.0),
                 containing_block: None,
@@ -3099,8 +3187,13 @@ pub(crate) fn flatten_element(
                         ListContext::Unordered { indent } => ListContext::Unordered {
                             indent: indent + style.padding.left,
                         },
-                        ListContext::Ordered { index, indent } => ListContext::Ordered {
+                        ListContext::Ordered {
                             index,
+                            step,
+                            indent,
+                        } => ListContext::Ordered {
+                            index,
+                            step,
                             indent: indent + style.padding.left,
                         },
                     });
@@ -3575,7 +3668,11 @@ fn flex_element_with_display_contents_children(
                 }
                 preceding_siblings.push((
                     child_el.tag_name().to_string(),
-                    child_el.class_list().iter().map(|s| s.to_string()).collect(),
+                    child_el
+                        .class_list()
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
                 ));
                 element_index += 1;
             }

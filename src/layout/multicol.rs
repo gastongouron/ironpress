@@ -28,7 +28,10 @@
 //! - In the `balance` path each top-level child is an atomic unit that is never
 //!   split across a column boundary (so `break-inside: avoid` is honored).
 
-use crate::parser::css::AncestorInfo;
+use crate::parser::css::{
+    parse_inline_style, selector_matches_with_context, specificity, AncestorInfo, CssValue,
+    SelectorContext,
+};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::{BorderStyle, ComputedStyle, Position, Visibility, WritingMode};
 
@@ -52,12 +55,33 @@ struct MultiColItem {
     margin_bottom: f32,
     /// `column-span: all` — render as a full-width band, not inside a column.
     span_all: bool,
+    /// `break-before: column` — force this item to the next column.
+    break_before_column: bool,
+    /// `break-after: column` — force following content to the next column.
+    break_after_column: bool,
+    /// `break-before: avoid-column` / `avoid` — avoid a column break before it.
+    break_before_avoid_column: bool,
+    /// `break-after: avoid-column` / `avoid` — avoid a column break after it.
+    break_after_avoid_column: bool,
+    /// `break-inside: avoid-column` / `avoid` — keep the item in one column if
+    /// it fits there.
+    break_inside_avoid_column: bool,
 }
 
 struct ChildMulticolInfo {
     span_all: bool,
     definite_outer_height: Option<f32>,
     definite_outer_width: Option<f32>,
+    breaks: ColumnBreakInfo,
+}
+
+#[derive(Clone, Copy, Default)]
+struct ColumnBreakInfo {
+    before_force: bool,
+    after_force: bool,
+    before_avoid: bool,
+    after_avoid: bool,
+    inside_avoid: bool,
 }
 
 /// The trailing `margin-bottom` of a laid-out item: the bottom margin of its
@@ -269,6 +293,11 @@ pub(crate) fn layout_multicol_container(
             width,
             margin_bottom,
             span_all,
+            break_before_column: child_info.breaks.before_force,
+            break_after_column: child_info.breaks.after_force,
+            break_before_avoid_column: child_info.breaks.before_avoid,
+            break_after_avoid_column: child_info.breaks.after_avoid,
+            break_inside_avoid_column: child_info.breaks.inside_avoid,
         });
 
         preceding_siblings.push((
@@ -511,7 +540,11 @@ pub(crate) fn layout_multicol_container(
         if let (true, Some(fill_h)) = (use_fragmentation, fill_h_auto) {
             // ---- Fragmenting fill path (column-fill: auto) -----------------
             let run_indices: Vec<usize> = (0..run.len()).collect();
-            let (frag_cols, used) = fragment_columns_auto(run, &run_indices, num_cols, fill_h);
+            let (frag_cols, used) =
+                fragment_columns_auto(run, &run_indices, num_cols, fill_h, true);
+            if frag_cols.len() > run_nonempty_cols.len() {
+                run_nonempty_cols.resize(frag_cols.len(), false);
+            }
             for (c, frags) in frag_cols.iter().enumerate() {
                 if frags.is_empty() {
                     continue;
@@ -597,7 +630,7 @@ pub(crate) fn layout_multicol_container(
             && num_cols > 1
         {
             let rule_w = style.column_rule.width;
-            for c in 0..num_cols - 1 {
+            for c in 0..run_nonempty_cols.len().saturating_sub(1) {
                 let has_left = run_nonempty_cols.get(c).copied().unwrap_or(false);
                 let has_right = run_nonempty_cols.get(c + 1).copied().unwrap_or(false);
                 if !has_left || !has_right {
@@ -784,7 +817,7 @@ fn build_paginated_column_rows(
     let pages_needed = (total / per_page).ceil().max(1.0) as usize + 2;
     let virtual_cols = num_cols * pages_needed;
     let indices: Vec<usize> = (0..items.len()).collect();
-    let (vcols, vused) = fragment_columns_auto(items, &indices, virtual_cols, col_fill_h);
+    let (vcols, vused) = fragment_columns_auto(items, &indices, virtual_cols, col_fill_h, false);
 
     let rule_active = style.column_rule.width > 0.0
         && style.column_rule.style != BorderStyle::None
@@ -1249,8 +1282,10 @@ fn column_x(
     col: usize,
 ) -> f32 {
     let visual_col = match style.writing_mode {
-        WritingMode::HorizontalTb if style.direction_rtl => num_cols.saturating_sub(1) - col,
-        _ => col,
+        WritingMode::HorizontalTb if style.direction_rtl => {
+            num_cols.saturating_sub(1) as isize - col as isize
+        }
+        _ => col as isize,
     };
     pad_left + visual_col as f32 * (col_width + gap)
 }
@@ -1308,9 +1343,11 @@ fn fragment_columns_auto(
     indices: &[usize],
     num_cols: usize,
     fill_h: f32,
+    allow_overflow_columns: bool,
 ) -> (Vec<Vec<AutoFragment>>, Vec<f32>) {
-    let mut cols: Vec<Vec<AutoFragment>> = (0..num_cols).map(|_| Vec::new()).collect();
-    let mut used: Vec<f32> = vec![0.0; num_cols];
+    let initial_cols = num_cols.max(1);
+    let mut cols: Vec<Vec<AutoFragment>> = (0..initial_cols).map(|_| Vec::new()).collect();
+    let mut used: Vec<f32> = vec![0.0; initial_cols];
     if num_cols == 0 || fill_h <= 0.0 {
         // Degenerate: pile everything into column 0 unfragmented.
         let mut y = 0.0f32;
@@ -1331,72 +1368,188 @@ fn fragment_columns_auto(
 
     let mut col = 0usize;
     let mut y = 0.0f32; // border-box fill cursor within the current column
-    for &idx in indices {
-        let margin = items[idx].margin_bottom.max(0.0);
-        let box_h = (items[idx].height - margin).max(0.0);
-        let space_before_break = fill_h - y;
-        if y > 0.0
-            && y + box_h > fill_h + 0.01
-            && col + 1 < num_cols
-            && space_before_break < box_h * 0.5
-            && item_is_text_block(&items[idx])
-        {
-            col += 1;
-            y = 0.0;
+    let mut placed_in_current_col: Vec<usize> = Vec::new();
+
+    let advance_column = |cols: &mut Vec<Vec<AutoFragment>>,
+                          used: &mut Vec<f32>,
+                          col: &mut usize,
+                          y: &mut f32,
+                          placed_in_current_col: &mut Vec<usize>| {
+        if *col + 1 < cols.len() {
+            *col += 1;
+        } else if allow_overflow_columns {
+            cols.push(Vec::new());
+            used.push(0.0);
+            *col += 1;
         }
-        let mut remaining = box_h;
-        let mut first_slice = true;
-        // Place the box, splitting across columns as needed.
-        loop {
-            let space = fill_h - y;
-            // Start a new column when the current one is full and this is not the
-            // last column (the last column absorbs any overflow).
-            if space <= 0.01 && col + 1 < num_cols {
-                col += 1;
-                y = 0.0;
-                continue;
-            }
-            let space = fill_h - y;
-            let last_col = col + 1 >= num_cols;
-            let take = if last_col {
-                remaining
-            } else {
-                remaining.min(space.max(0.0))
-            };
-            let is_last_slice = (remaining - take).abs() <= 0.01 || last_col;
-            cols[col].push(AutoFragment {
-                item: idx,
-                y,
-                height: take,
-                is_first: first_slice,
-                is_last: is_last_slice,
-            });
-            y += take;
-            used[col] = used[col].max(y);
-            remaining -= take;
-            first_slice = false;
-            if remaining <= 0.01 || last_col {
+        *y = 0.0;
+        placed_in_current_col.clear();
+    };
+
+    let mut groups = Vec::new();
+    let mut group_start = 0usize;
+    while group_start < indices.len() {
+        let mut group_end = group_start + 1;
+        while group_end < indices.len() {
+            let prev = indices[group_end - 1];
+            let next = indices[group_end];
+            if items[prev].break_after_column || items[next].break_before_column {
                 break;
             }
-            // Box continues in the next column.
-            col += 1;
-            y = 0.0;
-        }
-        // Trailing margin follows the box: kept if it fits in the column, else
-        // truncated at the fragmentation break (do not carry it to the next col).
-        if margin > 0.0 {
-            if y + margin <= fill_h + 0.01 || col + 1 >= num_cols {
-                y += margin;
-                used[col] = used[col].max(y);
+            if items[prev].break_after_avoid_column || items[next].break_before_avoid_column {
+                group_end += 1;
             } else {
-                // Margin adjoins the column break → truncated; next item starts a
-                // fresh column at the top.
-                col += 1;
-                y = 0.0;
+                break;
+            }
+        }
+        groups.push(group_start..group_end);
+        group_start = group_end;
+    }
+
+    for group in groups {
+        let group_len = group.end - group.start;
+        let group_height: f32 = group.clone().map(|i| items[indices[i]].height).sum();
+        if group_len > 1
+            && y > 0.0
+            && y + group_height > fill_h + 0.01
+            && group_height <= fill_h + 0.01
+        {
+            advance_column(
+                &mut cols,
+                &mut used,
+                &mut col,
+                &mut y,
+                &mut placed_in_current_col,
+            );
+        }
+
+        for group_pos in group {
+            let idx = indices[group_pos];
+            if items[idx].break_before_column && (y > 0.0 || !placed_in_current_col.is_empty()) {
+                advance_column(
+                    &mut cols,
+                    &mut used,
+                    &mut col,
+                    &mut y,
+                    &mut placed_in_current_col,
+                );
+            }
+
+            place_auto_item(
+                items,
+                idx,
+                &mut cols,
+                &mut used,
+                &mut col,
+                &mut y,
+                fill_h,
+                allow_overflow_columns,
+                &mut placed_in_current_col,
+            );
+
+            if items[idx].break_after_column {
+                advance_column(
+                    &mut cols,
+                    &mut used,
+                    &mut col,
+                    &mut y,
+                    &mut placed_in_current_col,
+                );
             }
         }
     }
     (cols, used)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn place_auto_item(
+    items: &[MultiColItem],
+    idx: usize,
+    cols: &mut Vec<Vec<AutoFragment>>,
+    used: &mut Vec<f32>,
+    col: &mut usize,
+    y: &mut f32,
+    fill_h: f32,
+    allow_overflow_columns: bool,
+    placed_in_current_col: &mut Vec<usize>,
+) {
+    let advance_column = |cols: &mut Vec<Vec<AutoFragment>>,
+                          used: &mut Vec<f32>,
+                          col: &mut usize,
+                          y: &mut f32,
+                          placed_in_current_col: &mut Vec<usize>| {
+        if *col + 1 < cols.len() {
+            *col += 1;
+        } else if allow_overflow_columns {
+            cols.push(Vec::new());
+            used.push(0.0);
+            *col += 1;
+        }
+        *y = 0.0;
+        placed_in_current_col.clear();
+    };
+
+    let margin = items[idx].margin_bottom.max(0.0);
+    let box_h = (items[idx].height - margin).max(0.0);
+    let space_before_break = fill_h - *y;
+    let should_move_intact = *y > 0.0
+        && *y + box_h > fill_h + 0.01
+        && ((items[idx].break_inside_avoid_column && box_h <= fill_h + 0.01)
+            || (space_before_break < box_h * 0.5 && item_is_text_block(&items[idx])));
+    if should_move_intact {
+        advance_column(cols, used, col, y, placed_in_current_col);
+    }
+    let mut remaining = box_h;
+    let mut first_slice = true;
+    // Place the box, splitting across columns as needed.
+    loop {
+        let space = fill_h - *y;
+        // Start a new column when the current one is full and this is not the
+        // last fixed column (or overflow columns are allowed).
+        if space <= 0.01 && (*col + 1 < cols.len() || allow_overflow_columns) {
+            advance_column(cols, used, col, y, placed_in_current_col);
+            continue;
+        }
+        let space = fill_h - *y;
+        let fixed_last_col = !allow_overflow_columns && *col + 1 >= cols.len();
+        let take = if fixed_last_col {
+            remaining
+        } else {
+            remaining.min(space.max(0.0))
+        };
+        let is_last_slice = (remaining - take).abs() <= 0.01 || fixed_last_col;
+        cols[*col].push(AutoFragment {
+            item: idx,
+            y: *y,
+            height: take,
+            is_first: first_slice,
+            is_last: is_last_slice,
+        });
+        *y += take;
+        used[*col] = used[*col].max(*y);
+        remaining -= take;
+        first_slice = false;
+        if remaining <= 0.01 || fixed_last_col {
+            break;
+        }
+        // Box continues in the next column.
+        advance_column(cols, used, col, y, placed_in_current_col);
+    }
+
+    placed_in_current_col.push(idx);
+    // Trailing margin follows the box: kept if it fits in the column, else
+    // truncated at the fragmentation break (do not carry it to the next col).
+    if margin > 0.0 {
+        let fixed_last_col = !allow_overflow_columns && *col + 1 >= cols.len();
+        if *y + margin <= fill_h + 0.01 || fixed_last_col {
+            *y += margin;
+            used[*col] = used[*col].max(*y);
+        } else {
+            // Margin adjoins the column break → truncated; next item starts a
+            // fresh column at the top.
+            advance_column(cols, used, col, y, placed_in_current_col);
+        }
+    }
 }
 
 /// Resolve the used number of columns and per-column width from the
@@ -1448,7 +1601,8 @@ fn item_is_splittable(item: &MultiColItem) -> bool {
 }
 
 fn item_is_text_block(item: &MultiColItem) -> bool {
-    item.elements.len() == 1 && matches!(item.elements[0], LayoutElement::TextBlock { .. })
+    item.elements.len() == 1
+        && matches!(&item.elements[0], LayoutElement::TextBlock { lines, .. } if !lines.is_empty())
 }
 
 /// Build one positioned fragment box for a `column-fill: auto` slice of an item.
@@ -1750,7 +1904,6 @@ fn child_multicol_info(
     sibling_count: usize,
     preceding_siblings: &[(String, Vec<String>)],
 ) -> ChildMulticolInfo {
-    use crate::parser::css::SelectorContext;
     use crate::style::computed::compute_style_with_context;
     let classes = child_el.class_list();
     let selector_ctx = SelectorContext {
@@ -1791,9 +1944,104 @@ fn child_multicol_info(
         };
         cs.margin.left + border_box_w + cs.margin.right
     });
+    let breaks = resolve_child_column_breaks(
+        child_el,
+        env.rules,
+        child_el.tag_name(),
+        &classes,
+        child_el.id(),
+        &child_el.attributes,
+        &selector_ctx,
+    );
     ChildMulticolInfo {
         span_all: cs.column_span_all,
         definite_outer_height,
         definite_outer_width,
+        breaks,
     }
+}
+
+fn resolve_child_column_breaks(
+    child_el: &ElementNode,
+    rules: &[crate::parser::css::CssRule],
+    tag_name: &str,
+    classes: &[&str],
+    id: Option<&str>,
+    attributes: &std::collections::HashMap<String, String>,
+    selector_ctx: &SelectorContext,
+) -> ColumnBreakInfo {
+    let mut matched: Vec<(u32, &crate::parser::css::CssRule)> = Vec::new();
+    for rule in rules {
+        if rule.pseudo_element.is_some() {
+            continue;
+        }
+        if selector_matches_with_context(
+            &rule.selector,
+            tag_name,
+            classes,
+            id,
+            attributes,
+            selector_ctx,
+        ) {
+            matched.push((specificity(&rule.selector), rule));
+        }
+    }
+    matched.sort_by_key(|(spec, _)| *spec);
+
+    let inline_map = child_el.style_attr().map(parse_inline_style);
+    let mut breaks = ColumnBreakInfo::default();
+    for (_, rule) in &matched {
+        apply_column_break_declarations(&mut breaks, &rule.declarations, false);
+    }
+    if let Some(inline) = &inline_map {
+        apply_column_break_declarations(&mut breaks, inline, false);
+    }
+    for (_, rule) in &matched {
+        apply_column_break_declarations(&mut breaks, &rule.declarations, true);
+    }
+    if let Some(inline) = &inline_map {
+        apply_column_break_declarations(&mut breaks, inline, true);
+    }
+    breaks
+}
+
+fn apply_column_break_declarations(
+    breaks: &mut ColumnBreakInfo,
+    declarations: &crate::parser::css::StyleMap,
+    important: bool,
+) {
+    if declarations.is_important("break-before") == important {
+        if let Some(CssValue::Keyword(value)) = declarations.get("break-before") {
+            apply_before_column_break_value(breaks, value);
+        }
+    }
+    if declarations.is_important("break-after") == important {
+        if let Some(CssValue::Keyword(value)) = declarations.get("break-after") {
+            apply_after_column_break_value(breaks, value);
+        }
+    }
+    if declarations.is_important("break-inside") == important {
+        if let Some(CssValue::Keyword(value)) = declarations.get("break-inside") {
+            breaks.inside_avoid = is_column_avoid_break(value);
+        }
+    }
+    if declarations.is_important("page-break-inside") == important {
+        if let Some(CssValue::Keyword(value)) = declarations.get("page-break-inside") {
+            breaks.inside_avoid = value == "avoid";
+        }
+    }
+}
+
+fn apply_before_column_break_value(breaks: &mut ColumnBreakInfo, value: &str) {
+    breaks.before_force = value == "column";
+    breaks.before_avoid = is_column_avoid_break(value);
+}
+
+fn apply_after_column_break_value(breaks: &mut ColumnBreakInfo, value: &str) {
+    breaks.after_force = value == "column";
+    breaks.after_avoid = is_column_avoid_break(value);
+}
+
+fn is_column_avoid_break(value: &str) -> bool {
+    matches!(value, "avoid" | "avoid-column")
 }
