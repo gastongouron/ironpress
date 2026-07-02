@@ -166,6 +166,47 @@ fn bench_with_header_footer(c: &mut Criterion) {
     });
 }
 
+fn bench_many_fonts(c: &mut Criterion) {
+    // HTML referencing many different font families — exercises the system font
+    // loading path. After caching improvements, repeated calls should be fast.
+    let html = r#"
+    <style>
+      .f1 { font-family: "Arial", sans-serif; }
+      .f2 { font-family: "Times New Roman", serif; }
+      .f3 { font-family: "Courier New", monospace; }
+      .f4 { font-family: "Georgia", serif; }
+      .f5 { font-family: "Verdana", sans-serif; }
+      .f6 { font-family: "Trebuchet MS", sans-serif; }
+      .f7 { font-family: "Palatino", serif; }
+      .f8 { font-family: "Garamond", serif; }
+      .f9 { font-family: "Comic Sans MS", cursive; }
+      .f10 { font-family: "Impact", sans-serif; }
+    </style>
+    <p class="f1">Arial text</p>
+    <p class="f2">Times text</p>
+    <p class="f3">Courier text</p>
+    <p class="f4">Georgia text</p>
+    <p class="f5">Verdana text</p>
+    <p class="f6">Trebuchet text</p>
+    <p class="f7">Palatino text</p>
+    <p class="f8">Garamond text</p>
+    <p class="f9">Comic Sans text</p>
+    <p class="f10">Impact text</p>
+    "#;
+
+    c.bench_function("many_fonts", |b| {
+        b.iter(|| ironpress::html_to_pdf(black_box(html)).unwrap())
+    });
+}
+
+fn bench_repeated_convert(c: &mut Criterion) {
+    // Measures the benefit of caching when the same converter is reused
+    let converter = ironpress::HtmlConverter::new();
+    c.bench_function("repeated_convert", |b| {
+        b.iter(|| converter.convert(black_box(STYLED_HTML)).unwrap())
+    });
+}
+
 criterion_group!(
     benches,
     bench_simple,
@@ -174,5 +215,7 @@ criterion_group!(
     bench_full_document,
     bench_markdown,
     bench_with_header_footer,
+    bench_many_fonts,
+    bench_repeated_convert,
 );
 criterion_main!(benches);
