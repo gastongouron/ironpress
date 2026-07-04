@@ -515,8 +515,7 @@ pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
                 }
                 continue;
             }
-            let font =
-                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query));
+            let font = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query));
             cache_guard.insert(key.clone(), font.clone());
             if let Some(font) = font {
                 fonts.insert(key, font);

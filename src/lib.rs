@@ -236,7 +236,8 @@ pub struct HtmlConverter {
     sanitize: bool,
     custom_fonts: std::collections::HashMap<String, Vec<u8>>,
     /// Cached parsed custom fonts — lazily populated on first `convert()` call.
-    parsed_custom_fonts_cache: std::cell::OnceCell<std::collections::HashMap<String, parser::ttf::TtfFont>>,
+    parsed_custom_fonts_cache:
+        std::cell::OnceCell<std::collections::HashMap<String, parser::ttf::TtfFont>>,
     /// Base directory for resolving relative paths in `@import` and `@font-face` rules.
     base_path: Option<std::path::PathBuf>,
     /// Optional header text rendered at the top of each page.
