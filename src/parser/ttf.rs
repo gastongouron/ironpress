@@ -4,6 +4,7 @@
 //! widths, units per em, cmap, bounding box, and vertical metrics.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Parsed TrueType font data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,9 +62,11 @@ pub struct TtfFont {
     pub layout_metrics: FontVerticalMetrics,
     /// Character code (Unicode codepoint) to glyph ID mapping from the `cmap` table.
     /// Uses u32 keys to support astral plane characters (emoji, CJK extensions).
-    pub cmap: HashMap<u32, u16>,
+    /// Wrapped in Arc so cloning a TtfFont is O(1).
+    pub cmap: Arc<HashMap<u32, u16>>,
     /// Advance width for each glyph ID from the `hmtx` table.
-    pub glyph_widths: Vec<u16>,
+    /// Wrapped in Arc so cloning a TtfFont is O(1).
+    pub glyph_widths: Arc<Vec<u16>>,
     /// Number of horizontal metrics entries (from `hhea`).
     pub num_h_metrics: u16,
     /// Font flags for the PDF FontDescriptor.
@@ -296,8 +299,8 @@ fn parse_ttf_at_offset(data: Vec<u8>, base: usize) -> Result<TtfFont, String> {
         bbox,
         pdf_metrics,
         layout_metrics,
-        cmap,
-        glyph_widths,
+        cmap: Arc::new(cmap),
+        glyph_widths: Arc::new(glyph_widths),
         num_h_metrics,
         flags,
         data: std::sync::Arc::new(data),
@@ -866,12 +869,12 @@ mod tests {
             bbox: [0; 4],
             pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
             layout_metrics: FontVerticalMetrics::new(0, 0, 0),
-            cmap: {
+            cmap: Arc::new({
                 let mut m = HashMap::new();
                 m.insert(65, 999); // glyph 999 is beyond widths vec
                 m
-            },
-            glyph_widths: vec![500, 700],
+            }),
+            glyph_widths: Arc::new(vec![500, 700]),
             num_h_metrics: 2,
             flags: 32,
             data: std::sync::Arc::new(vec![]),
@@ -888,8 +891,8 @@ mod tests {
             bbox: [0; 4],
             pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
             layout_metrics: FontVerticalMetrics::new(0, 0, 0),
-            cmap: HashMap::<u32, u16>::new(),
-            glyph_widths: vec![],
+            cmap: Arc::new(HashMap::<u32, u16>::new()),
+            glyph_widths: Arc::new(vec![]),
             num_h_metrics: 0,
             flags: 32,
             data: std::sync::Arc::new(vec![]),
@@ -1606,12 +1609,12 @@ mod tests {
             bbox: [0; 4],
             pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
             layout_metrics: FontVerticalMetrics::new(0, 0, 0),
-            cmap: {
+            cmap: Arc::new({
                 let mut m = HashMap::new();
                 m.insert(65, 0);
                 m
-            },
-            glyph_widths: vec![u16::MAX], // 65535 — would overflow u32 with * 1000
+            }),
+            glyph_widths: Arc::new(vec![u16::MAX]), // 65535 — would overflow u32 with * 1000
             num_h_metrics: 1,
             flags: 32,
             data: std::sync::Arc::new(vec![]),
@@ -1629,12 +1632,12 @@ mod tests {
             bbox: [0; 4],
             pdf_metrics: FontVerticalMetrics::new(0, 0, 0),
             layout_metrics: FontVerticalMetrics::new(0, 0, 0),
-            cmap: {
+            cmap: Arc::new({
                 let mut m = HashMap::new();
                 m.insert(65, 0);
                 m
-            },
-            glyph_widths: vec![500],
+            }),
+            glyph_widths: Arc::new(vec![500]),
             num_h_metrics: 1,
             flags: 32,
             data: std::sync::Arc::new(vec![]),

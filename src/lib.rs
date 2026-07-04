@@ -235,6 +235,8 @@ pub struct HtmlConverter {
     margin: Margin,
     sanitize: bool,
     custom_fonts: std::collections::HashMap<String, Vec<u8>>,
+    /// Cached parsed custom fonts — lazily populated on first `convert()` call.
+    parsed_custom_fonts_cache: std::cell::OnceCell<std::collections::HashMap<String, parser::ttf::TtfFont>>,
     /// Base directory for resolving relative paths in `@import` and `@font-face` rules.
     base_path: Option<std::path::PathBuf>,
     /// Optional header text rendered at the top of each page.
@@ -252,6 +254,7 @@ impl HtmlConverter {
             margin: Margin::default(),
             sanitize: true,
             custom_fonts: std::collections::HashMap::new(),
+            parsed_custom_fonts_cache: std::cell::OnceCell::new(),
             base_path: None,
             header: None,
             footer: None,
@@ -295,6 +298,8 @@ impl HtmlConverter {
     pub fn add_font(mut self, name: &str, ttf_data: Vec<u8>) -> Self {
         self.custom_fonts
             .insert(name.to_ascii_lowercase(), ttf_data);
+        // Invalidate the parsed fonts cache since a new font was added
+        self.parsed_custom_fonts_cache = std::cell::OnceCell::new();
         self
     }
 
@@ -558,14 +563,19 @@ impl HtmlConverter {
     }
 
     /// Parse all registered custom fonts into TtfFont structs.
+    /// Results are cached so repeated `convert()` calls don't re-parse.
     fn parse_custom_fonts(&self) -> std::collections::HashMap<String, parser::ttf::TtfFont> {
-        let mut fonts = std::collections::HashMap::new();
-        for (name, data) in &self.custom_fonts {
-            if let Ok(font) = parser::ttf::parse_ttf(data.clone()) {
-                fonts.insert(name.clone(), font);
-            }
-        }
-        fonts
+        self.parsed_custom_fonts_cache
+            .get_or_init(|| {
+                let mut fonts = std::collections::HashMap::new();
+                for (name, data) in &self.custom_fonts {
+                    if let Ok(font) = parser::ttf::parse_ttf(data.clone()) {
+                        fonts.insert(name.clone(), font);
+                    }
+                }
+                fonts
+            })
+            .clone()
     }
 }
 

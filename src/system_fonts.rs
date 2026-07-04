@@ -2,9 +2,19 @@ use crate::parser::css::{CssRule, CssValue, parse_inline_style};
 use crate::parser::dom::DomNode;
 use crate::parser::ttf::{TtfFont, parse_ttf, parse_ttf_with_index};
 use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
-use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
 use std::process::Command;
+use std::sync::Mutex;
+
+/// Global cache of system fonts resolved by variant key. System fonts don't
+/// change during a process lifetime, so caching avoids re-running fontdb
+/// queries and fc-match subprocesses on every `convert()` call.
+static SYSTEM_FONT_CACHE: std::sync::OnceLock<Mutex<HashMap<String, Option<TtfFont>>>> =
+    std::sync::OnceLock::new();
+
+fn system_font_cache() -> &'static Mutex<HashMap<String, Option<TtfFont>>> {
+    SYSTEM_FONT_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 const FONT_VARIANTS: &[FontVariant] = &[
     FontVariant::new(false, false),
@@ -265,16 +275,30 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
         return;
     }
 
+    let cache = system_font_cache();
+    let mut cache_guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+
+    // Check if we already resolved this in a previous call
+    if let Some(cached) = cache_guard.get(UNICODE_FALLBACK_KEY) {
+        if let Some(font) = cached {
+            fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font.clone());
+        }
+        return;
+    }
+
     let db = system_fontdb();
 
     for family in UNICODE_FALLBACK_FAMILIES {
         let query = SystemFontQuery::new(family, FontVariant::new(false, false));
         if let Some(font) = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
         {
+            cache_guard.insert(UNICODE_FALLBACK_KEY.to_string(), Some(font.clone()));
             fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font);
             return;
         }
     }
+
+    cache_guard.insert(UNICODE_FALLBACK_KEY.to_string(), None);
 
     // In WASM builds there are no system fonts available via fontdb —
     // fall back to a bundled Noto Sans CJK subset so Chinese/Japanese
@@ -318,16 +342,29 @@ pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
         return;
     }
 
+    let cache = system_font_cache();
+    let mut cache_guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+
+    if let Some(cached) = cache_guard.get(EMOJI_FALLBACK_KEY) {
+        if let Some(font) = cached {
+            fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font.clone());
+        }
+        return;
+    }
+
     // Fallback: try system fonts (may be bitmap-only)
     let db = system_fontdb();
     for family in EMOJI_FALLBACK_FAMILIES {
         let query = SystemFontQuery::new(family, FontVariant::new(false, false));
         if let Some(font) = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
         {
+            cache_guard.insert(EMOJI_FALLBACK_KEY.to_string(), Some(font.clone()));
             fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
             return;
         }
     }
+
+    cache_guard.insert(EMOJI_FALLBACK_KEY.to_string(), None);
 }
 
 /// Load the bundled Noto Emoji font (monochrome, vector outlines).
@@ -462,6 +499,8 @@ pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
         ("Courier New", "monospace"),
     ];
     let db = system_fontdb();
+    let cache = system_font_cache();
+    let mut cache_guard = cache.lock().unwrap_or_else(|e| e.into_inner());
 
     for (family, _generic) in &families {
         for variant in FONT_VARIANTS {
@@ -470,9 +509,16 @@ pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
             if fonts.contains_key(&key) {
                 continue;
             }
-            if let Some(font) =
-                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
-            {
+            if let Some(cached) = cache_guard.get(&key) {
+                if let Some(font) = cached {
+                    fonts.insert(key, font.clone());
+                }
+                continue;
+            }
+            let font =
+                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query));
+            cache_guard.insert(key.clone(), font.clone());
+            if let Some(font) = font {
                 fonts.insert(key, font);
             }
         }
@@ -554,16 +600,25 @@ fn should_try_system_font(family: &str) -> bool {
 }
 
 fn load_family_variants(db: &fontdb::Database, family: &str, fonts: &mut HashMap<String, TtfFont>) {
+    let cache = system_font_cache();
+    let mut cache_guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+
     for variant in FONT_VARIANTS {
         let query = SystemFontQuery::new(family, *variant);
-        match fonts.entry(query.variant_key()) {
-            Entry::Occupied(_) => {}
-            Entry::Vacant(slot) => {
-                let Some(font) = load_system_font(db, &query) else {
-                    continue;
-                };
-                slot.insert(font);
+        let key = query.variant_key();
+        if fonts.contains_key(&key) {
+            continue;
+        }
+        if let Some(cached) = cache_guard.get(&key) {
+            if let Some(font) = cached {
+                fonts.insert(key, font.clone());
             }
+            continue;
+        }
+        let font = load_system_font(db, &query);
+        cache_guard.insert(key.clone(), font.clone());
+        if let Some(font) = font {
+            fonts.insert(key, font);
         }
     }
 }
@@ -677,8 +732,8 @@ mod tests {
             bbox: [0, -200, 1000, 800],
             pdf_metrics: metrics,
             layout_metrics: metrics,
-            cmap: std::collections::HashMap::new(),
-            glyph_widths: vec![500],
+            cmap: std::sync::Arc::new(std::collections::HashMap::new()),
+            glyph_widths: std::sync::Arc::new(vec![500]),
             num_h_metrics: 1,
             flags: 0,
             data: std::sync::Arc::new(vec![]),

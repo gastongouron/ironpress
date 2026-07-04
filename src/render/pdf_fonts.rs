@@ -64,7 +64,7 @@ pub(crate) fn prepare_custom_fonts(
                     let mut fu = FontUsage::default();
                     // Register ALL glyphs — subsetting causes glyph ID
                     // mismatches with rustybuzz shaping output.
-                    for (&ch, &gid) in &fallback_font.cmap {
+                    for (&ch, &gid) in fallback_font.cmap.iter() {
                         let unicode: Vec<u16> = char::from_u32(ch)
                             .map(|c| c.encode_utf16(&mut [0; 2]).to_vec())
                             .unwrap_or_else(|| vec![ch as u16]);
@@ -321,7 +321,7 @@ fn to_unicode_map_for_subset(
 
 fn to_unicode_map_for_full_font(ttf: &TtfFont) -> ToUnicodeMap {
     let mut mappings = BTreeMap::new();
-    for (&char_code, &glyph_id) in &ttf.cmap {
+    for (&char_code, &glyph_id) in ttf.cmap.iter() {
         if glyph_id != 0 {
             let unicode: Vec<u16> = char::from_u32(char_code)
                 .map(|c| c.encode_utf16(&mut [0; 2]).to_vec())
@@ -385,8 +385,8 @@ mod tests {
             bbox: [0, -200, 800, 800],
             pdf_metrics: FontVerticalMetrics::new(800, -200, 0),
             layout_metrics: FontVerticalMetrics::new(800, -200, 0),
-            cmap: HashMap::new(),
-            glyph_widths: vec![0, 500, 600],
+            cmap: std::sync::Arc::new(HashMap::new()),
+            glyph_widths: std::sync::Arc::new(vec![0, 500, 600]),
             num_h_metrics: 3,
             flags: 32,
             data: std::sync::Arc::new(Vec::new()), // empty ⟹ subsetting always fails → fallback_font path
@@ -400,8 +400,8 @@ mod tests {
             bbox: [0, -200, 800, 800],
             pdf_metrics: FontVerticalMetrics::new(800, -200, 0),
             layout_metrics: FontVerticalMetrics::new(800, -200, 0),
-            cmap,
-            glyph_widths: widths,
+            cmap: std::sync::Arc::new(cmap),
+            glyph_widths: std::sync::Arc::new(widths),
             num_h_metrics: 3,
             flags: 32,
             data: std::sync::Arc::new(Vec::new()),
