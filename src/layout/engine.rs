@@ -238,6 +238,9 @@ pub enum ImageFormat {
 pub struct PngMetadata {
     pub channels: u8,
     pub bit_depth: u8,
+    /// Indexed (palette) PNG — must go through full decode when embedding,
+    /// since a raw IDAT stream would need the PLTE as an /Indexed space.
+    pub indexed: bool,
 }
 
 /// Raster image bytes plus the source pixel dimensions required by the PDF renderer.
@@ -2596,6 +2599,26 @@ mod tests {
             nested_text.contains("1."),
             "Nested item should have ordered marker, got: {nested_text}"
         );
+    }
+
+    #[test]
+    fn layout_image_nan_dimension_attrs_fall_back() {
+        let html = format!(r#"<img src="{TEST_JPEG_DATA_URI}" width="NaN" height="NaN">"#);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let mut found = false;
+        for p in &pages {
+            for (_, e) in &p.elements {
+                if let LayoutElement::Image { width, height, .. } = e {
+                    found = true;
+                    assert!(
+                        width.is_finite() && height.is_finite(),
+                        "NaN attribute dimensions must not propagate: {width} x {height}"
+                    );
+                }
+            }
+        }
+        assert!(found, "image with NaN attrs should still lay out");
     }
 
     #[test]

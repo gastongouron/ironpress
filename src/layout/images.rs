@@ -78,9 +78,20 @@ pub(crate) fn load_image_bytes(raw: Vec<u8>) -> Option<RasterImageAsset> {
         let metadata = PngMetadata {
             channels: png_info.channels,
             bit_depth: png_info.bit_depth,
+            indexed: png_info.color_type == 3,
+        };
+        // Alpha-bearing PNGs (gray+alpha or RGBA) cannot be embedded as a
+        // raw IDAT stream — PDF image XObjects carry no inline alpha, and
+        // declaring /DeviceRGB over 4-channel data corrupts the raster.
+        // Indexed PNGs need their palette resolved. Keep the full PNG so
+        // the renderer can decode (and split any alpha into an /SMask).
+        let data = if png_info.channels == 2 || png_info.channels == 4 || metadata.indexed {
+            raw
+        } else {
+            png_info.idat_data
         };
         Some(RasterImageAsset {
-            data: png_info.idat_data,
+            data,
             source_width: png_info.width,
             source_height: png_info.height,
             format: ImageFormat::Png,
@@ -166,11 +177,17 @@ pub(crate) fn load_image_from_element(
     let attr_width = parse_html_image_dimension(el.attributes.get("width"));
     let attr_height = parse_html_image_dimension(el.attributes.get("height"));
 
+    // Missing dimensions resolve against the intrinsic pixel size (at 0.75
+    // pt/px), preserving aspect ratio — matching browser replaced-element
+    // sizing rather than inventing a square or fixed box.
+    let intrinsic_w = (image.source_width.max(1) as f32) * 0.75;
+    let intrinsic_h = (image.source_height.max(1) as f32) * 0.75;
+    let ratio = intrinsic_h / intrinsic_w;
     let (width, height) = match (attr_width, attr_height) {
         (Some(w), Some(h)) => (w, h),
-        (Some(w), None) => (w, w), // fallback: square
-        (None, Some(h)) => (h, h),
-        (None, None) => (available_width.min(200.0), 150.0),
+        (Some(w), None) => (w, w * ratio),
+        (None, Some(h)) => (h / ratio, h),
+        (None, None) => (intrinsic_w, intrinsic_h),
     };
 
     let (width, height) = constrain_replaced_image_size(
@@ -282,7 +299,13 @@ pub(crate) fn add_inline_replaced_baseline_gap(
 pub(crate) fn parse_html_image_dimension(raw: Option<&String>) -> Option<f32> {
     let raw = raw?.trim();
     let raw = raw.strip_suffix("px").unwrap_or(raw);
-    raw.parse::<f32>().ok().map(|px| px * 0.75)
+    raw.parse::<f32>()
+        .ok()
+        // Real-world HTML contains width="NaN" and the like; a non-finite
+        // or negative dimension must fall back to intrinsic sizing rather
+        // than poison the PDF coordinate stream.
+        .filter(|px| px.is_finite() && *px >= 0.0)
+        .map(|px| px * 0.75)
 }
 
 struct SvgSizeSource<'a> {

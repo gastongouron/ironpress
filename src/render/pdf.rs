@@ -5083,6 +5083,9 @@ struct DecodedPngImage {
 fn decode_png_for_pdf(raw: &[u8]) -> Option<DecodedPngImage> {
     let mut decoder = png_decoder::Decoder::new(std::io::Cursor::new(raw));
     decoder.ignore_checksums(true);
+    // Expand indexed (palette) pixels to RGB and sub-8-bit grayscale to
+    // 8-bit so the color-type match below only sees direct color data.
+    decoder.set_transformations(png_decoder::Transformations::EXPAND);
     let mut reader = decoder.read_info().ok()?;
     let output_size = reader.output_buffer_size()?;
     let mut buffer = vec![0; output_size];
@@ -5192,6 +5195,16 @@ impl PdfWriter {
         format: ImageFormat,
         png_metadata: Option<&PngMetadata>,
     ) -> usize {
+        // Alpha-bearing PNGs arrive as the full PNG file (see
+        // load_image_bytes) and go through the decode-and-split path so the
+        // alpha channel becomes an /SMask instead of corrupting the color
+        // stream. Checked before next_id() so no object id is leaked.
+        if format == ImageFormat::Png
+            && png_metadata.is_some_and(|m| m.channels == 2 || m.channels == 4 || m.indexed)
+            && let Some(id) = self.add_raw_png_image_object(data)
+        {
+            return id;
+        }
         let id = self.next_id();
         let header = match format {
             ImageFormat::Jpeg => {

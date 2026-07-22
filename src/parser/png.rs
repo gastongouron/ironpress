@@ -101,11 +101,13 @@ fn parse_png_with_limit(data: &[u8], max_idat: usize) -> Option<PngInfo> {
     }
 
     let channels = match color_type {
-        0 => 1,           // Grayscale
-        2 => 3,           // RGB
+        0 => 1, // Grayscale
+        2 => 3, // RGB
+        3 => 1, // Indexed (palette) — one index sample per pixel;
+        //                   embedding requires full decode, see load_image_bytes
         4 => 2,           // Grayscale + Alpha
         6 => 4,           // RGBA
-        _ => return None, // Unsupported (e.g., indexed color type 3)
+        _ => return None, // Unsupported
     };
 
     Some(PngInfo {
@@ -193,9 +195,18 @@ mod tests {
     }
 
     #[test]
-    fn parse_unsupported_color_type() {
-        // Color type 3 (indexed) is not supported
+    fn parse_indexed_color_type() {
+        // Color type 3 (indexed) parses; embedding decodes the palette later.
         let png = build_test_png(1, 1, 8, 3, &[0x78, 0x01, 0x01, 0x00, 0x00]);
+        let info = parse_png(&png).expect("indexed PNG should parse");
+        assert_eq!(info.color_type, 3);
+        assert_eq!(info.channels, 1);
+    }
+
+    #[test]
+    fn parse_truly_unsupported_color_type() {
+        // Color type 7 does not exist in the PNG spec.
+        let png = build_test_png(1, 1, 8, 7, &[0x78, 0x01, 0x01, 0x00, 0x00]);
         assert!(parse_png(&png).is_none());
     }
 
