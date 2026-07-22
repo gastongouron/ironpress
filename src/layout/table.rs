@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use super::context::{LayoutContext, LayoutEnv, ParentBox, Viewport};
 use super::engine::{
     CounterState, LayoutBorder, LayoutElement, TextLine, TextRun, collects_as_inline_text,
-    flatten_element, has_background_paint, recurses_as_layout_child,
+    flatten_element, has_background_paint, subtree_recurses_as_layout_child,
 };
 use super::paginate::{estimate_element_height, table_row_content_width};
 use super::text::{
@@ -705,7 +705,7 @@ pub(crate) fn flatten_table(
                         let mut runs = Vec::new();
                         let mut nested_rows = Vec::new();
                         let recurse_descendants = cell_el.children.iter().any(
-                            |node| matches!(node, DomNode::Element(e) if recurses_as_layout_child(e.tag)),
+                            |node| matches!(node, DomNode::Element(e) if subtree_recurses_as_layout_child(e)),
                         );
                         let mut text_ancestors = cell_sizing_ctx.ancestors.clone();
                         text_ancestors.push(AncestorInfo {
@@ -966,10 +966,9 @@ pub(crate) fn flatten_table(
 
             let mut runs = Vec::new();
             let mut nested_rows = Vec::new();
-            let recurse_descendants = cell_el
-                .children
-                .iter()
-                .any(|node| matches!(node, DomNode::Element(e) if recurses_as_layout_child(e.tag)));
+            let recurse_descendants = cell_el.children.iter().any(
+                |node| matches!(node, DomNode::Element(e) if subtree_recurses_as_layout_child(e)),
+            );
             let mut text_ancestors = cell_selector_ctx.ancestors.clone();
             text_ancestors.push(AncestorInfo {
                 element: cell_el,

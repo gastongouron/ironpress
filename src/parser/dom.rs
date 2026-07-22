@@ -72,6 +72,7 @@ pub enum HtmlTag {
     Audio,
     Progress,
     Meter,
+    Center,
     Unknown,
 }
 
@@ -147,6 +148,7 @@ impl HtmlTag {
             "audio" => Self::Audio,
             "progress" => Self::Progress,
             "meter" => Self::Meter,
+            "center" => Self::Center,
             _ => Self::Unknown,
         }
     }
@@ -193,6 +195,7 @@ impl HtmlTag {
                 | Self::Summary
                 | Self::Video
                 | Self::Textarea
+                | Self::Center
         )
     }
 
@@ -223,6 +226,10 @@ impl HtmlTag {
                 | Self::Audio
                 | Self::Progress
                 | Self::Meter
+                // Browsers treat unrecognized elements as inline; classifying
+                // them as neither block nor inline made layout drop their
+                // entire subtree (silent content loss).
+                | Self::Unknown
         )
     }
 }
@@ -350,6 +357,7 @@ impl ElementNode {
             HtmlTag::Audio => "audio",
             HtmlTag::Progress => "progress",
             HtmlTag::Meter => "meter",
+            HtmlTag::Center => "center",
             HtmlTag::Unknown => "unknown",
         }
     }

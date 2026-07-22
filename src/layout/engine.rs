@@ -2598,6 +2598,87 @@ mod tests {
         );
     }
 
+    fn collect_text(elements: &[LayoutElement]) -> String {
+        let mut out = String::new();
+        for el in elements {
+            match el {
+                LayoutElement::TextBlock { lines, .. } => {
+                    for l in lines {
+                        for r in &l.runs {
+                            out.push_str(&r.text);
+                        }
+                    }
+                }
+                LayoutElement::TableRow { cells, .. } => {
+                    for c in cells {
+                        for l in &c.lines {
+                            for r in &l.runs {
+                                out.push_str(&r.text);
+                            }
+                        }
+                        out.push_str(&collect_text(&c.nested_rows));
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
+    fn page_text(pages: &[Page]) -> String {
+        pages
+            .iter()
+            .map(|p| {
+                let els: Vec<LayoutElement> = p.elements.iter().map(|(_, e)| e.clone()).collect();
+                collect_text(&els)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn layout_center_inside_table_cell_keeps_content() {
+        let html = "<table><tr><td><center><p>hello cell</p></center></td></tr></table>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let text = page_text(&pages);
+        assert!(
+            text.contains("hello cell"),
+            "content inside <center> in a <td> must not be dropped, got: {text:?}"
+        );
+    }
+
+    #[test]
+    fn layout_center_at_body_level_centers_text() {
+        let html = "<center><p>centered text</p></center>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let text = page_text(&pages);
+        assert!(
+            text.contains("centered text"),
+            "content inside <center> must render, got: {text:?}"
+        );
+        let centered = pages.iter().any(|p| {
+            p.elements.iter().any(|(_, e)| {
+                matches!(e, LayoutElement::TextBlock { text_align, lines, .. }
+                    if *text_align == TextAlign::Center
+                        && lines.iter().any(|l| l.runs.iter().any(|r| r.text.contains("centered"))))
+            })
+        });
+        assert!(centered, "<center> content must be center-aligned");
+    }
+
+    #[test]
+    fn layout_unknown_tag_content_not_dropped_in_table_cell() {
+        let html = "<table><tr><td><whatever><p>survives</p></whatever></td></tr></table>";
+        let nodes = parse_html(html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        let text = page_text(&pages);
+        assert!(
+            text.contains("survives"),
+            "unknown-tag content in a <td> must not be dropped, got: {text:?}"
+        );
+    }
+
     #[test]
     fn base64_decode_basic() {
         // "Hello" in base64 is "SGVsbG8="

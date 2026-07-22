@@ -215,6 +215,20 @@ pub(crate) fn recurses_as_layout_child(tag: HtmlTag) -> bool {
     tag.is_block() || tag == HtmlTag::Svg
 }
 
+/// True when the element itself, or anything in its subtree, requires
+/// element-level layout (block or svg). Inline wrappers (including unknown
+/// tags, which default to inline) must not hide block descendants from the
+/// table-cell recursion decision.
+pub(crate) fn subtree_recurses_as_layout_child(el: &crate::parser::dom::ElementNode) -> bool {
+    if recurses_as_layout_child(el.tag) {
+        return true;
+    }
+    el.children.iter().any(|c| match c {
+        crate::parser::dom::DomNode::Element(e) => subtree_recurses_as_layout_child(e),
+        _ => false,
+    })
+}
+
 pub(crate) fn collects_as_inline_text(tag: HtmlTag) -> bool {
     tag != HtmlTag::Svg && tag.is_inline()
 }

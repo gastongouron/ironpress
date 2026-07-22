@@ -108,6 +108,9 @@ pub fn default_style(tag: HtmlTag) -> StyleMap {
             style.set("padding-left", CssValue::Length(0.75));
             style.set("font-weight", CssValue::Keyword("bold".into()));
         }
+        HtmlTag::Center => {
+            style.set("text-align", CssValue::Keyword("center".into()));
+        }
         HtmlTag::Blockquote => {
             style.set("margin-top", CssValue::Length(8.0));
             style.set("margin-bottom", CssValue::Length(8.0));
