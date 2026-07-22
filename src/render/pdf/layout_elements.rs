@@ -671,6 +671,36 @@ pub(super) fn render_nested_layout_elements(
                     ctx,
                 );
             }
+            LayoutElement::Image {
+                image,
+                width,
+                height,
+                ..
+            } => {
+                let img_x = planned_element.origin_x;
+                // PDF y-axis is bottom-up; top_y is the image top edge.
+                let img_y = planned_element.top_y - height;
+                let img_obj_id = ctx.pdf_writer.add_image_object(
+                    &image.data,
+                    image.source_width,
+                    image.source_height,
+                    image.format,
+                    image.png_metadata.as_ref(),
+                );
+                let img_name = format!("Im{img_obj_id}");
+                content.push_str(&format!(
+                    "q\n{w} 0 0 {h} {x} {y} cm\n/{name} Do\nQ\n",
+                    w = width,
+                    h = height,
+                    x = img_x,
+                    y = img_y,
+                    name = img_name,
+                ));
+                ctx.page_images.push(ImageRef {
+                    name: img_name,
+                    obj_id: img_obj_id,
+                });
+            }
             _ => {}
         }
     }
@@ -773,6 +803,25 @@ pub(super) fn plan_nested_layout_elements(
                         )
                         - *margin_bottom;
                 }
+            }
+            LayoutElement::Image {
+                width: _,
+                height,
+                flow_extra_bottom,
+                margin_top,
+                margin_bottom,
+                ..
+            } => {
+                cursor_y -= *margin_top;
+                planned.push(PlannedNestedElement {
+                    element,
+                    source_index: element_idx,
+                    origin_x: frame.origin_x,
+                    top_y: cursor_y,
+                    available_width: frame.available_width,
+                    blur_canvas_box: None,
+                });
+                cursor_y -= height + flow_extra_bottom + *margin_bottom;
             }
             _ => {}
         }

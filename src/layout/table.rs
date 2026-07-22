@@ -1275,6 +1275,19 @@ fn collect_table_cell_content_inner(
                 if style.display == Display::None {
                     continue;
                 }
+                if el.tag == HtmlTag::Img {
+                    // Text-run collection has no image representation; emit
+                    // the image as a nested layout element within the cell.
+                    if let Some(img) = super::images::load_image_from_element(
+                        el,
+                        available_width,
+                        f32::INFINITY,
+                        &style,
+                    ) {
+                        nested_rows.push(img);
+                    }
+                    continue;
+                }
                 let url = if el.tag == HtmlTag::A {
                     el.attributes.get("href").map(|s| s.as_str()).or(link_url)
                 } else {

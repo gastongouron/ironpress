@@ -15,6 +15,7 @@ use super::helpers::{
     collects_as_inline_text, has_background_paint, heading_level,
     patch_absolute_children_containing_block, pseudo_is_block_like, push_block_pseudo,
     recurses_as_layout_child, resolve_abs_containing_block, resolve_padding_box_height,
+    subtree_contains_img,
 };
 use super::inline::{
     element_has_css_display_block, element_is_inline_block, layout_inline_block_group,
@@ -483,7 +484,10 @@ pub(crate) fn layout_block_element(
                 matches!(c, DomNode::Element(e)
                     if (has_own_margins(e.tag)
                         || (e.tag.is_block() && !collects_as_inline_text(e.tag))
-                        || element_has_css_display_block(e, style, env.rules, child_ancestors))
+                        || element_has_css_display_block(e, style, env.rules, child_ancestors)
+                        // Image-bearing children must go through element
+                        // layout — text-run collection would drop the image.
+                        || subtree_contains_img(e))
                         && !element_is_inline_block(
                             e, style, env.rules, child_ancestors, 0, 0, &[]))
             });
@@ -651,7 +655,7 @@ pub(crate) fn layout_block_element(
                         );
                     }
                     DomNode::Element(child_el)
-                        if (child_el.tag.is_block()
+                        if ((child_el.tag.is_block()
                             || child_el.tag == HtmlTag::Svg
                             || element_has_css_display_block(
                                 child_el,
@@ -659,7 +663,8 @@ pub(crate) fn layout_block_element(
                                 env.rules,
                                 child_ancestors,
                             ))
-                            && !collects_as_inline_text(child_el.tag) =>
+                            && !collects_as_inline_text(child_el.tag))
+                            || subtree_contains_img(child_el) =>
                     {
                         // Flush inline runs before block child
                         flush_runs(
@@ -888,29 +893,99 @@ pub(crate) fn layout_block_element(
                                 child_ancestors,
                             ) =>
                     {
-                        collect_text_runs(
-                            std::slice::from_ref(child),
-                            style,
-                            &mut runs,
-                            None,
-                            env.rules,
-                            env.fonts,
-                            child_ancestors,
-                        );
+                        if subtree_contains_img(child_el) {
+                            // Text-run collection drops images; lay the
+                            // subtree out as elements instead.
+                            flush_runs(
+                                &mut runs,
+                                inner_width,
+                                style,
+                                available_width,
+                                block_w,
+                                effective_height,
+                                auto_offset_left,
+                                el,
+                                output,
+                                env.fonts,
+                            );
+                            flatten_element(
+                                child_el,
+                                style,
+                                &ctx.with_parent(
+                                    inner_width,
+                                    Some(available_height),
+                                    style.font_size,
+                                )
+                                .with_containing_block(None),
+                                output,
+                                None,
+                                child_ancestors,
+                                positioned_depth,
+                                0,
+                                0,
+                                &[],
+                                env,
+                            );
+                        } else {
+                            collect_text_runs(
+                                std::slice::from_ref(child),
+                                style,
+                                &mut runs,
+                                None,
+                                env.rules,
+                                env.fonts,
+                                child_ancestors,
+                            );
+                        }
                     }
                     _ => {} // Block children handled by needs_wrapper
                 }
             }
         } else {
-            collect_text_runs(
-                &el.children,
-                style,
-                &mut runs,
-                None,
-                env.rules,
-                env.fonts,
-                child_ancestors,
-            );
+            for child in &el.children {
+                if let DomNode::Element(child_el) = child
+                    && subtree_contains_img(child_el)
+                {
+                    // Text-run collection drops images; lay the subtree out
+                    // as elements instead.
+                    flush_runs(
+                        &mut runs,
+                        inner_width,
+                        style,
+                        available_width,
+                        block_w,
+                        effective_height,
+                        auto_offset_left,
+                        el,
+                        output,
+                        env.fonts,
+                    );
+                    flatten_element(
+                        child_el,
+                        style,
+                        &ctx.with_parent(inner_width, Some(available_height), style.font_size)
+                            .with_containing_block(None),
+                        output,
+                        None,
+                        child_ancestors,
+                        positioned_depth,
+                        0,
+                        0,
+                        &[],
+                        env,
+                    );
+                } else {
+                    collect_text_runs(
+                        std::slice::from_ref(child),
+                        style,
+                        &mut runs,
+                        None,
+                        env.rules,
+                        env.fonts,
+                        child_ancestors,
+                    );
+                }
+            }
         }
     }
     if !skip_inline_collection {

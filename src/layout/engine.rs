@@ -2598,6 +2598,102 @@ mod tests {
         );
     }
 
+    /// Recursively count Image elements, descending into table cells.
+    fn count_images(elements: &[LayoutElement]) -> usize {
+        elements
+            .iter()
+            .map(|el| match el {
+                LayoutElement::Image { .. } => 1,
+                LayoutElement::TableRow { cells, .. } => cells
+                    .iter()
+                    .map(|c| count_images(&c.nested_rows))
+                    .sum::<usize>(),
+                _ => 0,
+            })
+            .sum()
+    }
+
+    fn page_images(pages: &[Page]) -> usize {
+        pages
+            .iter()
+            .map(|p| {
+                let els: Vec<LayoutElement> = p.elements.iter().map(|(_, e)| e.clone()).collect();
+                count_images(&els)
+            })
+            .sum()
+    }
+
+    #[test]
+    fn layout_image_inside_div_renders() {
+        let html =
+            format!(r#"<div><img src="{TEST_JPEG_DATA_URI}" width="100" height="80"></div>"#);
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(
+            page_images(&pages),
+            1,
+            "img inside <div> must produce an Image element"
+        );
+    }
+
+    #[test]
+    fn layout_image_inside_paragraph_renders() {
+        let html = format!(
+            r#"<p>before <img src="{TEST_JPEG_DATA_URI}" width="100" height="80"> after</p>"#
+        );
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(
+            page_images(&pages),
+            1,
+            "img inside <p> must produce an Image element"
+        );
+    }
+
+    #[test]
+    fn layout_image_inside_span_inside_div_renders() {
+        let html = format!(
+            r#"<div><span><img src="{TEST_JPEG_DATA_URI}" width="100" height="80"></span></div>"#
+        );
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(
+            page_images(&pages),
+            1,
+            "img inside <span> inside <div> must produce an Image element"
+        );
+    }
+
+    #[test]
+    fn layout_image_inside_table_cell_renders() {
+        let html = format!(
+            r#"<table><tr><td><img src="{TEST_JPEG_DATA_URI}" width="100" height="80"></td></tr></table>"#
+        );
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(
+            page_images(&pages),
+            1,
+            "img inside <td> must produce an Image element"
+        );
+    }
+
+    #[test]
+    fn layout_image_inside_styled_div_in_table_cell_renders() {
+        // Legacy template shape: table cell wrapping a styled div wrapping
+        // an image.
+        let html = format!(
+            r#"<table><tr><td style="text-align:center"><div><img src="{TEST_JPEG_DATA_URI}" width="100" height="80"></div></td></tr></table>"#
+        );
+        let nodes = parse_html(&html).unwrap();
+        let pages = layout(&nodes, PageSize::A4, Margin::default());
+        assert_eq!(
+            page_images(&pages),
+            1,
+            "img nested below <td> must produce an Image element"
+        );
+    }
+
     #[test]
     fn base64_decode_basic() {
         // "Hello" in base64 is "SGVsbG8="

@@ -219,6 +219,19 @@ pub(crate) fn collects_as_inline_text(tag: HtmlTag) -> bool {
     tag != HtmlTag::Svg && tag.is_inline()
 }
 
+/// True when the element is an `<img>` or contains one anywhere in its
+/// subtree. Used to divert image-bearing children out of text-run
+/// collection (which only understands text) into element layout.
+pub(crate) fn subtree_contains_img(el: &crate::parser::dom::ElementNode) -> bool {
+    if el.tag == HtmlTag::Img {
+        return true;
+    }
+    el.children.iter().any(|c| match c {
+        crate::parser::dom::DomNode::Element(e) => subtree_contains_img(e),
+        _ => false,
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Group 3 — List marker formatting
 // ---------------------------------------------------------------------------
