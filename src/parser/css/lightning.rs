@@ -55,8 +55,7 @@ fn declaration_block_to_style_map(
     map
 }
 
-fn parser_options<'i>(input: &'i str) -> ParserOptions<'static, 'i> {
-    let _ = input;
+fn parser_options<'i>(_: &'i str) -> ParserOptions<'i> {
     ParserOptions {
         filename: String::new(),
         css_modules: None,

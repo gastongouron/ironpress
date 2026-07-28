@@ -27,7 +27,7 @@ wasm = ["wasm-bindgen", "js-sys", "getrandom/wasm_js"]
 
 [dependencies]
 html5ever = "0.38"
-lightningcss = { version = "1.0.0-alpha.71", default-features = false }
+lightningcss = { version = "1.0.0-alpha.72", default-features = false }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 png_decoder = { package = "png", version = "0.18" }
 pulldown-cmark = "0.13"
