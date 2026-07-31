@@ -375,6 +375,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     pages: &[Page],
     page_size: PageSize,

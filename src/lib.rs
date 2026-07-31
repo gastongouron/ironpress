@@ -97,18 +97,14 @@ pub(crate) mod util;
 /// Fetch bytes from a remote URL (requires the `remote` feature).
 /// Returns `None` when the feature is disabled or the request fails.
 #[allow(unused_variables)]
-fn fetch_remote_bytes(url: &str) -> Option<Vec<u8>> {
+fn fetch_remote_bytes(url: &str, policy: &security::resources::NetworkPolicy) -> Option<Vec<u8>> {
     #[cfg(feature = "remote")]
     {
-        let resp = ureq::get(url).call().ok()?;
-        resp.into_body()
-            .with_config()
-            .limit(10 * 1024 * 1024)
-            .read_to_vec()
-            .ok()
+        security::network::fetch_authorized(url, policy)
     }
     #[cfg(not(feature = "remote"))]
     {
+        let _ = (url, policy);
         None
     }
 }
@@ -268,6 +264,8 @@ pub struct HtmlConverter {
 struct ResourcePaths {
     base: Option<std::path::PathBuf>,
     authorized_root: Option<std::path::PathBuf>,
+    /// Remote-fetch controls (SSRF), modelled on Gotenberg's `downloadFrom`.
+    network: security::resources::NetworkPolicy,
 }
 
 impl HtmlConverter {
@@ -444,6 +442,59 @@ impl HtmlConverter {
         self
     }
 
+    /// Allow-list of host patterns for remote (`http`/`https`) resource URLs. A
+    /// URL whose host matches is fetched and **bypasses** the IP-class checks.
+    /// Each pattern is an exact host (`cdn.example.com`) or a `.`-prefixed suffix
+    /// matching any subdomain (`.example.com`). Modelled on Gotenberg's
+    /// `--api-download-from-allow-list`.
+    pub fn download_allow_list(mut self, patterns: impl IntoIterator<Item = String>) -> Self {
+        self.resources.network.allow = patterns.into_iter().collect();
+        self
+    }
+
+    /// Deny-list of host patterns for remote resource URLs. A URL whose host
+    /// matches is **always** rejected, regardless of the allow-list or IP-class
+    /// flags. Same pattern syntax as [`download_allow_list`](Self::download_allow_list).
+    /// Modelled on Gotenberg's `--api-download-from-deny-list`.
+    pub fn download_deny_list(mut self, patterns: impl IntoIterator<Item = String>) -> Self {
+        self.resources.network.deny = patterns.into_iter().collect();
+        self
+    }
+
+    /// Reject remote resource URLs whose host resolves to a non-public IP
+    /// (loopback, RFC1918, link-local, IPv6 unique-local). The core SSRF
+    /// control; modelled on Gotenberg's `--api-download-from-deny-private-ips`.
+    ///
+    /// **Enabled by default.** Pass `false` to allow fetching from
+    /// private/reserved addresses (e.g. an internal CDN), ideally paired with a
+    /// [`download_allow_list`](Self::download_allow_list) of trusted hosts.
+    pub fn download_deny_private_ips(mut self, deny: bool) -> Self {
+        self.resources.network.deny_private_ips = deny;
+        self
+    }
+
+    /// Reject remote resource URLs whose host resolves to a public IP. Combined
+    /// with an allow-list, restricts fetches to explicitly permitted hosts.
+    /// Modelled on Gotenberg's `--api-download-from-deny-public-ips`.
+    pub fn download_deny_public_ips(mut self, deny: bool) -> Self {
+        self.resources.network.deny_public_ips = deny;
+        self
+    }
+
+    /// Maximum number of redirect hops followed when fetching a remote resource
+    /// (default 8). Each hop is re-checked against the network policy.
+    pub fn download_max_redirects(mut self, max: u32) -> Self {
+        self.resources.network.max_redirects = max;
+        self
+    }
+
+    /// Maximum accepted size, in bytes, of a fetched remote resource body
+    /// (default 10 MB).
+    pub fn download_max_body_size(mut self, max: u64) -> Self {
+        self.resources.network.max_body_size = max;
+        self
+    }
+
     /// Set a header text rendered at the top of each page (in the top margin area).
     pub fn header(mut self, text: impl Into<String>) -> Self {
         self.header = Some(text.into());
@@ -500,7 +551,15 @@ impl HtmlConverter {
             resource_access,
             self.resources.base.as_deref(),
             self.resources.authorized_root.as_deref(),
-        );
+        )
+        .with_network(self.resources.network.clone());
+
+        // Install the document resource policy as the ambient loader for this
+        // conversion: every resource sink in layout and render authorises and
+        // caches through it. The guard restores the previous loader on return.
+        let _loader_scope = layout::images::enter_loader(std::rc::Rc::new(
+            layout::images::ResourceLoader::new(resources.clone()),
+        ));
 
         // Step 1: Sanitize
         let sanitized_html = if self.sanitize {
@@ -951,7 +1010,7 @@ fn resolve_font_face_source(
                 continue;
             };
             let ttf_data = if resolved.starts_with("http://") || resolved.starts_with("https://") {
-                fetch_remote_bytes(&resolved)
+                fetch_remote_bytes(&resolved, resources.network())
             } else {
                 std::fs::read(resolved).ok()
             };
@@ -1874,7 +1933,13 @@ fn main() {
     #[test]
     fn fetch_remote_bytes_returns_none_without_feature() {
         #[cfg(not(feature = "remote"))]
-        assert!(fetch_remote_bytes("https://example.com/test").is_none());
+        assert!(
+            fetch_remote_bytes(
+                "https://example.com/test",
+                &security::resources::NetworkPolicy::default()
+            )
+            .is_none()
+        );
     }
 
     #[test]

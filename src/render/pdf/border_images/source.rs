@@ -104,14 +104,14 @@ pub(super) fn resolve_border_image_source(
 }
 
 fn resolve_url_source(url: &str) -> Option<ResolvedBorderImageSource<'static>> {
-    let (bytes, mime) = crate::layout::images::load_src_bytes(url)?;
+    let (bytes, mime) = crate::layout::images::load_resource(url, None)?;
     let skip_svg = mime
         .as_deref()
         .is_some_and(|mime| !mime.contains("svg") && !mime.contains("xml"));
     if !skip_svg && let Some(tree) = crate::layout::images::try_parse_svg_bytes(&bytes) {
         return Some(ResolvedBorderImageSource::Svg(Box::new(tree)));
     }
-    crate::layout::images::load_image_bytes(bytes).map(ResolvedBorderImageSource::Raster)
+    crate::layout::images::load_image_bytes(bytes.to_vec()).map(ResolvedBorderImageSource::Raster)
 }
 
 #[allow(clippy::too_many_arguments)]

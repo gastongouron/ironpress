@@ -461,6 +461,7 @@ fn root_svg_background_with_gradient_registers_shading_resources() {
 
 #[test]
 fn table_cell_nested_background_block_renders_image_xobject() {
+    let _loader = crate::layout::images::trusted_scope();
     let path = write_test_png_file("table-cell-pdf-bg", &build_minimal_test_png());
     let html = format!(
         r#"<table><tr><td><div style="display: flex; width: 40pt; aspect-ratio: 1 / 1; background-image: url('{path}'); background-repeat: no-repeat;"></div></td></tr></table>"#

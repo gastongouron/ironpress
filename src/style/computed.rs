@@ -11925,14 +11925,17 @@ fn parse_mask_url_svg(val: &str) -> Option<std::sync::Arc<Vec<u8>>> {
     if url.is_empty() {
         return None;
     }
-    let (bytes, _mime) = crate::layout::images::load_src_bytes(url)?;
+    // Authorise and load through the ambient resource loader, like every other
+    // document resource. (This still loads during style computation; moving mask
+    // I/O out of the cascade is a separate change.)
+    let (bytes, _mime) = crate::layout::images::load_resource(url, None)?;
     // Accept only sources whose bytes actually sniff as SVG, since the mask
     // rasteriser only understands SVG image sources. The MIME alone is not
     // trusted (it can mislabel non-SVG payloads).
     if !crate::layout::images::looks_like_svg(&bytes) {
         return None;
     }
-    Some(std::sync::Arc::new(bytes))
+    Some(bytes)
 }
 
 /// Parse a CSS Grid box-alignment keyword (`start`/`end`/`center`/`stretch`).

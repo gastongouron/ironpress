@@ -5,8 +5,11 @@ mod source;
 mod svg;
 
 pub(crate) use loader::{
-    load_image_bytes, load_image_from_element, load_src_bytes, looks_like_svg, try_parse_svg_bytes,
+    ResourceLoader, enter_loader, load_image_bytes, load_image_from_element, load_resource,
+    looks_like_svg, try_parse_svg_bytes,
 };
+#[cfg(test)]
+pub(crate) use loader::trusted_scope;
 pub(crate) use placement::{
     ImagePlacement, InlineBaselineGapRounding, add_inline_replaced_baseline_gap,
     compute_image_placement, compute_replaced_content_placement, svg_intrinsic_size,

@@ -945,6 +945,45 @@
         assert!(content.contains("/Colors 1"));
     }
 
+    /// Regression (public API): a protocol-relative `//abs/path` must not escape
+    /// the authorized root. Unix-only, where a leading `//` collapses to an
+    /// absolute path — the exploit that let it be read as a local file.
+    #[cfg(unix)]
+    #[test]
+    fn protocol_relative_reference_cannot_escape_resource_root() {
+        let root = tempfile::tempdir().expect("authorized root");
+        let outside = tempfile::tempdir().expect("outside directory");
+        let secret = outside.path().join("secret.png");
+        std::fs::write(&secret, build_minimal_test_png()).expect("secret fixture");
+
+        // Positive control, so the negative assertion can't pass vacuously.
+        std::fs::write(root.path().join("ok.png"), build_minimal_test_png())
+            .expect("in-root fixture");
+        let allowed = crate::HtmlConverter::new()
+            .compress(false)
+            .sanitize(false)
+            .resource_root(root.path())
+            .convert(r#"<img src="ok.png" width="10" height="10">"#)
+            .expect("in-root image converts");
+        assert!(
+            String::from_utf8_lossy(&allowed).contains("/Subtype /Image"),
+            "control: an authorized in-root image should embed"
+        );
+
+        let reference = format!("/{}", secret.display()); // //<abs path>, e.g. //tmp/xxx/secret.png
+        let html = format!(r#"<img src="{reference}" width="10" height="10">"#);
+        let escaped = crate::HtmlConverter::new()
+            .compress(false)
+            .sanitize(false)
+            .resource_root(root.path())
+            .convert(&html)
+            .expect("conversion still succeeds, just without the outside file");
+        assert!(
+            !String::from_utf8_lossy(&escaped).contains("/Subtype /Image"),
+            "a protocol-relative reference must not read a file outside the resource root"
+        );
+    }
+
     /// Build a minimal valid PNG (1x1 RGB, 8-bit).
     fn build_minimal_test_png() -> Vec<u8> {
         build_test_png_with_color_type(2) // RGB

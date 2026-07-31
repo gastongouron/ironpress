@@ -2113,8 +2113,8 @@ fn build_pseudo_inline_box(
 /// if the image cannot be decoded (the pseudo then produces no box).
 fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<InlineBox> {
     let image_src = crate::parser::css::extract_url_path(url).unwrap_or_else(|| url.to_string());
-    let (raw, _mime) = crate::layout::images::load_src_bytes(&image_src)?;
-    let image = crate::layout::images::load_image_bytes(raw)?;
+    let (raw, _mime) = crate::layout::images::load_resource(&image_src, None)?;
+    let image = crate::layout::images::load_image_bytes(raw.to_vec())?;
 
     // Intrinsic image pixels map to CSS px at 1x, and CSS px → PDF points at
     // 1px = 0.75pt (96dpi). The same conversion is applied to `<img>` intrinsic
@@ -2157,8 +2157,8 @@ fn build_pseudo_image_box(pseudo_style: &ComputedStyle, url: &str) -> Option<Inl
 /// fall back to the `list-style-type` glyph marker.
 pub(crate) fn build_list_image_marker(value: &str, gap: f32) -> Option<InlineBox> {
     let url = crate::parser::css::extract_url_path(value).unwrap_or_else(|| value.to_string());
-    let (raw, _mime) = crate::layout::images::load_src_bytes(&url)?;
-    let image = crate::layout::images::load_image_bytes(raw)?;
+    let (raw, _mime) = crate::layout::images::load_resource(&url, None)?;
+    let image = crate::layout::images::load_image_bytes(raw.to_vec())?;
     // The InlineBox dimensions are in PDF points; the image's intrinsic size is
     // in CSS px, so convert px -> pt (1px = 0.75pt) exactly as `load_image_bytes`
     // consumers do for ordinary <img>. Without this the marker paints at its raw

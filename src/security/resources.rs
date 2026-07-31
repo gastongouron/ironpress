@@ -48,6 +48,52 @@ impl AuthorizedResourceRoot {
     }
 }
 
+/// Network-fetch policy for remote (`http`/`https`) document resources,
+/// modelled on Gotenberg's `downloadFrom` controls. Precedence when deciding a
+/// URL (see [`crate::security::network`]): a deny host match always rejects;
+/// then an allow host match accepts and bypasses the IP-class checks; otherwise
+/// the host is resolved and the enabled IP-class rejections apply.
+///
+/// Allow/deny entries are host patterns: an exact host (`cdn.example.com`), or a
+/// `.`-prefixed suffix matching any subdomain (`.example.com`). Matching the
+/// parsed host — not the URL string — avoids allow-list bypasses via query,
+/// path, or userinfo.
+#[derive(Debug, Clone)]
+// The fields are read only by the `remote` fetch path; without it no network
+// load happens, so the policy is inert.
+#[cfg_attr(not(feature = "remote"), allow(dead_code))]
+pub(crate) struct NetworkPolicy {
+    /// Host patterns; a URL whose host matches any bypasses the IP-class checks.
+    pub(crate) allow: Vec<String>,
+    /// Host patterns; a URL whose host matches any is always rejected.
+    pub(crate) deny: Vec<String>,
+    /// Reject a URL whose host resolves to a non-public IP (loopback, RFC1918,
+    /// link-local, IPv6 unique-local).
+    pub(crate) deny_private_ips: bool,
+    /// Reject a URL whose host resolves to a public IP.
+    pub(crate) deny_public_ips: bool,
+    /// Maximum number of redirect hops followed for one fetch.
+    pub(crate) max_redirects: u32,
+    /// Maximum accepted response body size, in bytes.
+    pub(crate) max_body_size: u64,
+}
+
+impl Default for NetworkPolicy {
+    fn default() -> Self {
+        Self {
+            allow: Vec::new(),
+            deny: Vec::new(),
+            // Deny-by-default: reject URLs resolving to a private/reserved
+            // address (this covers the 169.254.169.254 metadata endpoint) unless
+            // the host is allow-listed. Opt out with `download_deny_private_ips`.
+            deny_private_ips: true,
+            deny_public_ips: false,
+            max_redirects: 8,
+            max_body_size: 10 * 1024 * 1024,
+        }
+    }
+}
+
 /// Resource resolution policy carried through one document conversion.
 ///
 /// The optional root is the sole authority for local files in sanitized mode.
@@ -58,6 +104,7 @@ pub(crate) struct DocumentResources {
     access: ResourceAccess,
     base: Option<PathBuf>,
     root: Option<AuthorizedResourceRoot>,
+    network: NetworkPolicy,
 }
 
 impl DocumentResources {
@@ -80,7 +127,23 @@ impl DocumentResources {
                 .map(AuthorizedResourceRoot::path)
                 .map(Path::to_path_buf),
         };
-        Self { access, base, root }
+        Self {
+            access,
+            base,
+            root,
+            network: NetworkPolicy::default(),
+        }
+    }
+
+    /// Attach the remote-fetch policy (builder style; the default denies
+    /// private/reserved IPs).
+    pub(crate) fn with_network(mut self, network: NetworkPolicy) -> Self {
+        self.network = network;
+        self
+    }
+
+    pub(crate) fn network(&self) -> &NetworkPolicy {
+        &self.network
     }
 
     pub(crate) fn base_path(&self) -> Option<&Path> {
@@ -100,7 +163,11 @@ impl DocumentResources {
         let reference = reference.trim();
         match ResourceReference::parse(reference)? {
             ResourceReference::Inline | ResourceReference::Fragment => Some(reference.to_string()),
-            ResourceReference::Network if self.access == ResourceAccess::Trusted => {
+            // A protocol-relative `//host` has no scheme to fetch here, so deny
+            // it rather than return it for the loader to read as a local file.
+            ResourceReference::Network
+                if self.access == ResourceAccess::Trusted && is_network_url(reference) =>
+            {
                 Some(reference.to_string())
             }
             ResourceReference::Network | ResourceReference::UnsupportedScheme => None,
@@ -145,10 +212,7 @@ impl ResourceReference {
         if starts_ascii_case_insensitive(reference, "data:") {
             return Some(Self::Inline);
         }
-        if reference.starts_with("//")
-            || starts_ascii_case_insensitive(reference, "http://")
-            || starts_ascii_case_insensitive(reference, "https://")
-        {
+        if reference.starts_with("//") || is_network_url(reference) {
             return Some(Self::Network);
         }
         if has_explicit_scheme(reference) {
@@ -177,6 +241,15 @@ fn starts_ascii_case_insensitive(value: &str, prefix: &str) -> bool {
     value
         .get(..prefix.len())
         .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
+}
+
+/// A fetchable network reference: an absolute http(s) URL, scheme compared
+/// case-insensitively. Shared by the resolver and the loader so their notion of
+/// "network" can't drift and let a reference slip between the local and network
+/// classes.
+pub(crate) fn is_network_url(reference: &str) -> bool {
+    starts_ascii_case_insensitive(reference, "http://")
+        || starts_ascii_case_insensitive(reference, "https://")
 }
 
 struct CssUrlRewriter<'a> {

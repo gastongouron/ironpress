@@ -11,7 +11,10 @@ fn try_parse_svg_bytes_accepts_utf8_bom_prefix() {
 #[test]
 fn fetch_remote_url_returns_none_without_feature() {
     // Without the "remote" feature, fetch_remote_url always returns None
-    let result = fetch_remote_url("https://example.com/image.png");
+    let result = fetch_remote_url(
+        "https://example.com/image.png",
+        &crate::security::resources::NetworkPolicy::default(),
+    );
     #[cfg(not(feature = "remote"))]
     assert!(result.is_none());
     // With the feature enabled, it would attempt a real HTTP request

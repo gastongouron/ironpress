@@ -1699,7 +1699,7 @@ fn render_image_with_resources(
     let Some(href) = href else {
         return;
     };
-    let Some((raw, mime)) = crate::layout::images::load_src_bytes(href) else {
+    let Some((raw, mime)) = crate::layout::images::load_resource(href, None) else {
         return;
     };
 
@@ -3102,6 +3102,44 @@ mod tests {
     }
 
     #[test]
+    fn render_image_local_file_denied_by_default_loader() {
+        // The nested-`<image href>` file-read / SSRF vector this whole change closes.
+        let svg_path = unique_temp_svg_path();
+        std::fs::write(
+            &svg_path,
+            r#"<svg width="10" height="5"><rect width="10" height="5"/></svg>"#,
+        )
+        .unwrap();
+        let tree = tree_with(vec![SvgNode::Image {
+            x: 0.0,
+            y: 0.0,
+            width: 20.0,
+            height: 10.0,
+            href: svg_path.to_string_lossy().into_owned(),
+            preserve_aspect_ratio: SvgPreserveAspectRatio::default(),
+            style: SvgStyle::default(),
+        }]);
+        let mut out = String::new();
+        // `render_svg_tree` uses the deny-by-default loader.
+        render_svg_tree(&tree, &mut out);
+        let _ = std::fs::remove_file(svg_path);
+        assert!(
+            out.is_empty(),
+            "a local-file <image> must not load under the deny-by-default loader, got: {out:?}"
+        );
+    }
+
+    /// Render a bare tree with an ambient loader that authorises local
+    /// references, for tests that deliberately load a temp file (the default
+    /// loader denies them).
+    fn render_svg_tree_trusted(tree: &SvgTree, out: &mut String) {
+        let _scope = crate::layout::images::enter_loader(std::rc::Rc::new(
+            crate::layout::images::ResourceLoader::trusted(),
+        ));
+        render_svg_tree(tree, out);
+    }
+
+    #[test]
     fn render_image_png_data_uri_uses_inline_image() {
         let png_path = unique_temp_png_path();
         image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0])))
@@ -3117,7 +3155,7 @@ mod tests {
             style: SvgStyle::default(),
         }]);
         let mut out = String::new();
-        render_svg_tree(&tree, &mut out);
+        render_svg_tree_trusted(&tree, &mut out);
         let _ = std::fs::remove_file(png_path);
         assert!(out.contains("BI\n"), "inline image should use BI");
         assert!(out.contains("/W 1\n"), "PNG width should be embedded");
@@ -3170,6 +3208,9 @@ mod tests {
             prepared_custom_fonts: None,
         };
 
+        let _scope = crate::layout::images::enter_loader(std::rc::Rc::new(
+            crate::layout::images::ResourceLoader::trusted(),
+        ));
         render_svg_tree_with_resources(&tree, &mut out, &mut resources);
         let _ = std::fs::remove_file(png_path);
 
@@ -3233,7 +3274,7 @@ mod tests {
             style: SvgStyle::default(),
         }]);
         let mut out = String::new();
-        render_svg_tree(&tree, &mut out);
+        render_svg_tree_trusted(&tree, &mut out);
         let _ = std::fs::remove_file(svg_path);
 
         assert!(

@@ -6013,6 +6013,7 @@ mod tests {
 
     #[test]
     fn raster_background_image_survives_into_layout() {
+        let _loader = crate::layout::images::trusted_scope();
         let path = write_test_png_file("layout-bg", &build_test_png_bytes());
         let html = format!(
             r#"<div style="width: 40pt; height: 40pt; background-image: url('{path}'); background-repeat: no-repeat"></div>"#
@@ -11145,6 +11146,7 @@ mod tests {
 
     #[test]
     fn table_cell_preserves_empty_block_background_layout() {
+        let _loader = crate::layout::images::trusted_scope();
         let path = write_test_png_file("table-cell-bg", &build_test_png_bytes());
         let html = format!(
             r#"

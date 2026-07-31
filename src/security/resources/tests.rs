@@ -113,3 +113,38 @@ fn sanitized_css_preserves_inline_and_fragment_urls() {
         "a{filter:url(\"#fx\");background:url(\"DATA:image/png;base64,AA==\")}"
     );
 }
+
+// A protocol-relative `//host` is denied in Trusted mode (no fetchable scheme)
+// rather than read as a local file that escapes the root; a genuine traversal
+// is still confined, showing the fix targets the misclassification, not all loads.
+#[test]
+fn trusted_protocol_relative_reference_cannot_escape_root() {
+    let root = tempfile::tempdir().expect("authorized root");
+    let resources = DocumentResources::new(ResourceAccess::Trusted, None, Some(root.path()));
+    assert_eq!(resources.resolve("//etc/hostname", None), None);
+    assert_eq!(resources.resolve("//../secret.png", None), None);
+    assert_eq!(resources.resolve("../secret.png", None), None);
+}
+
+#[test]
+fn trusted_network_urls_pass_case_insensitively() {
+    let root = tempfile::tempdir().expect("authorized root");
+    let resources = DocumentResources::new(ResourceAccess::Trusted, None, Some(root.path()));
+    assert_eq!(
+        resources.resolve("http://example.com/a.png", None).as_deref(),
+        Some("http://example.com/a.png")
+    );
+    assert_eq!(
+        resources.resolve("HTTPS://Example.com/a.png", None).as_deref(),
+        Some("HTTPS://Example.com/a.png")
+    );
+}
+
+#[test]
+fn sanitized_denies_protocol_relative_reference() {
+    let (directory, resources) = test_root();
+    assert_eq!(
+        resources.resolve("//etc/hostname", Some(directory.path())),
+        None
+    );
+}

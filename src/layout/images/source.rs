@@ -1,5 +1,6 @@
 use crate::parser::png;
 
+#[cfg(test)]
 use super::loader::load_src_bytes;
 
 #[cfg(test)]
@@ -7,36 +8,22 @@ use super::loader::load_image_bytes;
 #[cfg(test)]
 use crate::layout::engine::RasterImageAsset;
 
-/// Maximum size for remote resources (10 MB).
-#[cfg(feature = "remote")]
-const MAX_REMOTE_SIZE: usize = 10 * 1024 * 1024;
-
-/// Fetch bytes from an HTTP/HTTPS URL (requires the `remote` feature).
-/// Returns `None` if the feature is disabled, the request fails, or the response exceeds 10 MB.
-pub(crate) fn fetch_remote_url(url: &str) -> Option<Vec<u8>> {
+/// Fetch bytes from an HTTP/HTTPS URL, subject to `policy` (requires the
+/// `remote` feature). Returns `None` if the feature is disabled, the URL is
+/// rejected by the network policy, the request fails, or the response exceeds
+/// 10 MB. Redirects are not followed: a redirect could point at an internal
+/// host that bypasses the policy, so only a direct response is accepted.
+pub(crate) fn fetch_remote_url(
+    url: &str,
+    policy: &crate::security::resources::NetworkPolicy,
+) -> Option<Vec<u8>> {
     #[cfg(feature = "remote")]
     {
-        let resp = ureq::get(url).call().ok()?;
-        let len = resp
-            .headers()
-            .get("content-length")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.parse::<usize>().ok())
-            .unwrap_or(0);
-        if len > MAX_REMOTE_SIZE {
-            return None;
-        }
-        let buf = resp
-            .into_body()
-            .with_config()
-            .limit(MAX_REMOTE_SIZE as u64)
-            .read_to_vec()
-            .ok()?;
-        Some(buf)
+        crate::security::network::fetch_authorized(url, policy)
     }
     #[cfg(not(feature = "remote"))]
     {
-        let _ = url;
+        let _ = (url, policy);
         None
     }
 }
@@ -52,7 +39,7 @@ pub(crate) fn load_image_data(src: &str) -> Option<RasterImageAsset> {
 
 pub(crate) fn build_raster_background_tree(src: &str) -> Option<crate::parser::svg::SvgTree> {
     let image_src = crate::parser::css::extract_url_path(src).unwrap_or_else(|| src.to_string());
-    let (raw, _mime) = load_src_bytes(&image_src)?;
+    let (raw, _mime) = crate::layout::images::load_resource(&image_src, None)?;
     let (width, height) = raster_image_dimensions(&raw)?;
 
     Some(crate::parser::svg::SvgTree {

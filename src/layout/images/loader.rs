@@ -14,6 +14,139 @@ use super::placement::{ReplacedBoxSize, parse_html_image_dimension};
 use super::raster::decode_png_to_rgb_asset;
 use super::source::{fetch_remote_url, percent_decode};
 use super::svg::{resolve_svg_size, sync_svg_tree_to_layout_box};
+use crate::security::resources::{DocumentResources, ResourceAccess};
+
+/// Per-conversion capability that authorises a document resource reference
+/// against the policy and loads (once, memoised) its bytes. It is the single
+/// gate through which document-referenced bytes enter the process: callers hold
+/// a `ResourceLoader` instead of calling [`load_src_bytes`] directly, so every
+/// load is authorised and cached at one place.
+/// Loaded resource bytes plus the optional MIME reported by the source.
+pub(crate) type LoadedResource = (std::sync::Arc<Vec<u8>>, Option<String>);
+
+pub(crate) struct ResourceLoader {
+    policy: DocumentResources,
+    /// Memoised loads keyed by the resolved (authorised) reference. `None`
+    /// records a denied or failed reference so it is not retried per repaint.
+    cache: std::cell::RefCell<std::collections::HashMap<String, Option<LoadedResource>>>,
+}
+
+impl ResourceLoader {
+    pub(crate) fn new(policy: DocumentResources) -> Self {
+        Self {
+            policy,
+            cache: std::cell::RefCell::new(std::collections::HashMap::new()),
+        }
+    }
+
+    /// A loader that authorises any local or network reference (Trusted, no
+    /// root). Test-only: standalone rendering/layout of local-file content that
+    /// does not go through a policy-bearing `HtmlConverter` conversion.
+    #[cfg(test)]
+    pub(crate) fn trusted() -> Self {
+        Self::new(DocumentResources::new(ResourceAccess::Trusted, None, None))
+    }
+
+    /// Authorise `reference` against the policy (returning `None` when denied),
+    /// then load its bytes. File/URL loads are memoised; inline `data:`
+    /// references are not (they decode to unique bytes that are rarely repeated,
+    /// and caching them would key the whole multi-KB URI for no reuse). `base`
+    /// is the directory relative references resolve against.
+    pub(crate) fn load(
+        &self,
+        reference: &str,
+        base: Option<&std::path::Path>,
+    ) -> Option<LoadedResource> {
+        let resolved = self.policy.resolve(reference, base)?;
+        if is_inline_reference(&resolved) {
+            return load_src_bytes(&resolved).map(|(bytes, mime)| (std::sync::Arc::new(bytes), mime));
+        }
+        if let Some(hit) = self.cache.borrow().get(&resolved) {
+            return hit.clone();
+        }
+        let loaded = self.load_resolved(&resolved);
+        self.cache.borrow_mut().insert(resolved, loaded.clone());
+        loaded
+    }
+
+    /// Load an already-authorised (file or network) reference. Network fetches
+    /// additionally pass the document's [`NetworkPolicy`] so the SSRF controls
+    /// (deny/allow lists, IP-class rejection) apply at the point of connection.
+    fn load_resolved(&self, resolved: &str) -> Option<LoadedResource> {
+        if is_network_reference(resolved) {
+            return fetch_remote_url(resolved, self.policy.network())
+                .map(|bytes| (std::sync::Arc::new(bytes), None));
+        }
+        load_src_bytes(resolved).map(|(bytes, mime)| (std::sync::Arc::new(bytes), mime))
+    }
+}
+
+impl Default for ResourceLoader {
+    /// Deny-by-default: only inline `data:`/fragment references resolve; local
+    /// files and network are refused. Used where no document policy is supplied.
+    fn default() -> Self {
+        Self::new(DocumentResources::new(ResourceAccess::Sanitized, None, None))
+    }
+}
+
+/// A `data:` reference: its bytes are self-contained, so loading is cheap and
+/// caching would key the entire URI for no reuse.
+fn is_inline_reference(reference: &str) -> bool {
+    reference
+        .get(..5)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("data:"))
+}
+
+thread_local! {
+    /// The ambient resource loader for the current conversion. A stack so that a
+    /// conversion nested on the same thread restores the outer loader on exit.
+    static CURRENT_LOADER: std::cell::RefCell<Vec<std::rc::Rc<ResourceLoader>>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Installs `loader` as the ambient loader for the current thread until the
+/// returned guard is dropped. Every resource sink loads through the ambient
+/// loader, so authorization/caching is configured once per conversion rather
+/// than threaded through layout and render.
+#[must_use = "the ambient loader is only active while the guard is alive"]
+pub(crate) fn enter_loader(loader: std::rc::Rc<ResourceLoader>) -> LoaderScope {
+    CURRENT_LOADER.with(|stack| stack.borrow_mut().push(loader));
+    LoaderScope { _private: () }
+}
+
+/// Install a trusted ambient loader for tests that render/lay out content
+/// referencing local files directly (outside a policy-bearing conversion).
+#[cfg(test)]
+pub(crate) fn trusted_scope() -> LoaderScope {
+    enter_loader(std::rc::Rc::new(ResourceLoader::trusted()))
+}
+
+/// RAII guard that pops the ambient loader it installed.
+pub(crate) struct LoaderScope {
+    _private: (),
+}
+
+impl Drop for LoaderScope {
+    fn drop(&mut self) {
+        CURRENT_LOADER.with(|stack| {
+            stack.borrow_mut().pop();
+        });
+    }
+}
+
+/// Load a document resource through the ambient loader. When no loader is
+/// installed the load is denied by default (only inline `data:` resolves), so a
+/// stray load outside a conversion cannot reach the filesystem or network.
+pub(crate) fn load_resource(
+    reference: &str,
+    base: Option<&std::path::Path>,
+) -> Option<LoadedResource> {
+    let loader = CURRENT_LOADER.with(|stack| stack.borrow().last().cloned());
+    match loader {
+        Some(loader) => loader.load(reference, base),
+        None => ResourceLoader::default().load(reference, base),
+    }
+}
 
 /// Load raw bytes from a `src` attribute value.
 pub(crate) fn load_src_bytes(src: &str) -> Option<(Vec<u8>, Option<String>)> {
@@ -32,11 +165,17 @@ pub(crate) fn load_src_bytes(src: &str) -> Option<(Vec<u8>, Option<String>)> {
             Some(header_lower)
         };
         Some((bytes, mime))
-    } else if src.starts_with("http://") || src.starts_with("https://") {
-        Some((fetch_remote_url(src)?, None))
+    } else if is_network_reference(src) {
+        // Network loads are authorised and fetched by ResourceLoader::load_resolved.
+        None
     } else {
         Some((std::fs::read(src).ok()?, None))
     }
+}
+
+/// An `http`/`https` reference (fetched, subject to the network policy).
+fn is_network_reference(reference: &str) -> bool {
+    crate::security::resources::is_network_url(reference)
 }
 
 /// Heuristic SVG sniff over raw bytes (first 512 bytes, UTF-8-lossy so binary
@@ -145,7 +284,7 @@ pub(crate) fn load_image_from_element(
     let src = el.attributes.get("src")?;
 
     // Load bytes once.
-    let (raw, mime) = load_src_bytes(src)?;
+    let (raw, mime) = load_resource(src, None)?;
 
     // For data URIs with a non-SVG MIME type, skip the SVG probe entirely.
     let skip_svg = mime
@@ -213,7 +352,7 @@ pub(crate) fn load_image_from_element(
     // SourceGraphic, including its background and border. Keep image loading
     // unfiltered; the shared post-layout filter compositor owns the operation
     // list for every element kind.
-    let image = load_image_bytes(raw)?;
+    let image = load_image_bytes(raw.to_vec())?;
 
     // Determine dimensions: CSS width/height take precedence over the HTML
     // width/height attributes (matching the SVG path and the CSS cascade).
@@ -278,4 +417,38 @@ pub(crate) fn load_image_from_element(
         }
         .boxed(),
     )
+}
+
+#[cfg(test)]
+mod loader_tests {
+    use super::*;
+
+    #[test]
+    fn cache_key_is_the_resolved_path_so_a_relative_ref_never_serves_the_wrong_base() {
+        let root = std::env::temp_dir().join(format!("ip-loader-{}", std::process::id()));
+        let a = root.join("a");
+        let b = root.join("b");
+        std::fs::create_dir_all(&a).unwrap();
+        std::fs::create_dir_all(&b).unwrap();
+        std::fs::write(a.join("x"), b"AAAA").unwrap();
+        std::fs::write(b.join("x"), b"BBBB").unwrap();
+
+        let loader = ResourceLoader::new(DocumentResources::new(
+            ResourceAccess::Sanitized,
+            None,
+            Some(root.as_path()),
+        ));
+
+        let from_a = loader.load("x", Some(a.as_path())).expect("a/x authorised").0;
+        let from_b = loader.load("x", Some(b.as_path())).expect("b/x authorised").0;
+        assert_eq!(&from_a[..], b"AAAA");
+        assert_eq!(
+            &from_b[..],
+            b"BBBB",
+            "a different base must resolve to a different file, not a stale cache hit"
+        );
+        assert_eq!(&loader.load("x", Some(a.as_path())).unwrap().0[..], b"AAAA");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
