@@ -1,0 +1,29 @@
+# Keep the build context small and the release build deterministic.
+# NOTE: `assets/` must NOT be ignored — the library embeds fonts from it via
+# include_bytes!("../assets/...").
+
+target/
+.git/
+.github/
+.idea/
+.claude/
+.devcontainer/
+
+# Test-only (the parity corpus is large and is never compiled in a release build).
+# NOTE: keep `benches/` — the root Cargo.toml declares `[[bench]] conversion` and
+# Cargo validates that target's path when it parses the manifest, even though a
+# release build never compiles it.
+tests/
+fuzz/
+
+# Not needed to build the server.
+playground/
+docs/
+bindings/
+scripts/
+
+# Local artifacts / editor noise.
+*.pdf
+*.log
+.gitignore
+.gitattributes

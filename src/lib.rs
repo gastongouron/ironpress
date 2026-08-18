@@ -99,6 +99,9 @@ pub use security::resources::{InvalidRemoteHost, NetworkPolicy, RemoteHost};
 pub use style::raster_quality::{CoverageCompression, JpegCompression, RasterQuality};
 pub use types::{CornerRadii, CornerRadius, EdgeSizes, Margin, PageSize};
 
+/// The version of the ironpress crate, taken from its Cargo package metadata.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 /// Convert an HTML string to PDF bytes using default settings (A4, 1-inch margins).
 ///
 /// The HTML is sanitized before conversion to remove potentially dangerous

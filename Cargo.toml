@@ -10,7 +10,11 @@ documentation = "https://docs.rs/ironpress"
 readme = "README.md"
 keywords = ["pdf", "html", "css", "markdown", "converter"]
 categories = ["text-processing", "encoding", "template-engine"]
-exclude = [".github/", ".claude/", "target/", "docs/", "tests/parity/", "scripts/"]
+exclude = [".github/", ".claude/", "target/", "docs/", "tests/parity/", "scripts/", "server/"]
+
+[workspace]
+members = ["server"]
+resolver = "2"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

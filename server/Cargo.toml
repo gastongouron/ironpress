@@ -1,0 +1,24 @@
+[package]
+name = "ironpress-server"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+description = "HTTP server exposing ironpress HTML-to-PDF conversion with a Gotenberg-compatible multipart form API."
+repository = "https://github.com/gastongouron/ironpress"
+publish = false
+
+[[bin]]
+name = "ironpress-server"
+path = "src/main.rs"
+
+[dependencies]
+# Remote fetching is compiled in, but gated at runtime by IRONPRESS_REMOTE_ENABLED
+# (default off -> a block-all network policy). A single binary/image is
+# configured per environment; there is no separate "remote" build.
+ironpress = { path = "..", features = ["remote"] }
+axum = { version = "0.8", features = ["multipart"] }
+tokio = { version = "1.23.1", features = ["rt-multi-thread", "macros", "net"] }
+tempfile = "3"
+regex = "1"
+serde_json = "1"
