@@ -862,7 +862,7 @@ impl HtmlConverter {
     fn parse_custom_fonts(&self) -> std::collections::HashMap<String, parser::ttf::TtfFont> {
         let mut fonts = std::collections::HashMap::new();
         for (name, data) in &self.custom_fonts {
-            if let Ok(font) = parser::ttf::parse_ttf(data.clone()) {
+            if let Some(font) = parser::ttf::parse_ttf_cached(data) {
                 fonts.insert(name.clone(), font);
             }
         }
@@ -1031,7 +1031,7 @@ fn resolve_font_face_source(
                 .map(|loaded| loaded.bytes);
 
             if let Some(data) = ttf_data
-                && let Ok(font) = parser::ttf::parse_ttf(data)
+                && let Some(font) = parser::ttf::parse_ttf_cached(&data)
             {
                 return Some(font);
             }

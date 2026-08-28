@@ -465,6 +465,49 @@ struct TableRecord {
     length: u32,
 }
 
+/// Process-global cache of parsed fonts keyed by a fast hash of the raw TTF
+/// bytes. Registering the same font (via `add_font`, `@font-face`, or a bundled
+/// asset) re-parses megabytes of TTF data on every `convert()` call otherwise;
+/// caching the parse makes the second and later calls in a process near-free.
+/// Cloning the cached `TtfFont` shares the Arc'd byte data and only copies the
+/// small cmap / glyph-width tables.
+static PARSED_FONT_CACHE: std::sync::OnceLock<std::sync::RwLock<HashMap<u64, TtfFont>>> =
+    std::sync::OnceLock::new();
+
+fn parsed_font_cache() -> &'static std::sync::RwLock<HashMap<u64, TtfFont>> {
+    PARSED_FONT_CACHE.get_or_init(|| std::sync::RwLock::new(HashMap::new()))
+}
+
+/// FNV-1a 64-bit hash over the whole byte slice — fast, dependency-free, and
+/// collision-safe enough for the handful of distinct fonts a process registers.
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in bytes {
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+/// Parse a TTF reusing a process-global cache keyed by the byte content.
+/// Returns `None` on parse failure (errors are not cached). The stored font's
+/// data length is checked on a hash hit to guard against the (astronomically
+/// unlikely) FNV collision between two same-length blobs.
+pub(crate) fn parse_ttf_cached(data: &[u8]) -> Option<TtfFont> {
+    let key = fnv1a_64(data);
+    if let Ok(cache) = parsed_font_cache().read()
+        && let Some(font) = cache.get(&key)
+        && font.data.len() == data.len()
+    {
+        return Some(font.clone());
+    }
+    let font = parse_ttf(data.to_vec()).ok()?;
+    if let Ok(mut cache) = parsed_font_cache().write() {
+        cache.entry(key).or_insert_with(|| font.clone());
+    }
+    Some(font)
+}
+
 /// Parse a TrueType font from raw TTF data.
 /// Parse a TTF/TTC font, selecting a specific font by index within a collection.
 /// For plain TTF files, `face_index` is ignored (always index 0).

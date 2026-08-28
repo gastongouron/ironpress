@@ -482,8 +482,7 @@ pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
     let db = system_fontdb();
     for family in EMOJI_FALLBACK_FAMILIES {
         let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-        if let Some(font) = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
-        {
+        if let Some(font) = load_system_font_cached(db, &query) {
             fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
             return;
         }
@@ -732,7 +731,7 @@ fn load_family_variants(db: &fontdb::Database, family: &str, fonts: &mut HashMap
         match fonts.entry(query.variant_key()) {
             Entry::Occupied(_) => {}
             Entry::Vacant(slot) => {
-                let Some(font) = load_system_font(db, &query) else {
+                let Some(font) = load_system_font_cached(db, &query) else {
                     continue;
                 };
                 slot.insert(font);
@@ -750,6 +749,36 @@ fn load_system_font(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Optio
         // Prefer fontdb (fast, no subprocess) over fontconfig (fc-match can hang)
         query_fontdb_font(db, query).or_else(|| query_fontconfig_font(query))
     }
+}
+
+/// Process-global cache of resolved system fonts keyed by variant key
+/// (family + bold/italic). Resolving a system font walks the (already cached)
+/// fontdb and parses the matched face; both steps are deterministic per
+/// process, so memoizing avoids re-querying and re-parsing page-requested
+/// families plus the emoji fallback on every render. `None` results are cached
+/// too (negative cache) so absent families aren't looked up repeatedly.
+static SYSTEM_FONT_RESOLUTION_CACHE: OnceLock<std::sync::RwLock<HashMap<String, Option<TtfFont>>>> =
+    OnceLock::new();
+
+fn system_font_resolution_cache() -> &'static std::sync::RwLock<HashMap<String, Option<TtfFont>>> {
+    SYSTEM_FONT_RESOLUTION_CACHE.get_or_init(|| std::sync::RwLock::new(HashMap::new()))
+}
+
+/// Memoized wrapper over [`load_system_font`]. The variant key fully determines
+/// resolution behavior (including the ui-sans-serif preference path), so the
+/// cached value is always identical to a fresh `load_system_font` call.
+fn load_system_font_cached(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Option<TtfFont> {
+    let key = query.variant_key();
+    if let Ok(cache) = system_font_resolution_cache().read()
+        && let Some(cached) = cache.get(&key)
+    {
+        return cached.clone();
+    }
+    let result = load_system_font(db, query);
+    if let Ok(mut cache) = system_font_resolution_cache().write() {
+        cache.entry(key).or_insert_with(|| result.clone());
+    }
+    result
 }
 
 fn load_preferred_family_font(
