@@ -7,6 +7,12 @@
 - Conan 2 and vcpkg source recipes package the existing C and C++ bindings and
   verify static and shared consumers across the native platform matrix.
 
+### Fixed
+
+- An inline-tagged `display: inline-block` inside a table cell (form fill-in
+  underlines, checkbox squares) flows inline with the cell's sibling text
+  again instead of dropping onto its own stacked line below it.
+
 ## [1.6.0] — 2026-08-26
 
 ### Added
