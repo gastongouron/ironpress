@@ -2,6 +2,7 @@ use crate::layout::engine::{TextRun, TextShaping};
 use crate::parser::ttf::{FontVerticalMetricSet, FontVerticalMetrics, TtfFont};
 use crate::style::computed::FontFamily;
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, OnceLock, RwLock};
 
 mod run_coalescing;
 pub(crate) use run_coalescing::{coalesce_text_runs, text_runs_share_shaping_buffer};
@@ -721,6 +722,58 @@ enum TextShapingDirection {
     Vertical,
 }
 
+/// A `rustybuzz::Face` kept for the whole process. Building a face parses the
+/// font's shaping tables; doing it on every shaped run (layout measures then
+/// paint re-shapes, thousands of times per document) is the dominant text cost.
+///
+/// SAFETY: the face is an immutable, read-only view — shaping borrows it by
+/// shared reference and never mutates it — so sharing `&SharedFace` across
+/// threads is sound. Its `'static` byte view is backed by a leaked Arc
+/// ref-count (see [`face_for_font`]) that pins the font buffer for the process.
+struct SharedFace(rustybuzz::Face<'static>);
+// SAFETY: see the type doc — read-only, bytes pinned for 'static.
+unsafe impl Send for SharedFace {}
+unsafe impl Sync for SharedFace {}
+
+/// Process-global cache of shaping faces keyed by the font's shared byte-buffer
+/// address (`Arc<Vec<u8>>` inner pointer) plus the selected face index (a
+/// TTC/OTC collection serves several faces from one buffer). All clones of a
+/// cached font share one Arc, so the key is stable; the first shape of a font
+/// leaks one Arc ref-count to pin that buffer for the process, so the address
+/// is never reused and the `'static` face view stays valid. `None` is cached
+/// for un-parseable fonts.
+type FaceCache = HashMap<(usize, u32), Option<Arc<SharedFace>>>;
+static FACE_CACHE: OnceLock<RwLock<FaceCache>> = OnceLock::new();
+
+fn face_cache() -> &'static RwLock<FaceCache> {
+    FACE_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+/// Return a cached shaping face for `font`, building (and caching) it on first
+/// use. Identical bytes to
+/// `rustybuzz::Face::from_slice(&font.data, font.face_index.get())`, so
+/// shaping results are unchanged.
+fn face_for_font(font: &TtfFont) -> Option<Arc<SharedFace>> {
+    let key = (Arc::as_ptr(&font.data) as usize, font.face_index.get());
+    if let Ok(cache) = face_cache().read()
+        && let Some(entry) = cache.get(&key)
+    {
+        return entry.clone();
+    }
+    // Miss: leak one Arc ref-count so the byte buffer lives for the whole
+    // process, then take a 'static view of it to build the face.
+    let arc = font.data.clone();
+    let buf: &Vec<u8> = &arc;
+    let bytes: &'static [u8] = unsafe { std::slice::from_raw_parts(buf.as_ptr(), buf.len()) };
+    std::mem::forget(arc);
+    let face = rustybuzz::Face::from_slice(bytes, font.face_index.get())
+        .map(|face| Arc::new(SharedFace(face)));
+    if let Ok(mut cache) = face_cache().write() {
+        cache.entry(key).or_insert_with(|| face.clone());
+    }
+    face
+}
+
 fn shape_text_glyphs(
     text: &str,
     font_size: f32,
@@ -732,7 +785,8 @@ fn shape_text_glyphs(
         return Some(Vec::new());
     }
 
-    let face = rustybuzz::Face::from_slice(&font.data, font.face_index.get())?;
+    let shared_face = face_for_font(font)?;
+    let face = &shared_face.0;
     let scale = font.adjusted_font_size(font_size) / (face.units_per_em() as f32).max(1.0);
 
     let mut buffer = rustybuzz::UnicodeBuffer::new();
@@ -763,7 +817,7 @@ fn shape_text_glyphs(
         ));
     }
 
-    let shaped = rustybuzz::shape(&face, &features, buffer);
+    let shaped = rustybuzz::shape(face, &features, buffer);
     let infos = shaped.glyph_infos();
     let positions = shaped.glyph_positions();
     if infos.len() != positions.len() {
