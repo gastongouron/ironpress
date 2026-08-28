@@ -3777,11 +3777,16 @@ fn table_cell_edge_block_margins(
 }
 
 fn table_cell_child_should_flatten(el: &ElementNode, style: &ComputedStyle) -> bool {
+    // An inline-tagged inline-block stays in the cell's text-run flow — the
+    // same gate as `InlineFormattingRole::uses_text_run_layout` — so a form
+    // fill-in underline or checkbox square renders inline with its sibling
+    // text (CSS 2 §9.2.2) instead of dropping onto its own stacked line.
+    let inline_block_in_text_flow = style.display == Display::InlineBlock && el.tag.is_inline();
     el.tag == HtmlTag::Table
         || el.tag == HtmlTag::Img
         || el.tag == HtmlTag::Svg
         || (recurses_as_layout_child(el.tag) && !collects_as_inline_text(el.tag))
-        || style.display != Display::Inline
+        || (style.display != Display::Inline && !inline_block_in_text_flow)
         || style.position.is_absolute()
 }
 
@@ -3872,6 +3877,41 @@ mod subpoint_width_tests {
             visit_layout_tree(element.as_ref(), &mut rows);
         }
         rows.0
+    }
+
+    /// An inline-tagged `display:inline-block` inside a table cell stays in
+    /// the cell's text-run flow — one line whose atomic run carries an
+    /// `InlineBox` — instead of dropping onto its own stacked block line
+    /// (form fill-ins: `NPO <span style="…border-bottom…"></span> after`).
+    #[test]
+    fn inline_block_in_table_cell_flows_inline_with_text() {
+        let nodes = parse_html(
+            r#"<table><tr><td>NPO <span style="display:inline-block;width:60pt;border-bottom:1pt solid #000">&nbsp;</span> after</td></tr></table>"#,
+        )
+        .expect("valid fill-in fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        assert_eq!(rows.len(), 1, "one table row expected");
+        let cell = &rows[0].content.cells[0].layout;
+        assert!(
+            cell.content.children.is_empty(),
+            "inline-block must not be flattened into stacked cell children"
+        );
+        assert_eq!(
+            cell.content.lines.len(),
+            1,
+            "label, fill-in box, and trailing text share one line"
+        );
+        let line = &cell.content.lines[0];
+        assert!(
+            line.runs.iter().any(|run| run.inline_box.is_some()),
+            "the inline-block must be collected as an atomic inline-box run"
+        );
+        let text: String = line.runs.iter().map(|run| run.text.as_str()).collect();
+        assert!(
+            text.contains("NPO") && text.contains("after"),
+            "sibling text must stay in the same line, got {text:?}"
+        );
     }
 
     #[test]

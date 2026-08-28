@@ -281,7 +281,7 @@ pub(super) fn render_cell_content(
                 PdfPoint::new(placement.origin.x, content_top),
                 placement.col_width,
             ),
-            &mut ctx.text,
+            ctx,
         );
         render_cell_child_elements(
             content,
@@ -319,7 +319,7 @@ pub(super) fn render_cell_content(
             PdfPoint::new(placement.origin.x, content_top),
             placement.col_width,
         ),
-        &mut ctx.text,
+        ctx,
     );
 }
 
@@ -357,14 +357,16 @@ pub(super) fn render_cell_text(
     content: &mut String,
     cell: &CellBox,
     placement: CellTextPlacement,
-    ctx: &mut TextRenderContext<'_>,
+    ctx: &mut PageRenderContext<'_>,
 ) {
     let cell_inner_w = placement.col_width - cell.box_model.content_insets.horizontal();
-    let mut baseline_cursor =
-        TextBaselineCursor::new(placement.origin.y, ctx.pdf_writer.page_content_transform);
+    let mut baseline_cursor = TextBaselineCursor::new(
+        placement.origin.y,
+        ctx.text.pdf_writer.page_content_transform,
+    );
     let mut first_drawn_line = true;
     for line in &cell.content.lines {
-        let metrics = line_box_metrics(line, ctx.custom_fonts);
+        let metrics = line_box_metrics(line, ctx.text.custom_fonts);
         let text_y = baseline_cursor.next_horizontal(metrics);
         let line_annotation_bottom = text_y - metrics.descender - metrics.half_leading;
         let line_annotation_height =
@@ -386,7 +388,7 @@ pub(super) fn render_cell_text(
         let merged = crate::text::coalesce_text_runs(&line.runs);
         let line_width: f32 = merged
             .iter()
-            .map(|run| estimate_run_width_with_fonts(run, ctx.custom_fonts))
+            .map(|run| estimate_run_width_with_fonts(run, ctx.text.custom_fonts))
             .sum();
         let text_x = match cell.alignment.inline {
             TextAlign::Right => {
@@ -401,8 +403,54 @@ pub(super) fn render_cell_text(
             }
             _ => placement.origin.x + cell.box_model.content_insets.left + first_line_indent,
         };
+        // Line-box edges for inline-box vertical alignment, mirroring the
+        // page-level text painter's geometry.
+        let line_top_y = text_y + metrics.ascender + metrics.half_leading;
+        let line_bottom_y = text_y - metrics.descender - metrics.half_leading;
+        let (text_ascent, text_descent) = line_text_content_extents(line, ctx.text.custom_fonts);
+        let line_text_top_y = if text_ascent > 0.0 {
+            text_y + text_ascent
+        } else {
+            line_top_y
+        };
+        let line_text_bottom_y = if text_descent > 0.0 {
+            text_y - text_descent
+        } else {
+            line_bottom_y
+        };
         let mut x = text_x;
         for (run_index, run) in merged.iter().enumerate() {
+            // Atomic inline box (display: inline-block) in the cell's text
+            // flow: paint the box and its inner content, then advance —
+            // the same treatment the page-level line painter applies.
+            if let Some(inline) = run.inline_box.as_deref() {
+                if !run.is_inline_edge() {
+                    render_inline_box(
+                        content,
+                        inline,
+                        x + inline.margin_left,
+                        text_y,
+                        ctx.text.page_height,
+                        line_top_y,
+                        line_bottom_y,
+                        line_text_top_y,
+                        line_text_bottom_y,
+                        run.font_size,
+                        run_line_height_for_vertical_align(run),
+                        line_primary_x_height_ratio(&merged, ctx.text.custom_fonts),
+                        ctx.text.custom_fonts,
+                        ctx.text.prepared_custom_fonts,
+                        ctx.page_ext_gstates,
+                        ctx.bg_alpha_counter,
+                        ctx.shadings,
+                        ctx.shading_counter,
+                        ctx.text.pdf_writer,
+                        ctx.text.page_images,
+                    );
+                }
+                x += run.atomic_inline_advance().unwrap_or_default();
+                continue;
+            }
             if let Some(advance) = run.atomic_inline_advance() {
                 x += advance;
                 continue;
@@ -410,13 +458,13 @@ pub(super) fn render_cell_text(
             if run.text.is_empty() {
                 continue;
             }
-            let run_width = estimate_run_width_with_fonts(run, ctx.custom_fonts);
+            let run_width = estimate_run_width_with_fonts(run, ctx.text.custom_fonts);
             let previous = merged[..run_index]
                 .iter()
                 .rev()
                 .find(|previous| previous.inline_box.is_none() && !previous.text.is_empty());
             let decoration =
-                HorizontalRunDecorations::new(run, x, run_width, text_y, ctx.custom_fonts)
+                HorizontalRunDecorations::new(run, x, run_width, text_y, ctx.text.custom_fonts)
                     .continuing_after(previous);
 
             if let Some(background) = run.background_color {
@@ -439,17 +487,17 @@ pub(super) fn render_cell_text(
             decoration.paint_text(
                 content,
                 crate::layout::text::line_primary_font_size(&merged),
-                ctx.prepared_custom_fonts,
+                ctx.text.prepared_custom_fonts,
                 0.0,
-                ctx.pdf_writer,
-                ctx.page_images,
+                ctx.text.pdf_writer,
+                ctx.text.page_images,
             );
 
             if let Some(annotation) = text_run_link_annotation(
                 run,
                 PdfRect::new(x, line_annotation_bottom, run_width, line_annotation_height),
             ) {
-                ctx.annotations.push(annotation);
+                ctx.text.annotations.push(annotation);
             }
 
             x += run_width;
