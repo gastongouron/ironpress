@@ -139,7 +139,9 @@ impl<'a> SvgPdfResources<'a> {
         italic: bool,
     ) -> Option<(&'a str, &'a crate::parser::ttf::TtfFont)> {
         let fonts = self.custom_fonts?;
-        crate::system_fonts::find_font(fonts, family, bold, italic)
+        // `family` may be a raw CSS family stack ("MyFace, Helvetica"); the
+        // first registered entry wins, matching the font-usage collector.
+        crate::system_fonts::find_font_in_stack(fonts, family, bold, italic)
     }
 
     /// Register an opacity ExtGState and return the generated name, or None
@@ -574,6 +576,7 @@ fn render_node(
             font_family,
             font_bold,
             font_italic,
+            letter_spacing,
             text_anchor,
             content,
             style,
@@ -654,6 +657,13 @@ fn render_node(
                 (false, false) => 3,
             };
 
+            // letter-spacing adds a constant advance between glyphs; it is
+            // painted via the Tc operator and included in anchor width math.
+            let letter_spacing = letter_spacing.unwrap_or(0.0);
+            let spacing_gaps = |glyph_count: usize| -> f32 {
+                letter_spacing * glyph_count.saturating_sub(1) as f32
+            };
+
             // Adjust x for text-anchor. Use the real shaped advance for custom
             // fonts so anchoring matches the actual glyph widths.
             let text_x = match text_anchor {
@@ -665,12 +675,14 @@ fn render_node(
                                 || {
                                     let (ff, is_bold) = font_metrics_font(&font);
                                     crate::fonts::str_width(content, size, &ff, is_bold)
+                                        + spacing_gaps(content.chars().count())
                                 },
-                                |shaped| shaped.width,
+                                |shaped| shaped.width + spacing_gaps(shaped.glyphs.len()),
                             )
                     } else {
                         let (ff, is_bold) = font_metrics_font(&font);
                         crate::fonts::str_width(content, size, &ff, is_bold)
+                            + spacing_gaps(content.chars().count())
                     };
                     if *text_anchor == SvgTextAnchor::Middle {
                         x - text_w * 0.5
@@ -691,11 +703,15 @@ fn render_node(
                     fill,
                     stroke,
                     style.stroke_width,
+                    letter_spacing,
                     out,
                 );
             } else {
                 out.push_str("BT\n");
                 out.push_str(&format!("/{font} {size} Tf\n"));
+                if letter_spacing != 0.0 {
+                    out.push_str(&format!("{letter_spacing} Tc\n"));
+                }
                 out.push_str(&format!("{text_render_mode} Tr\n"));
                 if let Some((r, g, b)) = fill {
                     out.push_str(&format!("{r} {g} {b} rg\n"));
@@ -707,6 +723,11 @@ fn render_node(
                 out.push_str(&format!("1 0 0 -1 {text_x} {y} Tm\n"));
                 let encoded = encode_pdf_text(content);
                 out.push_str(&format!("({encoded}) Tj\n"));
+                if letter_spacing != 0.0 {
+                    // Character spacing survives ET; reset so later text on the
+                    // same content stream is unaffected.
+                    out.push_str("0 Tc\n");
+                }
                 out.push_str("ET\n");
             }
             if opacity_wrapped {
@@ -1523,6 +1544,7 @@ fn emit_custom_svg_text(
     fill: Option<(f32, f32, f32)>,
     stroke: Option<(f32, f32, f32)>,
     stroke_width: f32,
+    letter_spacing: f32,
     out: &mut String,
 ) {
     let Some(shaped) = crate::text::shape_text_with_explicit_font(content, size, custom.font)
@@ -1532,6 +1554,9 @@ fn emit_custom_svg_text(
 
     out.push_str("BT\n");
     out.push_str(&format!("/{} {size} Tf\n", custom.resource_name));
+    if letter_spacing != 0.0 {
+        out.push_str(&format!("{letter_spacing} Tc\n"));
+    }
     out.push_str(&format!("{text_render_mode} Tr\n"));
     if let Some((r, g, b)) = fill {
         out.push_str(&format!("{r} {g} {b} rg\n"));
@@ -1566,6 +1591,11 @@ fn emit_custom_svg_text(
         crate::render::pdf::append_pdf_tj_adjustment(out, tj_adjustment);
     }
     out.push_str("] TJ\n");
+    if letter_spacing != 0.0 {
+        // Character spacing survives ET; reset so later text on the same
+        // content stream is unaffected.
+        out.push_str("0 Tc\n");
+    }
     out.push_str("ET\n");
 }
 
@@ -2264,6 +2294,7 @@ mod tests {
             font_family: Some("Helvetica".to_string()),
             font_bold: Some(false),
             font_italic: Some(false),
+            letter_spacing: None,
             text_anchor: SvgTextAnchor::Start,
             content: text.to_string(),
             style: SvgStyle {
@@ -3366,6 +3397,7 @@ mod tests {
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
+                letter_spacing: None,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
@@ -3420,6 +3452,7 @@ mod tests {
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
+                letter_spacing: None,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
@@ -3478,6 +3511,7 @@ mod tests {
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
+                letter_spacing: None,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle::default(),
@@ -3516,6 +3550,7 @@ mod tests {
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
+                letter_spacing: None,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
@@ -3565,6 +3600,7 @@ mod tests {
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
+                letter_spacing: None,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
@@ -3620,6 +3656,7 @@ mod tests {
                     font_family: None,
                     font_bold: None,
                     font_italic: None,
+                    letter_spacing: None,
                     text_anchor: SvgTextAnchor::Start,
                     content: "Hello".to_string(),
                     style: SvgStyle {
@@ -3659,6 +3696,7 @@ mod tests {
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
+                letter_spacing: None,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
@@ -3711,6 +3749,7 @@ mod tests {
                     font_family: None,
                     font_bold: None,
                     font_italic: None,
+                    letter_spacing: None,
                     text_anchor: SvgTextAnchor::Start,
                     content: "Hello".to_string(),
                     style: SvgStyle {
@@ -3750,6 +3789,7 @@ mod tests {
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
+                letter_spacing: None,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle::default(),

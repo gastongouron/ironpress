@@ -497,7 +497,8 @@ pub(super) fn render_nested_container(
                         ctx.shadings,
                         ctx.shading_counter,
                         Some(ctx.page_ext_gstates),
-                    ),
+                    )
+                    .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
                     PdfBackgroundPaintContext::local(BackgroundPaintContext::new(
                         nk_image_reference.into(),
                         background_geometry.image_destination_box.into(),

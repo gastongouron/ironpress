@@ -37,6 +37,15 @@ pub(super) struct PdfBackgroundResources<'a> {
     pub(super) shadings: &'a mut Vec<ShadingEntry>,
     pub(super) shading_counter: &'a mut usize,
     pub(super) ext_gstates: Option<&'a mut Vec<(String, f32)>>,
+    /// Loaded custom (bundled) fonts, so `<text>` inside a CSS
+    /// background-image SVG can shape and render with a registered custom
+    /// family instead of falling back to base-14 standard fonts.
+    pub(super) custom_fonts:
+        Option<&'a std::collections::HashMap<String, crate::parser::ttf::TtfFont>>,
+    /// Subsetted/prepared custom fonts mirroring what body text embedded, so
+    /// background SVG text references the same font resource and subset
+    /// glyph-id remapping.
+    pub(super) prepared_custom_fonts: Option<&'a crate::render::pdf_fonts::PreparedCustomFonts>,
 }
 
 impl<'a> PdfBackgroundResources<'a> {
@@ -53,7 +62,21 @@ impl<'a> PdfBackgroundResources<'a> {
             shadings,
             shading_counter,
             ext_gstates,
+            custom_fonts: None,
+            prepared_custom_fonts: None,
         }
+    }
+
+    /// Wire the custom-font context through so background-image SVG `<text>`
+    /// resolves registered families exactly like foreground SVG text.
+    pub(super) fn with_custom_fonts(
+        mut self,
+        custom_fonts: &'a std::collections::HashMap<String, crate::parser::ttf::TtfFont>,
+        prepared_custom_fonts: &'a crate::render::pdf_fonts::PreparedCustomFonts,
+    ) -> Self {
+        self.custom_fonts = Some(custom_fonts);
+        self.prepared_custom_fonts = Some(prepared_custom_fonts);
+        self
     }
 }
 

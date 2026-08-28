@@ -1104,6 +1104,94 @@ mod tests {
     use super::*;
 
     #[test]
+    fn svg_text_letter_spacing_emits_character_spacing() {
+        let pdf = html_to_pdf(
+            r#"<svg width="200" height="50" viewBox="0 0 200 50"><text x="10" y="30" font-size="20" letter-spacing="3">Hello</text></svg>"#,
+        )
+        .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("3 Tc"),
+            "letter-spacing should map to the PDF character-spacing operator"
+        );
+        assert!(
+            content.contains("0 Tc"),
+            "character spacing should be reset after the text object"
+        );
+    }
+
+    #[test]
+    fn add_font_used_by_svg_text() {
+        // A real shapeable face: SVG custom-font emission requires shaped
+        // glyph output, exactly like the HTML custom-font text path.
+        let ttf_data = include_bytes!("../assets/LiberationSans-Regular.ttf").to_vec();
+        let pdf = HtmlConverter::new()
+            .add_font("testfont", ttf_data)
+            .convert(
+                r##"<svg width="200" height="50" viewBox="0 0 200 50"><text x="10" y="30" font-family="testfont, Helvetica" font-size="20" fill="#000000">Hello</text></svg>"##,
+            )
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/testfont 20 Tf"),
+            "SVG text should bind the registered custom font"
+        );
+        assert!(
+            content.contains("] TJ"),
+            "SVG text with a custom font should emit shaped glyph IDs"
+        );
+        assert!(
+            content.contains("/Subtype /CIDFontType2"),
+            "a custom font used only by SVG text should still be embedded"
+        );
+    }
+
+    #[test]
+    fn add_font_used_by_background_image_svg_text() {
+        // Custom-font text inside a CSS background-image SVG must bind and
+        // embed the registered face exactly like foreground SVG text.
+        let ttf_data = include_bytes!("../assets/LiberationSans-Regular.ttf").to_vec();
+        let svg = r##"<svg xmlns='http://www.w3.org/2000/svg' width='200' height='50'><text x='10' y='30' font-family='testfont' font-size='20' fill='black'>Hello</text></svg>"##;
+        let encoded = svg
+            .replace('<', "%3C")
+            .replace('>', "%3E")
+            .replace('#', "%23")
+            .replace('\'', "%27");
+        let pdf = HtmlConverter::new()
+            .add_font("testfont", ttf_data)
+            .convert(&format!(
+                r#"<div style="width:200px;height:50px;background-image:url(data:image/svg+xml,{encoded})">&nbsp;</div>"#
+            ))
+            .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/testfont 20 Tf"),
+            "background SVG text should bind the registered custom font"
+        );
+        assert!(
+            content.contains("/Subtype /CIDFontType2"),
+            "a custom font used only by a background SVG should still be embedded"
+        );
+    }
+
+    #[test]
+    fn svg_text_with_unregistered_family_falls_back_to_base14() {
+        let pdf = html_to_pdf(
+            r#"<svg width="200" height="50" viewBox="0 0 200 50"><text x="10" y="30" font-family="NoSuchFont" font-size="20">Hello</text></svg>"#,
+        )
+        .unwrap();
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/Helvetica 20 Tf"),
+            "unregistered SVG font families should keep the base-14 mapping"
+        );
+        assert!(
+            content.contains("(Hello) Tj"),
+            "base-14 SVG text should keep literal text emission"
+        );
+    }
+
+    #[test]
     fn raster_quality_builder_groups_and_normalizes_all_raster_controls() {
         assert_eq!(
             HtmlConverter::new().jpeg_quality,

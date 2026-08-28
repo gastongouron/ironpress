@@ -1,7 +1,7 @@
 use crate::layout::elements::{
     AvoidPageBreak, ColumnRule, Container, FlexRow, GridRow, HorizontalRule, Image, LayoutElement,
     LayoutVisitor, MathBlock, NamedString, PageBreak, ProgressBar, RunningElement, Svg, TableRow,
-    TextBlock, visit_layout_tree,
+    TextBlock,
 };
 use crate::layout::engine::{Page, TextLine, TextRun};
 use crate::parser::ttf::TtfFont;
@@ -235,7 +235,20 @@ fn collect_font_usage_from_element(
         custom_fonts,
         usage,
     };
-    visit_layout_tree(element, &mut collector);
+    collect_font_usage_walk(element, &mut collector);
+}
+
+/// Depth-first walk pairing the node visitor with a per-box background check:
+/// custom-font `<text>` inside a CSS background-image SVG must be subset and
+/// embedded exactly like foreground SVG text.
+fn collect_font_usage_walk(element: &dyn LayoutElement, collector: &mut FontUsageCollector<'_>) {
+    if let Some(owner) = element.box_paint_owner()
+        && let Some(svg) = owner.box_paint().background.layers.svg.as_ref()
+    {
+        collect_font_usage_from_svg(svg, collector.custom_fonts, collector.usage);
+    }
+    element.accept(collector);
+    element.visit_children(&mut |child| collect_font_usage_walk(child, collector));
 }
 
 struct FontUsageCollector<'a> {
@@ -255,6 +268,9 @@ impl LayoutVisitor for FontUsageCollector<'_> {
                 self.custom_fonts,
                 self.usage,
             );
+            if let Some(svg) = cell.layout.paint.box_paint.background.layers.svg.as_ref() {
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+            }
         }
     }
 
@@ -265,12 +281,18 @@ impl LayoutVisitor for FontUsageCollector<'_> {
                 self.custom_fonts,
                 self.usage,
             );
+            if let Some(svg) = cell.layout.paint.box_paint.background.layers.svg.as_ref() {
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+            }
         }
     }
 
     fn visit_flex_row(&mut self, element: &FlexRow) {
         for cell in &element.content.cells {
             collect_font_usage_from_lines(&cell.lines, self.custom_fonts, self.usage);
+            if let Some(svg) = cell.paint.background.layers.svg.as_ref() {
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+            }
         }
     }
 
@@ -372,8 +394,11 @@ fn collect_font_usage_from_svg_node(
                 .or(style.font_italic)
                 .or(inherited_italic)
                 .unwrap_or(text_ctx.font_italic);
+            // `family` may be a raw CSS family stack ("MyFace, Helvetica");
+            // resolve it exactly like the SVG text renderer so every font the
+            // renderer binds is also subset and embedded.
             let Some((resolved_name, font)) =
-                crate::system_fonts::find_font(custom_fonts, &family, bold, italic)
+                crate::system_fonts::find_font_in_stack(custom_fonts, &family, bold, italic)
             else {
                 return;
             };

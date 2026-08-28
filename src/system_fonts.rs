@@ -226,6 +226,25 @@ pub(crate) fn find_font<'a>(
     })
 }
 
+/// Resolve a raw CSS font-family stack (`"MyFace, Helvetica"`) against the
+/// registered fonts: the first entry with a registered face wins, so an
+/// author-listed custom face beats a later base-14 fallback. A single family
+/// name resolves exactly like [`find_font`].
+pub(crate) fn find_font_in_stack<'a>(
+    fonts: &'a HashMap<String, TtfFont>,
+    stack: &str,
+    bold: bool,
+    italic: bool,
+) -> Option<(&'a str, &'a TtfFont)> {
+    stack.split(',').find_map(|family| {
+        let family = family.trim().trim_matches(|c| c == '\'' || c == '"').trim();
+        if family.is_empty() {
+            return None;
+        }
+        find_font(fonts, family, bold, italic)
+    })
+}
+
 /// Resolve a face using CSS Fonts' discrete width matching order before style
 /// and weight fallback. Callers that retain the returned map key can then keep
 /// using [`find_font`] for shaping, metrics, and PDF embedding.
