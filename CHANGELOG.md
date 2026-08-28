@@ -7,6 +7,13 @@
 - Conan 2 and vcpkg source recipes package the existing C and C++ bindings and
   verify static and shared consumers across the native platform matrix.
 
+### Changed
+
+- Font setup and table auto-sizing reuse process-global caches: parsed
+  `add_font`/`@font-face` faces, system-font resolution, rustybuzz shaping
+  faces, and per-cell preferred widths are computed once per process or
+  document instead of on every `convert()` call, with byte-identical output.
+
 ## [1.6.0] — 2026-08-26
 
 ### Added
