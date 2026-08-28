@@ -6,6 +6,16 @@
 
 - Conan 2 and vcpkg source recipes package the existing C and C++ bindings and
   verify static and shared consumers across the native platform matrix.
+- SVG `<text>` honors `letter-spacing` (attribute or inline style, plain
+  number / px user units) through the PDF character-spacing operator on both
+  the custom-font and base-14 paths.
+
+### Fixed
+
+- SVG `<text>` with a CSS font-family stack ("MyFace, Helvetica") resolves
+  registered custom faces again, and every font the SVG renderer binds is also
+  subset and embedded; `<text>` inside CSS background-image SVGs now uses the
+  registered custom fonts instead of always falling back to standard fonts.
 
 ## [1.6.0] — 2026-08-26
 
