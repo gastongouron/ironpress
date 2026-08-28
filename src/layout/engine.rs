@@ -2052,6 +2052,10 @@ pub(crate) fn layout_with_rules_and_fonts_raster_quality(
     raster_quality: crate::style::raster_quality::RasterQuality,
     resources: &mut crate::security::resources::ResourceLoader,
 ) -> Vec<Page> {
+    // Fresh document: drop any table-sizing memo from a previous layout so
+    // cell pointers from a freed DOM are never reused as cache keys.
+    super::table::reset_table_sizing_cache();
+
     let DocumentGeometry {
         page_size,
         content_margin: margin,
