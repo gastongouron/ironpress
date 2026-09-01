@@ -658,6 +658,14 @@ impl AtomicInlineKind {
 }
 
 impl InlineFormattingRole {
+    /// Whether this role participates in a table cell's text flow.
+    pub(crate) const fn participates_in_table_cell_text_flow(self) -> bool {
+        matches!(
+            self,
+            Self::Text | Self::Atomic(AtomicInlineKind::InlineBlock)
+        )
+    }
+
     /// Text and the established embedded inline-block path are collected as
     /// runs. Other atomic boxes are owned by their source-ordered row segment.
     pub(crate) fn uses_text_run_layout(self, element: &ElementNode) -> bool {

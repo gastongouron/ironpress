@@ -30,14 +30,14 @@ use super::engine::{
 use super::helpers::{PseudoBoxContext, build_pseudo_block, pseudo_is_block_like};
 use super::inline_formatting::{
     AnonymousInlineFormattingContext, GeneratedBox, GeneratedContentStyles, GeneratedInlineContent,
-    IndependentFlowLayout, InlineFormattingChild, layout_mixed_flow_children,
+    IndependentFlowLayout, InlineFormattingChild, InlineFormattingRole, layout_mixed_flow_children,
 };
 #[cfg(test)]
 use super::paginate::estimate_element_height;
 use super::text::{
-    InlineTextSequence, TextWrapOptions, estimate_word_width, has_non_collapsible_text,
-    measure_text_intrinsic_widths, parent_line_strut, required_outer_width,
-    text_run_line_height_factor, used_font_size, wrap_text_runs,
+    InlineRunContext, InlineTextSequence, TextWrapOptions, estimate_word_width,
+    has_non_collapsible_text, measure_text_intrinsic_widths, parent_line_strut,
+    required_outer_width, text_run_line_height_factor, used_font_size, wrap_text_runs,
 };
 
 mod cell_sizing_memo;
@@ -3810,17 +3810,16 @@ fn table_cell_edge_block_margins(
 }
 
 fn table_cell_child_should_flatten(el: &ElementNode, style: &ComputedStyle) -> bool {
-    // An inline-tagged inline-block stays in the cell's text-run flow — the
-    // same gate as `InlineFormattingRole::uses_text_run_layout` — so a form
-    // fill-in underline or checkbox square renders inline with its sibling
-    // text (CSS 2 §9.2.2) instead of dropping onto its own stacked line.
-    let inline_block_in_text_flow = style.display == Display::InlineBlock && el.tag.is_inline();
-    el.tag == HtmlTag::Table
-        || el.tag == HtmlTag::Img
-        || el.tag == HtmlTag::Svg
-        || (recurses_as_layout_child(el.tag) && !collects_as_inline_text(el.tag))
-        || (style.display != Display::Inline && !inline_block_in_text_flow)
+    if matches!(el.tag, HtmlTag::Table | HtmlTag::Img | HtmlTag::Svg)
         || style.position.is_absolute()
+    {
+        return true;
+    }
+    let participates_in_text_flow =
+        InlineFormattingRole::of(el, style).participates_in_table_cell_text_flow();
+    !participates_in_text_flow
+        && ((recurses_as_layout_child(el.tag) && !collects_as_inline_text(el.tag))
+            || style.display != Display::Inline)
 }
 
 #[derive(Clone, Copy)]
@@ -3837,6 +3836,10 @@ struct TableCellChildLayout<'output, 'style, 'ancestors, 'dom> {
 }
 
 impl IndependentFlowLayout for TableCellChildLayout<'_, '_, '_, '_> {
+    fn inline_run_context(&self) -> InlineRunContext {
+        InlineRunContext::TableCell
+    }
+
     fn lays_out_independently(&self, element: &ElementNode, child: &InlineFormattingChild) -> bool {
         table_cell_child_should_flatten(element, &child.style) && element.tag != HtmlTag::Br
     }
@@ -3944,6 +3947,32 @@ mod subpoint_width_tests {
         assert!(
             text.contains("NPO") && text.contains("after"),
             "sibling text must stay in the same line, got {text:?}"
+        );
+    }
+
+    /// The computed outer display controls inline participation, independently
+    /// of the element's default HTML display role (CSS Display 3 section 2.1).
+    #[test]
+    fn block_tagged_inline_block_in_table_cell_flows_inline_with_text() {
+        let nodes = parse_html(
+            r#"<table><tr><td>Before <div style="display:inline-block;width:60pt">box</div> after</td></tr></table>"#,
+        )
+        .expect("valid inline-block fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+
+        assert!(
+            cell.content.children.is_empty(),
+            "computed inline-block must not become a stacked table-cell child"
+        );
+        assert_eq!(cell.content.lines.len(), 1);
+        assert!(
+            cell.content.lines[0]
+                .runs
+                .iter()
+                .any(|run| run.inline_box.is_some()),
+            "computed inline-block must remain an atomic inline run"
         );
     }
 

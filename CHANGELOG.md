@@ -29,11 +29,10 @@
   every font the SVG renderer binds is also subset and embedded; `<text>`
   inside CSS background-image SVGs uses the registered custom fonts instead of
   always falling back to standard fonts.
-- An inline-tagged `display: inline-block` inside a table cell (form fill-in
-  underlines, checkbox squares) flows inline with the cell's sibling text
-  again instead of dropping onto its own stacked line below it; a cell whose
-  only content is such a box paints it, and a relatively positioned one paints
-  above its in-flow siblings.
+- A `display: inline-block` inside a table cell (form fill-in underlines,
+  checkbox squares) flows inline with the cell's sibling text regardless of
+  the element's default HTML display role; lone and relatively positioned
+  inline boxes are painted by the same flow.
 
 ## [1.6.0] — 2026-08-26
 
