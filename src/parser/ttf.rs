@@ -2510,7 +2510,11 @@ mod tests {
         let liberation =
             parse_ttf(include_bytes!("../../assets/LiberationSans-Regular.ttf").to_vec())
                 .expect("Liberation Sans parses");
-        let probe = b"not a font at all".to_vec();
+        // Distinct from the payload `a_font_that_fails_to_parse_is_not_cached`
+        // parses: both tests share the process-global cache and run in
+        // parallel, so a common key would let this resident entry break that
+        // test's not-cached assertion.
+        let probe = b"bytes sharing a bucket, still not a font".to_vec();
         PARSED_FONT_CACHE.insert(FontBytesKey::of(&probe), liberation);
         assert!(
             parse_ttf_cached(&probe).is_none(),
