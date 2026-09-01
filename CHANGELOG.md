@@ -31,26 +31,9 @@
   always falling back to standard fonts.
 - An inline-tagged `display: inline-block` inside a table cell (form fill-in
   underlines, checkbox squares) flows inline with the cell's sibling text
-  again instead of dropping onto its own stacked line below it.
-- SVG `<text>` honors `letter-spacing` from the presentation attribute or an
-  inline style with any CSS `<length>` (`em` resolves against the text's font
-  size). Tracking is applied per typographic character unit: zero-width
-  formatting characters receive none, optional ligatures are suppressed while
-  tracking is active, and the tracked advance positions `text-anchor`.
-
-### Fixed
-
-- SVG `<text>` with a CSS font-family list (`"MyFace, Helvetica"`) resolves
-  registered custom faces, including quoted names that contain commas, and
-  every font the SVG renderer binds is also subset and embedded; `<text>`
-  inside CSS background-image SVGs uses the registered custom fonts instead of
-  always falling back to standard fonts.
-
-### Fixed
-
-- An inline-tagged `display: inline-block` inside a table cell (form fill-in
-  underlines, checkbox squares) flows inline with the cell's sibling text
-  again instead of dropping onto its own stacked line below it.
+  again instead of dropping onto its own stacked line below it; a cell whose
+  only content is such a box paints it, and a relatively positioned one paints
+  above its in-flow siblings.
 
 ## [1.6.0] — 2026-08-26
 
