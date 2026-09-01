@@ -1,12 +1,12 @@
 {
   "schema_version": 12,
-  "invocation_id": "fe9fda600470468e1878064b006dc37f",
+  "invocation_id": "24ab971d23b9343ca435278f7e7ac655",
   "run_complete": true,
   "env": {
     "dpi": 300,
     "pdftoppm_available": true,
     "rasterizer_source_path": "/usr/bin/pdftoppm",
-    "rasterizer_executed_path": "/tmp/ironpress-pdftoppm-9728-1788197618178234563-0/pdftoppm",
+    "rasterizer_executed_path": "/tmp/ironpress-pdftoppm-3087-1788290484148405669-0/pdftoppm",
     "rasterizer_arguments": "[-r, 300, -png, <PDF>, <PREFIX>]",
     "rasterizer_version": "pdftoppm version 24.08.0",
     "rasterizer_sha256": "b1f76a56605df368efd233e09faad3bd910e50c0d6556c616a7c0b0adebf6013"
@@ -380309,6 +380309,5 @@
   "stale_refs": [],
   "refs_lock_present": true,
   "refs_lock_sha256": "ffc65d09dcdebc80bc5317547aa8a47866c7a71c19cc6c39601d4840fb3aadd0",
-  "baseline_present": false,
-  "gate_failure": "parity gate FAILED (1 issue(s)):\n  - refs.lock identity changed (baseline fca6cb47e8c62ecd48028213c54879ce966fe8118f16fa4c51d9452962f42eb8 != current ffc65d09dcdebc80bc5317547aa8a47866c7a71c19cc6c39601d4840fb3aadd0); fixture/oracle identity changes require an explicit reviewed baseline update\nCurrent report: /home/runner/work/ironpress/ironpress/tests/parity/REPORT.md\nCurrent visual report: /home/runner/work/ironpress/ironpress/tests/parity/reports/index.html"
+  "baseline_present": true
 }
