@@ -380,7 +380,7 @@ impl TableFragmentGroup {
 /// backgrounds and borders still require one coordinated paint schedule. The
 /// source path preserves that relationship across cloning and fragmentation
 /// without reference counting or renderer-side guesses based on geometry.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub(crate) struct TableGridIdentity {
     source_path: Box<[usize]>,
 }

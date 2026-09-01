@@ -40,13 +40,13 @@ use super::text::{
     required_outer_width, text_run_line_height_factor, used_font_size, wrap_text_runs,
 };
 
-mod cell_sizing_memo;
 mod collapsed_borders;
-pub(crate) use cell_sizing_memo::TableCellSizingMemo;
-use cell_sizing_memo::{CellContentWidths, CellSizingKey};
+mod sizing;
 use collapsed_borders::{
     CollapsedBorderSources, CollapsedBorderTrack, resolve_collapsed_border_grid,
 };
+pub(crate) use sizing::TableCellSizingMemo;
+use sizing::{TableCellIntrinsicWidths, TableCellPosition};
 
 const MAX_COLSPAN: usize = 1000;
 const MAX_ROWSPAN: usize = 65_534;
@@ -62,6 +62,7 @@ pub(crate) struct TableLayoutContext<'context, 'dom> {
     layout: &'context LayoutContext,
     ancestors: &'context [AncestorInfo<'dom>],
     source_index: usize,
+    grid_source_index: usize,
     sibling_count: usize,
     positioned_depth: usize,
 }
@@ -77,7 +78,29 @@ impl<'context, 'dom> TableLayoutContext<'context, 'dom> {
             layout,
             ancestors,
             source_index: source.child_index(),
+            grid_source_index: source.child_index(),
             sibling_count: source.sibling_count(),
+            positioned_depth,
+        }
+    }
+
+    /// Build the synthetic table wrapper for a consecutive table-cell group.
+    ///
+    /// The wrapper keeps its selector position, while the table-grid identity
+    /// belongs to the first authored cell in the group.
+    pub(crate) const fn for_anonymous_table(
+        layout: &'context LayoutContext,
+        ancestors: &'context [AncestorInfo<'dom>],
+        wrapper_source: ElementSiblingContext<'_>,
+        first_cell_source: ElementSiblingContext<'_>,
+        positioned_depth: usize,
+    ) -> Self {
+        Self {
+            layout,
+            ancestors,
+            source_index: wrapper_source.child_index(),
+            grid_source_index: first_cell_source.child_index(),
+            sibling_count: wrapper_source.sibling_count(),
             positioned_depth,
         }
     }
@@ -1769,7 +1792,7 @@ pub(crate) fn flatten_table(
             .ancestors
             .iter()
             .map(|ancestor| ancestor.child_index)
-            .chain(std::iter::once(table_child_index)),
+            .chain(std::iter::once(context.grid_source_index)),
     );
     let descendant_layout = TableDescendantLayout::for_table(context, style);
     let rules = env.rules;
@@ -2392,14 +2415,22 @@ pub(crate) fn flatten_table(
                         // quote context is live, because an empty state cannot
                         // influence the measurement, and an empty-to-empty
                         // measurement cannot have left any behind.
-                        let sizing_key = CellSizingKey::new(cell_el, inner_width);
-                        let counters_empty_before = measurement_counter_state.stacks.is_empty()
-                            && measurement_counter_state.quote_depth == 0;
-                        let measured = 'cell_sizing: {
+                        let cell_position =
+                            TableCellPosition::new(sizing_row_idx, cell_siblings.child_index());
+                        let counters_empty_before =
+                            measurement_counter_state.is_generated_content_context_free();
+                        let (total_preferred, total_min) = 'cell_sizing: {
                             if counters_empty_before
-                                && let Some(widths) = table_cell_sizing.get(&sizing_key)
+                                && let Some(widths) = table_cell_sizing.lookup(
+                                    &table_grid,
+                                    cell_position,
+                                    inner_width,
+                                )
                             {
-                                break 'cell_sizing widths;
+                                break 'cell_sizing (
+                                    widths.preferred_outer(),
+                                    widths.minimum_outer(),
+                                );
                             }
                             let cell_classes = cell_el.class_list();
                             let mut cell_sizing_ancestors = sizing_row_ctx.ancestors.clone();
@@ -2556,22 +2587,20 @@ pub(crate) fn flatten_table(
                                 cell_padding_x,
                             )
                             .max(explicit_cell_width);
-                            let measured = CellContentWidths {
-                                preferred: total_preferred,
-                                min: total_min,
-                            };
                             if counters_empty_before
-                                && measurement_counter_state.stacks.is_empty()
-                                && measurement_counter_state.quote_depth == 0
+                                && measurement_counter_state.is_generated_content_context_free()
+                                && let Some(widths) =
+                                    TableCellIntrinsicWidths::parse(total_preferred, total_min)
                             {
-                                table_cell_sizing.insert(sizing_key, measured);
+                                table_cell_sizing.remember(
+                                    &table_grid,
+                                    cell_position,
+                                    inner_width,
+                                    widths,
+                                );
                             }
-                            measured
+                            (total_preferred, total_min)
                         };
-                        let CellContentWidths {
-                            preferred: total_preferred,
-                            min: total_min,
-                        } = measured;
                         if span == 1 {
                             if col_pos < num_cols {
                                 preferred_widths[col_pos] =
@@ -3973,6 +4002,88 @@ mod subpoint_width_tests {
                 .iter()
                 .any(|run| run.inline_box.is_some()),
             "computed inline-block must remain an atomic inline run"
+        );
+    }
+
+    #[test]
+    fn separate_anonymous_tables_measure_their_own_cells() {
+        let parsed = parse_html_with_styles(
+            r#"<style>
+                * { margin: 0; padding: 0; }
+                .cell { display: table-cell; white-space: nowrap; }
+                .separator { display: block; height: 1px; }
+            </style>
+            <div>
+                <span class="cell">i</span>
+                <div class="separator"></div>
+                <span class="cell">WWWWWWWWWWWWWWWW</span>
+            </div>"#,
+        )
+        .expect("valid anonymous-table fixture");
+        let rules = parsed
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &parsed.nodes,
+            PageSize::new(400.0, 200.0),
+            Margin::uniform(0.0),
+            &rules,
+        );
+        let rows = table_rows(&pages[0]);
+
+        assert_eq!(
+            rows.len(),
+            2,
+            "the separator creates two table fixup groups"
+        );
+        assert!(
+            rows[1].content.column_widths[0] > rows[0].content.column_widths[0] * 8.0,
+            "each anonymous table must measure its own authored cell: {:?}",
+            rows.iter()
+                .map(|row| row.content.column_widths[0])
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn adjacent_anonymous_and_authored_tables_measure_their_own_cells() {
+        let parsed = parse_html_with_styles(
+            r#"<style>
+                * { margin: 0; padding: 0; }
+                .cell, td { white-space: nowrap; }
+                .cell { display: table-cell; }
+                table { border-spacing: 0; }
+            </style>
+            <span class="cell">i</span>
+            <table><tr><td>WWWWWWWWWWWWWWWW</td></tr></table>"#,
+        )
+        .expect("valid adjacent-table fixture");
+        let rules = parsed
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &parsed.nodes,
+            PageSize::new(400.0, 200.0),
+            Margin::uniform(0.0),
+            &rules,
+        );
+        let rows = table_rows(&pages[0]);
+
+        assert_eq!(
+            rows.len(),
+            2,
+            "one anonymous and one authored table expected"
+        );
+        assert!(
+            rows[1].content.column_widths[0] > rows[0].content.column_widths[0] * 8.0,
+            "the authored table must not reuse the anonymous cell width: {:?}",
+            rows.iter()
+                .map(|row| row.content.column_widths[0])
+                .collect::<Vec<_>>()
         );
     }
 
