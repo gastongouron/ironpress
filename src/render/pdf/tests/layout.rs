@@ -688,6 +688,108 @@ fn render_cell_text_vertical_centering() {
     );
 }
 
+/// A cell whose only line content is an atomic inline box carries no text on
+/// that line, yet the box is line content (CSS 2.1 §9.2.2): the cell painter
+/// must paint it the way the page-level line painter does instead of skipping
+/// the line as empty.
+#[test]
+fn render_cell_text_paints_a_line_holding_only_an_inline_box() {
+    let pdf = crate::HtmlConverter::new()
+        .convert(
+            r#"<table><tr><td><span style="display:inline-block;width:12pt;height:12pt;background:#ff0000"></span></td></tr></table>"#,
+        )
+        .expect("valid lone inline-block fixture");
+    let content = String::from_utf8_lossy(&pdf);
+    assert!(
+        content.contains("1 0 0 rg"),
+        "a cell holding only an inline-block must paint that box"
+    );
+}
+
+/// CSS 2.1 Appendix E step 8: a relatively positioned inline-level box paints
+/// in the positioned layer, above the in-flow content of its line, whatever
+/// its source order. The cell painter defers such boxes exactly as the
+/// page-level line painter does.
+#[test]
+fn render_cell_text_paints_relative_inline_boxes_above_in_flow_siblings() {
+    let inline_run = |background: Color, rel_offset_x: f32| TextRun {
+        font_size: 12.0,
+        inline_box: Some(Box::new(crate::layout::engine::InlineBox {
+            width: 20.0,
+            height: 10.0,
+            paint: crate::layout::engine::InlineBoxPaint {
+                background_color: Some(background),
+                ..Default::default()
+            },
+            rel_offset_x,
+            ..Default::default()
+        })),
+        ..Default::default()
+    };
+    let cell = CellBox {
+        content: crate::layout::cells::CellContent {
+            lines: vec![TextLine {
+                runs: vec![
+                    TextRun {
+                        text: "x".to_string(),
+                        font_size: 12.0,
+                        ..Default::default()
+                    },
+                    // Source order: the offset box first, then an in-flow box
+                    // that overlaps its shifted position.
+                    inline_run(Color::rgb(255, 0, 0), -6.0),
+                    inline_run(Color::rgb(0, 0, 255), 0.0),
+                ],
+                height: 14.0,
+                baseline_ascent: None,
+                x_offset: 0.0,
+                metadata: Default::default(),
+            }],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let mut content = String::new();
+    let fonts = HashMap::new();
+    let mut annotations = Vec::new();
+    let prepared_fonts = PreparedCustomFonts::new();
+    let mut ts_pdf_writer = PdfWriter::new();
+    let mut ts_page_images = Vec::new();
+    let mut ts_shadings = Vec::new();
+    let mut ts_shading_counter = 0usize;
+    let mut ts_ext_gstates = Vec::new();
+    let mut ts_alpha_counter = 0usize;
+    let mut text_context = PageRenderContext::new(
+        &mut ts_pdf_writer,
+        &mut ts_page_images,
+        &fonts,
+        &prepared_fonts,
+        &mut ts_shadings,
+        &mut ts_shading_counter,
+        &mut ts_ext_gstates,
+        &mut ts_alpha_counter,
+        &mut annotations,
+        TEST_PAGE_PAINT_BOX,
+        TEST_PAGE_PAINT_BOX.height,
+    );
+    render_cell_text(
+        &mut content,
+        &cell,
+        CellTextPlacement::new(PdfPoint::new(10.0, 200.0), 100.0),
+        &mut text_context,
+    );
+    let relative = content
+        .find("1 0 0 rg")
+        .expect("the relatively positioned box is painted");
+    let in_flow = content
+        .find("0 0 1 rg")
+        .expect("the in-flow box is painted");
+    assert!(
+        in_flow < relative,
+        "the relatively positioned box must paint after its in-flow sibling:\n{content}"
+    );
+}
+
 #[test]
 fn coalesce_text_runs_border_radii_comparison() {
     // Runs merge only when their full corner geometry matches.

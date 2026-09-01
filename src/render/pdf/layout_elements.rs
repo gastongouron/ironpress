@@ -371,8 +371,12 @@ pub(super) fn render_cell_text(
         let line_annotation_bottom = text_y - metrics.descender - metrics.half_leading;
         let line_annotation_height =
             metrics.ascender + metrics.descender + 2.0 * metrics.half_leading;
-        let text_content: String = line.runs.iter().map(|run| run.text.as_str()).collect();
-        if text_content.is_empty() {
+        // An atomic inline box keeps its run's `text` empty, so a line that
+        // holds only inline-blocks is still line content (CSS 2.1 §9.2.2) —
+        // the same rule the page-level line painter applies.
+        let has_text = line.runs.iter().any(|run| !run.text.is_empty());
+        let has_inline_box = line.runs.iter().any(|run| run.inline_box.is_some());
+        if !has_text && !has_inline_box {
             continue;
         }
         // CSS `text-indent` shifts the start of the first rendered line. List
@@ -419,34 +423,47 @@ pub(super) fn render_cell_text(
             line_bottom_y
         };
         let mut x = text_x;
+        // Relatively positioned inline boxes belong to the positioned layer:
+        // they paint above the line's in-flow content, in source order
+        // (CSS 2.1 Appendix E, step 8). Collect them here and paint them after
+        // the in-flow runs — the same deferral the page-level line painter
+        // applies.
+        let mut deferred_inline: Vec<(&crate::layout::engine::InlineBox, f32, f32, f32)> =
+            Vec::new();
         for (run_index, run) in merged.iter().enumerate() {
             // Atomic inline box (display: inline-block) in the cell's text
             // flow: paint the box and its inner content, then advance —
             // the same treatment the page-level line painter applies.
             if let Some(inline) = run.inline_box.as_deref() {
                 if !run.is_inline_edge() {
-                    render_inline_box(
-                        content,
-                        inline,
-                        x + inline.margin_left,
-                        text_y,
-                        ctx.text.page_height,
-                        line_top_y,
-                        line_bottom_y,
-                        line_text_top_y,
-                        line_text_bottom_y,
-                        run.font_size,
-                        run_line_height_for_vertical_align(run),
-                        line_primary_x_height_ratio(&merged, ctx.text.custom_fonts),
-                        ctx.text.custom_fonts,
-                        ctx.text.prepared_custom_fonts,
-                        ctx.page_ext_gstates,
-                        ctx.bg_alpha_counter,
-                        ctx.shadings,
-                        ctx.shading_counter,
-                        ctx.text.pdf_writer,
-                        ctx.text.page_images,
-                    );
+                    let box_x = x + inline.margin_left;
+                    let run_line_height = run_line_height_for_vertical_align(run);
+                    if inline.rel_offset_x != 0.0 || inline.rel_offset_y != 0.0 {
+                        deferred_inline.push((inline, box_x, run.font_size, run_line_height));
+                    } else {
+                        render_inline_box(
+                            content,
+                            inline,
+                            box_x,
+                            text_y,
+                            ctx.text.page_height,
+                            line_top_y,
+                            line_bottom_y,
+                            line_text_top_y,
+                            line_text_bottom_y,
+                            run.font_size,
+                            run_line_height,
+                            line_primary_x_height_ratio(&merged, ctx.text.custom_fonts),
+                            ctx.text.custom_fonts,
+                            ctx.text.prepared_custom_fonts,
+                            ctx.page_ext_gstates,
+                            ctx.bg_alpha_counter,
+                            ctx.shadings,
+                            ctx.shading_counter,
+                            ctx.text.pdf_writer,
+                            ctx.text.page_images,
+                        );
+                    }
                 }
                 x += run.atomic_inline_advance().unwrap_or_default();
                 continue;
@@ -501,6 +518,33 @@ pub(super) fn render_cell_text(
             }
 
             x += run_width;
+        }
+
+        // Paint deferred relatively positioned inline boxes above the line's
+        // in-flow content, preserving their source order.
+        for (inline, box_x, font_size, run_line_height) in deferred_inline {
+            render_inline_box(
+                content,
+                inline,
+                box_x,
+                text_y,
+                ctx.text.page_height,
+                line_top_y,
+                line_bottom_y,
+                line_text_top_y,
+                line_text_bottom_y,
+                font_size,
+                run_line_height,
+                line_primary_x_height_ratio(&merged, ctx.text.custom_fonts),
+                ctx.text.custom_fonts,
+                ctx.text.prepared_custom_fonts,
+                ctx.page_ext_gstates,
+                ctx.bg_alpha_counter,
+                ctx.shadings,
+                ctx.shading_counter,
+                ctx.text.pdf_writer,
+                ctx.text.page_images,
+            );
         }
     }
 }
