@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::layout::elements::TableGridIdentity;
+use crate::layout::elements::{TableGridIdentity, TableSourcePath};
 
 /// Position of one cell in the normalized row sequence of a table grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -117,6 +117,86 @@ impl TableCellSizingMemo {
             measurements.cells.insert(key, widths);
             self.tables.insert(table.clone(), measurements);
         }
+    }
+}
+
+/// Table-measurement state inherited by one explicit layout subtree.
+///
+/// Nested table identities are scoped by their containing table grid. The
+/// scope travels with `LayoutEnv`, so repeated measurement and final layout
+/// enter the same namespace without selector changes or ambient state.
+pub(crate) struct TableCellSizingContext<'a> {
+    memo: &'a mut TableCellSizingMemo,
+    containing_grid: Option<&'a TableGridIdentity>,
+    source_scopes: Box<[TableSourcePath]>,
+}
+
+impl<'a> TableCellSizingContext<'a> {
+    pub(crate) fn root(memo: &'a mut TableCellSizingMemo) -> Self {
+        Self {
+            memo,
+            containing_grid: None,
+            source_scopes: Box::default(),
+        }
+    }
+
+    pub(crate) fn grid_identity(
+        &self,
+        source_path: impl IntoIterator<Item = usize>,
+    ) -> TableGridIdentity {
+        match (self.containing_grid, self.source_scopes.is_empty()) {
+            (Some(containing_grid), true) => containing_grid.descendant(source_path),
+            (None, true) => TableGridIdentity::from_source_path(source_path),
+            (Some(containing_grid), false) => {
+                containing_grid.descendant_scoped(&self.source_scopes, source_path)
+            }
+            (None, false) => {
+                TableGridIdentity::from_scoped_source_path(&self.source_scopes, source_path)
+            }
+        }
+    }
+
+    pub(crate) fn source_descendants<'context>(
+        &'context mut self,
+        source_path: &TableSourcePath,
+    ) -> TableCellSizingContext<'context> {
+        let mut source_scopes = self.source_scopes.to_vec();
+        source_scopes.push(source_path.clone());
+        TableCellSizingContext {
+            memo: &mut *self.memo,
+            containing_grid: self.containing_grid,
+            source_scopes: source_scopes.into_boxed_slice(),
+        }
+    }
+
+    pub(crate) fn descendants<'context>(
+        &'context mut self,
+        containing_grid: &'context TableGridIdentity,
+    ) -> TableCellSizingContext<'context> {
+        TableCellSizingContext {
+            memo: &mut *self.memo,
+            containing_grid: Some(containing_grid),
+            source_scopes: Box::default(),
+        }
+    }
+
+    pub(super) fn lookup(
+        &self,
+        table: &TableGridIdentity,
+        position: TableCellPosition,
+        inner_width: f32,
+    ) -> Option<TableCellIntrinsicWidths> {
+        self.memo.lookup(table, position, inner_width)
+    }
+
+    pub(super) fn remember(
+        &mut self,
+        table: &TableGridIdentity,
+        position: TableCellPosition,
+        inner_width: f32,
+        widths: TableCellIntrinsicWidths,
+    ) {
+        self.memo.remember(table, position, inner_width, widths);
     }
 }
 

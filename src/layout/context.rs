@@ -4,8 +4,9 @@ use crate::parser::ttf::TtfFont;
 use crate::style::font_metrics::FontMetrics;
 use std::collections::HashMap;
 
+use super::elements::TableSourcePath;
 use super::engine::CounterState;
-use super::table::TableCellSizingMemo;
+use super::table::TableCellSizingContext;
 
 /// Shared mutable environment for the layout traversal.
 ///
@@ -28,7 +29,7 @@ pub(crate) struct LayoutEnv<'a> {
     /// sizing pass at every nesting level, so a deeply nested cell is otherwise
     /// measured exponentially often; borrowing the memo from here keeps it alive
     /// exactly as long as the DOM it describes.
-    pub table_cell_sizing: &'a mut TableCellSizingMemo,
+    pub table_cell_sizing: TableCellSizingContext<'a>,
 }
 
 impl<'a> LayoutEnv<'a> {
@@ -36,6 +37,23 @@ impl<'a> LayoutEnv<'a> {
     /// text layout and shaping use.
     pub(crate) const fn font_metrics(&self) -> FontMetrics<'a> {
         FontMetrics::new(self.fonts)
+    }
+
+    /// Reborrow this traversal inside a formatting-context source path without
+    /// changing the selector ancestry seen by descendants.
+    pub(crate) fn for_table_source<'scope>(
+        &'scope mut self,
+        source_path: &TableSourcePath,
+    ) -> LayoutEnv<'scope> {
+        LayoutEnv {
+            rules: self.rules,
+            fonts: self.fonts,
+            counter_state: &mut *self.counter_state,
+            resources: &mut *self.resources,
+            filter_defs: self.filter_defs,
+            filter_dpi: self.filter_dpi,
+            table_cell_sizing: self.table_cell_sizing.source_descendants(source_path),
+        }
     }
 }
 

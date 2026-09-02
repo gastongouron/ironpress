@@ -139,6 +139,14 @@ fn custom_font_html(paragraph_count: usize) -> String {
     format!(r#"<style>body {{ font-family: "Bench Font"; }}</style>{paragraphs}"#)
 }
 
+fn nested_table_html(depth: usize) -> String {
+    let mut nested = "table sizing leaf".to_string();
+    for _ in 0..depth {
+        nested = format!("<table><tr><td>{nested}</td><td>independent sibling</td></tr></table>");
+    }
+    format!("<style>table{{border-spacing:0}}td{{padding:1pt;white-space:nowrap}}</style>{nested}")
+}
+
 fn bench_simple(c: &mut Criterion) {
     c.bench_function("simple_html", |b| {
         b.iter(|| ironpress::html_to_pdf(black_box(SIMPLE_HTML)).unwrap())
@@ -215,6 +223,17 @@ fn bench_new_custom_font(c: &mut Criterion) {
     });
 }
 
+fn bench_nested_table_sizing(c: &mut Criterion) {
+    let mut group = c.benchmark_group("nested_table_sizing");
+    for depth in [1, 2, 4, 6, 8] {
+        let html = nested_table_html(depth);
+        group.bench_function(format!("depth_{depth}"), |b| {
+            b.iter(|| ironpress::html_to_pdf(black_box(&html)).unwrap())
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_simple,
@@ -226,5 +245,6 @@ criterion_group!(
     bench_text_emphasis,
     bench_reused_custom_font,
     bench_new_custom_font,
+    bench_nested_table_sizing,
 );
 criterion_main!(benches);

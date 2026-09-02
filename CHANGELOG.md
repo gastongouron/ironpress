@@ -19,8 +19,8 @@
   parsed font owns its shaping face, so a warm process stops re-parsing and
   re-resolving the same fonts on each `convert()` — with byte-identical output.
 - Auto table layout memoizes each cell's intrinsic widths within a layout,
-  collapsing the exponential re-measurement of nested tables (a depth-6 nest
-  converts about twice as fast) with byte-identical output.
+  avoiding repeated nested-table measurement while preserving byte-identical
+  output. The retained Criterion benchmark covers nesting depths 1 through 8.
 
 ### Fixed
 

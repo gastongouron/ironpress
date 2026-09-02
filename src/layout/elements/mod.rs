@@ -42,7 +42,7 @@ pub(crate) use table::{
     CollapsedBorderEdge, CollapsedBorderJoint, CollapsedBorderJoints, CollapsedBorderLine,
     CollapsedTableBorders, Table, TableBoxDecoration, TableBoxDecorationOwner, TableCells,
     TableFormatting, TableFragmentGroup, TableFragmentation, TableGridIdentity, TableGridOwner,
-    TableInlineGeometry, TableRow,
+    TableInlineGeometry, TableRow, TableSourcePath,
 };
 #[cfg(test)]
 pub(crate) use test_support::{LayoutElementTestExt, LayoutElementTestMutExt};
