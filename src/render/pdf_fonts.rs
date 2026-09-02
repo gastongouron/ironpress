@@ -330,14 +330,12 @@ fn collect_font_usage_from_svg(
             None,
             None,
             None,
+            crate::render::svg_text::SvgTextSizing::initial(tree.text_ctx.font_size),
             custom_fonts,
             usage,
         );
     }
 }
-
-/// Nominal size at which SVG text is shaped to discover its glyph ids.
-const FONT_USAGE_PROBE_SIZE: f32 = 16.0;
 
 #[allow(clippy::too_many_arguments)]
 fn collect_font_usage_from_svg_node(
@@ -346,6 +344,7 @@ fn collect_font_usage_from_svg_node(
     inherited_family: Option<&str>,
     inherited_bold: Option<bool>,
     inherited_italic: Option<bool>,
+    inherited_sizing: crate::render::svg_text::SvgTextSizing,
     custom_fonts: &HashMap<String, TtfFont>,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
@@ -357,6 +356,7 @@ fn collect_font_usage_from_svg_node(
             let family = style.font_family.as_deref().or(inherited_family);
             let bold = style.font_bold.or(inherited_bold);
             let italic = style.font_italic.or(inherited_italic);
+            let sizing = inherited_sizing.cascade(style.font_size, style.letter_spacing.as_ref());
             for child in children {
                 collect_font_usage_from_svg_node(
                     child,
@@ -364,6 +364,7 @@ fn collect_font_usage_from_svg_node(
                     family,
                     bold,
                     italic,
+                    sizing,
                     custom_fonts,
                     usage,
                 );
@@ -373,7 +374,6 @@ fn collect_font_usage_from_svg_node(
             font_family,
             font_bold,
             font_italic,
-            letter_spacing,
             content,
             style,
             ..
@@ -398,29 +398,29 @@ fn collect_font_usage_from_svg_node(
                 .or(style.font_italic)
                 .or(inherited_italic)
                 .unwrap_or(text_ctx.font_italic);
-            // `family` may be a raw CSS family stack ("MyFace, Helvetica");
-            // resolve it exactly like the SVG text renderer so every font the
-            // renderer binds is also subset and embedded.
-            let Some((resolved_name, font)) =
-                crate::system_fonts::find_font_in_stack(custom_fonts, &family, bold, italic)
-            else {
-                return;
-            };
-            // Glyph identity is size-independent for our shaping path, so shape
-            // at a nominal size purely to discover the used glyph ids. The
-            // feature set must match the painter's: tracking suppresses optional
-            // ligatures (CSS Text 3 §8.2), which changes the glyphs used.
-            let shaping = crate::layout::engine::TextShaping::default()
-                .tracked(letter_spacing.resolve(FONT_USAGE_PROBE_SIZE));
-            let font_usage = usage.entry(FontUsageKey::plain(resolved_name)).or_default();
-            if let Some(shaped) = crate::text::shape_text_with_explicit_font(
+            let sizing = inherited_sizing.cascade(style.font_size, style.letter_spacing.as_ref());
+            let runs = crate::render::svg_text::fonts::resolve_svg_text_font_runs(
                 content,
-                FONT_USAGE_PROBE_SIZE,
-                font,
-                shaping,
-            ) {
-                for glyph in shaped.glyphs {
-                    font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+                &family,
+                &text_ctx.font_family,
+                bold,
+                italic,
+                Some(custom_fonts),
+            );
+            for run in runs {
+                let crate::render::svg_text::fonts::SvgTextFace::Custom(face) = run.face else {
+                    continue;
+                };
+                if let Some(shaped) = crate::text::shape_text_with_explicit_font_and_shaping(
+                    run.text,
+                    sizing.font_size(),
+                    face.font(),
+                    sizing.shaping(),
+                ) {
+                    let font_usage = usage.entry(FontUsageKey::plain(face.key())).or_default();
+                    for glyph in shaped.glyphs {
+                        font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+                    }
                 }
             }
         }
@@ -1051,6 +1051,50 @@ mod tests {
             collected.to_unicode_map.get(&ligature.glyph_id),
             Some(&vec![b'f' as u16, b'i' as u16])
         );
+    }
+
+    #[test]
+    fn svg_font_subset_uses_the_used_font_size_for_letter_spacing_shaping() {
+        let bytes = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/parity/fonts/ParitySans.ttf"),
+        )
+        .expect("ParitySans test font");
+        let font = crate::parser::ttf::parse_ttf(bytes).expect("valid ParitySans font");
+        let fonts = HashMap::from([("paritysans".to_string(), font)]);
+        let tree = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+                <text font-family="ParitySans" font-size="20"
+                      letter-spacing="calc(1em - 16px)">office</text>
+            </svg>"#,
+        )
+        .expect("valid SVG");
+        let mut usage = BTreeMap::new();
+
+        collect_font_usage_from_svg(&tree, &fonts, &mut usage);
+
+        let font = fonts.get("paritysans").expect("registered font");
+        let painted = crate::text::shape_text_with_explicit_font_and_shaping(
+            "office",
+            20.0,
+            font,
+            crate::layout::engine::TextShaping::KERNING_ONLY,
+        )
+        .expect("SVG text must shape");
+        let painted_glyphs = painted
+            .glyphs
+            .iter()
+            .map(|glyph| glyph.glyph_id)
+            .collect::<BTreeSet<_>>();
+        let collected = usage
+            .get(&FontUsageKey::plain("paritysans"))
+            .expect("ParitySans usage");
+
+        assert_eq!(collected.glyphs, painted_glyphs);
+        for character in ['f', 'i'] {
+            let glyph_id = font.cmap[&(character as u32)];
+            assert!(collected.glyphs.contains(&glyph_id));
+        }
     }
 
     #[test]

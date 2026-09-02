@@ -46,6 +46,25 @@ pub enum SvgLetterSpacing {
 }
 
 impl SvgLetterSpacing {
+    pub(crate) const fn normal() -> Self {
+        Self::Normal
+    }
+
+    pub(crate) fn parse_presentation_attribute(raw: &str) -> Option<Self> {
+        Self::parse(raw, SvgLengthSyntax::PresentationAttribute)
+    }
+
+    pub(crate) fn from_css_value(value: &CssValue) -> Option<Self> {
+        match value {
+            CssValue::Keyword(keyword) if keyword.eq_ignore_ascii_case("normal") => {
+                Some(Self::Normal)
+            }
+            CssValue::Number(value) if *value == 0.0 => Some(Self::Tracked(CssValue::Length(0.0))),
+            CssValue::Number(_) | CssValue::Percentage(_) | CssValue::Keyword(_) => None,
+            value => Some(Self::Tracked(value.clone())),
+        }
+    }
+
     /// Parse the cascaded value from one element's inline `style` declaration
     /// and presentation attribute.
     pub(crate) fn from_declarations(style: Option<&str>, attribute: Option<&str>) -> Self {
@@ -98,6 +117,10 @@ impl SvgLetterSpacing {
             .map(|points| points / POINTS_PER_USER_UNIT)
             .filter(|tracking| tracking.is_finite())
             .unwrap_or(0.0)
+    }
+
+    pub(crate) fn resolve_user_units(&self, font_size: f32) -> f32 {
+        self.resolve(font_size)
     }
 }
 

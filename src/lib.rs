@@ -997,6 +997,8 @@ fn load_font_face_rules(
             rule.font_style_italic,
             rule.font_stretch,
         );
+        let source_key = font_face_source_key(&variant_key, index);
+        fonts.insert(source_key, font.clone());
         if rule.unicode_ranges.is_empty() {
             fonts.insert(variant_key, font);
             continue;
@@ -1066,6 +1068,10 @@ fn font_face_range_key(variant_key: &str, index: usize) -> String {
     format!("{variant_key}__fontface_{index}")
 }
 
+fn font_face_source_key(variant_key: &str, index: usize) -> String {
+    format!("{variant_key}__fontface_source_{index}")
+}
+
 impl Default for HtmlConverter {
     fn default() -> Self {
         Self::new()
@@ -1106,21 +1112,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn svg_text_letter_spacing_emits_character_spacing_for_standard_fonts() {
-        // Standard fonts are single-byte encoded, one glyph per character, so
-        // the character-spacing operator spaces exactly the typographic units.
+    fn svg_text_letter_spacing_tracks_between_standard_font_units() {
+        // CSS Text applies tracking between adjacent typographic units, not at
+        // either edge. A TJ array can express that contract without trailing
+        // spacing, unlike PDF's character-spacing operator.
         let pdf = html_to_pdf(
             r#"<svg width="200" height="50" viewBox="0 0 200 50"><text x="10" y="30" font-size="20" letter-spacing="3">Hello</text></svg>"#,
         )
         .unwrap();
         let content = String::from_utf8_lossy(&pdf);
         assert!(
-            content.contains("3 Tc"),
-            "letter-spacing should map to the PDF character-spacing operator"
-        );
-        assert!(
-            content.contains("0 Tc"),
-            "character spacing should be reset after the text object"
+            content.contains("[(H) -150(e) -150(l) -150(l) -150(o)] TJ"),
+            "3 user units at font-size 20 must become -150 TJ adjustments"
         );
     }
 
@@ -1134,7 +1137,7 @@ mod tests {
         .unwrap();
         let content = String::from_utf8_lossy(&pdf);
         assert!(
-            content.contains("10 Tc"),
+            content.contains("[(H) -500(e) -500(l) -500(l) -500(o)] TJ"),
             "em tracking resolves against the font size"
         );
     }
@@ -1170,16 +1173,16 @@ mod tests {
             !content.contains(" Tc\n"),
             "custom-font SVG text must not space glyphs with the Tc operator"
         );
-        // 10 user units of tracking after each of the two letters, expressed in
-        // thousandths of the 20-unit font size: -500 each.
+        // 10 user units of tracking between the two letters, expressed in
+        // thousandths of the 20-unit font size: -500.
         let adjustments = tj_adjustments(first_tj_array(&content));
         let tracked = adjustments
             .iter()
             .filter(|adjustment| (*adjustment - -500.0).abs() < 1.0)
             .count();
         assert_eq!(
-            tracked, 2,
-            "tracking after every typographic unit: {adjustments:?}"
+            tracked, 1,
+            "tracking belongs only between adjacent typographic units: {adjustments:?}"
         );
     }
 
@@ -1231,6 +1234,217 @@ mod tests {
                 .expect("text matrix")
         };
         assert_eq!(anchored_x("AB"), anchored_x("A\u{200B}B"));
+    }
+
+    #[test]
+    fn svg_font_stack_falls_back_per_typographic_unit() {
+        let primary = include_bytes!("../assets/LiberationSans-Regular.ttf").to_vec();
+        let fallback = include_bytes!("../tests/parity/fonts/ParitySans.ttf").to_vec();
+        let primary_font = parser::ttf::parse_ttf(primary.clone()).expect("valid primary font");
+        let fallback_font = parser::ttf::parse_ttf(fallback.clone()).expect("valid fallback font");
+        assert!(primary_font.cmap.contains_key(&('A' as u32)));
+        assert!(!primary_font.cmap.contains_key(&('ا' as u32)));
+        assert!(fallback_font.cmap.contains_key(&('ا' as u32)));
+
+        let pdf = HtmlConverter::new()
+            .add_font("Primary", primary)
+            .add_font("Fallback", fallback)
+            .convert(
+                r#"<svg width="200" height="50"><text x="10" y="30" font-family="Primary, Fallback" font-size="20">Aا</text></svg>"#,
+            )
+            .expect("mixed-coverage SVG font stack must convert");
+        let content = String::from_utf8_lossy(&pdf);
+
+        assert!(content.contains("/primary 20 Tf"));
+        assert!(content.contains("/fallback 20 Tf"));
+        assert!(
+            content
+                .lines()
+                .filter(|line| line.ends_with("] TJ"))
+                .all(|line| !line.contains("<0000>"))
+        );
+    }
+
+    #[test]
+    fn svg_composite_font_face_checks_overlapping_ranges_newest_first() {
+        let font_directory =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/parity/fonts");
+        let pdf = HtmlConverter::new()
+            .base_path(&font_directory)
+            .convert(
+                r#"<style>
+                    @font-face {
+                        font-family: RangePick;
+                        src: url('ParitySans.ttf') format('truetype');
+                        unicode-range: U+0041;
+                    }
+                    @font-face {
+                        font-family: RangePick;
+                        src: url('ParitySerif.ttf') format('truetype');
+                        unicode-range: U+0041;
+                    }
+                </style>
+                <svg width="100" height="60">
+                    <text x="10" y="45" font-family="RangePick" font-size="40">A</text>
+                </svg>"#,
+            )
+            .expect("overlapping SVG composite-font fixture must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("+ParitySerif"));
+        assert!(!pdf.contains("+ParitySans"));
+    }
+
+    #[test]
+    fn svg_composite_font_face_keeps_full_range_fallback_in_source_order() {
+        let font_directory =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/parity/fonts");
+        let pdf = HtmlConverter::new()
+            .base_path(&font_directory)
+            .convert(
+                r#"<style>
+                    @font-face {
+                        font-family: RangePick;
+                        src: url('ParitySans.ttf') format('truetype');
+                    }
+                    @font-face {
+                        font-family: RangePick;
+                        src: url('ParitySerif.ttf') format('truetype');
+                        unicode-range: U+0041;
+                    }
+                </style>
+                <svg width="100" height="60">
+                    <text x="10" y="45" font-family="RangePick" font-size="40">B</text>
+                </svg>"#,
+            )
+            .expect("mixed full and ranged SVG font fixture must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("+ParitySans"));
+    }
+
+    #[test]
+    fn svg_composite_font_face_checks_later_full_range_face_first() {
+        let font_directory =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/parity/fonts");
+        let pdf = HtmlConverter::new()
+            .base_path(&font_directory)
+            .convert(
+                r#"<style>
+                    @font-face {
+                        font-family: RangePick;
+                        src: url('ParitySans.ttf') format('truetype');
+                        unicode-range: U+0041;
+                    }
+                    @font-face {
+                        font-family: RangePick;
+                        src: url('ParitySerif.ttf') format('truetype');
+                    }
+                </style>
+                <svg width="100" height="60">
+                    <text x="10" y="45" font-family="RangePick" font-size="40">A</text>
+                </svg>"#,
+            )
+            .expect("later full-range SVG font fixture must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("+ParitySerif"));
+        assert!(!pdf.contains("+ParitySans"));
+    }
+
+    #[test]
+    fn svg_registered_generic_alias_precedes_base14() {
+        let font = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/parity/fonts/ParitySans.ttf"),
+        )
+        .expect("parity font must exist");
+        let pdf = HtmlConverter::new()
+            .add_font("serif", font)
+            .convert(
+                r#"<svg width="100" height="60">
+                    <text x="10" y="45" font-family="serif" font-size="40">A</text>
+                </svg>"#,
+            )
+            .expect("registered generic SVG alias must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("+ParitySans"));
+    }
+
+    #[test]
+    fn svg_inherited_em_letter_spacing_is_computed_on_the_ancestor() {
+        let pdf = HtmlConverter::new()
+            .convert(
+                r#"<svg width="100" height="60">
+                    <g style="font-size:10px;letter-spacing:1em">
+                        <text x="10" y="45" style="font-size:20px">AB</text>
+                    </g>
+                </svg>"#,
+            )
+            .expect("inherited SVG letter-spacing fixture must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("[(A) -500(B)] TJ"));
+        assert!(!pdf.contains("[(A) -1000(B)] TJ"));
+    }
+
+    #[test]
+    fn svg_inline_important_font_family_wins_over_later_normal_declaration() {
+        let first = include_bytes!("../assets/LiberationSans-Regular.ttf").to_vec();
+        let second = include_bytes!("../tests/parity/fonts/ParitySans.ttf").to_vec();
+        let pdf = HtmlConverter::new()
+            .add_font("First", first)
+            .add_font("Second", second)
+            .convert(
+                r#"<svg width="100" height="60">
+                    <text x="10" y="45" font-size="20"
+                          style="font-family:First!important;font-family:Second">AB</text>
+                </svg>"#,
+            )
+            .expect("important SVG font-family fixture must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("/first 20 Tf"));
+        assert!(!pdf.contains("/second 20 Tf"));
+    }
+
+    #[test]
+    fn svg_inline_important_letter_spacing_wins_over_later_normal_declaration() {
+        let pdf = HtmlConverter::new()
+            .convert(
+                r#"<svg width="100" height="60">
+                    <text x="10" y="45" font-size="20"
+                          style="letter-spacing:4px!important;letter-spacing:2px">AB</text>
+                </svg>"#,
+            )
+            .expect("important SVG letter-spacing fixture must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("[(A) -200(B)] TJ"));
+        assert!(!pdf.contains("[(A) -100(B)] TJ"));
+    }
+
+    #[test]
+    fn svg_object_bounding_box_uses_inherited_text_sizing_and_tracking() {
+        let pdf = HtmlConverter::new()
+            .convert(
+                r#"<svg width="200" height="100">
+                    <defs>
+                        <clipPath id="clip" clipPathUnits="objectBoundingBox">
+                            <rect x="0" y="0" width="1" height="1"/>
+                        </clipPath>
+                    </defs>
+                    <g style="font-size:10px;letter-spacing:1em" clip-path="url(#clip)">
+                        <text x="10" y="45" style="font-size:2em">AB</text>
+                    </g>
+                </svg>"#,
+            )
+            .expect("tracked SVG object-bounding-box fixture must convert");
+        let pdf = String::from_utf8_lossy(&pdf);
+
+        assert!(pdf.contains("36.68 0 0"));
+        assert!(!pdf.contains("32.016 0 0"));
     }
 
     #[test]

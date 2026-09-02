@@ -1,5 +1,6 @@
 //! SVG parser — converts DOM SVG elements into an SvgTree for PDF rendering.
 
+use crate::parser::css::{CssValue, parse_inline_style, parse_property_value};
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::types::Color;
 use std::collections::HashMap;
@@ -63,11 +64,14 @@ pub struct SvgTextContext {
     pub color: Option<Color>,
 }
 
+const SVG_INITIAL_FONT_FAMILY: &str = "Helvetica";
+const SVG_INITIAL_FONT_SIZE: f32 = 12.0;
+
 impl Default for SvgTextContext {
     fn default() -> Self {
         Self {
-            font_family: "Helvetica".to_string(),
-            font_size: 12.0,
+            font_family: SVG_INITIAL_FONT_FAMILY.to_string(),
+            font_size: SVG_INITIAL_FONT_SIZE,
             font_bold: false,
             font_italic: false,
             color: None,
@@ -250,8 +254,6 @@ pub enum SvgNode {
     Text {
         x: f32,
         y: f32,
-        font_size: Option<f32>,
-        font_size_attr: Option<String>,
         /// True when the element explicitly set `fill` (including `none`).
         fill_specified: bool,
         fill_raw: Option<String>,
@@ -261,9 +263,6 @@ pub enum SvgNode {
         font_bold: Option<bool>,
         /// Per-element font-style override (true = italic/oblique).
         font_italic: Option<bool>,
-        /// `letter-spacing` as specified; it resolves against the used font
-        /// size when the element is rendered.
-        letter_spacing: SvgLetterSpacing,
         /// SVG text-anchor: "start" (default), "middle", or "end".
         text_anchor: SvgTextAnchor,
         content: String,
@@ -278,6 +277,47 @@ pub enum SvgTextAnchor {
     Start,
     Middle,
     End,
+}
+
+/// A parsed SVG `font-size` whose unit conversion remains tied to its parent.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SvgFontSize(SvgFontSizeValue);
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum SvgFontSizeValue {
+    UserUnits(f32),
+    ParentFactor(f32),
+}
+
+impl SvgFontSize {
+    const fn initial() -> Self {
+        Self(SvgFontSizeValue::UserUnits(SVG_INITIAL_FONT_SIZE))
+    }
+
+    fn from_css_value(value: &CssValue, presentation_attribute: bool) -> Option<Self> {
+        match value {
+            CssValue::Length(points) => Self::user_units(points * 4.0 / 3.0),
+            CssValue::Em(factor) => Self::parent_factor(*factor),
+            CssValue::Percentage(percentage) => Self::parent_factor(percentage / 100.0),
+            CssValue::Number(value) if presentation_attribute => Self::user_units(*value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn user_units(value: f32) -> Option<Self> {
+        (value.is_finite() && value >= 0.0).then_some(Self(SvgFontSizeValue::UserUnits(value)))
+    }
+
+    pub(crate) fn parent_factor(value: f32) -> Option<Self> {
+        (value.is_finite() && value >= 0.0).then_some(Self(SvgFontSizeValue::ParentFactor(value)))
+    }
+
+    pub(crate) fn resolve_user_units(self, inherited_size: f32) -> f32 {
+        match self.0 {
+            SvgFontSizeValue::UserUnits(value) => value,
+            SvgFontSizeValue::ParentFactor(factor) => inherited_size * factor,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -310,6 +350,10 @@ pub struct SvgStyle {
     pub font_bold: Option<bool>,
     /// Inherited SVG font-style.
     pub font_italic: Option<bool>,
+    /// Local inherited `font-size`; relative values resolve against the parent.
+    pub font_size: Option<SvgFontSize>,
+    /// Local inherited `letter-spacing`; descendants inherit its computed length.
+    pub letter_spacing: Option<SvgLetterSpacing>,
     // Opacity isn't wired through to PDF output yet; keep it simple until needed.
     pub opacity: f32,
 }
@@ -326,6 +370,8 @@ impl Default for SvgStyle {
             font_family: None,
             font_bold: None,
             font_italic: None,
+            font_size: None,
+            letter_spacing: None,
             opacity: 1.0,
         }
     }
@@ -800,15 +846,9 @@ fn parse_svg_node_with_viewport(
         }
         "text" => {
             let (x, y) = resolve_text_position(el, parent_viewport);
-            let font_size_attr = parse_font_size_attr(el);
-            let font_size = font_size_attr.as_deref().and_then(parse_absolute_length);
             let fill_specified = has_fill_specified(el);
             let fill_raw = parse_fill_raw(el);
             let (font_family, font_bold, font_italic) = parse_svg_font_attrs(el);
-            let letter_spacing = SvgLetterSpacing::from_declarations(
-                style_property_value(el, "letter-spacing"),
-                el.attributes.get("letter-spacing").map(String::as_str),
-            );
             let content = collect_text_content(el);
             let style = parse_svg_style(el);
             let text_anchor = match el.attributes.get("text-anchor").map(|s| s.as_str()) {
@@ -819,14 +859,11 @@ fn parse_svg_node_with_viewport(
             Some(SvgNode::Text {
                 x,
                 y,
-                font_size,
-                font_size_attr,
                 fill_specified,
                 fill_raw,
                 font_family,
                 font_bold,
                 font_italic,
-                letter_spacing,
                 text_anchor,
                 content,
                 style,
@@ -1794,6 +1831,8 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         opacity = val.trim().parse().ok().unwrap_or(opacity);
     }
     let (font_family, font_bold, font_italic) = parse_svg_font_attrs(el);
+    let font_size = parse_svg_font_size(el);
+    let letter_spacing = parse_svg_letter_spacing(el);
 
     SvgStyle {
         color,
@@ -1805,33 +1844,90 @@ fn parse_svg_style(el: &ElementNode) -> SvgStyle {
         font_family,
         font_bold,
         font_italic,
+        font_size,
+        letter_spacing,
         opacity,
     }
 }
 
-/// Extract the raw `font-size` value from a `<text>` element.
-///
-/// Checks the `font-size` attribute first, then falls back to parsing
-/// `font-size:` from the inline `style` attribute.
-fn parse_font_size_attr(el: &ElementNode) -> Option<String> {
-    if let Some(val) = el.attributes.get("font-size") {
-        return Some(val.trim().to_string());
-    }
-    style_property_value(el, "font-size").map(|val| val.to_string())
+enum SvgInheritedProperty<T> {
+    Inherit,
+    Value(T),
 }
 
-/// Keep the authored `font-family` list verbatim.
-///
-/// Trimming quotes or mapping families here would corrupt a list whose quoted
-/// names contain commas (`'Acme, Sans', ParitySerif`). The renderer resolves
-/// the list once, against the registered fonts first and the base-14 mapping
-/// second, through the engine's CSS font-stack parser.
-fn parse_svg_font_family_value(val: &str) -> Option<String> {
-    let val = val.trim();
-    if val.eq_ignore_ascii_case("inherit") || val.is_empty() {
-        return None;
+impl<T> SvgInheritedProperty<T> {
+    fn into_local_value(self) -> Option<T> {
+        match self {
+            Self::Inherit => None,
+            Self::Value(value) => Some(value),
+        }
     }
-    Some(val.to_string())
+}
+
+fn cascade_inherited_property<T>(
+    presentation: Option<SvgInheritedProperty<T>>,
+    inline: Option<SvgInheritedProperty<T>>,
+) -> Option<T> {
+    inline.or(presentation)?.into_local_value()
+}
+
+fn parse_svg_font_size(el: &ElementNode) -> Option<SvgFontSize> {
+    fn css_wide_keyword(raw: &str) -> Option<SvgInheritedProperty<SvgFontSize>> {
+        if raw.eq_ignore_ascii_case("inherit") || raw.eq_ignore_ascii_case("unset") {
+            return Some(SvgInheritedProperty::Inherit);
+        }
+        raw.eq_ignore_ascii_case("initial")
+            .then_some(SvgInheritedProperty::Value(SvgFontSize::initial()))
+    }
+
+    fn presentation(raw: &str) -> Option<SvgInheritedProperty<SvgFontSize>> {
+        let raw = raw.trim();
+        if let Some(keyword) = css_wide_keyword(raw) {
+            return Some(keyword);
+        }
+        let value = parse_property_value("font-size", raw)?;
+        SvgFontSize::from_css_value(&value, true).map(SvgInheritedProperty::Value)
+    }
+
+    fn inline(value: &CssValue) -> Option<SvgInheritedProperty<SvgFontSize>> {
+        if let CssValue::Keyword(keyword) = value
+            && let Some(keyword) = css_wide_keyword(keyword)
+        {
+            return Some(keyword);
+        }
+        SvgFontSize::from_css_value(value, false).map(SvgInheritedProperty::Value)
+    }
+
+    let presentation = el
+        .attributes
+        .get("font-size")
+        .and_then(|raw| presentation(raw));
+    let inline = el
+        .attributes
+        .get("style")
+        .and_then(|style| parse_inline_style(style).get("font-size").and_then(inline));
+    cascade_inherited_property(presentation, inline)
+}
+
+fn parse_svg_font_family_declaration(val: &str) -> Option<SvgInheritedProperty<String>> {
+    let val = val.trim();
+    if val.eq_ignore_ascii_case("inherit") || val.eq_ignore_ascii_case("unset") {
+        return Some(SvgInheritedProperty::Inherit);
+    }
+    if val.eq_ignore_ascii_case("initial") {
+        return Some(SvgInheritedProperty::Value(
+            SVG_INITIAL_FONT_FAMILY.to_string(),
+        ));
+    }
+    crate::style::font_family::CssFontFamilyList::parse(val)
+        .map(|_| SvgInheritedProperty::Value(val.to_string()))
+}
+
+fn parse_svg_font_family_css_value(value: &CssValue) -> Option<SvgInheritedProperty<String>> {
+    let CssValue::Keyword(value) = value else {
+        return None;
+    };
+    parse_svg_font_family_declaration(value)
 }
 
 fn parse_svg_font_weight_value(val: &str) -> Option<bool> {
@@ -1850,14 +1946,56 @@ fn parse_svg_font_style_value(val: &str) -> Option<bool> {
     Some(is_italic_value(val))
 }
 
+fn parse_svg_letter_spacing(el: &ElementNode) -> Option<SvgLetterSpacing> {
+    fn presentation(raw: &str) -> Option<SvgInheritedProperty<SvgLetterSpacing>> {
+        let raw = raw.trim();
+        if raw.eq_ignore_ascii_case("inherit") || raw.eq_ignore_ascii_case("unset") {
+            return Some(SvgInheritedProperty::Inherit);
+        }
+        if raw.eq_ignore_ascii_case("initial") {
+            return Some(SvgInheritedProperty::Value(SvgLetterSpacing::normal()));
+        }
+        SvgLetterSpacing::parse_presentation_attribute(raw).map(SvgInheritedProperty::Value)
+    }
+
+    fn inline(value: &CssValue) -> Option<SvgInheritedProperty<SvgLetterSpacing>> {
+        if let CssValue::Keyword(keyword) = value {
+            if keyword.eq_ignore_ascii_case("inherit") || keyword.eq_ignore_ascii_case("unset") {
+                return Some(SvgInheritedProperty::Inherit);
+            }
+            if keyword.eq_ignore_ascii_case("initial") {
+                return Some(SvgInheritedProperty::Value(SvgLetterSpacing::normal()));
+            }
+        }
+        SvgLetterSpacing::from_css_value(value).map(SvgInheritedProperty::Value)
+    }
+
+    let presentation = el
+        .attributes
+        .get("letter-spacing")
+        .and_then(|raw| presentation(raw));
+    let inline = el.attributes.get("style").and_then(|style| {
+        parse_inline_style(style)
+            .get("letter-spacing")
+            .and_then(inline)
+    });
+    cascade_inherited_property(presentation, inline)
+}
+
 fn parse_svg_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Option<bool>) {
-    let mut family: Option<String> = None;
     let mut bold: Option<bool> = None;
     let mut italic: Option<bool> = None;
 
-    if let Some(val) = el.attributes.get("font-family") {
-        family = parse_svg_font_family_value(val);
-    }
+    let presentation_family = el
+        .attributes
+        .get("font-family")
+        .and_then(|value| parse_svg_font_family_declaration(value));
+    let inline_family = el.attributes.get("style").and_then(|style| {
+        parse_inline_style(style)
+            .get("font-family")
+            .and_then(parse_svg_font_family_css_value)
+    });
+    let family = cascade_inherited_property(presentation_family, inline_family);
     if let Some(val) = el.attributes.get("font-weight") {
         bold = parse_svg_font_weight_value(val);
     }
@@ -1865,9 +2003,6 @@ fn parse_svg_font_attrs(el: &ElementNode) -> (Option<String>, Option<bool>, Opti
         italic = parse_svg_font_style_value(val);
     }
 
-    if let Some(val) = style_property_value(el, "font-family") {
-        family = parse_svg_font_family_value(val);
-    }
     if let Some(val) = style_property_value(el, "font-weight") {
         bold = parse_svg_font_weight_value(val);
     }
@@ -4061,13 +4196,9 @@ mod tests {
         let svg = make_svg_el(vec![("width", "100"), ("height", "100")], vec![text]);
         let tree = parse_svg_from_element(&svg).unwrap();
         match &tree.children[0] {
-            SvgNode::Text {
-                font_size_attr,
-                font_size,
-                ..
-            } => {
-                assert_eq!(font_size_attr.as_deref(), Some("20px"));
-                assert_eq!(*font_size, Some(20.0));
+            SvgNode::Text { style, .. } => {
+                let font_size = style.font_size.expect("parsed font-size");
+                assert_eq!(font_size.resolve_user_units(12.0), 20.0);
             }
             other => panic!("expected text node, got {other:?}"),
         }

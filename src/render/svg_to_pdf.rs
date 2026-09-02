@@ -15,10 +15,13 @@ use crate::render::svg_geometry::{
     SvgPlacement, SvgPlacementRequest, SvgViewportBox, compute_raster_placement,
     compute_svg_placement,
 };
+use crate::render::svg_text::fonts::{
+    SvgBase14TextFace, SvgCustomTextFace, SvgTextFace, SvgTextFontRun, resolve_svg_text_font_runs,
+};
 use crate::style::computed::{FontFamily, parse_font_stack};
 use crate::types::Color;
 use std::fmt::Write as _;
-use tracking::TrackedRun;
+use tracking::TypographicCharacterUnits;
 
 pub(crate) trait SvgImageObjectSink {
     fn load_resource(
@@ -129,25 +132,6 @@ impl<'a> SvgPdfResources<'a> {
         self.raster_scale_y = previous.1;
     }
 
-    /// Resolve an SVG text `font-family` to a registered custom (bundled) font.
-    ///
-    /// Returns the resolved face name (the key into the custom-fonts map, used
-    /// both as the PDF font-resource name and to look up the prepared/subsetted
-    /// font) together with the `TtfFont` itself. `None` when no custom-fonts map
-    /// is wired up, when the family resolves to a base-14 standard font, or when
-    /// no matching custom face is registered.
-    fn resolve_custom_text_font(
-        &self,
-        family: &str,
-        bold: bool,
-        italic: bool,
-    ) -> Option<(&'a str, &'a crate::parser::ttf::TtfFont)> {
-        let fonts = self.custom_fonts?;
-        // `family` may be a raw CSS family stack ("MyFace, Helvetica"); the
-        // first registered entry wins, matching the font-usage collector.
-        crate::system_fonts::find_font_in_stack(fonts, family, bold, italic)
-    }
-
     /// Register an opacity ExtGState and return the generated name, or None
     /// if ExtGState tracking isn't wired up (e.g. in tests).
     ///
@@ -205,6 +189,7 @@ pub(crate) fn render_svg_tree_with_resources(
         font_family: None,
         font_bold: None,
         font_italic: None,
+        text_sizing: crate::render::svg_text::SvgTextSizing::initial(tree.text_ctx.font_size),
         opacity: 1.0,
     };
     for node in &tree.children {
@@ -231,6 +216,7 @@ struct ResolvedStyle {
     font_family: Option<String>,
     font_bold: Option<bool>,
     font_italic: Option<bool>,
+    text_sizing: crate::render::svg_text::SvgTextSizing,
     /// Accumulated (multiplicative) opacity from ancestor groups and self.
     opacity: f32,
 }
@@ -332,6 +318,9 @@ fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
     // faithful rendering without offscreen buffers is to multiply the parent's
     // opacity by the local one and apply the combined alpha at each leaf.
     let opacity = (parent.opacity * local.opacity).clamp(0.0, 1.0);
+    let text_sizing = parent
+        .text_sizing
+        .cascade(local.font_size, local.letter_spacing.as_ref());
     ResolvedStyle {
         color,
         fill,
@@ -342,6 +331,7 @@ fn resolve_style(parent: ResolvedStyle, local: &SvgStyle) -> ResolvedStyle {
         font_family: local.font_family.clone().or(parent.font_family),
         font_bold: local.font_bold.or(parent.font_bold),
         font_italic: local.font_italic.or(parent.font_italic),
+        text_sizing,
         opacity,
     }
 }
@@ -406,7 +396,7 @@ fn render_node(
                         defs,
                         shadings,
                         shading_counter,
-                        children_bounding_box(children, text_ctx),
+                        children_bounding_box(children, text_ctx, style.text_sizing),
                         out,
                     );
                     let previous_scale = transform
@@ -462,7 +452,7 @@ fn render_node(
                     defs,
                     shadings,
                     shading_counter,
-                    node_object_bounding_box(node, text_ctx),
+                    node_object_bounding_box(node, text_ctx, style.text_sizing),
                     out,
                 );
             }
@@ -479,7 +469,7 @@ fn render_node(
                     if let Some(gradient) = defs.gradients.get(id) {
                         if let Some(coords) = resolve_gradient_coords(
                             gradient,
-                            node_object_bounding_box(node, text_ctx),
+                            node_object_bounding_box(node, text_ctx, style.text_sizing),
                         ) {
                             let (shadings, shading_counter) = resources.shading_state();
                             paint_svg_linear_gradient_fill(
@@ -495,7 +485,7 @@ fn render_node(
                             out.push_str("n\n");
                         }
                     } else if let Some(rg) = defs.radial_gradients.get(id) {
-                        let bbox = node_object_bounding_box(node, text_ctx);
+                        let bbox = node_object_bounding_box(node, text_ctx, style.text_sizing);
                         let coords = resolve_radial_gradient_coords(rg, bbox);
                         let (shadings, shading_counter) = resources.shading_state();
                         paint_svg_radial_gradient_fill(
@@ -573,14 +563,11 @@ fn render_node(
         SvgNode::Text {
             x,
             y,
-            font_size,
-            font_size_attr,
             fill_specified: _fill_specified,
             fill_raw: _fill_raw,
             font_family,
             font_bold,
             font_italic,
-            letter_spacing,
             text_anchor,
             content,
             style,
@@ -592,11 +579,8 @@ fn render_node(
             let clip_path = style.clip_path.clone();
             let mut style = style;
             style.clip_path = None;
-            let size = font_size_attr
-                .as_deref()
-                .and_then(|raw| resolve_svg_font_size(raw, text_ctx.font_size))
-                .or(*font_size)
-                .unwrap_or(text_ctx.font_size);
+            let sizing = style.text_sizing;
+            let size = sizing.font_size();
             let font = resolve_svg_text_font(
                 style.font_family.as_deref(),
                 style.font_bold,
@@ -606,10 +590,6 @@ fn render_node(
                 *font_italic,
                 text_ctx,
             );
-            // Attempt to resolve the requested family to a registered custom
-            // (bundled) font. When it matches, the text is shaped + emitted as
-            // embedded CID glyphs against the same font resource the body text
-            // uses; otherwise we fall back to the standard-font path below.
             let (eff_family, eff_bold, eff_italic) = resolve_svg_effective_font(
                 style.font_family.as_deref(),
                 style.font_bold,
@@ -619,17 +599,6 @@ fn render_node(
                 *font_italic,
                 text_ctx,
             );
-            let custom_font = eff_family.as_deref().and_then(|family| {
-                resources
-                    .resolve_custom_text_font(family, eff_bold, eff_italic)
-                    .map(|(resolved_name, ttf)| SvgCustomTextFont {
-                        resource_name: crate::render::pdf::sanitize_pdf_name(resolved_name),
-                        font: ttf,
-                        prepared: resources
-                            .prepared_custom_fonts
-                            .and_then(|prepared| prepared.get(resolved_name)),
-                    })
-            });
             if let Some(clip_id) = clip_path.as_deref() {
                 out.push_str("q\n");
                 let (shadings, shading_counter) = resources.shading_state();
@@ -638,7 +607,7 @@ fn render_node(
                     defs,
                     shadings,
                     shading_counter,
-                    text_object_bounding_box(*x, *y, size, content, &font),
+                    text_object_bounding_box(*x, *y, content, &font, *text_anchor, sizing),
                     out,
                 );
             }
@@ -654,76 +623,51 @@ fn render_node(
             let stroke = paint_to_rgb(&style.stroke, style.color);
             let has_stroke = has_visible_stroke(&style);
             let stroke = stroke.filter(|_| has_stroke);
-            let text_render_mode = match (fill.is_some(), stroke.is_some()) {
+            let render_mode = match (fill.is_some(), stroke.is_some()) {
                 (true, true) => 2,
                 (true, false) => 0,
                 (false, true) => 1,
                 (false, false) => 3,
             };
-
-            let letter_spacing = letter_spacing.resolve(size);
-            let shaping = TextShaping::default().tracked(letter_spacing);
-            // One shaped run positions the anchor and paints the glyphs.
-            let shaped = custom_font.as_ref().and_then(|custom| {
-                crate::text::shape_text_with_explicit_font(content, size, custom.font, shaping)
-            });
-            let tracked = shaped
-                .as_ref()
-                .map(|shaped| TrackedRun::new(shaped, letter_spacing));
-            // Standard-font text is single-byte: one glyph per character, so
-            // `Tc` spaces exactly the typographic units and its advance grows
-            // by one spacing per character.
-            let standard_font_advance = || {
-                let (ff, is_bold) = font_metrics_font(&font);
-                crate::fonts::str_width(content, size, &ff, is_bold)
-                    + letter_spacing * content.chars().count() as f32
-            };
-            let text_advance = tracked
-                .as_ref()
-                .map_or_else(standard_font_advance, TrackedRun::advance);
+            let paint = SvgTextPaint::new(render_mode, fill, stroke, style.stroke_width);
+            let letter_spacing = sizing.letter_spacing();
+            let typographic_units = TypographicCharacterUnits::new(content);
+            let spacing_advance =
+                letter_spacing * typographic_units.unit_count().saturating_sub(1) as f32;
+            let family_stack = eff_family.as_deref().unwrap_or(&font);
+            let resolved_runs = resolve_svg_text_font_runs(
+                content,
+                family_stack,
+                &font,
+                eff_bold,
+                eff_italic,
+                resources.custom_fonts,
+            );
+            let prepared_runs = prepare_svg_text_runs(
+                resolved_runs,
+                size,
+                sizing.shaping(),
+                &font,
+                eff_bold,
+                eff_italic,
+                resources.prepared_custom_fonts,
+            );
+            let text_advance =
+                prepared_runs.iter().map(|run| run.width(size)).sum::<f32>() + spacing_advance;
             let text_x = match text_anchor {
                 SvgTextAnchor::Start => *x,
                 SvgTextAnchor::Middle => x - text_advance * 0.5,
                 SvgTextAnchor::End => x - text_advance,
             };
-
-            match (custom_font.as_ref(), tracked.as_ref()) {
-                (Some(custom), Some(tracked)) => emit_custom_svg_text(
-                    custom,
-                    tracked,
-                    size,
-                    text_x,
-                    *y,
-                    text_render_mode,
-                    fill,
-                    stroke,
-                    style.stroke_width,
-                    out,
-                ),
-                _ => {
-                    out.push_str("BT\n");
-                    out.push_str(&format!("/{font} {size} Tf\n"));
-                    if letter_spacing != 0.0 {
-                        out.push_str(&format!("{letter_spacing} Tc\n"));
-                    }
-                    out.push_str(&format!("{text_render_mode} Tr\n"));
-                    if let Some((r, g, b)) = fill {
-                        out.push_str(&format!("{r} {g} {b} rg\n"));
-                    }
-                    if let Some((r, g, b)) = stroke {
-                        out.push_str(&format!("{r} {g} {b} RG\n"));
-                        out.push_str(&format!("{} w\n", style.stroke_width));
-                    }
-                    out.push_str(&format!("1 0 0 -1 {text_x} {y} Tm\n"));
-                    let encoded = encode_pdf_text(content);
-                    out.push_str(&format!("({encoded}) Tj\n"));
-                    if letter_spacing != 0.0 {
-                        // Character spacing survives ET; reset so later text on
-                        // the same content stream is unaffected.
-                        out.push_str("0 Tc\n");
-                    }
-                    out.push_str("ET\n");
-                }
+            let mut pen_x = text_x;
+            let mut remaining_units = typographic_units.unit_count();
+            for run in &prepared_runs {
+                let run_units = run.typographic_unit_count();
+                remaining_units = remaining_units.saturating_sub(run_units);
+                let track_after_run = run_units > 0 && remaining_units > 0;
+                run.emit(size, pen_x, *y, paint, letter_spacing, track_after_run, out);
+                let tracking_count = run_units.saturating_sub(1) + usize::from(track_after_run);
+                pen_x += run.width(size) + letter_spacing * tracking_count as f32;
             }
             if opacity_wrapped {
                 out.push_str("Q\n");
@@ -899,6 +843,9 @@ fn render_clip_path(
         font_family: None,
         font_bold: None,
         font_italic: None,
+        text_sizing: crate::render::svg_text::SvgTextSizing::initial(
+            crate::parser::svg::SvgTextContext::default().font_size,
+        ),
         opacity: 1.0,
     };
 
@@ -1074,32 +1021,37 @@ fn paint_svg_radial_gradient_fill(
 fn children_bounding_box(
     children: &[SvgNode],
     text_ctx: &SvgTextContext,
+    inherited_sizing: crate::render::svg_text::SvgTextSizing,
 ) -> Option<SvgObjectBoundingBox> {
     children
         .iter()
-        .filter_map(|child| node_object_bounding_box(child, text_ctx))
+        .filter_map(|child| node_object_bounding_box(child, text_ctx, inherited_sizing))
         .reduce(SvgObjectBoundingBox::union)
 }
 
 fn node_object_bounding_box(
     node: &SvgNode,
     text_ctx: &SvgTextContext,
+    inherited_sizing: crate::render::svg_text::SvgTextSizing,
 ) -> Option<SvgObjectBoundingBox> {
     match node {
         SvgNode::Group {
             transform,
             children,
-            ..
-        } => children
-            .iter()
-            .filter_map(|child| {
-                let bbox = node_object_bounding_box(child, text_ctx)?;
-                Some(match transform.as_ref() {
-                    Some(transform) => bbox.transform(transform),
-                    None => bbox,
+            style,
+        } => {
+            let sizing = inherited_sizing.cascade(style.font_size, style.letter_spacing.as_ref());
+            children
+                .iter()
+                .filter_map(|child| {
+                    let bbox = node_object_bounding_box(child, text_ctx, sizing)?;
+                    Some(match transform.as_ref() {
+                        Some(transform) => bbox.transform(transform),
+                        None => bbox,
+                    })
                 })
-            })
-            .reduce(SvgObjectBoundingBox::union),
+                .reduce(SvgObjectBoundingBox::union)
+        }
         SvgNode::Rect {
             x,
             y,
@@ -1128,20 +1080,15 @@ fn node_object_bounding_box(
         SvgNode::Text {
             x,
             y,
-            font_size,
-            font_size_attr,
             font_family,
             font_bold,
             font_italic,
+            text_anchor,
             content,
             style,
             ..
         } => {
-            let size = font_size_attr
-                .as_deref()
-                .and_then(|raw| resolve_svg_font_size(raw, text_ctx.font_size))
-                .or(*font_size)
-                .unwrap_or(text_ctx.font_size);
+            let sizing = inherited_sizing.cascade(style.font_size, style.letter_spacing.as_ref());
             let font = resolve_svg_text_font(
                 style.font_family.as_deref(),
                 style.font_bold,
@@ -1151,7 +1098,7 @@ fn node_object_bounding_box(
                 *font_italic,
                 text_ctx,
             );
-            text_object_bounding_box(*x, *y, size, content, &font)
+            text_object_bounding_box(*x, *y, content, &font, *text_anchor, sizing)
         }
     }
 }
@@ -1159,15 +1106,26 @@ fn node_object_bounding_box(
 fn text_object_bounding_box(
     x: f32,
     y: f32,
-    font_size: f32,
     content: &str,
     font_name: &str,
+    text_anchor: SvgTextAnchor,
+    sizing: crate::render::svg_text::SvgTextSizing,
 ) -> Option<SvgObjectBoundingBox> {
+    let font_size = sizing.font_size();
     let (font_family, bold) = font_metrics_font(font_name);
-    let width = crate::fonts::str_width(content, font_size, &font_family, bold);
+    let glyph_width = crate::fonts::str_width(content, font_size, &font_family, bold);
+    let typographic_units = TypographicCharacterUnits::new(content);
+    let tracking_width =
+        sizing.letter_spacing() * typographic_units.unit_count().saturating_sub(1) as f32;
+    let width = glyph_width + tracking_width;
+    let min_x = match text_anchor {
+        SvgTextAnchor::Start => x,
+        SvgTextAnchor::Middle => x - width / 2.0,
+        SvgTextAnchor::End => x - width,
+    };
     let ascender = crate::fonts::ascender_ratio(&font_family) * font_size;
     let descender = crate::fonts::descender_ratio(&font_family) * font_size;
-    SvgObjectBoundingBox::from_extents(x, y - ascender, x + width, y + descender)
+    SvgObjectBoundingBox::from_extents(min_x, y - ascender, min_x + width, y + descender)
 }
 
 fn font_metrics_font(font_name: &str) -> (FontFamily, bool) {
@@ -1359,29 +1317,6 @@ fn cubic_bezier_extrema(p0: f32, p1: f32, p2: f32, p3: f32) -> Vec<f32> {
     ]
 }
 
-fn resolve_svg_font_size(raw: &str, inherited_size: f32) -> Option<f32> {
-    // Font sizes stay in SVG user units so that the viewport `cm` transform
-    // (user-units → PDF pt) applied at the call site produces the same scale
-    // for text as for other geometry. Unitless and `px` values are user units
-    // directly; `pt` is converted to user units (1pt = 4/3 px).
-    let raw = raw.trim();
-    if let Some(pct) = raw.strip_suffix('%') {
-        let pct = pct.trim().parse::<f32>().ok()?;
-        return Some(inherited_size * pct / 100.0);
-    }
-    if let Some(em) = raw.strip_suffix("em") {
-        let em = em.trim().parse::<f32>().ok()?;
-        return Some(inherited_size * em);
-    }
-    if let Some(px) = raw.strip_suffix("px") {
-        return px.trim().parse::<f32>().ok();
-    }
-    if let Some(pt) = raw.strip_suffix("pt") {
-        return pt.trim().parse::<f32>().ok().map(|pt| pt * 4.0 / 3.0);
-    }
-    raw.parse::<f32>().ok()
-}
-
 fn apply_style(style: &ResolvedStyle, out: &mut String) {
     // Fill color
     if let Some((r, g, b)) = paint_to_rgb(&style.fill, style.color) {
@@ -1527,71 +1462,227 @@ fn resolve_svg_effective_font(
 
 /// A resolved custom (bundled) font for an SVG `<text>` element, ready to shape
 /// and emit as embedded CID glyphs.
-struct SvgCustomTextFont<'a> {
-    /// PDF font resource name (matches the body-text reference, so the SVG text
-    /// reuses the already-embedded font — no duplicate).
-    resource_name: String,
-    font: &'a crate::parser::ttf::TtfFont,
-    prepared: Option<&'a crate::render::pdf_fonts::PreparedCustomFont>,
-}
-
-/// Emit an SVG `<text>` element using a registered custom font: shaped CID
-/// glyphs (`<glyphhex> TJ`) against the same `/Identity-H` font resource the
-/// body text uses. `text_x`/`y` are the SVG-space pen origin already adjusted
-/// for `text-anchor`; this writes the full `BT … ET` block.
-///
-/// Tracking rides in the `TJ` array rather than in `Tc`: the character-spacing
-/// operator would space every glyph, while CSS spaces typographic character
-/// units (see [`TrackedRun`]).
-#[allow(clippy::too_many_arguments)]
-fn emit_custom_svg_text(
-    custom: &SvgCustomTextFont<'_>,
-    tracked: &TrackedRun<'_>,
-    size: f32,
-    text_x: f32,
-    y: f32,
-    text_render_mode: u8,
+#[derive(Clone, Copy)]
+struct SvgTextPaint {
+    render_mode: u8,
     fill: Option<(f32, f32, f32)>,
     stroke: Option<(f32, f32, f32)>,
     stroke_width: f32,
+}
+
+impl SvgTextPaint {
+    const fn new(
+        render_mode: u8,
+        fill: Option<(f32, f32, f32)>,
+        stroke: Option<(f32, f32, f32)>,
+        stroke_width: f32,
+    ) -> Self {
+        Self {
+            render_mode,
+            fill,
+            stroke,
+            stroke_width,
+        }
+    }
+
+    fn begin_text(self, font: &str, size: f32, x: f32, y: f32, out: &mut String) {
+        out.push_str("BT\n");
+        out.push_str(&format!("/{font} {size} Tf\n"));
+        out.push_str(&format!("{} Tr\n", self.render_mode));
+        if let Some((red, green, blue)) = self.fill {
+            out.push_str(&format!("{red} {green} {blue} rg\n"));
+        }
+        if let Some((red, green, blue)) = self.stroke {
+            out.push_str(&format!("{red} {green} {blue} RG\n"));
+            out.push_str(&format!("{} w\n", self.stroke_width));
+        }
+        out.push_str(&format!("1 0 0 -1 {x} {y} Tm\n"));
+    }
+}
+
+struct SvgPreparedBase14TextRun<'text> {
+    text: &'text str,
+    face: SvgBase14TextFace,
+}
+
+struct SvgPreparedCustomTextRun<'text, 'fonts> {
+    text: &'text str,
+    face: SvgCustomTextFace<'fonts>,
+    resource_name: String,
+    prepared: Option<&'fonts crate::render::pdf_fonts::PreparedCustomFont>,
+    shaped: crate::text::ShapedRun,
+}
+
+enum SvgPreparedTextRun<'text, 'fonts> {
+    Base14(SvgPreparedBase14TextRun<'text>),
+    Custom(SvgPreparedCustomTextRun<'text, 'fonts>),
+}
+
+impl SvgPreparedTextRun<'_, '_> {
+    fn width(&self, size: f32) -> f32 {
+        match self {
+            Self::Base14(run) => {
+                let content = TypographicCharacterUnits::new(run.text)
+                    .segments()
+                    .collect::<String>();
+                crate::fonts::str_width(&content, size, run.face.family(), run.face.bold())
+            }
+            Self::Custom(run) => run.shaped.width,
+        }
+    }
+
+    fn typographic_unit_count(&self) -> usize {
+        let text = match self {
+            Self::Base14(run) => run.text,
+            Self::Custom(run) => run.text,
+        };
+        TypographicCharacterUnits::new(text).unit_count()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit(
+        &self,
+        size: f32,
+        x: f32,
+        y: f32,
+        paint: SvgTextPaint,
+        letter_spacing: f32,
+        track_after_run: bool,
+        out: &mut String,
+    ) {
+        match self {
+            Self::Base14(run) => {
+                let units = TypographicCharacterUnits::new(run.text);
+                paint.begin_text(run.face.pdf_name(), size, x, y, out);
+                if letter_spacing == 0.0 {
+                    let content = units.segments().collect::<String>();
+                    out.push_str(&format!("({}) Tj\n", encode_pdf_text(&content)));
+                } else {
+                    emit_standard_svg_text_with_tracking(
+                        &units,
+                        size,
+                        letter_spacing,
+                        track_after_run,
+                        out,
+                    );
+                }
+                out.push_str("ET\n");
+            }
+            Self::Custom(run) => {
+                paint.begin_text(&run.resource_name, size, x, y, out);
+                emit_custom_svg_text_with_tracking(run, size, letter_spacing, track_after_run, out);
+                out.push_str("ET\n");
+            }
+        }
+    }
+}
+
+fn prepare_svg_text_runs<'text, 'fonts>(
+    runs: Vec<SvgTextFontRun<'text, 'fonts>>,
+    size: f32,
+    shaping: TextShaping,
+    fallback_pdf_font: &str,
+    bold: bool,
+    italic: bool,
+    prepared_fonts: Option<&'fonts crate::render::pdf_fonts::PreparedCustomFonts>,
+) -> Vec<SvgPreparedTextRun<'text, 'fonts>> {
+    runs.into_iter()
+        .map(|run| match run.face {
+            SvgTextFace::Base14(face) => SvgPreparedTextRun::Base14(SvgPreparedBase14TextRun {
+                text: run.text,
+                face,
+            }),
+            SvgTextFace::Custom(face) => {
+                if let Some(shaped) = crate::text::shape_text_with_explicit_font_and_shaping(
+                    run.text,
+                    size,
+                    face.font(),
+                    shaping,
+                ) {
+                    let resource_name = crate::render::pdf::sanitize_pdf_name(face.key());
+                    let prepared = prepared_fonts.and_then(|fonts| fonts.get(face.key()));
+                    SvgPreparedTextRun::Custom(SvgPreparedCustomTextRun {
+                        text: run.text,
+                        face,
+                        resource_name,
+                        prepared,
+                        shaped,
+                    })
+                } else {
+                    SvgPreparedTextRun::Base14(SvgPreparedBase14TextRun {
+                        text: run.text,
+                        face: SvgBase14TextFace::from_pdf_name(fallback_pdf_font, bold, italic),
+                    })
+                }
+            }
+        })
+        .collect()
+}
+
+fn emit_custom_svg_text_with_tracking(
+    run: &SvgPreparedCustomTextRun<'_, '_>,
+    size: f32,
+    letter_spacing: f32,
+    track_after_run: bool,
     out: &mut String,
 ) {
-    out.push_str("BT\n");
-    out.push_str(&format!("/{} {size} Tf\n", custom.resource_name));
-    out.push_str(&format!("{text_render_mode} Tr\n"));
-    if let Some((r, g, b)) = fill {
-        out.push_str(&format!("{r} {g} {b} rg\n"));
-    }
-    if let Some((r, g, b)) = stroke {
-        out.push_str(&format!("{r} {g} {b} RG\n"));
-        out.push_str(&format!("{stroke_width} w\n"));
-    }
-    // The caller's SVG content stream is y-down; flip the text matrix vertically
-    // so glyphs paint upright (mirrors the standard-font path's text matrix).
-    out.push_str(&format!("1 0 0 -1 {text_x} {y} Tm\n"));
-
     out.push('[');
-    for (index, glyph) in tracked.glyphs().iter().enumerate() {
-        if index > 0 {
+    let clusters = run
+        .shaped
+        .glyphs
+        .iter()
+        .map(|glyph| glyph.cluster)
+        .collect::<Vec<_>>();
+    let mut tracking_after =
+        TypographicCharacterUnits::new(run.text).tracking_after_glyphs(&clusters);
+    if track_after_run
+        && !tracking_after.is_empty()
+        && let Some(last) = tracking_after.last_mut()
+    {
+        *last = true;
+    }
+    for (glyph_index, glyph) in run.shaped.glyphs.iter().enumerate() {
+        if glyph_index > 0 {
             out.push(' ');
         }
         out.push('<');
-        out.push_str(&custom.prepared.map_or_else(
+        out.push_str(&run.prepared.map_or_else(
             || crate::render::pdf::encode_pdf_hex_glyph(glyph.glyph_id),
             |prepared| prepared.encode_glyph(glyph.glyph_id),
         ));
         out.push('>');
-        // Fold the shaper advance/kern delta and the tracking charged after
-        // this glyph into the TJ array so positioning matches the tracked
-        // advance (Identity-H ignores the embedded /W when a TJ adjustment is
-        // supplied).
-        let nominal = custom.font.glyph_width_scaled(glyph.glyph_id, size);
-        let extra_advance = glyph.x_advance - nominal + tracked.spacing_after(index);
-        let tj_adjustment = -(extra_advance * 1000.0 / size.max(f32::EPSILON));
+        let nominal = run.face.font().glyph_width_scaled(glyph.glyph_id, size);
+        let tracking = if tracking_after.get(glyph_index).copied().unwrap_or(false) {
+            letter_spacing
+        } else {
+            0.0
+        };
+        let advance_adjustment = glyph.x_advance - nominal + tracking;
+        let tj_adjustment = -(advance_adjustment * 1000.0 / size.max(f32::EPSILON));
         crate::render::pdf::append_pdf_tj_adjustment(out, tj_adjustment);
     }
     out.push_str("] TJ\n");
-    out.push_str("ET\n");
+}
+
+fn emit_standard_svg_text_with_tracking(
+    typographic_units: &TypographicCharacterUnits<'_>,
+    size: f32,
+    letter_spacing: f32,
+    track_after_run: bool,
+    out: &mut String,
+) {
+    out.push('[');
+    let adjustment = -(letter_spacing * 1000.0 / size.max(f32::EPSILON));
+    let mut segments = typographic_units.segments().peekable();
+    while let Some(segment) = segments.next() {
+        out.push('(');
+        out.push_str(&encode_pdf_text(segment));
+        out.push(')');
+        if segments.peek().is_some() || track_after_run {
+            crate::render::pdf::append_pdf_tj_adjustment(out, adjustment);
+        }
+    }
+    out.push_str("] TJ\n");
 }
 
 /// Extract the base family name from a fully-qualified PDF font name.
@@ -2015,9 +2106,9 @@ fn hex_encode(data: &[u8]) -> String {
 mod tests {
     use super::*;
     use crate::parser::svg::{
-        PathCommand, SvgClipPath, SvgClipPathUnits, SvgClipRule, SvgGradientStop, SvgGradientUnits,
-        SvgLinearGradient, SvgNode, SvgPaint, SvgPreserveAspectRatio, SvgStyle, SvgTextContext,
-        SvgTransform, SvgTree,
+        PathCommand, SvgClipPath, SvgClipPathUnits, SvgClipRule, SvgFontSize, SvgGradientStop,
+        SvgGradientUnits, SvgLinearGradient, SvgNode, SvgPaint, SvgPreserveAspectRatio, SvgStyle,
+        SvgTextContext, SvgTransform, SvgTree,
     };
 
     fn style_fill(r: f32, g: f32, b: f32) -> SvgStyle {
@@ -2031,6 +2122,8 @@ mod tests {
             font_family: None,
             font_bold: None,
             font_italic: None,
+            font_size: None,
+            letter_spacing: None,
             opacity: 1.0,
         }
     }
@@ -2046,6 +2139,8 @@ mod tests {
             font_family: None,
             font_bold: None,
             font_italic: None,
+            font_size: None,
+            letter_spacing: None,
             opacity: 1.0,
         }
     }
@@ -2061,6 +2156,8 @@ mod tests {
             font_family: None,
             font_bold: None,
             font_italic: None,
+            font_size: None,
+            letter_spacing: None,
             opacity: 1.0,
         }
     }
@@ -2076,6 +2173,8 @@ mod tests {
             font_family: None,
             font_bold: None,
             font_italic: None,
+            font_size: None,
+            letter_spacing: None,
             opacity: 1.0,
         }
     }
@@ -2278,22 +2377,28 @@ mod tests {
     fn render_text_object_bbox_clip_path_uses_font_metrics() {
         let text = "WI";
         let font_size = 12.0;
-        let bbox = text_object_bounding_box(10.0, 20.0, font_size, text, "Helvetica").unwrap();
+        let bbox = text_object_bounding_box(
+            10.0,
+            20.0,
+            text,
+            "Helvetica",
+            SvgTextAnchor::Start,
+            crate::render::svg_text::SvgTextSizing::initial(font_size),
+        )
+        .unwrap();
         let mut tree = tree_with(vec![SvgNode::Text {
             x: 10.0,
             y: 20.0,
-            font_size: Some(font_size),
-            font_size_attr: None,
             fill_specified: false,
             fill_raw: None,
             font_family: Some("Helvetica".to_string()),
             font_bold: Some(false),
             font_italic: Some(false),
-            letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
             text_anchor: SvgTextAnchor::Start,
             content: text.to_string(),
             style: SvgStyle {
                 clip_path: Some("clip".to_string()),
+                font_size: SvgFontSize::user_units(font_size),
                 ..SvgStyle::default()
             },
         }]);
@@ -2325,7 +2430,15 @@ mod tests {
     #[test]
     fn text_object_bounding_box_uses_css_font_family_mapping() {
         let font_size = 12.0;
-        let bbox = text_object_bounding_box(10.0, 20.0, font_size, "WI", "Georgia").unwrap();
+        let bbox = text_object_bounding_box(
+            10.0,
+            20.0,
+            "WI",
+            "Georgia",
+            SvgTextAnchor::Start,
+            crate::render::svg_text::SvgTextSizing::initial(font_size),
+        )
+        .unwrap();
         let expected_width =
             crate::fonts::str_width("WI", font_size, &FontFamily::TimesRoman, false);
         let expected_top = 20.0 - crate::fonts::ascender_ratio(&FontFamily::TimesRoman) * font_size;
@@ -2543,7 +2656,13 @@ mod tests {
             style: SvgStyle::default(),
         };
 
-        let bbox = node_object_bounding_box(&group, &SvgTextContext::default()).unwrap();
+        let text_ctx = SvgTextContext::default();
+        let bbox = node_object_bounding_box(
+            &group,
+            &text_ctx,
+            crate::render::svg_text::SvgTextSizing::initial(text_ctx.font_size),
+        )
+        .unwrap();
         assert!((bbox.min_x + 7.071_068).abs() < 1e-5);
         assert!((bbox.max_x() - 7.071_068).abs() < 1e-5);
     }
@@ -3317,16 +3436,10 @@ mod tests {
             rx: 0.0,
             ry: 0.0,
             style: SvgStyle {
-                color: None,
                 fill: SvgPaint::Color(Color::rgb(255, 0, 0)),
                 stroke: SvgPaint::Color(Color::BLACK),
-                clip_path: None,
-                clip_rule: SvgClipRule::NonZero,
                 stroke_width: Some(0.0),
-                font_family: None,
-                font_bold: None,
-                font_italic: None,
-                opacity: 1.0,
+                ..SvgStyle::default()
             },
         }]);
         let mut out = String::new();
@@ -3385,27 +3498,16 @@ mod tests {
             children: vec![SvgNode::Text {
                 x: 10.0,
                 y: 20.0,
-                font_size: None,
-                font_size_attr: None,
                 fill_specified: true,
                 fill_raw: Some("none".to_string()),
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
-                letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
-                    color: None,
                     fill: SvgPaint::None,
-                    stroke: SvgPaint::Unspecified,
-                    clip_path: None,
-                    clip_rule: SvgClipRule::NonZero,
-                    stroke_width: None,
-                    font_family: None,
-                    font_bold: None,
-                    font_italic: None,
-                    opacity: 1.0,
+                    ..SvgStyle::default()
                 },
             }],
             text_ctx: SvgTextContext {
@@ -3440,27 +3542,18 @@ mod tests {
             children: vec![SvgNode::Text {
                 x: 10.0,
                 y: 20.0,
-                font_size: None,
-                font_size_attr: None,
                 fill_specified: true,
                 fill_raw: Some("none".to_string()),
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
-                letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
-                    color: None,
                     fill: SvgPaint::None,
                     stroke: SvgPaint::Color(Color::rgb(255, 0, 0)),
-                    clip_path: None,
-                    clip_rule: SvgClipRule::NonZero,
                     stroke_width: Some(1.5),
-                    font_family: None,
-                    font_bold: None,
-                    font_italic: None,
-                    opacity: 1.0,
+                    ..SvgStyle::default()
                 },
             }],
             text_ctx: SvgTextContext::default(),
@@ -3499,14 +3592,11 @@ mod tests {
             children: vec![SvgNode::Text {
                 x: 10.0,
                 y: 20.0,
-                font_size: None,
-                font_size_attr: None,
                 fill_specified: false,
                 fill_raw: None,
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
-                letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle::default(),
@@ -3538,27 +3628,17 @@ mod tests {
             children: vec![SvgNode::Text {
                 x: 10.0,
                 y: 20.0,
-                font_size: None,
-                font_size_attr: Some("150%".to_string()),
                 fill_specified: true,
                 fill_raw: Some("currentColor".to_string()),
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
-                letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
-                    color: None,
                     fill: SvgPaint::Color(Color::BLACK),
-                    stroke: SvgPaint::Unspecified,
-                    clip_path: None,
-                    clip_rule: SvgClipRule::NonZero,
-                    stroke_width: None,
-                    font_family: None,
-                    font_bold: None,
-                    font_italic: None,
-                    opacity: 1.0,
+                    font_size: SvgFontSize::parent_factor(1.5),
+                    ..SvgStyle::default()
                 },
             }],
             text_ctx: SvgTextContext {
@@ -3588,27 +3668,17 @@ mod tests {
             children: vec![SvgNode::Text {
                 x: 10.0,
                 y: 20.0,
-                font_size: None,
-                font_size_attr: Some("12".to_string()),
                 fill_specified: true,
                 fill_raw: Some("currentColor".to_string()),
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
-                letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
-                    color: None,
                     fill: SvgPaint::Color(Color::BLACK),
-                    stroke: SvgPaint::Unspecified,
-                    clip_path: None,
-                    clip_rule: SvgClipRule::NonZero,
-                    stroke_width: None,
-                    font_family: None,
-                    font_bold: None,
-                    font_italic: None,
-                    opacity: 1.0,
+                    font_size: SvgFontSize::user_units(12.0),
+                    ..SvgStyle::default()
                 },
             }],
             text_ctx: SvgTextContext::default(),
@@ -3644,14 +3714,11 @@ mod tests {
                 children: vec![SvgNode::Text {
                     x: 10.0,
                     y: 20.0,
-                    font_size: None,
-                    font_size_attr: None,
                     fill_specified: true,
                     fill_raw: Some("currentColor".to_string()),
                     font_family: None,
                     font_bold: None,
                     font_italic: None,
-                    letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                     text_anchor: SvgTextAnchor::Start,
                     content: "Hello".to_string(),
                     style: SvgStyle {
@@ -3684,27 +3751,16 @@ mod tests {
             children: vec![SvgNode::Text {
                 x: 10.0,
                 y: 20.0,
-                font_size: None,
-                font_size_attr: None,
                 fill_specified: true,
                 fill_raw: Some("currentColor".to_string()),
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
-                letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle {
-                    color: None,
                     fill: SvgPaint::CurrentColor,
-                    stroke: SvgPaint::Unspecified,
-                    clip_path: None,
-                    clip_rule: SvgClipRule::NonZero,
-                    stroke_width: None,
-                    font_family: None,
-                    font_bold: None,
-                    font_italic: None,
-                    opacity: 1.0,
+                    ..SvgStyle::default()
                 },
             }],
             text_ctx: SvgTextContext {
@@ -3737,14 +3793,11 @@ mod tests {
                 children: vec![SvgNode::Text {
                     x: 10.0,
                     y: 20.0,
-                    font_size: None,
-                    font_size_attr: None,
                     fill_specified: true,
                     fill_raw: Some("currentColor".to_string()),
                     font_family: None,
                     font_bold: None,
                     font_italic: None,
-                    letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                     text_anchor: SvgTextAnchor::Start,
                     content: "Hello".to_string(),
                     style: SvgStyle {
@@ -3777,14 +3830,11 @@ mod tests {
             children: vec![SvgNode::Text {
                 x: 10.0,
                 y: 20.0,
-                font_size: None,
-                font_size_attr: None,
                 fill_specified: true,
                 fill_raw: Some("bogus".to_string()),
                 font_family: None,
                 font_bold: None,
                 font_italic: None,
-                letter_spacing: crate::parser::svg::SvgLetterSpacing::Normal,
                 text_anchor: SvgTextAnchor::Start,
                 content: "Hello".to_string(),
                 style: SvgStyle::default(),

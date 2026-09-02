@@ -11,6 +11,7 @@ pub(crate) use run_coalescing::{coalesce_text_runs, text_runs_share_shaping_buff
 #[derive(Debug, Clone)]
 pub(crate) struct ShapedGlyph {
     pub glyph_id: u16,
+    pub cluster: usize,
     pub x_advance: f32,
     pub y_advance: f32,
     pub x_offset: f32,
@@ -252,7 +253,31 @@ fn font_covers_text(font: &TtfFont, text: &str) -> bool {
 /// `unicode-range`; every such face retains priority over optional packs.
 pub(crate) struct AuthoredFontFaces<'a> {
     /// Custom faces, or `None` when coverage follows PDF WinAnsi encoding.
-    custom: Option<Vec<&'a TtfFont>>,
+    custom: Option<Vec<AuthoredFontFace<'a>>>,
+}
+
+/// One registered face belonging to an authored CSS family.
+#[derive(Clone, Copy)]
+pub(crate) struct AuthoredFontFace<'a> {
+    key: &'a str,
+    font: &'a TtfFont,
+}
+
+impl<'a> AuthoredFontFace<'a> {
+    /// Return the stable registry key used for subsetting and PDF embedding.
+    pub(crate) const fn key(self) -> &'a str {
+        self.key
+    }
+
+    /// Return the parsed font selected for shaping and painting.
+    pub(crate) const fn font(self) -> &'a TtfFont {
+        self.font
+    }
+
+    /// Return whether this face covers the complete typographic unit.
+    fn covers(self, text: &str) -> bool {
+        font_covers_text(self.font, text)
+    }
 }
 
 impl<'a> AuthoredFontFaces<'a> {
@@ -267,34 +292,58 @@ impl<'a> AuthoredFontFaces<'a> {
             return Self { custom: None };
         };
 
-        let mut custom = Vec::new();
-        if let Some((_, primary)) = resolve_custom_font(font_family, bold, italic, fonts) {
-            custom.push(primary);
-        }
-        custom.extend(
-            font_face_range_fonts(fonts, name, bold, italic)
+        let source_faces = font_face_source_fonts(fonts, name, bold, italic);
+        let custom = if source_faces.is_empty() {
+            // Registries created before source-order keys were introduced keep
+            // the primary face under the variant key and later ranged faces
+            // under `__fontface_N`. Treat them as one authored composite so an
+            // optional fallback pack cannot outrank a covering authored face.
+            resolve_custom_font(font_family, bold, italic, fonts)
                 .into_iter()
-                .map(|(_, font)| font),
-        );
+                .chain(font_face_range_fonts(fonts, name, bold, italic))
+                .map(|(key, font)| AuthoredFontFace { key, font })
+                .collect()
+        } else {
+            // CSS Fonts builds a composite face from every matching @font-face
+            // rule in reverse definition order. Source entries are separate
+            // from the unsuffixed compatibility alias so full-range rules keep
+            // their exact position among unicode-range rules.
+            source_faces
+                .into_iter()
+                .rev()
+                .map(|(key, font)| AuthoredFontFace { key, font })
+                .collect()
+        };
         Self {
             custom: Some(custom),
         }
+    }
+
+    /// Return whether this family has at least one registered custom face.
+    pub(crate) fn has_custom_faces(&self) -> bool {
+        self.custom.as_ref().is_some_and(|faces| !faces.is_empty())
+    }
+
+    /// Select the first prepared family face that covers `text`.
+    pub(crate) fn covering_face(&self, text: &str) -> Option<AuthoredFontFace<'a>> {
+        self.custom
+            .as_ref()?
+            .iter()
+            .copied()
+            .find(|face| face.covers(text))
     }
 
     /// Return whether one authored face covers the complete text unit.
     pub(crate) fn covers(&self, text: &str) -> bool {
         self.custom.as_ref().map_or_else(
             || crate::render::pdf::is_winansi_encodable(text),
-            |fonts| fonts.iter().any(|font| font_covers_text(font, text)),
+            |_| self.covering_face(text).is_some(),
         )
     }
 }
 
-/// Shape arbitrary text with an explicit `TtfFont` face.
-///
-/// Used by the SVG `<text>` renderer, which resolves its own face (via
-/// `find_font`) rather than going through a layout `TextRun`.
-pub(crate) fn shape_text_with_explicit_font(
+/// Shape arbitrary text with an explicit face and resolved CSS feature set.
+pub(crate) fn shape_text_with_explicit_font_and_shaping(
     text: &str,
     font_size: f32,
     font: &TtfFont,
@@ -601,6 +650,31 @@ fn font_face_range_fonts<'a>(
         .collect()
 }
 
+fn font_face_source_fonts<'a>(
+    fonts: &'a HashMap<String, TtfFont>,
+    family: &str,
+    bold: bool,
+    italic: bool,
+) -> Vec<(&'a str, &'a TtfFont)> {
+    let prefix = format!(
+        "{}__fontface_source_",
+        crate::system_fonts::font_variant_key(family, bold, italic)
+    );
+    let mut matches: Vec<_> = fonts
+        .iter()
+        .filter_map(|(key, font)| {
+            key.strip_prefix(&prefix)
+                .and_then(|suffix| suffix.parse::<usize>().ok())
+                .map(|index| (index, key.as_str(), font))
+        })
+        .collect();
+    matches.sort_by_key(|(index, _, _)| *index);
+    matches
+        .into_iter()
+        .map(|(_, key, font)| (key, font))
+        .collect()
+}
+
 /// Check if a run needs unicode fallback (has characters the primary font can't cover).
 pub(crate) fn needs_unicode_fallback(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> bool {
     if let FontFamily::Custom(name) = &run.font_family {
@@ -788,6 +862,7 @@ fn shape_text_glyphs(
         .map(|((info, position), unicode)| {
             Some(ShapedGlyph {
                 glyph_id: u16::try_from(info.glyph_id).ok()?,
+                cluster: usize::try_from(info.cluster).ok()?,
                 x_advance: resolve_position(position.x_advance),
                 y_advance: resolve_position(position.y_advance),
                 x_offset: resolve_position(position.x_offset),
@@ -1081,6 +1156,7 @@ mod tests {
     fn shaped_glyph_fields_and_clone() {
         let g = ShapedGlyph {
             glyph_id: 42,
+            cluster: 0,
             x_advance: 10.5,
             y_advance: 0.0,
             x_offset: 1.0,
@@ -1103,6 +1179,7 @@ mod tests {
         let run = ShapedRun {
             glyphs: vec![ShapedGlyph {
                 glyph_id: 1,
+                cluster: 0,
                 x_advance: 5.0,
                 y_advance: 0.0,
                 x_offset: 0.0,
