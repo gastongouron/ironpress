@@ -595,8 +595,12 @@
     "category": "images-replaced",
     "feature": "inline-svg",
     "subfeature": "text-letter-spacing-anchors",
-    "description": "SVG text with letter-spacing: 8px under text-anchor start, middle, and end; red guides mark each anchor x so the text chunk's tracked total advance must position the glyphs.",
+    "description": "SVG text with letter-spacing: 8px under text-anchor start, middle, and end; red guides mark each anchor x so the text chunk's tracked total advance must position the glyphs. The verified standards-derived reference compensates for Chromium's extra trailing letter-spacing, which CSS Text 3 excludes at the end edge.",
     "file": "cases/images-replaced/svg-text-letter-spacing-anchors.html",
+    "reference_file": "references/images-replaced/svg-text-letter-spacing-anchors.html",
+    "reference": {
+      "status": "verified"
+    },
     "kind": "feature",
     "expected_support": "implemented",
     "depends_on": [

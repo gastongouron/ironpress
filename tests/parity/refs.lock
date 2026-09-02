@@ -19632,15 +19632,15 @@
       "category": "images-replaced",
       "file": "cases/images-replaced/svg-text-letter-spacing-anchors.html",
       "html_sha256": "aa1241de58431cfda3c4508a139d195b891170e12d48405ff791e1f718ced6b6",
-      "manifest_sha256": "e9d7866999b4e32325bd8460f0b7577f4204c26532a84616b1a9b3a783cbe6a7",
+      "manifest_sha256": "f1df7f96f8588fec2d15c287471d803a58e746923b482c38a3c3af4999d7b8d0",
       "oracle": "chrome",
       "pdf": {
         "file": "oracles/images-replaced/svg-text-letter-spacing-anchors.pdf",
-        "sha256": "1a31c9a64e571a8003da6825f5e9c3e861ecf00e419552e23096aac79cdebf0f"
+        "sha256": "13bc6eb00285863f74bdc6c9a003a2a527fd85706470860f6025ac12b78356e4"
       },
       "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
-      "reference_file": "cases/images-replaced/svg-text-letter-spacing-anchors.html",
-      "reference_html_sha256": "aa1241de58431cfda3c4508a139d195b891170e12d48405ff791e1f718ced6b6"
+      "reference_file": "references/images-replaced/svg-text-letter-spacing-anchors.html",
+      "reference_html_sha256": "671c5b9403e0a03cf7aa2dda69d36919d400e15626371d53afbd91e5f6d23d34"
     },
     "svg-text-letter-spacing-ligatures": {
       "category": "images-replaced",
