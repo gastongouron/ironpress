@@ -5,9 +5,9 @@ use crate::layout::cells::{
 use crate::layout::elements::{
     BoxModel, BoxPaint, CollapsedTableBorders, Container, Image, InlineOffset, IntoLayoutNode,
     LayoutElement, LayoutNode, LayoutSize, LayoutVisitor, LayoutVisitorMut, PageBreak, PaintGroup,
-    Positioning, SizeConstraints, Svg, Table, TableBoxDecoration, TableCells, TableFormatting,
-    TableFragmentGroup, TableFragmentation, TableGridIdentity, TableInlineGeometry, TableRow,
-    TextBlock,
+    Positioning, SizeConstraints, Svg, Table, TableBoxDecoration, TableCellPosition, TableCells,
+    TableFormatting, TableFragmentGroup, TableFragmentation, TableGridIdentity,
+    TableInlineGeometry, TableRow, TextBlock,
 };
 use crate::layout::flow_metrics::{BlockFlowSpacing, BlockMargins};
 use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
@@ -45,7 +45,7 @@ mod sizing;
 use collapsed_borders::{
     CollapsedBorderSources, CollapsedBorderTrack, resolve_collapsed_border_grid,
 };
-use sizing::{TableCellIntrinsicWidths, TableCellPosition};
+use sizing::TableCellIntrinsicWidths;
 pub(crate) use sizing::{TableCellSizingContext, TableCellSizingMemo};
 
 const MAX_COLSPAN: usize = 1000;
@@ -2495,7 +2495,8 @@ pub(crate) fn flatten_table(
                                     resources: &mut *resources,
                                     filter_defs,
                                     filter_dpi,
-                                    table_cell_sizing: table_cell_sizing.descendants(&table_grid),
+                                    table_cell_sizing: table_cell_sizing
+                                        .cell_descendants(&table_grid, cell_position),
                                 };
                                 layout_table_cell_flow(
                                     &cell_el.children,
@@ -3191,7 +3192,10 @@ pub(crate) fn flatten_table(
                     resources: &mut *resources,
                     filter_defs,
                     filter_dpi,
-                    table_cell_sizing: table_cell_sizing.descendants(&table_grid),
+                    table_cell_sizing: table_cell_sizing.cell_descendants(
+                        &table_grid,
+                        TableCellPosition::new(row_idx, cell_siblings.child_index()),
+                    ),
                 };
                 layout_table_cell_flow(
                     &cell_el.children,
@@ -4039,6 +4043,45 @@ mod subpoint_width_tests {
             .collect()
     }
 
+    fn anonymous_row_nested_table(left: &str, right: &str) -> String {
+        format!(
+            "<div class=improper><div class=inner><div class=row><div class=cell>{left}</div><div class=cell>{right}</div></div></div></div>"
+        )
+    }
+
+    fn anonymous_row_nested_table_column_widths(body: &str) -> Vec<Vec<f32>> {
+        let parsed = parse_html_with_styles(&format!(
+            r#"<style>
+                * {{ margin: 0; padding: 0; }}
+                .outer, .inner {{ display: table; }}
+                .outer {{ width: 400pt; border-spacing: 0; }}
+                .inner {{ width: 200pt; border-spacing: 10pt; }}
+                .row {{ display: table-row; }}
+                .cell {{ display: table-cell; white-space: nowrap; }}
+            </style>
+            <div class=outer>{body}</div>"#,
+        ))
+        .expect("valid anonymous-row nested-table fixture");
+        let rules = parsed
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &parsed.nodes,
+            PageSize::new(500.0, 200.0),
+            Margin::uniform(0.0),
+            &rules,
+        );
+
+        table_rows(&pages[0])
+            .into_iter()
+            .filter_map(|row| {
+                (row.content.column_widths.len() == 2).then_some(row.content.column_widths)
+            })
+            .collect()
+    }
+
     fn display_contents_grid_table(left: &str, right: &str) -> String {
         format!(
             "<div class=contents><div><table><tr><td>{left}</td><td>{right}</td></tr></table></div></div>"
@@ -4136,6 +4179,40 @@ mod subpoint_width_tests {
                 "{wide}<div class=\"separator\"></div>{narrow}"
             )),
             [wide_alone, narrow_alone].concat(),
+        );
+    }
+
+    #[test]
+    fn nested_tables_in_anonymous_rows_measure_narrow_then_wide_columns_independently() {
+        let narrow_then_wide = anonymous_row_nested_table("i", "WWWWWWWWWW");
+        let wide_then_narrow = anonymous_row_nested_table("MMMMMMMMMM", "i");
+        let first_alone = anonymous_row_nested_table_column_widths(&narrow_then_wide);
+        let second_alone = anonymous_row_nested_table_column_widths(&wide_then_narrow);
+        let separator = "<div class=row><div class=cell>separator</div></div>";
+
+        assert_ne!(first_alone, second_alone, "fixture widths must differ");
+        assert_eq!(
+            anonymous_row_nested_table_column_widths(&format!(
+                "{narrow_then_wide}{separator}{wide_then_narrow}"
+            )),
+            [first_alone, second_alone].concat(),
+        );
+    }
+
+    #[test]
+    fn nested_tables_in_anonymous_rows_measure_wide_then_narrow_columns_independently() {
+        let narrow_then_wide = anonymous_row_nested_table("i", "WWWWWWWWWW");
+        let wide_then_narrow = anonymous_row_nested_table("MMMMMMMMMM", "i");
+        let first_alone = anonymous_row_nested_table_column_widths(&wide_then_narrow);
+        let second_alone = anonymous_row_nested_table_column_widths(&narrow_then_wide);
+        let separator = "<div class=row><div class=cell>separator</div></div>";
+
+        assert_ne!(first_alone, second_alone, "fixture widths must differ");
+        assert_eq!(
+            anonymous_row_nested_table_column_widths(&format!(
+                "{wide_then_narrow}{separator}{narrow_then_wide}"
+            )),
+            [first_alone, second_alone].concat(),
         );
     }
 

@@ -380,12 +380,13 @@ impl TableFragmentGroup {
     }
 }
 
-/// Stable source-tree identity shared by every row of one table grid.
+/// Stable semantic identity shared by every row of one table grid.
 ///
 /// Rows are flattened so pagination can fragment them independently, but table
 /// backgrounds and borders still require one coordinated paint schedule. The
-/// source path preserves that relationship across cloning and fragmentation
-/// without reference counting or renderer-side guesses based on geometry.
+/// authored source path and normalized containing-cell scopes preserve that
+/// relationship across cloning and fragmentation without reference counting or
+/// renderer-side guesses based on geometry.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub(crate) struct TableGridIdentity {
     source: Box<[TableIdentityPart]>,
@@ -426,14 +427,57 @@ impl TableGridIdentity {
             source: source.into_boxed_slice(),
         }
     }
+
+    pub(crate) fn cell_descendant_scoped(
+        &self,
+        cell: TableCellPosition,
+        scopes: &[TableSourcePath],
+        path: impl IntoIterator<Item = usize>,
+    ) -> Self {
+        let mut source = self.source.to_vec();
+        source.push(TableIdentityPart::Cell(cell));
+        source.extend(
+            scopes
+                .iter()
+                .cloned()
+                .map(TableIdentityPart::FlatteningScope),
+        );
+        source.push(TableIdentityPart::Grid(TableSourcePath::new(path)));
+        Self {
+            source: source.into_boxed_slice(),
+        }
+    }
 }
 
 /// One semantically distinct component of a table-grid identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum TableIdentityPart {
+    Cell(TableCellPosition),
     FlatteningScope(TableSourcePath),
     Grid(TableSourcePath),
 }
+
+/// Position of one cell in the normalized row sequence of a table grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct TableCellPosition {
+    row: NormalizedTableRow,
+    cell: NormalizedTableCell,
+}
+
+impl TableCellPosition {
+    pub(crate) const fn new(normalized_row: usize, normalized_cell: usize) -> Self {
+        Self {
+            row: NormalizedTableRow(normalized_row),
+            cell: NormalizedTableCell(normalized_cell),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct NormalizedTableRow(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct NormalizedTableCell(usize);
 
 /// Authored source-tree path captured before a formatting context clones or
 /// removes boxes from its layout child sequence.

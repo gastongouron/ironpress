@@ -40,9 +40,9 @@ pub(crate) use properties::*;
 pub(crate) use stacking::{Stacking, StackingLevel, StackingParticipant, StackingRole};
 pub(crate) use table::{
     CollapsedBorderEdge, CollapsedBorderJoint, CollapsedBorderJoints, CollapsedBorderLine,
-    CollapsedTableBorders, Table, TableBoxDecoration, TableBoxDecorationOwner, TableCells,
-    TableFormatting, TableFragmentGroup, TableFragmentation, TableGridIdentity, TableGridOwner,
-    TableInlineGeometry, TableRow, TableSourcePath,
+    CollapsedTableBorders, Table, TableBoxDecoration, TableBoxDecorationOwner, TableCellPosition,
+    TableCells, TableFormatting, TableFragmentGroup, TableFragmentation, TableGridIdentity,
+    TableGridOwner, TableInlineGeometry, TableRow, TableSourcePath,
 };
 #[cfg(test)]
 pub(crate) use test_support::{LayoutElementTestExt, LayoutElementTestMutExt};

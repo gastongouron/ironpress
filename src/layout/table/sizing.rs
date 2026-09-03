@@ -1,28 +1,6 @@
 use std::collections::HashMap;
 
-use crate::layout::elements::{TableGridIdentity, TableSourcePath};
-
-/// Position of one cell in the normalized row sequence of a table grid.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct TableCellPosition {
-    row: NormalizedTableRow,
-    cell: NormalizedTableCell,
-}
-
-impl TableCellPosition {
-    pub(super) const fn new(normalized_row: usize, normalized_cell: usize) -> Self {
-        Self {
-            row: NormalizedTableRow(normalized_row),
-            cell: NormalizedTableCell(normalized_cell),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct NormalizedTableRow(usize);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct NormalizedTableCell(usize);
+use crate::layout::elements::{TableCellPosition, TableGridIdentity, TableSourcePath};
 
 /// Hashable table width admitted at the memo boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -122,20 +100,31 @@ impl TableCellSizingMemo {
 
 /// Table-measurement state inherited by one explicit layout subtree.
 ///
-/// Nested table identities are scoped by their containing table grid. The
-/// scope travels with `LayoutEnv`, so repeated measurement and final layout
-/// enter the same namespace without selector changes or ambient state.
+/// Nested table identities are scoped by their containing table grid and, for
+/// cell content, its normalized cell position. The scope travels with
+/// `LayoutEnv`, so repeated measurement and final layout enter the same
+/// namespace without selector changes or ambient state.
 pub(crate) struct TableCellSizingContext<'a> {
     memo: &'a mut TableCellSizingMemo,
-    containing_grid: Option<&'a TableGridIdentity>,
+    parent: TableSizingParent<'a>,
     source_scopes: Box<[TableSourcePath]>,
+}
+
+#[derive(Clone, Copy)]
+enum TableSizingParent<'a> {
+    Root,
+    Grid(&'a TableGridIdentity),
+    Cell {
+        grid: &'a TableGridIdentity,
+        position: TableCellPosition,
+    },
 }
 
 impl<'a> TableCellSizingContext<'a> {
     pub(crate) fn root(memo: &'a mut TableCellSizingMemo) -> Self {
         Self {
             memo,
-            containing_grid: None,
+            parent: TableSizingParent::Root,
             source_scopes: Box::default(),
         }
     }
@@ -144,14 +133,21 @@ impl<'a> TableCellSizingContext<'a> {
         &self,
         source_path: impl IntoIterator<Item = usize>,
     ) -> TableGridIdentity {
-        match (self.containing_grid, self.source_scopes.is_empty()) {
-            (Some(containing_grid), true) => containing_grid.descendant(source_path),
-            (None, true) => TableGridIdentity::from_source_path(source_path),
-            (Some(containing_grid), false) => {
+        match self.parent {
+            TableSizingParent::Root if self.source_scopes.is_empty() => {
+                TableGridIdentity::from_source_path(source_path)
+            }
+            TableSizingParent::Root => {
+                TableGridIdentity::from_scoped_source_path(&self.source_scopes, source_path)
+            }
+            TableSizingParent::Grid(containing_grid) if self.source_scopes.is_empty() => {
+                containing_grid.descendant(source_path)
+            }
+            TableSizingParent::Grid(containing_grid) => {
                 containing_grid.descendant_scoped(&self.source_scopes, source_path)
             }
-            (None, false) => {
-                TableGridIdentity::from_scoped_source_path(&self.source_scopes, source_path)
+            TableSizingParent::Cell { grid, position } => {
+                grid.cell_descendant_scoped(position, &self.source_scopes, source_path)
             }
         }
     }
@@ -164,7 +160,7 @@ impl<'a> TableCellSizingContext<'a> {
         source_scopes.push(source_path.clone());
         TableCellSizingContext {
             memo: &mut *self.memo,
-            containing_grid: self.containing_grid,
+            parent: self.parent,
             source_scopes: source_scopes.into_boxed_slice(),
         }
     }
@@ -175,7 +171,22 @@ impl<'a> TableCellSizingContext<'a> {
     ) -> TableCellSizingContext<'context> {
         TableCellSizingContext {
             memo: &mut *self.memo,
-            containing_grid: Some(containing_grid),
+            parent: TableSizingParent::Grid(containing_grid),
+            source_scopes: Box::default(),
+        }
+    }
+
+    pub(crate) fn cell_descendants<'context>(
+        &'context mut self,
+        containing_grid: &'context TableGridIdentity,
+        position: TableCellPosition,
+    ) -> TableCellSizingContext<'context> {
+        TableCellSizingContext {
+            memo: &mut *self.memo,
+            parent: TableSizingParent::Cell {
+                grid: containing_grid,
+                position,
+            },
             source_scopes: Box::default(),
         }
     }
