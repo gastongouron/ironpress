@@ -12,5 +12,6 @@ pub(crate) mod raster_pixels;
 pub(crate) mod raster_scale;
 pub mod shading;
 pub(crate) mod svg_geometry;
+pub(crate) mod svg_text;
 pub mod svg_to_pdf;
 pub(crate) mod text_decoration;

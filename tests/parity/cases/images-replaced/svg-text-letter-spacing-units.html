@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>svg text letter-spacing units</title>
+<style>
+  @page { size: 344px 224px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <svg width="344" height="224" viewBox="0 0 344 224" xmlns="http://www.w3.org/2000/svg">
+    <text x="16" y="40" font-family="ParitySans" font-size="32" fill="#111111" letter-spacing="8">Spacing</text>
+    <text x="16" y="80" font-family="ParitySans" font-size="32" fill="#111111" letter-spacing="0.25em">Spacing</text>
+    <text x="16" y="120" font-family="ParitySans" font-size="32" fill="#111111" style="letter-spacing: 0.25em">Spacing</text>
+    <text x="16" y="160" font-family="ParitySans" font-size="32" fill="#111111" letter-spacing="6pt">Spacing</text>
+    <text x="16" y="200" font-family="ParitySans" font-size="32" fill="#111111" letter-spacing="-2">Spacing</text>
+  </svg>
+</body>
+</html>

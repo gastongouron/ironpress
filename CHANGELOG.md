@@ -6,6 +6,33 @@
 
 - Conan 2 and vcpkg source recipes package the existing C and C++ bindings and
   verify static and shared consumers across the native platform matrix.
+- SVG `<text>` honors `letter-spacing` from the presentation attribute or an
+  inline style with any CSS `<length>` (`em` resolves against the text's font
+  size). Tracking is applied per typographic character unit: zero-width
+  formatting characters receive none, optional ligatures are suppressed while
+  tracking is active, and the tracked advance positions `text-anchor`.
+
+### Changed
+
+- Font setup reuses bounded process-lifetime caches: `add_font`/`@font-face`
+  faces and system-font resolution are memoized in capped LRU tables, and every
+  parsed font owns its shaping face, so a warm process stops re-parsing and
+  re-resolving the same fonts on each `convert()` — with byte-identical output.
+- Auto table layout memoizes each cell's intrinsic widths within a layout,
+  avoiding repeated nested-table measurement while preserving byte-identical
+  output. The retained Criterion benchmark covers nesting depths 1 through 8.
+
+### Fixed
+
+- SVG `<text>` with a CSS font-family list (`"MyFace, Helvetica"`) resolves
+  registered custom faces, including quoted names that contain commas, and
+  every font the SVG renderer binds is also subset and embedded; `<text>`
+  inside CSS background-image SVGs uses the registered custom fonts instead of
+  always falling back to standard fonts.
+- A `display: inline-block` inside a table cell (form fill-in underlines,
+  checkbox squares) flows inline with the cell's sibling text regardless of
+  the element's default HTML display role; lone and relatively positioned
+  inline boxes are painted by the same flow.
 
 ## [1.6.0] — 2026-08-26
 

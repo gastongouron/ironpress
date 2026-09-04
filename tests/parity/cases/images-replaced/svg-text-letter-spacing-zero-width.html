@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>svg text letter-spacing zero-width characters</title>
+<style>
+  @page { size: 344px 160px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <svg width="344" height="160" viewBox="0 0 344 160" xmlns="http://www.w3.org/2000/svg">
+    <text x="16" y="48" font-family="ParitySans" font-size="32" fill="#111111" letter-spacing="8">ABC DEF</text>
+    <text x="16" y="96" font-family="ParitySans" font-size="32" fill="#111111" letter-spacing="8">A&#x200B;BC D&#x200D;EF</text>
+    <text x="16" y="144" font-family="ParitySans" font-size="32" fill="#111111" letter-spacing="8">cafe&#x301; ok</text>
+  </svg>
+</body>
+</html>

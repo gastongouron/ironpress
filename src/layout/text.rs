@@ -431,9 +431,10 @@ pub(crate) fn text_run_metadata(style: &ComputedStyle) -> crate::layout::engine:
 /// disable kerning: CSS Fonts resolves those controls independently.
 pub(crate) fn text_run_shaping(style: &ComputedStyle) -> TextShaping {
     TextShaping {
-        ligatures: style.ligatures_enabled && style.letter_spacing == 0.0,
+        ligatures: style.ligatures_enabled,
         kerning: style.font_kerning_enabled,
     }
+    .tracked(style.letter_spacing)
 }
 
 /// Resolve flattened paint-run boundaries while their nearest common inline
@@ -3377,6 +3378,24 @@ pub(crate) struct InlineRunCollector<'a> {
     counter_state: &'a mut CounterState,
     resources: &'a mut crate::security::resources::ResourceLoader,
     next_inline_decoration: usize,
+    context: InlineRunContext,
+}
+
+/// Formatting-context policy for atomic boxes collected as text runs.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) enum InlineRunContext {
+    #[default]
+    Standard,
+    TableCell,
+}
+
+impl InlineRunContext {
+    fn accepts(self, role: InlineFormattingRole, element: &ElementNode) -> bool {
+        match self {
+            Self::Standard => role.uses_text_run_layout(element),
+            Self::TableCell => role.participates_in_table_cell_text_flow(),
+        }
+    }
 }
 
 impl<'a> InlineRunCollector<'a> {
@@ -3392,7 +3411,13 @@ impl<'a> InlineRunCollector<'a> {
             counter_state,
             resources,
             next_inline_decoration: 0,
+            context: InlineRunContext::Standard,
         }
+    }
+
+    pub(crate) fn in_context(mut self, context: InlineRunContext) -> Self {
+        self.context = context;
+        self
     }
 
     pub(crate) fn collect(
@@ -3411,6 +3436,7 @@ impl<'a> InlineRunCollector<'a> {
             link_url,
             self.rules,
             self.fonts,
+            self.context,
             false,
             ancestors,
             self.counter_state,
@@ -3449,6 +3475,7 @@ fn collect_text_runs_inner(
     link_url: Option<&str>,
     rules: &[CssRule],
     fonts: &HashMap<String, TtfFont>,
+    context: InlineRunContext,
     inline_parent: bool,
     ancestors: &[AncestorInfo],
     counter_state: &mut CounterState,
@@ -3591,7 +3618,7 @@ fn collect_text_runs_inner(
                     FontMetrics::new(fonts),
                 );
                 let role = InlineFormattingRole::of(el, &style);
-                if role.uses_text_run_layout(el) {
+                if context.accepts(role, el) {
                     if el.attributes.contains_key("data-math") {
                         // Math elements are rendered as MathBlock by
                         // flatten_element, not as inline text runs.
@@ -3777,6 +3804,7 @@ fn collect_text_runs_inner(
                             url,
                             rules,
                             fonts,
+                            context,
                             true,
                             &child_ancestors,
                             counter_state,

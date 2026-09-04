@@ -159,7 +159,7 @@ pub(in crate::render::pdf) fn render_nested_text_block(
                 geometry.padding_box().width,
             )
             .with_first_line_indent(block.text_indent),
-            &mut ctx.text,
+            ctx,
         );
     }
 }

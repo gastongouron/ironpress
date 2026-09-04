@@ -19488,6 +19488,20 @@
       "reference_file": "cases/images-replaced/svg-as-img.html",
       "reference_html_sha256": "1ce1de0f4acee70da8e10d4a39cc5ee22ce18d251e10466e084f7d202bee2216"
     },
+    "svg-background-image-text-custom-font": {
+      "category": "images-replaced",
+      "file": "cases/images-replaced/svg-background-image-text-custom-font.html",
+      "html_sha256": "459f6bf6f203edc3e51f098650c1bea1c20b8de48042fd966b652a531289b03e",
+      "manifest_sha256": "be7e69f6fb0108d8e57fa0acd4f999414ef361f671d12a589fe52a6e0b241210",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/images-replaced/svg-background-image-text-custom-font.pdf",
+        "sha256": "f06cef7a71594685095127c95176320f5fb7c435d524e8ffee6c0b41c657a6a1"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "cases/images-replaced/svg-background-image-text-custom-font.html",
+      "reference_html_sha256": "459f6bf6f203edc3e51f098650c1bea1c20b8de48042fd966b652a531289b03e"
+    },
     "svg-img-inner-rect": {
       "category": "images-replaced",
       "file": "cases/images-replaced/svg-img-inner-rect.html",
@@ -19599,6 +19613,76 @@
       "provenance": "5c78c8ba32f531a87b1ae51ea9c5acc95267d26b5ef1693c973ffd1ed7128a1f",
       "reference_file": "cases/images-replaced/svg-inline-text.html",
       "reference_html_sha256": "d2067bb20b7547f70396193b7b51a681dd0eb8918bb4b249f80dcc0125fe88b7"
+    },
+    "svg-text-font-family-stack-fallback": {
+      "category": "images-replaced",
+      "file": "cases/images-replaced/svg-text-font-family-stack-fallback.html",
+      "html_sha256": "a062174c45347028b43cbe735b82a14cc7a371e10c900f93c87e6d984ef66003",
+      "manifest_sha256": "bb77b03f09a2cca6fb8651f3176ece87d0ff22b9c5a3ca102c4357279d207186",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/images-replaced/svg-text-font-family-stack-fallback.pdf",
+        "sha256": "17488060526985ef9aa8583ba8249e46930d9a0840ac75c30adbc516c12d4a15"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "cases/images-replaced/svg-text-font-family-stack-fallback.html",
+      "reference_html_sha256": "a062174c45347028b43cbe735b82a14cc7a371e10c900f93c87e6d984ef66003"
+    },
+    "svg-text-letter-spacing-anchors": {
+      "category": "images-replaced",
+      "file": "cases/images-replaced/svg-text-letter-spacing-anchors.html",
+      "html_sha256": "aa1241de58431cfda3c4508a139d195b891170e12d48405ff791e1f718ced6b6",
+      "manifest_sha256": "f1df7f96f8588fec2d15c287471d803a58e746923b482c38a3c3af4999d7b8d0",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/images-replaced/svg-text-letter-spacing-anchors.pdf",
+        "sha256": "13bc6eb00285863f74bdc6c9a003a2a527fd85706470860f6025ac12b78356e4"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "references/images-replaced/svg-text-letter-spacing-anchors.html",
+      "reference_html_sha256": "671c5b9403e0a03cf7aa2dda69d36919d400e15626371d53afbd91e5f6d23d34"
+    },
+    "svg-text-letter-spacing-ligatures": {
+      "category": "images-replaced",
+      "file": "cases/images-replaced/svg-text-letter-spacing-ligatures.html",
+      "html_sha256": "17bc6908e25434ab5b51d118eb6d2655066a2f0948153a0f0631feb342778b13",
+      "manifest_sha256": "2f6a4c69383c2b5185933fb647f0e2df8a1662844a347da246d55f9bf20bee04",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/images-replaced/svg-text-letter-spacing-ligatures.pdf",
+        "sha256": "47e4fd5aa850d77f354b4bb275029271d385db3eb717fed12727db05796c2bc8"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "cases/images-replaced/svg-text-letter-spacing-ligatures.html",
+      "reference_html_sha256": "17bc6908e25434ab5b51d118eb6d2655066a2f0948153a0f0631feb342778b13"
+    },
+    "svg-text-letter-spacing-units": {
+      "category": "images-replaced",
+      "file": "cases/images-replaced/svg-text-letter-spacing-units.html",
+      "html_sha256": "799548b653cf0a31dfde2d8f216733d6666b6e0fc5fcb957c29b8e2f3db3e3cb",
+      "manifest_sha256": "7168404604b01af297928332fdb5cbc93092e2479651cc56bc01ed7de41e8de7",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/images-replaced/svg-text-letter-spacing-units.pdf",
+        "sha256": "3b60f6441299e65506cdd571117c33712a38604816ccac9ed869f0dc43915c05"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "cases/images-replaced/svg-text-letter-spacing-units.html",
+      "reference_html_sha256": "799548b653cf0a31dfde2d8f216733d6666b6e0fc5fcb957c29b8e2f3db3e3cb"
+    },
+    "svg-text-letter-spacing-zero-width": {
+      "category": "images-replaced",
+      "file": "cases/images-replaced/svg-text-letter-spacing-zero-width.html",
+      "html_sha256": "50b84faf81203a970680247dd5e743d59651fb59de51f59487e961e218e67c51",
+      "manifest_sha256": "74d3120567e20bead0c8569e52e5729c5a39a7ba14d56ca3e0df201b52611017",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/images-replaced/svg-text-letter-spacing-zero-width.pdf",
+        "sha256": "3639dff7ee9d70d6e9dacf62fee8022d56899886a3fbc3fe22a2533a9922711c"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "cases/images-replaced/svg-text-letter-spacing-zero-width.html",
+      "reference_html_sha256": "50b84faf81203a970680247dd5e743d59651fb59de51f59487e961e218e67c51"
     },
     "table-row-taller-than-page": {
       "category": "paged-media",
@@ -19977,6 +20061,20 @@
       "provenance": "5c78c8ba32f531a87b1ae51ea9c5acc95267d26b5ef1693c973ffd1ed7128a1f",
       "reference_file": "cases/tables/tables-cell-img-width-auto-intrinsic.html",
       "reference_html_sha256": "7be5733ea5aacb45fe0a3b6fa77b832a774d8ee8effc354e870126aa8fb585cb"
+    },
+    "tables-cell-inline-block-inline-flow": {
+      "category": "tables",
+      "file": "cases/tables/tables-cell-inline-block-inline-flow.html",
+      "html_sha256": "36bddccc9727fdb546deaf086c03bc7f6ddd9b219917230e3fd6a6251dc5ab0c",
+      "manifest_sha256": "93ea4a3c316998b9f1553f404f3f7c14265bbd21ac23f0cd28bbb643333e17ba",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/tables/tables-cell-inline-block-inline-flow.pdf",
+        "sha256": "28e95f15964485d8ff0433746e01e2239f3209ae0889ce08667bfe206b036ef5"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "cases/tables/tables-cell-inline-block-inline-flow.html",
+      "reference_html_sha256": "36bddccc9727fdb546deaf086c03bc7f6ddd9b219917230e3fd6a6251dc5ab0c"
     },
     "tables-cell-inline-svg-child": {
       "category": "tables",
@@ -23442,6 +23540,27 @@
       "pagedjs": false,
       "renderer": "chromium",
       "renderer_version": "Chromium 150.0.7871.128 ",
+      "ua_stylesheet_sha256": "eb00e832fd15f723c74042b2529d22b5e2ba9a948453aa08ef0a8045f610bab9"
+    },
+    "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529": {
+      "font_backend": {
+        "features": [
+          "FontationsFontBackend",
+          "FontationsLinuxSystemFonts"
+        ],
+        "launcher": {
+          "file": "scripts/chromium-fontations.sh",
+          "sha256": "512064356160e631cef2f1eda128f6815d5329dd16671af8fcbe6a6daaf20ece"
+        },
+        "name": "fontations"
+      },
+      "font_bundle_sha256": "14e0dabd41048ffc7d0ba142a3c166656b4d14dabba93dd9185fb9aa4d9e5542",
+      "generator": "scripts/parity-gen-refs.sh",
+      "generator_sha256": "58edd23b0dfe07611bbf291af7a0b1aa6e6a457891d23a316210f46d75f8c192",
+      "oracle": "chrome",
+      "pagedjs": false,
+      "renderer": "chromium",
+      "renderer_version": "Chromium 152.0.7977.64 snap",
       "ua_stylesheet_sha256": "eb00e832fd15f723c74042b2529d22b5e2ba9a948453aa08ef0a8045f610bab9"
     },
     "e4a48dcae4253067a6d7c92b57cb940cad59f2d921059f1a6537d21d9803312b": {

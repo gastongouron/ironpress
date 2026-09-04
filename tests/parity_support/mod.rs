@@ -36,6 +36,7 @@
 mod compare;
 mod config;
 mod diagnose;
+mod fontations_launcher;
 mod gate;
 mod geom;
 mod integrity;

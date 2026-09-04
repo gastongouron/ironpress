@@ -247,7 +247,8 @@ pub(super) fn paint_container_decoration(
                     ctx.shadings,
                     ctx.shading_counter,
                     Some(ctx.page_ext_gstates),
-                ),
+                )
+                .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
                 paint,
             );
             if c_bg_blended {

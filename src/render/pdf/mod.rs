@@ -187,9 +187,8 @@ use writer_output::PagePaintStreams;
 
 #[cfg(test)]
 use layout_elements::{
-    CellTextPlacement, NestedTextBlock, TextRenderContext, plan_nested_layout_elements,
-    render_cell_text, render_nested_layout_elements, render_nested_text_block,
-    table_row_total_height,
+    CellTextPlacement, NestedTextBlock, plan_nested_layout_elements, render_cell_text,
+    render_nested_layout_elements, render_nested_text_block, table_row_total_height,
 };
 
 fn collect_document_svg_defs(pages: &[Page]) -> crate::parser::svg::SvgDefs {

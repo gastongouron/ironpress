@@ -561,5 +561,93 @@
     "depends_on": [
       "probe-fill-box"
     ]
+  },
+  {
+    "id": "svg-text-letter-spacing-ligatures",
+    "category": "images-replaced",
+    "feature": "inline-svg",
+    "subfeature": "text-letter-spacing-ligatures",
+    "description": "Inline SVG text in ParitySerif: the unspaced row keeps the font's default fi/fl/ffi ligatures, while the row with letter-spacing: 6px spaces typographic character units and must not form optional ligatures (CSS Text 3 §8.2).",
+    "file": "cases/images-replaced/svg-text-letter-spacing-ligatures.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "svg-text-letter-spacing-units",
+    "category": "images-replaced",
+    "feature": "inline-svg",
+    "subfeature": "text-letter-spacing-units",
+    "description": "SVG text letter-spacing given as unitless user units, em (presentation attribute and inline style), pt, and a negative value at font-size 32px; the four 8px rows must render identically and the negative row tighter.",
+    "file": "cases/images-replaced/svg-text-letter-spacing-units.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "svg-text-letter-spacing-anchors",
+    "category": "images-replaced",
+    "feature": "inline-svg",
+    "subfeature": "text-letter-spacing-anchors",
+    "description": "SVG text with letter-spacing: 8px under text-anchor start, middle, and end; red guides mark each anchor x so the text chunk's tracked total advance must position the glyphs. The verified standards-derived reference compensates for Chromium's extra trailing letter-spacing, which CSS Text 3 excludes at the end edge.",
+    "file": "cases/images-replaced/svg-text-letter-spacing-anchors.html",
+    "reference_file": "references/images-replaced/svg-text-letter-spacing-anchors.html",
+    "reference": {
+      "status": "verified"
+    },
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "svg-text-letter-spacing-zero-width",
+    "category": "images-replaced",
+    "feature": "inline-svg",
+    "subfeature": "text-letter-spacing-zero-width",
+    "description": "SVG text letter-spacing ignores zero-width formatting characters (U+200B, U+200D) and treats a base letter plus combining mark as one typographic character unit; the first two rows must render identically (CSS Text 3 §8.2).",
+    "file": "cases/images-replaced/svg-text-letter-spacing-zero-width.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "svg-text-font-family-stack-fallback",
+    "category": "images-replaced",
+    "feature": "inline-svg",
+    "subfeature": "text-font-family-stack-fallback",
+    "description": "SVG text whose font-family stack starts with an unavailable family falls through to the next family, including a quoted family name that contains a comma.",
+    "file": "cases/images-replaced/svg-text-font-family-stack-fallback.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
+  },
+  {
+    "id": "svg-background-image-text-custom-font",
+    "category": "images-replaced",
+    "feature": "inline-svg",
+    "subfeature": "background-image-text-custom-font",
+    "description": "SVG text inside a CSS background-image data: URL resolves the ParitySans family and paints with its glyphs instead of falling back to a standard font.",
+    "file": "cases/images-replaced/svg-background-image-text-custom-font.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-text-baseline"
+    ]
   }
 ]

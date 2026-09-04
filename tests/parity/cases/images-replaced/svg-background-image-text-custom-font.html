@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>svg background-image text custom font</title>
+<style>
+  @page { size: 200px 80px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  .stage {
+    width: 200px;
+    height: 80px;
+    background-repeat: no-repeat;
+    background-size: 200px 80px;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='200'%20height='80'%3E%3Ctext%20x='10'%20y='56'%20font-family='ParitySans'%20font-size='40'%20fill='%23102030'%3EBg%20Text%3C/text%3E%3C/svg%3E");
+  }
+</style>
+</head>
+<body>
+  <div class="stage"></div>
+</body>
+</html>

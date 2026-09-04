@@ -1,6 +1,6 @@
 use crate::layout::context::LayoutEnv;
 use crate::layout::engine::TextRun;
-use crate::layout::text::InlineRunCollector;
+use crate::layout::text::{InlineRunCollector, InlineRunContext};
 use crate::parser::css::AncestorInfo;
 use crate::parser::dom::{DomNode, ElementNode};
 use crate::style::computed::ComputedStyle;
@@ -15,6 +15,10 @@ use super::{
 /// selector positions, and counter traversal remain owned by
 /// [`layout_mixed_flow_children`].
 pub(crate) trait IndependentFlowLayout {
+    fn inline_run_context(&self) -> InlineRunContext {
+        InlineRunContext::Standard
+    }
+
     fn lays_out_independently(&self, element: &ElementNode, child: &InlineFormattingChild) -> bool;
 
     fn layout_independently(
@@ -43,10 +47,12 @@ pub(crate) fn layout_mixed_flow_children<'dom>(
         InlineFormattingContext::new(parent_style, env.rules, ancestors, env.font_metrics())
             .children(sequence);
     let mut element_index = 0;
+    let run_context = independent_layout.inline_run_context();
 
     for (node_index, node) in nodes.iter().enumerate() {
         let DomNode::Element(element) = node else {
             InlineRunCollector::new(env.rules, env.fonts, env.counter_state, &mut *env.resources)
+                .in_context(run_context)
                 .collect(
                     sequence.item(node_index),
                     parent_style,
@@ -70,6 +76,7 @@ pub(crate) fn layout_mixed_flow_children<'dom>(
             independent_layout.layout_independently(element, child, env);
         } else {
             InlineRunCollector::new(env.rules, env.fonts, env.counter_state, &mut *env.resources)
+                .in_context(run_context)
                 .collect(
                     sequence.item(node_index),
                     parent_style,

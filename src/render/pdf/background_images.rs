@@ -115,6 +115,8 @@ pub(super) fn render_svg_background(
         shadings,
         shading_counter,
         ext_gstates,
+        custom_fonts,
+        prepared_custom_fonts,
     } = resources;
     let PdfBackgroundPaintContext {
         background: paint,
@@ -370,11 +372,12 @@ pub(super) fn render_svg_background(
             image_sink: Some(&mut image_sink),
             raster_scale_x: placement.scale_x.abs(),
             raster_scale_y: placement.scale_y.abs(),
-            // SVG used as a CSS background image: custom-font text in
-            // background SVGs is out of scope here (no font context is threaded
-            // this far), so fall back to standard fonts.
-            custom_fonts: None,
-            prepared_custom_fonts: None,
+            // SVG used as a CSS background image: thread the caller's font
+            // context through so custom-font `<text>` resolves registered
+            // families exactly like foreground SVG text (standard fonts remain
+            // the fallback when no context is wired up, e.g. in tests).
+            custom_fonts,
+            prepared_custom_fonts,
         };
         crate::render::svg_to_pdf::render_svg_tree_with_resources(tree, &mut cell, &mut resources);
     }

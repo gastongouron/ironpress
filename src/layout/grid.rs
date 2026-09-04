@@ -4,7 +4,7 @@ use crate::layout::cells::{
 };
 use crate::layout::elements::{
     BlockSize, BoxModel, BoxPaint, Container, GridContent, GridRow, GridRowStartSpace,
-    IntoLayoutNode, LayoutElement, LayoutNode, LayoutSize, Positioning,
+    IntoLayoutNode, LayoutElement, LayoutNode, LayoutSize, Positioning, TableSourcePath,
 };
 use crate::layout::flow_metrics::BlockMargins;
 use crate::parser::css::{
@@ -169,6 +169,7 @@ struct GridItemStyle {
     principal: ComputedStyle,
     generated: GeneratedContentStyles,
     source_position: ElementSiblingPosition,
+    table_source: Option<TableSourcePath>,
 }
 
 impl GridItemStyle {
@@ -177,6 +178,7 @@ impl GridItemStyle {
             principal,
             generated: GeneratedContentStyles::default(),
             source_position: ElementSiblingPosition::default(),
+            table_source: None,
         }
     }
 
@@ -196,7 +198,20 @@ impl GridItemStyle {
             ),
             principal,
             source_position: ElementSiblingPosition::from_selector_context(selector_context),
+            table_source: None,
         }
+    }
+
+    fn from_flattened_element(
+        principal: ComputedStyle,
+        element: &ElementNode,
+        selector_context: &SelectorContext<'_>,
+        table_source: TableSourcePath,
+        env: &LayoutEnv,
+    ) -> Self {
+        let mut item = Self::from_element(principal, element, selector_context, env);
+        item.table_source = Some(table_source);
+        item
     }
 
     fn descendant_ancestors<'dom>(
@@ -1737,15 +1752,28 @@ fn layout_grid_item_content(
     subgrid: Option<SubgridContext>,
 ) -> CellContent {
     let counter_scope = env.counter_state.enter_element(&item_style.principal);
-    let content = layout_grid_item_content_inner(
-        item_el,
-        item_style,
-        ctx,
-        item_ancestors,
-        frame,
-        env,
-        subgrid,
-    );
+    let content = if let Some(source_path) = &item_style.table_source {
+        let mut scoped_env = env.for_table_source(source_path);
+        layout_grid_item_content_inner(
+            item_el,
+            item_style,
+            ctx,
+            item_ancestors,
+            frame,
+            &mut scoped_env,
+            subgrid,
+        )
+    } else {
+        layout_grid_item_content_inner(
+            item_el,
+            item_style,
+            ctx,
+            item_ancestors,
+            frame,
+            env,
+            subgrid,
+        )
+    };
     env.counter_state.leave_element(counter_scope);
     content
 }
@@ -2858,10 +2886,18 @@ fn layout_grid_container_inner(
                         );
                         if !flat_style.position.is_absolute() {
                             element_children.push(flat_el.clone());
-                            child_styles.push(GridItemStyle::from_element(
+                            let table_source = TableSourcePath::new(
+                                flat_selector_context
+                                    .ancestors
+                                    .iter()
+                                    .map(|ancestor| ancestor.child_index)
+                                    .chain(std::iter::once(flat_idx)),
+                            );
+                            child_styles.push(GridItemStyle::from_flattened_element(
                                 flat_style,
                                 flat_el,
                                 &flat_selector_context,
+                                table_source,
                                 env,
                             ));
                         }
