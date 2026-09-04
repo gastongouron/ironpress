@@ -5,7 +5,7 @@
     "dpi": 300,
     "pdftoppm_available": true,
     "rasterizer_source_path": "/usr/bin/pdftoppm",
-    "rasterizer_executed_path": "/tmp/ironpress-pdftoppm-3087-1788290484148405669-0/pdftoppm",
+    "rasterizer_executed_path": "/tmp/ironpress-pdftoppm-5827-1788561594503082027-0/pdftoppm",
     "rasterizer_arguments": "[-r, 300, -png, <PDF>, <PREFIX>]",
     "rasterizer_version": "pdftoppm version 24.08.0",
     "rasterizer_sha256": "b1f76a56605df368efd233e09faad3bd910e50c0d6556c616a7c0b0adebf6013"
@@ -128698,7 +128698,7 @@
               "status": "PASS",
               "diff_pct": 0.0,
               "semantic_diff_pct": 0.0,
-              "description": "SVG text with letter-spacing: 8px under text-anchor start, middle, and end; red guides mark each anchor x so the text chunk's tracked total advance must position the glyphs.",
+              "description": "SVG text with letter-spacing: 8px under text-anchor start, middle, and end; red guides mark each anchor x so the text chunk's tracked total advance must position the glyphs. The verified standards-derived reference compensates for Chromium's extra trailing letter-spacing, which CSS Text 3 excludes at the end edge.",
               "note": "",
               "kind": "feature",
               "depends_on": [
@@ -128718,16 +128718,16 @@
                   {
                     "width": 1075,
                     "height": 600,
-                    "rgba_sha256": "618f33c4e364f4ecf5a711318fd31c00a568baa93b1851f9621f5188e9503f3b",
-                    "painted_pixels": 29030
+                    "rgba_sha256": "49dbafc44bd9c5b1e923b2a873cd5b9d990a2d7e79b8893b6e82d0bca208459a",
+                    "painted_pixels": 29100
                   }
                 ],
                 "oracle": [
                   {
                     "width": 1075,
                     "height": 600,
-                    "rgba_sha256": "618f33c4e364f4ecf5a711318fd31c00a568baa93b1851f9621f5188e9503f3b",
-                    "painted_pixels": 29030
+                    "rgba_sha256": "49dbafc44bd9c5b1e923b2a873cd5b9d990a2d7e79b8893b6e82d0bca208459a",
+                    "painted_pixels": 29100
                   }
                 ]
               }
@@ -380307,6 +380307,6 @@
   "suspect_unsupported_pass": [],
   "stale_refs": [],
   "refs_lock_present": true,
-  "refs_lock_sha256": "ffc65d09dcdebc80bc5317547aa8a47866c7a71c19cc6c39601d4840fb3aadd0",
+  "refs_lock_sha256": "54fdef0f5d84105b0eef0fc61041651fc1f84cdeb30d39ae9aad7539cc67e107",
   "baseline_present": true
 }
