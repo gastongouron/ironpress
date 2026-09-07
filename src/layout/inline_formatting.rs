@@ -1,12 +1,10 @@
 use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     ComputedStyle, Display, compute_pseudo_element_style_with_font_metrics,
     compute_style_with_context_with_font_metrics,
 };
 use crate::style::font_metrics::FontMetrics;
-use std::collections::HashMap;
 
 use super::elements::{BoxModel, IntoLayoutNode, LayoutNode, TextBlock};
 use super::engine::{
@@ -97,7 +95,7 @@ impl<'a> GeneratedBox<'a> {
     pub(crate) fn append_inline(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -117,7 +115,7 @@ impl<'a> GeneratedBox<'a> {
     pub(crate) fn append_measurement_run(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -148,7 +146,7 @@ impl GeneratedContentStyles {
         principal: &ComputedStyle,
         rules: &[CssRule],
         selector: &SelectorContext<'_>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let classes = element.class_list();
         let resolve = |pseudo| {
@@ -216,7 +214,7 @@ impl PrincipalPseudoStyles {
         principal: &ComputedStyle,
         rules: &[CssRule],
         selector: &SelectorContext<'_>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let classes = element.class_list();
         let resolve = |pseudo| {
@@ -305,7 +303,7 @@ impl<'a> GeneratedInlineContent<'a> {
     pub(crate) fn append_before(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -317,7 +315,7 @@ impl<'a> GeneratedInlineContent<'a> {
     pub(crate) fn append_after(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -329,7 +327,7 @@ impl<'a> GeneratedInlineContent<'a> {
     pub(crate) fn append_before_measurement(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -341,7 +339,7 @@ impl<'a> GeneratedInlineContent<'a> {
     pub(crate) fn append_after_measurement(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -440,7 +438,7 @@ impl<'a> InlineContentSequence<'a> {
     pub(crate) fn append_before(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -452,7 +450,7 @@ impl<'a> InlineContentSequence<'a> {
     pub(crate) fn append_after(
         self,
         runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         counter_state: &mut CounterState,
         resources: &mut crate::security::resources::ResourceLoader,
     ) {
@@ -471,14 +469,14 @@ impl<'a> InlineContentSequence<'a> {
 pub(crate) struct AnonymousInlineFormattingContext<'a> {
     parent_style: &'a ComputedStyle,
     available_width: f32,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 }
 
 impl<'a> AnonymousInlineFormattingContext<'a> {
     pub(crate) const fn new(
         parent_style: &'a ComputedStyle,
         available_width: f32,
-        fonts: &'a HashMap<String, TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
     ) -> Self {
         Self {
             parent_style,

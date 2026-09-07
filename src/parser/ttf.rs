@@ -3,15 +3,11 @@
 //! Extracts metrics needed for PDF embedding and layout: font name, character
 //! widths, units per em, cmap, bounding box, and vertical metrics.
 
-mod shaping_face;
+mod font_program;
 
-pub(crate) use shaping_face::ShapingFace;
+pub(crate) use font_program::FontProgram;
 
-use crate::bounded_cache::BoundedProcessCache;
 use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hasher};
-use std::num::NonZeroUsize;
-use std::sync::{Arc, LazyLock};
 
 /// Index of a face inside an OpenType font collection.
 ///
@@ -184,9 +180,6 @@ impl FontVerticalMetrics {
 pub struct TtfFont {
     /// Font family name from the `name` table.
     pub font_name: String,
-    /// Selected face in the raw OpenType data. This is non-zero for a parsed
-    /// TTC/OTC face other than the collection's first face.
-    pub face_index: FontFaceIndex,
     /// Units per em from the `head` table.
     pub units_per_em: u16,
     /// CSS Fonts `@font-face size-adjust` multiplier for this selected face.
@@ -219,19 +212,8 @@ pub struct TtfFont {
     /// Optical and advance measurements used by CSS `ex`, `cap`, `ch`, and
     /// initial-letter sizing.
     pub text_metrics: FontTextMetrics,
-    /// Raw TTF data for embedding. Wrapped in Arc so cloning a TtfFont
-    /// (e.g. from the bundled font cache) is O(1) instead of copying ~400KB.
-    pub data: std::sync::Arc<Vec<u8>>,
-    /// The rustybuzz shaping view of [`Self::data`], derived once with the rest
-    /// of the face.
-    ///
-    /// Shared through an `Arc` for the same reason `data` is: a registered font
-    /// is cloned into every render's font map, and each clone must stay O(1)
-    /// while reusing the one set of parsed shaping tables. The face borrows
-    /// `data`, so the two are dropped together with the last clone — nothing
-    /// outlives the fonts that use it and no process-wide table pins it.
-    /// `None` means rustybuzz rejected these bytes.
-    pub shaping: Option<std::sync::Arc<ShapingFace>>,
+    /// The owned OpenType bytes, selected collection face, and shaping view.
+    pub(crate) program: FontProgram,
 }
 
 /// The non-negative inline side bearings of a glyph at a used font size.
@@ -303,7 +285,7 @@ impl TtfFont {
         if self.units_per_em == 0 {
             return None;
         }
-        let y_max = measure_glyph_y_max(&self.data, self.face_index, ch)?;
+        let y_max = measure_glyph_y_max(self.program.bytes(), self.program.face_index(), ch)?;
         Some(f32::from(y_max) / f32::from(self.units_per_em))
     }
 
@@ -314,7 +296,7 @@ impl TtfFont {
         if self.units_per_em == 0 {
             return None;
         }
-        let face = rustybuzz::ttf_parser::Face::parse(&self.data, self.face_index.get()).ok()?;
+        let face = self.program.shaping_face()?;
         let glyph_id = face.glyph_index(ch)?;
         let bounds = face.glyph_bounding_box(glyph_id)?;
         let center = (f32::from(bounds.y_min) + f32::from(bounds.y_max)) / 2.0;
@@ -327,7 +309,7 @@ impl TtfFont {
         if self.units_per_em == 0 || !font_size.is_finite() {
             return None;
         }
-        let face = rustybuzz::ttf_parser::Face::parse(&self.data, self.face_index.get()).ok()?;
+        let face = self.program.shaping_face()?;
         let glyph_id = face.glyph_index(ch)?;
         let bounds = face.glyph_bounding_box(glyph_id)?;
         let advance = f32::from(face.glyph_hor_advance(glyph_id)?);
@@ -377,7 +359,9 @@ impl TtfFont {
             return None;
         }
         let font_size_px = font_size / crate::fonts::PT_PER_CSS_PX;
-        let font = skrifa::FontRef::from_index(&self.data, self.face_index.get()).ok()?;
+        let font =
+            skrifa::FontRef::from_index(self.program.bytes(), self.program.face_index().get())
+                .ok()?;
         let outlines = font.outline_glyphs();
         let glyph = outlines.get(font.charmap().map('x')?)?;
         let hinting = HintingInstance::new(
@@ -473,65 +457,6 @@ impl TtfFont {
         let glyph_id = self.cmap.get(&(ch as u32)).copied().unwrap_or(0);
         self.glyph_width_scaled(glyph_id, font_size)
     }
-
-    /// Whether this font was parsed from exactly `data`.
-    ///
-    /// [`parse_ttf_cached`] stores fonts under a hash bucket of their bytes, so
-    /// two unrelated fonts can share a key. Comparing the whole buffer is what
-    /// makes accepting a bucket hit safe: a hash-only or length-only check
-    /// would hand the caller a different typeface whenever two blobs collided.
-    fn is_parse_of(&self, data: &[u8]) -> bool {
-        self.data.as_slice() == data
-    }
-}
-
-/// A font's raw bytes reduced to a cache bucket.
-///
-/// The hash selects a bucket, never an identity, so every hit is confirmed with
-/// [`TtfFont::is_parse_of`] before it is used.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct FontBytesKey(u64);
-
-impl FontBytesKey {
-    fn of(data: &[u8]) -> Self {
-        let mut hasher = DefaultHasher::new();
-        hasher.write(data);
-        Self(hasher.finish())
-    }
-}
-
-/// How many parsed fonts stay resident.
-///
-/// One render touches its document's own families plus the bundled and fallback
-/// faces, so a few dozen entries keep a repeated conversion warm. The ceiling is
-/// what stops a caller that registers font after font from pinning every one of
-/// them for the life of the process.
-const PARSED_FONT_CACHE_CAPACITY: NonZeroUsize =
-    NonZeroUsize::new(32).expect("parsed-font cache capacity is non-zero");
-
-/// Recently parsed fonts, keyed by a hash bucket of their raw bytes.
-///
-/// Registering a font — through `add_font`, a `@font-face` resource, or a
-/// bundled asset — re-parses megabytes of TTF data on every `convert()` call
-/// otherwise, which dominates small renders in a warm process.
-static PARSED_FONT_CACHE: LazyLock<BoundedProcessCache<FontBytesKey, TtfFont>> =
-    LazyLock::new(|| BoundedProcessCache::new(PARSED_FONT_CACHE_CAPACITY));
-
-/// Parse a TTF, reusing a recent parse of the same bytes.
-///
-/// A cached font is returned only when its buffer matches `data` exactly, so a
-/// bucket shared by two different fonts costs a re-parse rather than the wrong
-/// typeface. Failures are never cached: a malformed blob cannot occupy a slot.
-pub(crate) fn parse_ttf_cached(data: &[u8]) -> Option<TtfFont> {
-    let key = FontBytesKey::of(data);
-    if let Some(cached) = PARSED_FONT_CACHE.get(&key)
-        && cached.is_parse_of(data)
-    {
-        return Some(cached);
-    }
-    let font = parse_ttf(data.to_vec()).ok()?;
-    PARSED_FONT_CACHE.insert(key, font.clone());
-    Some(font)
 }
 
 /// Table directory entry.
@@ -742,12 +667,8 @@ fn parse_ttf_at_offset(
         })
         .unwrap_or(0);
 
-    let data = Arc::new(data);
-    let shaping = ShapingFace::parse(Arc::clone(&data), face_index.get()).map(Arc::new);
-
     Ok(TtfFont {
         font_name,
-        face_index,
         units_per_em,
         size_adjust: 1.0,
         bbox,
@@ -767,8 +688,7 @@ fn parse_ttf_at_offset(
             cap_height,
             zero_advance,
         },
-        data,
-        shaping,
+        program: FontProgram::from_parsed_font(data, face_index),
     })
 }
 
@@ -1317,7 +1237,7 @@ mod tests {
     #[test]
     fn parse_ttf_with_index_preserves_selected_ttc_face() {
         let font = parse_ttf_with_index(build_test_ttc(2), 1).unwrap();
-        assert_eq!(font.face_index, FontFaceIndex::new(1));
+        assert_eq!(font.program.face_index(), FontFaceIndex::new(1));
         assert_eq!(font.font_name, "TestFont");
     }
 
@@ -1434,7 +1354,6 @@ mod tests {
         // Line 39/41: glyph_id >= glyph_widths.len() -> use last entry
         let font = TtfFont {
             font_name: String::new(),
-            face_index: Default::default(),
             units_per_em: 1000,
             size_adjust: 1.0,
             bbox: [0; 4],
@@ -1450,8 +1369,7 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: FontTextMetrics::default(),
-            data: std::sync::Arc::new(vec![]),
-            shaping: None,
+            program: FontProgram::unshapeable_for_tests(vec![]),
         };
         assert_eq!(font.char_width(65), 700); // last width
     }
@@ -1461,7 +1379,6 @@ mod tests {
         // Line 43: empty glyph_widths -> 0
         let font = TtfFont {
             font_name: String::new(),
-            face_index: Default::default(),
             units_per_em: 1000,
             size_adjust: 1.0,
             bbox: [0; 4],
@@ -1473,8 +1390,7 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: FontTextMetrics::default(),
-            data: std::sync::Arc::new(vec![]),
-            shaping: None,
+            program: FontProgram::unshapeable_for_tests(vec![]),
         };
         assert_eq!(font.char_width(65), 0);
     }
@@ -2242,7 +2158,6 @@ mod tests {
     fn char_width_pdf_large_width_no_overflow() {
         let font = TtfFont {
             font_name: String::new(),
-            face_index: Default::default(),
             units_per_em: 1000,
             size_adjust: 1.0,
             bbox: [0; 4],
@@ -2258,8 +2173,7 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: FontTextMetrics::default(),
-            data: std::sync::Arc::new(vec![]),
-            shaping: None,
+            program: FontProgram::unshapeable_for_tests(vec![]),
         };
         // Should not panic; 65535 * 1000 / 1000 = 65535
         let w = font.char_width_pdf(65);
@@ -2270,7 +2184,6 @@ mod tests {
     fn char_width_scaled_zero_upm_returns_zero() {
         let font = TtfFont {
             font_name: String::new(),
-            face_index: Default::default(),
             units_per_em: 0,
             size_adjust: 1.0,
             bbox: [0; 4],
@@ -2286,8 +2199,7 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: FontTextMetrics::default(),
-            data: std::sync::Arc::new(vec![]),
-            shaping: None,
+            program: FontProgram::unshapeable_for_tests(vec![]),
         };
         assert_eq!(font.char_width_scaled(65, 12.0), 0.0);
         assert_eq!(font.char_width_pdf(65), 0);
@@ -2301,7 +2213,6 @@ mod tests {
     ) -> TtfFont {
         TtfFont {
             font_name: String::new(),
-            face_index: Default::default(),
             units_per_em,
             size_adjust: 1.0,
             bbox: [0; 4],
@@ -2317,8 +2228,7 @@ mod tests {
                 cap_height,
                 zero_advance,
             },
-            data: std::sync::Arc::new(vec![]),
-            shaping: None,
+            program: FontProgram::unshapeable_for_tests(vec![]),
         }
     }
 
@@ -2408,18 +2318,18 @@ mod tests {
     #[test]
     fn parsing_a_real_font_yields_a_shaping_face() {
         let font = parse_ttf(liberation_sans_bytes()).expect("Liberation Sans parses");
-        assert!(font.shaping.is_some());
+        assert!(font.program.shaping_face().is_some());
     }
 
     #[test]
     fn the_owned_shaping_face_shapes_text() {
         let font = parse_ttf(liberation_sans_bytes()).expect("Liberation Sans parses");
-        let shaping = font.shaping.as_ref().expect("shaping face");
+        let shaping = font.program.shaping_face().expect("shaping face");
 
         let mut buffer = rustybuzz::UnicodeBuffer::new();
         buffer.push_str("Hello");
         buffer.guess_segment_properties();
-        let shaped = rustybuzz::shape(shaping.face(), &[], buffer);
+        let shaped = rustybuzz::shape(shaping, &[], buffer);
 
         // Liberation Sans has a glyph for each of H, e, l, l, o and forms no
         // ligature across them, so shaping maps the five characters one to one.
@@ -2428,113 +2338,22 @@ mod tests {
     }
 
     #[test]
-    fn a_cloned_font_shares_one_shaping_face() {
+    fn a_cloned_font_owns_an_independent_program() {
         let font = parse_ttf(liberation_sans_bytes()).expect("Liberation Sans parses");
         let clone = font.clone();
 
-        let original = font.shaping.expect("shaping face");
-        let cloned = clone.shaping.expect("cloned shaping face");
-        assert!(Arc::ptr_eq(&original, &cloned));
+        assert_eq!(font.program.bytes(), clone.program.bytes());
+        assert!(!std::ptr::eq(
+            font.program.bytes().as_ptr(),
+            clone.program.bytes().as_ptr(),
+        ));
+        assert_eq!(font.program.face_index(), clone.program.face_index());
+        assert!(clone.program.shaping_face().is_some());
     }
 
     #[test]
     fn a_font_rustybuzz_rejects_has_no_shaping_face() {
         let font = parse_ttf(named_test_ttf(b"Alfa")).expect("synthetic font parses");
-        assert!(font.shaping.is_none());
-    }
-
-    #[test]
-    fn caching_the_same_bytes_twice_shares_one_parsed_font() {
-        let bytes = liberation_sans_bytes();
-        let first = parse_ttf_cached(&bytes).expect("Liberation Sans parses");
-        let second = parse_ttf_cached(&bytes).expect("Liberation Sans parses");
-        assert!(Arc::ptr_eq(&first.data, &second.data));
-    }
-
-    #[test]
-    fn a_cached_font_is_accepted_only_for_its_own_bytes() {
-        let bytes = named_test_ttf(b"Alfa");
-        let same_length_variant = named_test_ttf(b"Brav");
-        assert_eq!(bytes.len(), same_length_variant.len());
-
-        let font = parse_ttf(bytes.clone()).expect("synthetic font parses");
-        assert!(font.is_parse_of(&bytes));
-        assert!(!font.is_parse_of(&same_length_variant));
-    }
-
-    #[test]
-    fn caching_a_same_length_variant_returns_the_variant() {
-        let bytes = named_test_ttf(b"Alfa");
-        let same_length_variant = named_test_ttf(b"Brav");
-        assert_eq!(bytes.len(), same_length_variant.len());
-
-        let first = parse_ttf_cached(&bytes).expect("synthetic font parses");
-        let second = parse_ttf_cached(&same_length_variant).expect("variant parses");
-        assert_eq!(first.font_name, "Alfa");
-        assert_eq!(second.font_name, "Brav");
-    }
-
-    #[test]
-    fn a_font_that_fails_to_parse_is_not_cached() {
-        let malformed = b"not a font at all".to_vec();
-        assert!(parse_ttf_cached(&malformed).is_none());
-        assert!(
-            PARSED_FONT_CACHE
-                .get(&FontBytesKey::of(&malformed))
-                .is_none()
-        );
-    }
-
-    #[test]
-    fn parse_ttf_cached_reuses_the_parse_for_identical_bytes() {
-        // A byte tail beyond the table directory keeps the font identical
-        // while giving this test its own cache key, so concurrently running
-        // tests can neither collide with it nor evict it between the calls.
-        let mut data = include_bytes!("../../assets/LiberationSans-Regular.ttf").to_vec();
-        data.extend_from_slice(b"parse_ttf_cached_reuses_the_parse_for_identical_bytes");
-        let first = parse_ttf_cached(&data).expect("Liberation Sans parses");
-        let second = parse_ttf_cached(&data).expect("Liberation Sans parses");
-        assert!(
-            std::sync::Arc::ptr_eq(&first.data, &second.data),
-            "repeated parses of the same bytes share one buffer"
-        );
-        assert_eq!(first.font_name, second.font_name);
-    }
-
-    #[test]
-    fn a_shared_hash_bucket_never_returns_the_resident_font() {
-        // Force the worst case the review called out: the cache already holds a
-        // real font under the exact bucket these bytes hash to. The full byte
-        // comparison must treat that as a miss, so the unparseable probe stays
-        // unparseable instead of borrowing Liberation Sans.
-        let liberation =
-            parse_ttf(include_bytes!("../../assets/LiberationSans-Regular.ttf").to_vec())
-                .expect("Liberation Sans parses");
-        // Distinct from the payload `a_font_that_fails_to_parse_is_not_cached`
-        // parses: both tests share the process-global cache and run in
-        // parallel, so a common key would let this resident entry break that
-        // test's not-cached assertion.
-        let probe = b"bytes sharing a bucket, still not a font".to_vec();
-        PARSED_FONT_CACHE.insert(FontBytesKey::of(&probe), liberation);
-        assert!(
-            parse_ttf_cached(&probe).is_none(),
-            "a colliding bucket re-parses the actual bytes instead of handing back the resident font"
-        );
-    }
-
-    #[test]
-    fn parsed_fonts_own_a_shaping_face_shared_by_clones() {
-        let font = parse_ttf(include_bytes!("../../assets/LiberationSans-Regular.ttf").to_vec())
-            .expect("Liberation Sans parses");
-        let face = font.shaping.as_ref().expect("a real font is shapeable");
-        assert!(face.face().units_per_em() > 0);
-        let clone = font.clone();
-        assert!(
-            std::sync::Arc::ptr_eq(
-                font.shaping.as_ref().expect("shapeable"),
-                clone.shaping.as_ref().expect("shapeable"),
-            ),
-            "clones reuse the one parsed shaping face"
-        );
+        assert!(font.program.shaping_face().is_none());
     }
 }

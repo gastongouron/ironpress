@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 use crate::layout::elements::LayoutNode;
 use crate::layout::text::resolve_style_font_family;
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{ComputedStyle, Display, FontWeight, VerticalAlign};
 use crate::types::Size;
 
@@ -193,7 +190,7 @@ impl ReplacedBoxSize {
 pub(crate) fn add_inline_replaced_baseline_gap(
     mut element: LayoutNode,
     style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     rounding: InlineBaselineGapRounding,
 ) -> LayoutNode {
     if style.display != Display::Inline || style.vertical_align != VerticalAlign::Baseline {

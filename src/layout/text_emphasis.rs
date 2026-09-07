@@ -6,11 +6,9 @@
 
 use crate::{
     layout::engine::TextRun,
-    parser::ttf::TtfFont,
     style::computed::{FontFamily, TextEmphasisPosition},
     types::Color,
 };
-use std::collections::HashMap;
 
 /// All run-local state for CSS `text-emphasis`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -46,7 +44,7 @@ impl TextEmphasisMetrics {
         run.metadata.emphasis.metrics
     }
 
-    fn resolve(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> Self {
+    fn resolve(run: &TextRun, fonts: &dyn crate::font_registry::FontRegistry) -> Self {
         if !run.metadata.emphasis.mark {
             return Self::default();
         }
@@ -96,7 +94,7 @@ impl TextEmphasisMetrics {
 /// step, not a paint-time fallback: layout and paint consume the same values.
 pub(crate) fn resolve_text_emphasis_metrics(
     runs: &mut [TextRun],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     for run in runs {
         run.metadata.emphasis.metrics = TextEmphasisMetrics::resolve(run, fonts);
@@ -113,7 +111,7 @@ struct EmphasisFaceMetrics {
 }
 
 impl EmphasisFaceMetrics {
-    fn resolve(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> Self {
+    fn resolve(run: &TextRun, fonts: &dyn crate::font_registry::FontRegistry) -> Self {
         if let FontFamily::Custom(name) = run.css_font_family()
             && let Some((_, font)) =
                 crate::system_fonts::find_font(fonts, name, run.bold, run.font_style.is_slanted())

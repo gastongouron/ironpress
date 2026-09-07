@@ -15,7 +15,7 @@ pub(super) fn paint_simple_text_block(
     border: &crate::layout::engine::LayoutBorder,
     text_align: TextAlign,
     text_indent: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) -> Option<()> {
     if width_pt <= 0.0
@@ -133,7 +133,7 @@ pub(super) fn blurred_simple_text_block(
     text_indent: f32,
     blur_radius_pt: f32,
     filter_dpi: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<crate::render::blur::BlurredRaster> {
     if blur_radius_pt <= 0.0 {
         return None;
@@ -171,7 +171,7 @@ pub(super) fn blurred_simple_container_group(
     padding: EdgeSizes,
     blur_radius_pt: f32,
     filter_dpi: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<crate::render::blur::BlurredRaster> {
     if width_pt <= 0.0 || height_pt <= 0.0 || blur_radius_pt <= 0.0 || border.has_visible() {
         return None;
@@ -203,7 +203,7 @@ pub(super) fn blurred_simple_container_group(
         content_width: f32,
         cursor_y: &'a mut f32,
         previous_margin_end: &'a mut f32,
-        fonts: &'a HashMap<String, TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
         filter_dpi: f32,
         recognized: bool,
         valid: bool,

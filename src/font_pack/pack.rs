@@ -139,10 +139,16 @@ impl FontCatalog {
         self.packs.insert(pack.kind, pack.font);
     }
 
-    /// Add the installed pack faces to a conversion's font registry.
-    pub(crate) fn install_into(&self, fonts: &mut HashMap<String, TtfFont>) {
+    #[cfg(test)]
+    pub(crate) fn get(&self, name: &str) -> Option<&TtfFont> {
+        self.packs
+            .iter()
+            .find_map(|(kind, font)| (kind.fallback_key() == name).then_some(font))
+    }
+
+    pub(crate) fn visit<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a TtfFont)) {
         for (kind, font) in &self.packs {
-            fonts.insert(kind.fallback_key().to_string(), font.clone());
+            visitor(kind.fallback_key(), font);
         }
     }
 }

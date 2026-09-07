@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-
 use crate::layout::engine::TextRun;
-use crate::parser::ttf::TtfFont;
 use crate::types::Point;
 
 use super::{DecorationLine, InlineInterval, merge_intervals, thickness};
@@ -17,7 +14,7 @@ pub(crate) fn ink_skip_intervals(
     decoration: &crate::style::computed::TextDecoration,
     line: DecorationLine,
     axis_from_baseline: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<InlineInterval> {
     use crate::style::computed::TextDecorationSkipInk;
 
@@ -35,10 +32,10 @@ pub(crate) fn ink_skip_intervals(
     let Some(shaped) = crate::text::shape_text_run(run, custom_fonts) else {
         return Vec::new();
     };
-    let Ok(face) = rustybuzz::ttf_parser::Face::parse(&font.data, font.face_index.get()) else {
+    let Some(face) = font.program.shaping_face() else {
         return Vec::new();
     };
-    let units_per_em = f32::from(face.units_per_em()).max(1.0);
+    let units_per_em = (face.units_per_em() as f32).max(1.0);
     let scale = font.adjusted_font_size(run.font_size) / units_per_em;
     let thickness = thickness(run, decoration);
     let synthetic_bold = run

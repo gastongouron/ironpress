@@ -78,14 +78,13 @@
 
 /// Adobe Font Metrics for standard PDF fonts (Helvetica, Times, Courier).
 pub(crate) mod bidi;
-/// Capped process-lifetime memoization shared by the font caches.
-pub(crate) mod bounded_cache;
 /// CLI argument parsing and conversion logic.
 pub mod cli;
 /// Error types for conversion failures.
 pub mod error;
 /// Optional fallback-font packs.
 pub mod font_pack;
+mod font_registry;
 pub(crate) mod fonts;
 pub(crate) mod layout;
 mod page_margin;
@@ -235,7 +234,7 @@ pub struct HtmlConverter {
     page_size: PageSize,
     margin: Margin,
     sanitize: bool,
-    custom_fonts: std::collections::HashMap<String, Vec<u8>>,
+    custom_fonts: font_registry::CustomFontCatalog,
     font_catalog: font_pack::FontCatalog,
     resources: ResourcePaths,
     page_margins: page_margin::PageMargins,
@@ -264,7 +263,7 @@ impl HtmlConverter {
             page_size: PageSize::default(),
             margin: Margin::default(),
             sanitize: true,
-            custom_fonts: std::collections::HashMap::new(),
+            custom_fonts: font_registry::CustomFontCatalog::default(),
             font_catalog: font_pack::FontCatalog::default(),
             resources: ResourcePaths::default(),
             page_margins: page_margin::PageMargins::default(),
@@ -388,8 +387,7 @@ impl HtmlConverter {
     ///     .unwrap();
     /// ```
     pub fn add_font(mut self, name: &str, ttf_data: Vec<u8>) -> Self {
-        self.custom_fonts
-            .insert(name.to_ascii_lowercase(), ttf_data);
+        self.custom_fonts.replace(name, ttf_data);
         self
     }
 
@@ -752,7 +750,19 @@ impl HtmlConverter {
         load_font_face_rules(&font_face_rules, &mut resource_loader, &mut parsed_fonts);
         // Load system CJK font BEFORE bundled fallbacks so it gets UNICODE_FALLBACK_KEY
         system_fonts::load_unicode_fallback_font(&mut parsed_fonts);
-        system_fonts::load_emoji_fallback_font(&mut parsed_fonts);
+        let plain_page_margin_has_emoji = self
+            .page_margins
+            .header_text()
+            .is_some_and(system_fonts::text_may_render_emoji)
+            || self
+                .page_margins
+                .footer_text()
+                .is_some_and(system_fonts::text_may_render_emoji);
+        if plain_page_margin_has_emoji
+            || system_fonts::document_may_render_emoji(&result.nodes, &rules, &page_rules)
+        {
+            system_fonts::load_emoji_fallback_font(&mut parsed_fonts);
+        }
 
         let mut page_sheet_descriptors = parser::css::PageSheetDescriptors::default();
         for pr in &page_rules {
@@ -860,16 +870,9 @@ impl HtmlConverter {
         self.convert_to_writer(&html, writer)
     }
 
-    /// Parse all registered custom fonts into TtfFont structs.
-    fn parse_custom_fonts(&self) -> std::collections::HashMap<String, parser::ttf::TtfFont> {
-        let mut fonts = std::collections::HashMap::new();
-        for (name, data) in &self.custom_fonts {
-            if let Some(font) = parser::ttf::parse_ttf_cached(data) {
-                fonts.insert(name.clone(), font);
-            }
-        }
-        self.font_catalog.install_into(&mut fonts);
-        fonts
+    /// Assemble the parsed font registry used by one conversion.
+    fn parse_custom_fonts(&self) -> font_registry::ConversionFontRegistry<'_> {
+        font_registry::ConversionFontRegistry::new(&self.custom_fonts, &self.font_catalog)
     }
 }
 
@@ -983,7 +986,7 @@ fn rules_with_font_face_local_sources(
 fn load_font_face_rules(
     font_face_rules: &[parser::css::FontFaceRule],
     resources: &mut security::resources::ResourceLoader,
-    fonts: &mut std::collections::HashMap<String, parser::ttf::TtfFont>,
+    fonts: &mut font_registry::ConversionFontRegistry<'_>,
 ) {
     for (index, rule) in font_face_rules.iter().enumerate() {
         let Some(mut font) = resolve_font_face_source(rule, resources, fonts) else {
@@ -1003,15 +1006,14 @@ fn load_font_face_rules(
         }
 
         let ranged_key = font_face_range_key(&variant_key, index);
-        fonts.insert(ranged_key, font.clone());
-        fonts.entry(variant_key).or_insert(font);
+        fonts.insert_with_alias_if_absent(ranged_key, variant_key, font);
     }
 }
 
 fn resolve_font_face_source(
     rule: &parser::css::FontFaceRule,
     resources: &mut security::resources::ResourceLoader,
-    fonts: &std::collections::HashMap<String, parser::ttf::TtfFont>,
+    fonts: &dyn font_registry::FontRegistry,
 ) -> Option<parser::ttf::TtfFont> {
     for (is_local, value) in rule.source_entries() {
         if is_local {
@@ -1033,7 +1035,7 @@ fn resolve_font_face_source(
                 .map(|loaded| loaded.bytes);
 
             if let Some(data) = ttf_data
-                && let Some(font) = parser::ttf::parse_ttf_cached(&data)
+                && let Ok(font) = parser::ttf::parse_ttf(data)
             {
                 return Some(font);
             }
@@ -2635,6 +2637,54 @@ fn main() {
         let content = String::from_utf8_lossy(&pdf);
         // Should fall back to Helvetica since the font couldn't be parsed
         assert!(content.contains("/Helvetica"));
+    }
+
+    #[test]
+    fn add_font_rejects_invalid_data_at_the_registration_boundary() {
+        let converter = HtmlConverter::new().add_font("badfont", vec![0, 1, 2, 3]);
+
+        assert!(!converter.custom_fonts.contains_key("badfont"));
+    }
+
+    #[test]
+    fn add_font_invalid_replacement_removes_the_registered_family() {
+        let converter = HtmlConverter::new()
+            .add_font("testfont", build_integration_test_ttf())
+            .add_font("testfont", vec![0, 1, 2, 3]);
+
+        assert!(!converter.custom_fonts.contains_key("testfont"));
+    }
+
+    #[test]
+    fn custom_font_registrations_are_isolated_between_converters() {
+        let liberation = HtmlConverter::new().add_font(
+            "testfont",
+            include_bytes!("../assets/LiberationSans-Regular.ttf").to_vec(),
+        );
+        let noto = HtmlConverter::new().add_font(
+            "testfont",
+            include_bytes!("../assets/NotoSans-Regular.ttf").to_vec(),
+        );
+
+        let html = r#"<p style="font-family: testfont">office</p>"#;
+        assert_ne!(
+            liberation.convert(html).unwrap(),
+            noto.convert(html).unwrap()
+        );
+    }
+
+    #[test]
+    fn a_reused_converter_produces_the_same_custom_font_output() {
+        let converter = HtmlConverter::new().add_font(
+            "testfont",
+            include_bytes!("../assets/LiberationSans-Regular.ttf").to_vec(),
+        );
+        let html = r#"<p style="font-family: testfont">office</p>"#;
+
+        assert_eq!(
+            converter.convert(html).unwrap(),
+            converter.convert(html).unwrap()
+        );
     }
 
     #[test]

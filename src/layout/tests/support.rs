@@ -5,7 +5,6 @@ use crate::layout::engine::{
 use crate::parser::css::parse_stylesheet;
 use crate::parser::html::parse_html_with_styles;
 use crate::types::{Margin, PageSize};
-use std::collections::HashMap;
 
 #[derive(Default)]
 struct RunCollector(Vec<TextRun>);
@@ -67,7 +66,7 @@ pub(super) fn layout_pages_at(markup: &str, page_size: PageSize) -> Vec<Page> {
 
 pub(super) fn layout_pages_with_fonts(
     markup: &str,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<Page> {
     layout_pages_at_with_fonts(
         markup,
@@ -81,7 +80,7 @@ pub(super) fn layout_pages_at_with_fonts(
     markup: &str,
     page_size: PageSize,
     margin: Margin,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<Page> {
     let document = parse_html_with_styles(markup).expect("valid layout fixture");
     let rules = document

@@ -5,14 +5,12 @@ use crate::layout::elements::{
 use crate::layout::flow_metrics::BlockMargins;
 use crate::parser::css::{AncestorInfo, CssRule, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BoxSizing, ComputedStyle, Display, GridTrack, IntrinsicWidthKeyword, OverflowWrap, TextAlign,
     Transform, compute_style_with_context_with_font_metrics,
 };
 use crate::style::font_metrics::FontMetrics;
 use crate::types::{EdgeSizes, Size};
-use std::collections::HashMap;
 
 use super::box_model::ResolvedBoxDimensions;
 use super::cells::CellPaint;
@@ -66,7 +64,7 @@ fn content_only_flex_style(
 
 fn min_content_anywhere_width(
     runs: &[crate::layout::engine::TextRun],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     runs.iter()
         .filter(|r| r.inline_box.is_none())
@@ -179,7 +177,7 @@ pub(crate) fn layout_inline_block_group_with_spacing(
     output: &mut Vec<LayoutNode>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     layout_inline_block_group_inner(
         elements,
@@ -217,7 +215,7 @@ pub(crate) fn layout_inline_block_group_with_env_and_spacing(
 fn inline_text_cell(
     mut runs: Vec<crate::layout::engine::TextRun>,
     parent_style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<(FlexCell, f32)> {
     if runs.is_empty() {
         return None;
@@ -277,7 +275,7 @@ fn inline_text_cell(
 /// whitespace must be retained as an advance between those fragments instead.
 fn collapsed_inline_space_advance(
     parent_style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let glyph_advance = estimate_word_width(
         " ",
@@ -326,7 +324,10 @@ impl MiddleAlignedLine {
     }
 }
 
-fn parent_x_height(parent_style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> f32 {
+fn parent_x_height(
+    parent_style: &ComputedStyle,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     let font_family = resolve_style_font_family(parent_style, fonts);
     let ratio = if let crate::style::computed::FontFamily::Custom(name) = &font_family {
         crate::system_fonts::find_font(
@@ -952,7 +953,7 @@ fn layout_inline_block_group_inner(
     output: &mut Vec<LayoutNode>,
     rules: &[CssRule],
     ancestors: &[AncestorInfo],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     mut env: Option<&mut LayoutEnv>,
 ) {
     let available_width = ctx.available_width().max(0.0);

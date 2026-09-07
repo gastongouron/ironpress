@@ -1,13 +1,10 @@
-use crate::bounded_cache::BoundedProcessCache;
 use crate::parser::css::{CssRule, CssValue, FontStretch, parse_inline_style};
 use crate::parser::dom::DomNode;
 use crate::parser::ttf::{FontFaceIndex, TtfFont, parse_ttf_with_index};
 use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
-use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
-use std::num::NonZeroUsize;
 use std::process::Command;
-use std::sync::{LazyLock, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 
 const FONT_VARIANTS: &[FontVariant] = &[
     FontVariant::new(false, false),
@@ -199,7 +196,7 @@ fn exact_font_variant_key_with_stretch(
 /// that supplies only a regular face does not shadow a genuine bold/italic face
 /// from the bundled fallback.
 fn has_exact_variant(
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     family: &str,
     bold: bool,
     italic: bool,
@@ -209,7 +206,7 @@ fn has_exact_variant(
 }
 
 pub(crate) fn find_font<'a>(
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
     family: &str,
     bold: bool,
     italic: bool,
@@ -221,18 +218,16 @@ pub(crate) fn find_font<'a>(
         exact_font_variant_key(family, false, false),
     ];
 
-    candidates.into_iter().find_map(|key| {
-        fonts
-            .get_key_value(&key)
-            .map(|(name, font)| (name.as_str(), font))
-    })
+    candidates
+        .into_iter()
+        .find_map(|key| fonts.get_key_value(&key))
 }
 
 /// Resolve a face using CSS Fonts' discrete width matching order before style
 /// and weight fallback. Callers that retain the returned map key can then keep
 /// using [`find_font`] for shaping, metrics, and PDF embedding.
 pub(crate) fn find_font_with_stretch<'a>(
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
     family: &str,
     bold: bool,
     italic: bool,
@@ -245,11 +240,9 @@ pub(crate) fn find_font_with_stretch<'a>(
             exact_font_variant_key_with_stretch(family, bold, italic, width),
             exact_font_variant_key_with_stretch(family, false, false, width),
         ];
-        candidates.into_iter().find_map(|key| {
-            fonts
-                .get_key_value(&key)
-                .map(|(name, font)| (name.as_str(), font))
-        })
+        candidates
+            .into_iter()
+            .find_map(|key| fonts.get_key_value(&key))
     })
 }
 
@@ -261,7 +254,7 @@ pub(crate) fn find_font_with_stretch<'a>(
 /// real bold face (CSS Fonts 4 §2.3 "synthetic bold"). Returns `false` when the
 /// run is not bold, when a real bold face exists, or when no face is found.
 pub(crate) fn needs_faux_bold(
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     family: &str,
     bold: bool,
     italic: bool,
@@ -286,7 +279,7 @@ pub(crate) fn needs_faux_bold(
 /// a font query often substitutes the upright face for a missing italic, so we
 /// check the resolved face's real style, not key presence.
 pub(crate) fn needs_faux_italic(
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     family: &str,
     bold: bool,
     italic: bool,
@@ -302,7 +295,7 @@ pub(crate) fn needs_faux_italic(
 
 pub(crate) fn resolve_font_family(
     stack: &FontStack,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     bold: bool,
     italic: bool,
     stretch: FontStretch,
@@ -450,7 +443,9 @@ const UNICODE_FALLBACK_FAMILIES: &[&str] = &[
 /// it isn't re-parsed on every conversion.
 static UNICODE_FALLBACK_CACHE: OnceLock<Option<TtfFont>> = OnceLock::new();
 
-pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
+pub(crate) fn load_unicode_fallback_font(
+    fonts: &mut crate::font_registry::ConversionFontRegistry<'_>,
+) {
     if fonts.contains_key(UNICODE_FALLBACK_KEY) {
         return;
     }
@@ -468,7 +463,7 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
         None
     });
     if let Some(font) = cached {
-        fonts.insert(UNICODE_FALLBACK_KEY.to_string(), font.clone());
+        fonts.borrow_if_absent(UNICODE_FALLBACK_KEY.to_string(), font);
     }
 }
 
@@ -476,7 +471,9 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
 ///
 /// Native builds may use an installed outline font. WASM callers install the
 /// optional `emoji` pack because browsers do not expose host font files.
-pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
+pub(crate) fn load_emoji_fallback_font(
+    fonts: &mut crate::font_registry::ConversionFontRegistry<'_>,
+) {
     if fonts.contains_key(EMOJI_FALLBACK_KEY) {
         return;
     }
@@ -484,11 +481,59 @@ pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
     let db = system_fontdb();
     for family in EMOJI_FALLBACK_FAMILIES {
         let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-        if let Some(font) = load_system_font_cached(db, &query) {
-            fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
+        if let Some(font) = load_system_font(db, &query) {
+            fonts.insert_if_absent(EMOJI_FALLBACK_KEY.to_string(), font);
             return;
         }
     }
+}
+
+/// Return whether the parsed document can emit an emoji glyph.
+///
+/// Generated `content` is kept conservative because its CSS string is decoded
+/// later during style computation. Loading an unused host face is cheaper than
+/// silently missing an escaped emoji produced by a pseudo-element.
+pub(crate) fn document_may_render_emoji(
+    nodes: &[DomNode],
+    rules: &[CssRule],
+    page_rules: &[crate::parser::css::PageRule],
+) -> bool {
+    nodes.iter().any(node_may_render_emoji)
+        || rules.iter().any(|rule| {
+            ["content", "string-set"]
+                .iter()
+                .any(|property| rule.declarations.get(property).is_some())
+        })
+        || page_rules.iter().any(|rule| {
+            rule.margin_boxes.iter().any(|margin_box| {
+                margin_box.content.iter().any(|token| {
+                    matches!(
+                        token,
+                        crate::parser::css::MarginContentToken::Literal(text)
+                            if text_may_render_emoji(text)
+                    )
+                })
+            })
+        })
+}
+
+fn node_may_render_emoji(node: &DomNode) -> bool {
+    match node {
+        DomNode::Text(text) => text_may_render_emoji(text),
+        DomNode::Element(element) => {
+            element.attributes.iter().any(|(name, value)| {
+                text_may_render_emoji(value)
+                    || (name.eq_ignore_ascii_case("style") && {
+                        let style = value.to_ascii_lowercase();
+                        style.contains("content") || style.contains("string-set")
+                    })
+            }) || element.children.iter().any(node_may_render_emoji)
+        }
+    }
+}
+
+pub(crate) fn text_may_render_emoji(text: &str) -> bool {
+    crate::fonts::EmojiPresentation::appears_in(text)
 }
 
 struct BundledFont {
@@ -565,9 +610,8 @@ pub(crate) const MULTILINGUAL_FALLBACK_KEY: &str = "__multilingual_fallback";
 /// Liberation fonts are metrically identical to Times New Roman, Arial, and
 /// Courier New, ensuring ironpress output matches Chromium rendering exactly.
 /// Also loads Noto Sans as a multilingual fallback for Arabic, Hebrew, etc.
-/// Cached parsed bundled fonts — parsed once on first use, then cloned
-/// into each conversion's font map. This avoids re-parsing ~5MB of TTF
-/// data on every `html_to_pdf()` call.
+/// Cached parsed bundled fonts — parsed once on first use, then borrowed by
+/// each conversion. This avoids both re-parsing and copying ~5MB of font data.
 static BUNDLED_FONTS_CACHE: std::sync::OnceLock<Vec<(String, TtfFont)>> =
     std::sync::OnceLock::new();
 
@@ -622,12 +666,13 @@ fn parse_all_bundled_fonts() -> Vec<(String, TtfFont)> {
 /// at-most-once, for genuinely *requested* unknown families via
 /// `load_requested_system_fonts`.)
 /// Parsed default-family variants (Times/Arial/Courier x regular/bold/italic/
-/// bold-italic), resolved from the system fontdb once. Resolving + parsing these
-/// is ~12 TTF parses; caching avoids repeating that on every conversion (it was
-/// ~12ms per call), so warm/batch generation stays well under a millisecond.
+/// bold-italic), resolved from the system fontdb once. Conversions borrow these
+/// faces, avoiding both repeated parsing and program copies.
 static DEFAULT_FONTS_CACHE: OnceLock<Vec<(String, TtfFont)>> = OnceLock::new();
 
-pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
+pub(crate) fn load_system_default_fonts(
+    fonts: &mut crate::font_registry::ConversionFontRegistry<'_>,
+) {
     let cached = DEFAULT_FONTS_CACHE.get_or_init(|| {
         let families = [
             ("Times New Roman", "serif"),
@@ -649,23 +694,23 @@ pub(crate) fn load_system_default_fonts(fonts: &mut HashMap<String, TtfFont>) {
     });
     for (key, font) in cached {
         // Don't override fonts already provided (e.g. @font-face, add_font).
-        fonts.entry(key.clone()).or_insert_with(|| font.clone());
+        fonts.borrow_if_absent(key.clone(), font);
     }
 }
 
-pub(crate) fn load_bundled_liberation_fonts(fonts: &mut HashMap<String, TtfFont>) {
+pub(crate) fn load_bundled_liberation_fonts(
+    fonts: &mut crate::font_registry::ConversionFontRegistry<'_>,
+) {
     let cached = BUNDLED_FONTS_CACHE.get_or_init(parse_all_bundled_fonts);
     for (key, font) in cached {
-        if !fonts.contains_key(key) {
-            fonts.insert(key.clone(), font.clone());
-        }
+        fonts.borrow_if_absent(key.clone(), font);
     }
 }
 
 pub(crate) fn load_requested_system_fonts(
     nodes: &[DomNode],
     rules: &[CssRule],
-    fonts: &mut HashMap<String, TtfFont>,
+    fonts: &mut crate::font_registry::ConversionFontRegistry<'_>,
 ) {
     let requested = requested_families(nodes, rules);
     if requested.is_empty() {
@@ -727,54 +772,22 @@ fn should_try_system_font(family: &str) -> bool {
     )
 }
 
-fn load_family_variants(db: &fontdb::Database, family: &str, fonts: &mut HashMap<String, TtfFont>) {
+fn load_family_variants(
+    db: &fontdb::Database,
+    family: &str,
+    fonts: &mut crate::font_registry::ConversionFontRegistry<'_>,
+) {
     for variant in FONT_VARIANTS {
         let query = SystemFontQuery::new(family, *variant);
-        match fonts.entry(query.variant_key()) {
-            Entry::Occupied(_) => {}
-            Entry::Vacant(slot) => {
-                let Some(font) = load_system_font_cached(db, &query) else {
-                    continue;
-                };
-                slot.insert(font);
-            }
+        let key = query.variant_key();
+        if fonts.contains_key(&key) {
+            continue;
         }
+        let Some(font) = load_system_font(db, &query) else {
+            continue;
+        };
+        fonts.insert_if_absent(key, font);
     }
-}
-
-/// How many resolved variant keys stay resident.
-///
-/// A document asks for a handful of families, each in up to four variants, plus
-/// the fallbacks, so a few hundred entries hold several documents' worth. CSS
-/// can name unlimited families, and misses are remembered too, so the ceiling is
-/// what keeps document input from growing this table for the life of the
-/// process.
-const SYSTEM_FONT_RESOLUTION_CAPACITY: NonZeroUsize =
-    NonZeroUsize::new(256).expect("system-font resolution capacity is non-zero");
-
-/// Resolved system fonts, keyed by variant key (family plus bold and italic).
-///
-/// Resolution queries the process-wide fontdb and parses the matched face. Both
-/// steps are deterministic for a given key, so repeating them for every
-/// page-requested family and for the emoji fallback on every render is pure
-/// repeat work. An absent family is stored as `None` on purpose: that negative
-/// entry is what stops a repeated miss from re-querying fontdb and re-spawning
-/// `fc-match`, and the capacity above is what makes keeping it safe.
-static SYSTEM_FONT_RESOLUTION_CACHE: LazyLock<BoundedProcessCache<String, Option<TtfFont>>> =
-    LazyLock::new(|| BoundedProcessCache::new(SYSTEM_FONT_RESOLUTION_CAPACITY));
-
-/// Memoized [`load_system_font`].
-///
-/// The variant key fully determines resolution, including the ui-sans-serif
-/// preference path, so a cached value is always what a fresh call would return.
-fn load_system_font_cached(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Option<TtfFont> {
-    let key = query.variant_key();
-    if let Some(resolved) = SYSTEM_FONT_RESOLUTION_CACHE.get(&key) {
-        return resolved;
-    }
-    let resolved = load_system_font(db, query);
-    SYSTEM_FONT_RESOLUTION_CACHE.insert(key, resolved.clone());
-    resolved
 }
 
 fn load_system_font(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Option<TtfFont> {
@@ -934,7 +947,6 @@ mod tests {
         let metrics = FontVerticalMetrics::new(800, -200, 0);
         TtfFont {
             font_name: name.to_string(),
-            face_index: Default::default(),
             units_per_em: 1000,
             size_adjust: 1.0,
             bbox: [0, -200, 1000, 800],
@@ -946,8 +958,7 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: Default::default(),
-            data: std::sync::Arc::new(vec![]),
-            shaping: None,
+            program: crate::parser::ttf::FontProgram::unshapeable_for_tests(vec![]),
         }
     }
 
@@ -1395,6 +1406,53 @@ mod tests {
         assert_eq!(resolved.face_index.get(), 2);
     }
 
+    #[test]
+    fn a_new_converter_observes_replaced_system_font_file_contents() {
+        let directory = tempfile::tempdir().expect("temporary font directory");
+        let path = directory.path().join("changing-font.ttf");
+        std::fs::write(
+            &path,
+            include_bytes!("../assets/LiberationSans-Regular.ttf"),
+        )
+        .expect("write first font");
+
+        let family = "ironpress host refresh test";
+        let mut patterns = Vec::new();
+        let mut cache = fontconfig_path_cache()
+            .lock()
+            .expect("fontconfig path cache");
+        for variant in FONT_VARIANTS {
+            let pattern = SystemFontQuery::new(family, *variant).fontconfig_pattern();
+            cache.insert(
+                pattern.clone(),
+                Some(ResolvedFontFile {
+                    path: path.to_string_lossy().into_owned(),
+                    face_index: FontFaceIndex::DEFAULT,
+                }),
+            );
+            patterns.push(pattern);
+        }
+        drop(cache);
+
+        let html = format!("<p style='font-family: {family}'>office</p>");
+        let first = crate::HtmlConverter::new()
+            .convert(&html)
+            .expect("first conversion");
+        std::fs::write(&path, include_bytes!("../assets/NotoSans-Regular.ttf"))
+            .expect("replace host font");
+        let second = crate::HtmlConverter::new()
+            .convert(&html)
+            .expect("conversion after replacement");
+
+        let mut cache = fontconfig_path_cache()
+            .lock()
+            .expect("fontconfig path cache");
+        for pattern in patterns {
+            cache.remove(&pattern);
+        }
+        assert_ne!(first, second);
+    }
+
     // ── load_unicode_fallback_font ──────────────────────────────────────────
 
     #[test]
@@ -1403,46 +1461,107 @@ mod tests {
     }
 
     #[test]
+    fn emoji_fallback_is_not_requested_for_plain_text() {
+        let nodes = crate::parser::html::parse_html("<p>plain text</p>").expect("valid HTML");
+
+        assert!(!document_may_render_emoji(&nodes, &[], &[]));
+
+        let nodes = crate::parser::html::parse_html("<p>Invoice 123</p>").expect("valid HTML");
+        assert!(!document_may_render_emoji(&nodes, &[], &[]));
+    }
+
+    #[test]
+    fn emoji_fallback_is_requested_for_text_and_generated_content() {
+        let nodes = crate::parser::html::parse_html("<p>hello 😀</p>").expect("valid HTML");
+        assert!(document_may_render_emoji(&nodes, &[], &[]));
+
+        let nodes = crate::parser::html::parse_html("<p>plain text</p>").expect("valid HTML");
+        let rules = crate::parser::css::parse_stylesheet(r#"p::before { content: "\1f600"; }"#);
+        assert!(document_may_render_emoji(&nodes, &rules, &[]));
+    }
+
+    #[test]
+    fn emoji_fallback_is_requested_for_named_string_content() {
+        let nodes = crate::parser::html::parse_html("<h1>plain text</h1>").expect("valid HTML");
+        let rules = crate::parser::css::parse_stylesheet(r#"h1 { string-set: chapter "\1f600"; }"#);
+
+        assert!(document_may_render_emoji(&nodes, &rules, &[]));
+    }
+
+    #[test]
+    fn emoji_fallback_is_requested_for_inline_named_string_content() {
+        let nodes = crate::parser::html::parse_html(
+            r#"<h1 style='string-set: chapter "\1f600"'>plain text</h1>"#,
+        )
+        .expect("valid HTML");
+
+        assert!(document_may_render_emoji(&nodes, &[], &[]));
+    }
+
+    #[test]
+    fn emoji_fallback_covers_the_unicode_emoji_property() {
+        assert!(
+            text_may_render_emoji("🀄"),
+            "U+1F004 MAHJONG TILE RED DRAGON has Emoji=Yes"
+        );
+    }
+
+    #[test]
     fn load_unicode_fallback_font_does_not_panic() {
-        let mut fonts = HashMap::new();
-        // Should not panic regardless of which system fonts are installed.
-        load_unicode_fallback_font(&mut fonts);
+        with_test_font_registry(|fonts| {
+            // Should not panic regardless of which system fonts are installed.
+            load_unicode_fallback_font(fonts);
+        });
     }
 
     #[test]
     fn load_unicode_fallback_font_is_idempotent() {
-        let mut fonts = HashMap::new();
-        load_unicode_fallback_font(&mut fonts);
-        let count_after_first = fonts.len();
-        load_unicode_fallback_font(&mut fonts);
-        assert_eq!(
-            fonts.len(),
-            count_after_first,
-            "calling load_unicode_fallback_font twice should not add a second entry"
-        );
+        with_test_font_registry(|fonts| {
+            load_unicode_fallback_font(fonts);
+            let present_after_first = fonts.contains_key(UNICODE_FALLBACK_KEY);
+            load_unicode_fallback_font(fonts);
+            assert_eq!(
+                fonts.contains_key(UNICODE_FALLBACK_KEY),
+                present_after_first,
+                "calling load_unicode_fallback_font twice must preserve its first result"
+            );
+        });
     }
 
     #[test]
     fn load_unicode_fallback_font_skips_when_key_already_present() {
-        let mut fonts = HashMap::new();
-        let sentinel = stub_font("Sentinel");
-        fonts.insert(UNICODE_FALLBACK_KEY.to_string(), sentinel);
-        load_unicode_fallback_font(&mut fonts);
-        // The sentinel font should remain unchanged.
-        assert_eq!(
-            fonts.get(UNICODE_FALLBACK_KEY).unwrap().font_name,
-            "Sentinel"
-        );
+        with_test_font_registry(|fonts| {
+            let sentinel = stub_font("Sentinel");
+            fonts.insert(UNICODE_FALLBACK_KEY.to_string(), sentinel);
+            load_unicode_fallback_font(fonts);
+            // The sentinel font should remain unchanged.
+            assert_eq!(
+                crate::font_registry::FontRegistry::get(fonts, UNICODE_FALLBACK_KEY)
+                    .expect("sentinel font")
+                    .font_name,
+                "Sentinel"
+            );
+        });
     }
 
     #[cfg(target_os = "macos")]
     #[test]
     fn load_unicode_fallback_font_loads_a_font_on_macos() {
-        let mut fonts = HashMap::new();
-        load_unicode_fallback_font(&mut fonts);
-        assert!(
-            fonts.contains_key(UNICODE_FALLBACK_KEY),
-            "macOS should have at least one of the candidate Unicode fallback fonts"
-        );
+        with_test_font_registry(|fonts| {
+            load_unicode_fallback_font(fonts);
+            assert!(
+                fonts.contains_key(UNICODE_FALLBACK_KEY),
+                "macOS should have at least one of the candidate Unicode fallback fonts"
+            );
+        });
+    }
+
+    fn with_test_font_registry(
+        test: impl FnOnce(&mut crate::font_registry::ConversionFontRegistry<'_>),
+    ) {
+        let custom = crate::font_registry::CustomFontCatalog::default();
+        let packs = crate::font_pack::FontCatalog::default();
+        let mut fonts = crate::font_registry::ConversionFontRegistry::new(&custom, &packs);
+        test(&mut fonts);
     }
 }

@@ -1038,7 +1038,7 @@ impl FlexIntrinsicWidth {
 fn flex_direct_text_width(
     text: &str,
     style: &ComputedStyle,
-    fonts: &std::collections::HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let family = resolve_style_font_family(style, fonts);
     let mut width = 0.0;

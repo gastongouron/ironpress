@@ -9,10 +9,9 @@
 
 ### Changed
 
-- Font setup reuses bounded process-lifetime caches: `add_font`/`@font-face`
-  faces and system-font resolution are memoized in capped LRU tables, and every
-  parsed font owns its shaping face, so a warm process stops re-parsing and
-  re-resolving the same fonts on each `convert()` — with byte-identical output.
+- `add_font` parses custom fonts at registration and keeps their bytes and
+  shaping face owned by the converter, so repeated conversions avoid reparsing
+  caller-provided fonts without a process-global font cache.
 
 ## [1.6.0] — 2026-08-26
 

@@ -8,7 +8,7 @@ use crate::types::CornerRadii;
 
 pub(super) struct TextRenderContext<'a> {
     pub(super) page_height: f32,
-    pub(super) custom_fonts: &'a HashMap<String, TtfFont>,
+    pub(super) custom_fonts: &'a dyn crate::font_registry::FontRegistry,
     pub(super) prepared_custom_fonts: &'a PreparedCustomFonts,
     pub(super) annotations: &'a mut Vec<LinkAnnotation>,
     // Threaded so `render_cell_text` can embed blurred `text-shadow` image
@@ -20,7 +20,7 @@ pub(super) struct TextRenderContext<'a> {
 impl<'a> TextRenderContext<'a> {
     pub(super) fn new(
         page_height: f32,
-        custom_fonts: &'a HashMap<String, TtfFont>,
+        custom_fonts: &'a dyn crate::font_registry::FontRegistry,
         prepared_custom_fonts: &'a PreparedCustomFonts,
         annotations: &'a mut Vec<LinkAnnotation>,
         pdf_writer: &'a mut PdfWriter,
@@ -63,7 +63,7 @@ impl<'a> PageRenderContext<'a> {
     pub(super) fn new(
         pdf_writer: &'a mut PdfWriter,
         page_images: &'a mut Vec<ImageRef>,
-        custom_fonts: &'a HashMap<String, TtfFont>,
+        custom_fonts: &'a dyn crate::font_registry::FontRegistry,
         prepared_custom_fonts: &'a PreparedCustomFonts,
         shadings: &'a mut Vec<ShadingEntry>,
         shading_counter: &'a mut usize,
@@ -179,7 +179,7 @@ impl CellRenderBox {
 /// text line (nothing to baseline-align).
 pub(super) fn table_cell_first_baseline(
     cell: &CellBox,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     let line = cell
         .content
@@ -197,7 +197,7 @@ pub(super) fn table_cell_first_baseline(
 /// uniform tables render exactly as before.
 pub(super) fn row_baseline_shifts<T: CellBoxHolder>(
     cells: &[T],
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<f32> {
     let baselines: Vec<Option<f32>> = cells
         .iter()

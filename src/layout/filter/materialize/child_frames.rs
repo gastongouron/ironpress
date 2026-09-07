@@ -1,13 +1,10 @@
 //! Formatting-context refinement of generic traversal frames.
 
-use std::collections::HashMap;
-
 use crate::layout::cells::CellPaintHolder;
 use crate::layout::elements::{
     Container, FlexRow, GridRow, LayoutElement, LayoutNode, LayoutVisitor, TableRow,
 };
 use crate::layout::filter::paint_space::{InheritedFilterPaintSpace, PageBoxAnchor};
-use crate::parser::ttf::TtfFont;
 use crate::types::{EdgeSizes, Rect};
 
 use super::traversal::{ElementTraversalSpace, TraversalFrame};
@@ -23,7 +20,7 @@ impl ChildPaintFrames {
     pub(super) fn resolve(
         element: &dyn LayoutElement,
         space: ElementTraversalSpace,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let mut resolver = Resolver {
             parent_anchor: space.frame.anchor,
@@ -57,7 +54,7 @@ impl ChildPaintFrameIter {
 struct Resolver<'a> {
     parent_anchor: PageBoxAnchor,
     descendant_space: InheritedFilterPaintSpace,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
     frames: Option<Vec<TraversalFrame>>,
 }
 

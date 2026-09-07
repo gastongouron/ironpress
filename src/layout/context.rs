@@ -1,6 +1,5 @@
 use crate::parser::css::CssRule;
 use crate::parser::dom::ElementNode;
-use crate::parser::ttf::TtfFont;
 use crate::style::font_metrics::FontMetrics;
 use std::collections::HashMap;
 
@@ -12,7 +11,7 @@ use super::engine::CounterState;
 /// every layout function unchanged in shape.
 pub(crate) struct LayoutEnv<'a> {
     pub rules: &'a [CssRule],
-    pub fonts: &'a HashMap<String, TtfFont>,
+    pub fonts: &'a dyn crate::font_registry::FontRegistry,
     pub counter_state: &'a mut CounterState,
     pub resources: &'a mut crate::security::resources::ResourceLoader,
     /// Document-wide `id -> element` map used to resolve `filter: url(#id)`

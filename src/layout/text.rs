@@ -2,6 +2,7 @@
 use crate::parser::css::SelectorContext;
 use crate::parser::css::{AncestorInfo, CssRule, PseudoElement};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
+#[cfg(test)]
 use crate::parser::ttf::TtfFont;
 // Re-export OverflowWrap so callers of TextWrapOptions::new can use it
 // without a separate import.
@@ -16,6 +17,7 @@ use crate::style::computed::{
 use crate::style::font_metrics::FontMetrics;
 use crate::types::{CornerRadii, EdgeSizes};
 use std::borrow::Cow;
+#[cfg(test)]
 use std::collections::HashMap;
 
 use super::engine::{
@@ -203,7 +205,7 @@ fn apply_inline_horizontal_edges(
 
 pub(crate) fn resolve_style_font_family(
     style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> FontFamily {
     crate::system_fonts::resolve_font_family(
         &style.font_stack,
@@ -220,7 +222,10 @@ pub(crate) fn resolve_style_font_family(
 /// after a concrete font face has been chosen for a text run. Box-model `em`
 /// lengths and the computed line-height deliberately continue to use
 /// `style.font_size`.
-pub(crate) fn used_font_size(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(crate) fn used_font_size(
+    style: &ComputedStyle,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     let family = resolve_style_font_family(style, fonts);
     let aspect = match &family {
         FontFamily::Custom(name) => crate::system_fonts::find_font(
@@ -241,7 +246,7 @@ pub(crate) fn used_font_size(style: &ComputedStyle, fonts: &HashMap<String, TtfF
 
 pub(crate) fn resolved_line_height_factor(
     style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let used = used_line_height(style, fonts);
     if style.font_size > 0.0 {
@@ -256,7 +261,7 @@ pub(crate) fn resolved_line_height_factor(
 /// the computed font size; only the run's multiplier changes representation.
 pub(crate) fn text_run_line_height_factor(
     style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let run_font_size = used_font_size(style, fonts);
     if run_font_size > 0.0 {
@@ -266,7 +271,10 @@ pub(crate) fn text_run_line_height_factor(
     }
 }
 
-pub(crate) fn used_line_height(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(crate) fn used_line_height(
+    style: &ComputedStyle,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     if let Some(absolute) = style.line_height_absolute {
         absolute.max(0.0)
     } else if style.line_height.is_nan() {
@@ -284,7 +292,7 @@ pub(crate) fn used_line_height(style: &ComputedStyle, fonts: &HashMap<String, Tt
     }
 }
 
-fn style_run_bold(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> bool {
+fn style_run_bold(style: &ComputedStyle, fonts: &dyn crate::font_registry::FontRegistry) -> bool {
     if !style.font_weight.is_bold() {
         return false;
     }
@@ -307,7 +315,10 @@ fn style_run_bold(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> bo
     }
 }
 
-fn style_run_font_style(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> FontStyle {
+fn style_run_font_style(
+    style: &ComputedStyle,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> FontStyle {
     if !style.font_style.is_slanted() {
         return FontStyle::Normal;
     }
@@ -337,7 +348,7 @@ fn style_run_font_style(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>)
 pub(crate) fn mark_synthetic_weight_run(
     run: &mut TextRun,
     requested_weight: FontWeight,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     if !requested_weight.is_bold() || !matches!(run.font_family, FontFamily::Custom(_)) {
         return;
@@ -383,7 +394,7 @@ fn styled_text_run(
     link_url: Option<&str>,
     background_color: Option<crate::types::Color>,
     padding: EdgeSizes,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> TextRun {
     let font_size = used_font_size(style, fonts);
     TextRun {
@@ -480,7 +491,11 @@ fn is_drop_cap_marker_run(run: &TextRun) -> bool {
     run.inline_box.is_none() && run.metadata.is_drop_cap
 }
 
-fn estimate_text_width_for_run(text: &str, run: &TextRun, fonts: &HashMap<String, TtfFont>) -> f32 {
+fn estimate_text_width_for_run(
+    text: &str,
+    run: &TextRun,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     let measured_text = target_placeholder_measure_text(text);
     let raw_width = crate::text::measure_text_width_with_shaping(
         &measured_text,
@@ -508,7 +523,10 @@ fn estimate_text_width_for_run(text: &str, run: &TextRun, fonts: &HashMap<String
 
 /// Measure one complete laid-out run through the same advance model used by
 /// the PDF painter.
-pub(crate) fn measure_text_run_advance(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(crate) fn measure_text_run_advance(
+    run: &TextRun,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     run.atomic_inline_advance()
         .unwrap_or_else(|| run.inline_advance(estimate_text_width_for_run(&run.text, run, fonts)))
 }
@@ -567,7 +585,10 @@ pub(crate) fn line_primary_font_size(runs: &[crate::layout::engine::TextRun]) ->
         .fold(0.0f32, f32::max)
 }
 
-fn line_primary_x_height_ratio(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
+fn line_primary_x_height_ratio(
+    runs: &[TextRun],
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     let primary = runs
         .iter()
         .filter(|run| {
@@ -741,7 +762,7 @@ fn expand_tabs(
 pub(crate) fn expand_pre_tabs(
     text: &str,
     style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> String {
     if !text.contains('\t') {
         return text.to_string();
@@ -777,7 +798,7 @@ pub(crate) fn estimate_word_width(
     font_family: &FontFamily,
     bold: bool,
     italic: bool,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let cjk_em_width = word
         .chars()
@@ -998,7 +1019,7 @@ impl LineStrut {
         bold: bool,
         italic: bool,
         line_height: f32,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let metrics = crate::fonts::font_line_metrics(family, font_size, bold, italic, fonts);
         Self::from_metrics(metrics, line_height)
@@ -1014,7 +1035,7 @@ impl LineStrut {
         bold: bool,
         italic: bool,
         line_height: f32,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let metrics = crate::fonts::exact_font_line_metrics(family, font_size, bold, italic, fonts);
         let leading = line_height - metrics.ascent - metrics.descent;
@@ -1041,7 +1062,7 @@ fn line_extents(
     bold: bool,
     italic: bool,
     line_height: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> LineStrut {
     LineStrut::from_font(family, font_size, bold, italic, line_height, fonts)
 }
@@ -1050,7 +1071,7 @@ fn line_extents(
 /// consumed by the wrapping pass.
 pub(crate) fn parent_line_strut(
     style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> LineStrut {
     let family = resolve_style_font_family(style, fonts);
     let font_size = used_font_size(style, fonts);
@@ -1072,7 +1093,7 @@ fn resolve_line_box_metrics(
     runs: &[TextRun],
     parent: Option<LineStrut>,
     fallback_line_height_factor: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<(f32, f32)> {
     let mut above = parent.map_or(f32::NEG_INFINITY, |strut| strut.above);
     let mut below = parent.map_or(f32::NEG_INFINITY, |strut| strut.below);
@@ -1273,7 +1294,7 @@ fn measure_normal_token(
     paint_word: &str,
     template: &TextRun,
     context: NormalTokenContext<'_>,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> NormalTokenMeasurement {
     let word_width =
         estimate_text_width_for_run(paint_word, template, fonts) + context.outgoing_advance;
@@ -1331,7 +1352,7 @@ fn joined_token_advance(
     preceding_runs: &[TextRun],
     text: &str,
     template: &TextRun,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     let last = preceding_runs.last()?;
     if !crate::text::text_runs_share_shaping_buffer(last, template) {
@@ -1378,7 +1399,7 @@ fn measure_inline_token(
     line_has_content: bool,
     previous_ends_whitespace: bool,
     joins_prev: bool,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> InlineTokenMeasurement {
     let leading_width = if line_has_content && !joins_prev && !previous_ends_whitespace {
         estimate_text_width_for_run(" ", template, fonts)
@@ -1400,7 +1421,7 @@ fn opening_edge_group_width<'a>(
     edge: &TextRun,
     following: impl Iterator<Item = &'a StyledWord>,
     runs: &[TextRun],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let mut width = edge.atomic_inline_advance().unwrap_or_default();
     for token in following {
@@ -1578,7 +1599,7 @@ fn resolved_text_line(
     runs: Vec<TextRun>,
     height: f32,
     options: TextWrapOptions,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> TextLine {
     let metrics = resolve_line_box_metrics(
         &runs,
@@ -1665,7 +1686,7 @@ fn push_wrapped_line(
     runs: &mut Vec<TextRun>,
     height: f32,
     options: TextWrapOptions,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     finalize_soft_hyphen_line(runs, true);
     if let Some(last) = runs.last_mut() {
@@ -1751,7 +1772,7 @@ pub(crate) fn split_word_to_fit(
     font_family: &FontFamily,
     bold: bool,
     italic: bool,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<(String, String)> {
     if word.is_empty() || available_width <= 0.0 {
         return None;
@@ -1779,7 +1800,7 @@ pub(crate) fn split_word_to_fit(
 fn expand_leader_placeholders(
     runs: Vec<TextRun>,
     max_width: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<TextRun> {
     let leader_count: usize = runs
         .iter()
@@ -1831,7 +1852,7 @@ fn remove_leader_placeholders(text: &str) -> String {
 fn expand_leader_run(
     run: TextRun,
     available: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<TextRun> {
     let mut out = Vec::new();
     let mut rest = run.text.as_str();
@@ -1888,7 +1909,7 @@ fn leader_replacement_parts(
     pattern: &str,
     available: f32,
     run: &TextRun,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> (f32, String, f32) {
     let pattern = if pattern.is_empty() { "." } else { pattern };
     let pattern_width = estimate_word_width(
@@ -1960,7 +1981,7 @@ struct PreparedTextRuns {
 fn prepare_text_runs(
     runs: Vec<TextRun>,
     options: TextWrapOptions,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> PreparedTextRuns {
     let runs = expand_leader_placeholders(runs, options.max_width, fonts);
     let full_text: String = runs.iter().map(|run| run.text.as_str()).collect();
@@ -2159,7 +2180,7 @@ fn measure_styled_token_end(
     preceding_runs: &[TextRun],
     previous_ends_whitespace: bool,
     options: TextWrapOptions,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let run = &runs[token.run_index];
     if run.inline_box.is_some() {
@@ -2253,7 +2274,7 @@ pub(crate) fn measure_text_intrinsic_widths(
     runs: Vec<TextRun>,
     options: TextWrapOptions,
     allow_soft_wrap: bool,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> TextIntrinsicWidths {
     let PreparedTextRuns { runs, .. } = prepare_text_runs(runs, options, fonts);
     let tokens = tokenize_text_runs(&runs, options);
@@ -2393,7 +2414,7 @@ fn push_token_shaping_context(context: &mut Vec<TextRun>, token: &StyledWord, te
 pub(crate) fn wrap_text_runs(
     runs: Vec<TextRun>,
     options: TextWrapOptions,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<TextLine> {
     let PreparedTextRuns {
         mut runs,
@@ -2951,7 +2972,7 @@ pub(crate) fn wrap_text_runs(
 pub(crate) fn apply_text_overflow_ellipsis(
     lines: &mut Vec<TextLine>,
     max_width: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     rtl: bool,
 ) {
     // With nowrap, there should be only one line. Truncate it if it overflows.
@@ -3067,7 +3088,7 @@ fn push_styled_run(
     synthesize_small_caps: bool,
     requested_weight: FontWeight,
     runs: &mut Vec<TextRun>,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     use crate::style::computed::FontVariantCaps;
 
@@ -3132,7 +3153,7 @@ fn push_styled_run(
 pub(crate) fn push_text_run_with_fallback(
     run: TextRun,
     runs: &mut Vec<TextRun>,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     if run.text.is_empty() {
         runs.push(run);
@@ -3190,7 +3211,10 @@ pub(crate) fn push_text_run_with_fallback(
     }
 }
 
-fn min_content_anywhere_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
+fn min_content_anywhere_width(
+    runs: &[TextRun],
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     runs.iter()
         .filter(|r| r.inline_box.is_none())
         .flat_map(|r| {
@@ -3219,7 +3243,7 @@ fn build_inline_box(
     style: &ComputedStyle,
     el: &ElementNode,
     rules: &[CssRule],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     ancestors: &[AncestorInfo],
     counter_state: &mut CounterState,
     resources: &mut crate::security::resources::ResourceLoader,
@@ -3373,7 +3397,7 @@ fn build_inline_box(
 /// content or counter scope propagation.
 pub(crate) struct InlineRunCollector<'a> {
     rules: &'a [CssRule],
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
     counter_state: &'a mut CounterState,
     resources: &'a mut crate::security::resources::ResourceLoader,
     next_inline_decoration: usize,
@@ -3382,7 +3406,7 @@ pub(crate) struct InlineRunCollector<'a> {
 impl<'a> InlineRunCollector<'a> {
     pub(crate) fn new(
         rules: &'a [CssRule],
-        fonts: &'a HashMap<String, TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
         counter_state: &'a mut CounterState,
         resources: &'a mut crate::security::resources::ResourceLoader,
     ) -> Self {
@@ -3448,7 +3472,7 @@ fn collect_text_runs_inner(
     runs: &mut Vec<TextRun>,
     link_url: Option<&str>,
     rules: &[CssRule],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     inline_parent: bool,
     ancestors: &[AncestorInfo],
     counter_state: &mut CounterState,

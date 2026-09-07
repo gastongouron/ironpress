@@ -1,11 +1,8 @@
 //! Flex and grid item sources for retained filters.
 
-use std::collections::HashMap;
-
 use crate::layout::cells::{CellBox, GridCell};
 use crate::layout::elements::{BoxModel, FlexRow, GridRow, Positioning};
 use crate::layout::engine::FlexCell;
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::AlignItems;
 use crate::types::{EdgeSizes, Point, Size, Vector};
 
@@ -259,7 +256,7 @@ impl SourcePainter<'_> {
 pub(crate) fn paint_grid_cell_source(
     cell: &GridCell,
     size: Size,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
     raster_space: SourceRasterSpace,
 ) -> Option<SourceGraphic> {
@@ -306,7 +303,7 @@ pub(crate) fn paint_grid_cell_source(
 /// from quantizing the same item independently.
 pub(crate) fn flex_cell_source_frames(
     flex: &FlexRow,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<CellSourceFrame> {
     let max_baseline = flex_line_max_baseline(&flex.content.cells, flex.content.alignment, fonts);
     flex.content
@@ -343,7 +340,7 @@ pub(crate) fn flex_cell_source_frames(
 pub(crate) fn paint_flex_cell_source(
     cell: &FlexCell,
     size: Size,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
     raster_space: SourceRasterSpace,
 ) -> Option<SourceGraphic> {

@@ -184,7 +184,8 @@ pub(super) fn foundation_run_outline(
     if !size_px.is_finite() || size_px <= 0.0 {
         return None;
     }
-    let font_ref = skrifa::FontRef::from_index(&font.data, font.face_index.get()).ok()?;
+    let font_ref =
+        skrifa::FontRef::from_index(font.program.bytes(), font.program.face_index().get()).ok()?;
     let outlines = font_ref.outline_glyphs();
     let hinting = (shear == 0.0)
         .then(|| {

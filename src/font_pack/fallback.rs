@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-
 use crate::parser::ttf::TtfFont;
+#[cfg(test)]
+use std::collections::HashMap;
 
 use super::FontLocale;
 
@@ -72,12 +72,15 @@ pub(crate) fn fallback_keys(locale: FontLocale) -> [&'static str; 8] {
 /// Registered fallback faces resolved for one inherited document language.
 pub(crate) struct FontFallbacks<'a> {
     locale: FontLocale,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 }
 
 impl<'a> FontFallbacks<'a> {
     /// Bind the fallback policy to the fonts available for one conversion.
-    pub(crate) const fn new(locale: FontLocale, fonts: &'a HashMap<String, TtfFont>) -> Self {
+    pub(crate) const fn new(
+        locale: FontLocale,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
+    ) -> Self {
         Self { locale, fonts }
     }
 
@@ -85,14 +88,12 @@ impl<'a> FontFallbacks<'a> {
     pub(crate) fn is_empty(&self) -> bool {
         !fallback_keys(self.locale)
             .iter()
-            .any(|key| self.fonts.contains_key(*key))
+            .any(|key| self.fonts.contains_key(key))
     }
 
     /// Resolve the first face that covers one Unicode grapheme cluster.
     pub(crate) fn resolve_cluster(&self, cluster: &str) -> Option<&'a str> {
-        if cluster
-            .chars()
-            .any(|character| crate::fonts::is_emoji_char(character as u32))
+        if crate::fonts::EmojiPresentation::appears_in(cluster)
             && let Some(key) = self.covering_key(crate::system_fonts::EMOJI_FALLBACK_KEY, cluster)
         {
             return Some(key);
@@ -107,9 +108,7 @@ impl<'a> FontFallbacks<'a> {
     fn covering_key(&self, key: &str, cluster: &str) -> Option<&'a str> {
         self.fonts
             .get_key_value(key)
-            .and_then(|(stored_key, font)| {
-                font_covers_cluster(font, cluster).then_some(stored_key.as_str())
-            })
+            .and_then(|(stored_key, font)| font_covers_cluster(font, cluster).then_some(stored_key))
     }
 }
 

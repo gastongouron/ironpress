@@ -49,7 +49,10 @@ pub(super) fn is_drop_cap_run(run: &TextRun) -> bool {
 /// actual glyph bounding-box top (`yMax`) of the run's first letter so accent
 /// space reserved by the font ascender is excluded; falls back to the ascender
 /// metric when the glyph has no measurable outline.
-pub(super) fn run_glyph_top(run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(super) fn run_glyph_top(
+    run: &TextRun,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     let ch = run.text.chars().find(|c| !c.is_whitespace());
     if let (Some(ch), FontFamily::Custom(name)) = (ch, &run.font_family)
         && let Some((_, ttf)) = crate::system_fonts::find_font(
@@ -81,7 +84,7 @@ pub(super) fn run_glyph_top(run: &TextRun, custom_fonts: &HashMap<String, TtfFon
 pub(super) fn drop_cap_baseline_shift(
     run: &TextRun,
     line_text_top: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     if !is_drop_cap_run(run) {
         return 0.0;
@@ -95,7 +98,10 @@ pub(super) fn drop_cap_baseline_shift(
 /// The surrounding (non-drop-cap) text's glyph top above the baseline for a line,
 /// in points — the reference the drop-cap glyph top is seated against. Zero when
 /// the line carries no ordinary text runs.
-pub(super) fn line_text_top(line: &TextLine, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(super) fn line_text_top(
+    line: &TextLine,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     line.runs
         .iter()
         .filter(|r| r.inline_box.is_none() && !is_drop_cap_run(r) && !r.text.trim().is_empty())
@@ -122,7 +128,7 @@ pub(super) struct LineBoxMetrics {
 pub(super) fn line_shifted_text_extents(
     line: &TextLine,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> (f32, f32) {
     // Runs that left line-height unspecified fall back to the largest resolved
     // factor on the line (the parent text's), excluding drop caps (< 0.9).
@@ -164,7 +170,7 @@ pub(super) fn line_shifted_text_extents(
 
 pub(super) fn line_authored_text_extents(
     line: &TextLine,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> (f32, f32) {
     line.runs
         .iter()
@@ -187,14 +193,14 @@ pub(super) fn line_authored_text_extents(
 
 pub(super) fn line_box_metrics(
     line: &TextLine,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> LineBoxMetrics {
     line_box_metrics_with_resolved_baseline(line, custom_fonts, true)
 }
 
 fn line_box_metrics_with_resolved_baseline(
     line: &TextLine,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     use_resolved_baseline: bool,
 ) -> LineBoxMetrics {
     if use_resolved_baseline && let Some(baseline_ascent) = line.baseline_ascent {
@@ -333,7 +339,7 @@ pub(super) fn flex_cell_align(cell: &FlexCell, align_items: AlignItems) -> Align
 /// Distance from a flex item's border-box top to its inline-block baseline.
 pub(super) fn flex_cell_baseline(
     cell: &FlexCell,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     let mut prior = 0.0;
     let last = cell
@@ -358,7 +364,7 @@ pub(super) fn flex_line_max_baseline(
     cells: &[FlexCell],
     line_id: FlexLineId,
     align_items: AlignItems,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     cells
         .iter()
@@ -371,7 +377,7 @@ pub(super) fn flex_line_max_baseline(
 
 pub(super) fn upright_vertical_line_metrics(
     line: &TextLine,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> LineBoxMetrics {
     let (ascender, descender) = line
         .runs
@@ -442,7 +448,7 @@ pub(super) fn upright_vertical_line_metrics(
 /// edge.
 pub(super) fn line_text_content_extents(
     line: &TextLine,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> (f32, f32) {
     line.runs
         .iter()
@@ -465,7 +471,7 @@ pub(super) fn line_text_content_extents(
 /// Estimate line width using TTF metrics for custom fonts.
 pub(super) fn estimate_line_width_with_fonts(
     line: &TextLine,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     line.runs
         .iter()

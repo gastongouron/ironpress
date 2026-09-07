@@ -4,10 +4,7 @@
 //! Formatting contexts refine child page geometry, while one inherited paint
 //! space carries graphical transforms through every nesting level.
 
-use std::collections::HashMap;
-
 use crate::layout::elements::{FlexRow, GridRow, LayoutElement, LayoutNode, LayoutVisitorMut};
-use crate::parser::ttf::TtfFont;
 use crate::types::{EdgeSizes, Point};
 
 use super::paint_space::{InheritedFilterPaintSpace, PageBoxAnchor};
@@ -25,7 +22,7 @@ use traversal::TraversalFrame;
 pub(crate) fn materialize_page_filters(
     pages: &mut [crate::layout::engine::Page],
     document_margin: crate::types::Margin,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) {
     for page in pages {
@@ -65,7 +62,7 @@ pub(crate) fn materialize_page_filters(
 fn materialize_node_filter(
     element: &mut LayoutNode,
     frame: TraversalFrame,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) {
     let element_space = frame.enter(element.as_ref());
@@ -82,7 +79,7 @@ fn materialize_node_filter(
     struct CellFilterMaterializer<'a> {
         anchor: PageBoxAnchor,
         inherited_space: InheritedFilterPaintSpace,
-        fonts: &'a HashMap<String, TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
         filter_dpi: f32,
     }
 

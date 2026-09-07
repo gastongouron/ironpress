@@ -47,7 +47,7 @@ pub fn render_pdf_with_fonts(
     pages: &[Page],
     page_size: PageSize,
     margin: Margin,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Result<Vec<u8>, IronpressError> {
     let mut buf = Vec::new();
     render_pdf_to_writer_with_fonts(pages, page_size, margin, &mut buf, custom_fonts)?;
@@ -273,7 +273,7 @@ pub(super) struct PageMarginLineBox {
 impl PageMarginLineBox {
     pub(super) fn from_runs(
         runs: &[crate::layout::engine::TextRun],
-        custom_fonts: &HashMap<String, TtfFont>,
+        custom_fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let mut box_metrics = Self::default();
         for run in runs {
@@ -488,7 +488,7 @@ pub(super) fn page_selector_specificity(
 
 struct RunningElementInlineSize<'a> {
     available_width: f32,
-    custom_fonts: &'a HashMap<String, TtfFont>,
+    custom_fonts: &'a dyn crate::font_registry::FontRegistry,
 }
 
 impl RunningElementInlineSize<'_> {
@@ -527,7 +527,7 @@ impl RunningElementInlineSize<'_> {
 
     fn text_width(&self, element: &dyn LayoutElement) -> Option<f32> {
         struct TextWidth<'a> {
-            custom_fonts: &'a HashMap<String, TtfFont>,
+            custom_fonts: &'a dyn crate::font_registry::FontRegistry,
             width: Option<f32>,
         }
 
@@ -737,7 +737,7 @@ pub(super) fn render_running_margin_element(
 pub(super) fn wrapped_footnote_lines(
     footnotes: &[FootnoteItem],
     available_width: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<TextLine> {
     let available_width = available_width.max(0.0);
     let mut lines = Vec::new();
@@ -797,7 +797,7 @@ pub(super) fn render_page_footnotes(
     page_size: PageSize,
     margin: Margin,
     area: ResolvedFootnoteAreaStyle,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
@@ -878,7 +878,7 @@ pub(super) fn render_pdf_to_writer_with_fonts<W: std::io::Write>(
     page_size: PageSize,
     margin: Margin,
     writer: &mut W,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Result<(), IronpressError> {
     render_pdf_to_writer_full(pages, page_size, margin, writer, custom_fonts, None)
 }
@@ -891,7 +891,7 @@ pub(super) struct MarginBoxFontUsage {
 pub(super) fn margin_box_font_usage(
     pages: &[Page],
     decoration: Option<&PageDecoration>,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> MarginBoxFontUsage {
     let Some(decoration) = decoration else {
         return MarginBoxFontUsage::default();

@@ -12,7 +12,6 @@ use crate::layout::elements::{
 use crate::layout::flow_metrics::{BlockFlowSpacing, BlockMargins};
 use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BorderCollapse, BoxSizing, ComputedStyle, Display, TableLayout, VerticalAlign, Visibility,
     WhiteSpace, compute_style_with_context, compute_style_with_context_with_font_metrics,
@@ -225,7 +224,7 @@ fn table_cell_allows_soft_wrap(style: &ComputedStyle) -> bool {
 fn table_cell_text_wrap_options(
     style: &ComputedStyle,
     available_width: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> TextWrapOptions {
     let wrap_width = if table_cell_allows_soft_wrap(style) {
         available_width.max(0.0)
@@ -479,7 +478,7 @@ struct GeneratedCellLayout<'a> {
     blocks: &'a mut Vec<LayoutNode>,
     parent_style: &'a ComputedStyle,
     available_width: f32,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
     filter_defs: &'a HashMap<String, ElementNode>,
     counter_state: &'a mut CounterState,
     resources: &'a mut crate::security::resources::ResourceLoader,
@@ -692,7 +691,7 @@ fn generated_table_cell_boundary(
     generated: GeneratedBox<'_>,
     parent_style: &ComputedStyle,
     available_width: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_defs: &HashMap<String, ElementNode>,
     counter_state: &mut CounterState,
     resources: &mut crate::security::resources::ResourceLoader,
@@ -1329,7 +1328,7 @@ fn measure_caption_min_width(
     caption_style: &ComputedStyle,
     table_ancestors: &[AncestorInfo],
     rules: &[CssRule],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_defs: &HashMap<String, ElementNode>,
     filter_dpi: f32,
     counter_state: &mut CounterState,

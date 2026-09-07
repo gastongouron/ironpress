@@ -59,7 +59,11 @@ impl UprightLinePosition {
         }
     }
 
-    fn vertical_baseline_x(self, run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> f32 {
+    fn vertical_baseline_x(
+        self,
+        run: &TextRun,
+        custom_fonts: &dyn crate::font_registry::FontRegistry,
+    ) -> f32 {
         let fallback_distance = run.font_size.max(0.0) * 0.5;
         let distance_from_over = crate::text::contains_cjk_vertical_text(&run.text)
             .then(|| crate::text::upright_vertical_font_metrics(run, custom_fonts))
@@ -91,7 +95,7 @@ pub(super) fn render_inline_box(
     line_font_size: f32,
     line_height: f32,
     parent_x_height_ratio: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     page_ext_gstates: &mut Vec<(String, f32)>,
     bg_alpha_counter: &mut usize,
@@ -281,7 +285,7 @@ pub(super) fn render_line_glyphs_without_shadows_in_space(
     runs: &[TextRun],
     start_x: f32,
     y: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     line_ascender: f32,
@@ -341,7 +345,7 @@ pub(super) fn render_upright_vertical_line_text(
     content: &mut String,
     runs: &[TextRun],
     position: UprightLinePosition,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     line_ascender: f32,
@@ -414,7 +418,7 @@ fn render_upright_vertical_run(
     vertical_baseline_x: f32,
     horizontal_baseline_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
 ) -> Option<f32> {
     if !crate::text::contains_cjk_vertical_text(&run.text)
@@ -482,7 +486,7 @@ pub(super) fn render_vertical_mixed_upright_run(
     x: f32,
     y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     vertical_e: f32,
@@ -517,7 +521,7 @@ pub(super) fn render_vertical_mixed_line_text(
     runs: &[TextRun],
     start_x: f32,
     y: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     line_ascender: f32,
@@ -576,7 +580,7 @@ pub(super) fn push_line_text_clip(
     runs: &[TextRun],
     start_x: f32,
     y: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     line_ascender: f32,

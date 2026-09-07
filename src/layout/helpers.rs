@@ -2,7 +2,7 @@ use crate::layout::elements::LayoutNode;
 use crate::layout::flow_metrics::BlockMargins;
 use crate::parser::css::{AncestorInfo, CssRule, CssValue, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
-use crate::parser::ttf::{GlyphSideBearings, TtfFont};
+use crate::parser::ttf::GlyphSideBearings;
 use crate::style::computed::{
     BackgroundClip, BackgroundOrigin, BackgroundPosition, BackgroundRepeat, BackgroundSize,
     BoxSizing, ComputedStyle, ConicGradient, ContentItem, Display, FontFamily, FontWeight,
@@ -873,7 +873,7 @@ pub(crate) fn content_image_url(items: &[ContentItem]) -> Option<&str> {
 pub(crate) fn apply_first_line_style(
     lines: &mut [TextLine],
     fl: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     let Some(first) = lines.first_mut() else {
         return;
@@ -1039,7 +1039,7 @@ impl DropCap {
 
 fn initial_letter_side_bearings(
     run: &TextRun,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     inline_metric_size: f32,
 ) -> GlyphSideBearings {
     let Some(ch) = run.text.chars().find(|ch| !ch.is_whitespace()) else {
@@ -1082,7 +1082,7 @@ fn snap_initial_letter_metric(metric: f32) -> f32 {
 pub(crate) fn apply_first_letter_style(
     runs: &mut Vec<TextRun>,
     fl: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     block_line_height: f32,
     is_drop_cap: bool,
     initial_letter_inline_metric_size: Option<f32>,
@@ -1213,7 +1213,10 @@ fn apply_text_transform(text: &str, transform: crate::style::computed::TextTrans
     }
 }
 
-pub(crate) fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(crate) fn measure_runs_width(
+    runs: &[TextRun],
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     let mut current = 0.0f32;
     let mut widest = 0.0f32;
     for run in runs {
@@ -1238,7 +1241,10 @@ pub(crate) fn measure_runs_width(runs: &[TextRun], fonts: &HashMap<String, TtfFo
     widest.max(current)
 }
 
-pub(crate) fn measure_lines_width(lines: &[TextLine], fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(crate) fn measure_lines_width(
+    lines: &[TextLine],
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     lines
         .iter()
         .map(|line| measure_runs_width(&line.runs, fonts))
@@ -1254,7 +1260,7 @@ pub(crate) fn append_pseudo_inline_run(
     runs: &mut Vec<TextRun>,
     pseudo_style: Option<&ComputedStyle>,
     el: &ElementNode,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     counter_state: &mut CounterState,
     resources: &mut crate::security::resources::ResourceLoader,
 ) {
@@ -1279,7 +1285,7 @@ pub(crate) fn append_pseudo_inline_run(
 /// silently dropping properties such as SVG/CSS filters.
 pub(crate) struct PseudoBoxContext<'a> {
     available_width: f32,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
     filter_defs: &'a HashMap<String, ElementNode>,
     resources: &'a mut crate::security::resources::ResourceLoader,
     containing_block: Option<ContainingBlock>,
@@ -1289,7 +1295,7 @@ pub(crate) struct PseudoBoxContext<'a> {
 impl<'a> PseudoBoxContext<'a> {
     pub(crate) fn new(
         available_width: f32,
-        fonts: &'a HashMap<String, TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
         filter_defs: &'a HashMap<String, ElementNode>,
         resources: &'a mut crate::security::resources::ResourceLoader,
     ) -> Self {
@@ -1646,7 +1652,7 @@ pub(crate) fn build_pseudo_block(
 pub(crate) fn build_pseudo_inline_run(
     pseudo_style: &ComputedStyle,
     el: &ElementNode,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     counter_state: &mut CounterState,
     resources: &mut crate::security::resources::ResourceLoader,
 ) -> TextRun {
@@ -1719,7 +1725,7 @@ pub(crate) fn build_pseudo_inline_run(
 fn build_pseudo_inline_box(
     pseudo_style: &ComputedStyle,
     content_text: &str,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> InlineBox {
     let border = LayoutBorder::from_computed(&pseudo_style.border, pseudo_style.color);
     let pad_h = pseudo_style.padding.horizontal();

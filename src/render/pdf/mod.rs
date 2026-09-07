@@ -358,7 +358,7 @@ pub(crate) fn render_pdf_to_writer_full<W: std::io::Write>(
     page_size: PageSize,
     margin: Margin,
     writer: &mut W,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     decoration: Option<&PageDecoration>,
 ) -> Result<(), IronpressError> {
     render_pdf_to_writer_full_opts(
@@ -380,7 +380,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     page_size: PageSize,
     margin: Margin,
     writer: &mut W,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     decoration: Option<&PageDecoration>,
     opts: RenderOpts,
 ) -> Result<(), IronpressError> {
@@ -396,7 +396,7 @@ pub(crate) struct PdfRenderDocument<'a> {
     pages: &'a [Page],
     page_size: PageSize,
     margin: Margin,
-    custom_fonts: &'a HashMap<String, TtfFont>,
+    custom_fonts: &'a dyn crate::font_registry::FontRegistry,
     decoration: Option<&'a PageDecoration>,
 }
 
@@ -405,7 +405,7 @@ impl<'a> PdfRenderDocument<'a> {
         pages: &'a [Page],
         page_size: PageSize,
         margin: Margin,
-        custom_fonts: &'a HashMap<String, TtfFont>,
+        custom_fonts: &'a dyn crate::font_registry::FontRegistry,
         decoration: Option<&'a PageDecoration>,
     ) -> Self {
         Self {

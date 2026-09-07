@@ -115,7 +115,11 @@ impl FontUsageKey {
         }
     }
 
-    fn for_run(source_name: &str, run: &TextRun, custom_fonts: &HashMap<String, TtfFont>) -> Self {
+    fn for_run(
+        source_name: &str,
+        run: &TextRun,
+        custom_fonts: &dyn crate::font_registry::FontRegistry,
+    ) -> Self {
         Self {
             source_name: source_name.to_string(),
             synthetic_weight: run.synthetic_bold_stroke_width(custom_fonts).is_some(),
@@ -148,7 +152,7 @@ fn prepared_font_name(source_name: &str, synthetic_weight: bool) -> Cow<'_, str>
 pub(crate) fn prepared_font_name_for_run<'a>(
     source_name: &'a str,
     run: &TextRun,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Cow<'a, str> {
     prepared_font_name(
         source_name,
@@ -174,7 +178,7 @@ impl FontUsage {
 /// cloned pages, without copying any page, layout, SVG, or raster payload.
 pub(crate) fn prepare_custom_fonts_with_additional_runs(
     pages: &[Page],
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     per_page_runs: &[Vec<TextRun>],
     trailing_runs: &[TextRun],
 ) -> PreparedCustomFonts {
@@ -197,7 +201,7 @@ pub(crate) fn prepare_custom_fonts_with_additional_runs(
 
 fn collect_font_usage_with_additional_runs(
     pages: &[Page],
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     per_page_runs: &[Vec<TextRun>],
     trailing_runs: &[TextRun],
 ) -> BTreeMap<FontUsageKey, FontUsage> {
@@ -228,7 +232,7 @@ fn collect_font_usage_with_additional_runs(
 
 fn collect_font_usage_from_element(
     element: &dyn LayoutElement,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
     let mut collector = FontUsageCollector {
@@ -239,7 +243,7 @@ fn collect_font_usage_from_element(
 }
 
 struct FontUsageCollector<'a> {
-    custom_fonts: &'a HashMap<String, TtfFont>,
+    custom_fonts: &'a dyn crate::font_registry::FontRegistry,
     usage: &'a mut BTreeMap<FontUsageKey, FontUsage>,
 }
 
@@ -298,7 +302,7 @@ impl LayoutVisitor for FontUsageCollector<'_> {
 /// be dropped and render as `.notdef`).
 fn collect_font_usage_from_svg(
     tree: &crate::parser::svg::SvgTree,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
     for node in &tree.children {
@@ -321,7 +325,7 @@ fn collect_font_usage_from_svg_node(
     inherited_family: Option<&str>,
     inherited_bold: Option<bool>,
     inherited_italic: Option<bool>,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
     use crate::parser::svg::SvgNode;
@@ -392,7 +396,7 @@ fn collect_font_usage_from_svg_node(
 
 fn collect_font_usage_from_lines(
     lines: &[TextLine],
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
     for line in lines {
@@ -413,7 +417,7 @@ fn collect_font_usage_from_lines(
 fn collect_upright_vertical_font_usage(
     run: &TextRun,
     line: &TextLine,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
     if !line.metadata.text_orientation_upright
@@ -436,7 +440,7 @@ fn collect_upright_vertical_font_usage(
 
 fn collect_font_usage_from_run(
     run: &TextRun,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
     // An atomic inline box (display: inline-block) carries its own pre-wrapped
@@ -528,9 +532,9 @@ fn prepare_font(
     glyph_style: Type3GlyphStyle,
 ) -> PreparedCustomFont {
     if (glyph_style == Type3GlyphStyle::SyntheticWeight
-        || crate::render::pdf::sfnt_has_cff_outlines(&ttf.data))
+        || crate::render::pdf::sfnt_has_cff_outlines(ttf.program.bytes()))
         && usage.glyphs.len() <= u8::MAX as usize
-        && rustybuzz::ttf_parser::Face::parse(&ttf.data, ttf.face_index.get()).is_ok()
+        && ttf.program.shaping_face().is_some()
     {
         return type3_font(ttf, usage, glyph_style);
     }
@@ -538,10 +542,14 @@ fn prepare_font(
     let glyphs: Vec<u16> = usage.glyphs.iter().copied().collect();
     let remapper = subsetter::GlyphRemapper::new_from_glyphs_sorted(&glyphs);
 
-    subsetter::subset(&ttf.data, ttf.face_index.get(), &remapper)
-        .ok()
-        .map(|font_data| subset_font(ttf, usage, &remapper, font_data))
-        .unwrap_or_else(|| fallback_font(ttf))
+    subsetter::subset(
+        ttf.program.bytes(),
+        ttf.program.face_index().get(),
+        &remapper,
+    )
+    .ok()
+    .map(|font_data| subset_font(ttf, usage, &remapper, font_data))
+    .unwrap_or_else(|| fallback_font(ttf))
 }
 
 fn subset_font(
@@ -579,7 +587,7 @@ fn fallback_font(ttf: &TtfFont) -> PreparedCustomFont {
     PreparedCustomFont {
         base_font_name: sanitize_pdf_font_name(&ttf.font_name),
         source_font_name: String::new(),
-        font_data: (*ttf.data).clone(),
+        font_data: ttf.program.bytes().to_vec(),
         widths: (0..ttf.glyph_widths.len())
             .map(|glyph_id| ttf.glyph_width_pdf_value(glyph_id as u16))
             .collect(),
@@ -710,7 +718,6 @@ mod tests {
     fn make_stub_ttf() -> TtfFont {
         TtfFont {
             font_name: "Stub".into(),
-            face_index: Default::default(),
             units_per_em: 1000,
             size_adjust: 1.0,
             bbox: [0, -200, 800, 800],
@@ -722,15 +729,13 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: Default::default(),
-            data: std::sync::Arc::new(Vec::new()), // empty ⟹ subsetting always fails → fallback_font path
-            shaping: None,
+            program: crate::parser::ttf::FontProgram::unshapeable_for_tests(Vec::new()),
         }
     }
 
     fn make_ttf_with_cmap(cmap: HashMap<u32, u16>, widths: Vec<u16>) -> TtfFont {
         TtfFont {
             font_name: "TestFont".into(),
-            face_index: Default::default(),
             units_per_em: 1000,
             size_adjust: 1.0,
             bbox: [0, -200, 800, 800],
@@ -742,8 +747,7 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: Default::default(),
-            data: std::sync::Arc::new(Vec::new()),
-            shaping: None,
+            program: crate::parser::ttf::FontProgram::unshapeable_for_tests(Vec::new()),
         }
     }
 
@@ -1188,7 +1192,7 @@ mod tests {
     fn fallback_font_uses_full_font_data() {
         let ttf = make_stub_ttf();
         let prepared = fallback_font(&ttf);
-        assert_eq!(prepared.font_data, *ttf.data);
+        assert_eq!(prepared.font_data, ttf.program.bytes());
     }
 
     #[test]
@@ -1220,7 +1224,7 @@ mod tests {
     fn prepare_font_falls_back_when_data_empty() {
         // Empty font data causes subsetter::subset to fail, so prepare_font
         // must call fallback_font instead of subset_font.
-        let ttf = make_stub_ttf(); // data: std::sync::Arc::new(Vec::new())
+        let ttf = make_stub_ttf();
         let mut usage = FontUsage::default();
         usage.record_glyph(1, vec![0x0041]);
         let prepared = prepare_font(&ttf, &usage, Type3GlyphStyle::Plain);

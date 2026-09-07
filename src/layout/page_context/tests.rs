@@ -1,5 +1,6 @@
 use super::*;
 use crate::parser::css::parse_page_rules;
+use std::collections::HashMap;
 
 fn color_on_page(css: &str, page: PageSelectorContext<'_>) -> Option<crate::types::Color> {
     PageBackgroundContext::from_rules(&parse_page_rules(css), RasterQuality::default(), 0.0)

@@ -3,6 +3,7 @@ use crate::parser::css::{
     PseudoElement, SelectorContext,
 };
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
+#[cfg(test)]
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     AlignItems, AlignSelf, BorderSides, ComputedStyle, ContentItem, Display, FontFamily, FontStyle,
@@ -1125,7 +1126,7 @@ impl TextRun {
     /// font.
     pub(crate) fn synthetic_bold_stroke_width(
         &self,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Option<f32> {
         (matches!(self.font_family, FontFamily::Custom(_))
             && crate::system_fonts::needs_faux_bold(
@@ -1138,7 +1139,10 @@ impl TextRun {
         .flatten()
     }
 
-    pub(crate) fn synthetic_italic_shear(&self, fonts: &HashMap<String, TtfFont>) -> Option<f32> {
+    pub(crate) fn synthetic_italic_shear(
+        &self,
+        fonts: &dyn crate::font_registry::FontRegistry,
+    ) -> Option<f32> {
         (matches!(self.font_family, FontFamily::Custom(_))
             && crate::system_fonts::needs_faux_italic(
                 fonts,
@@ -1778,7 +1782,10 @@ impl Default for PageMarginTextDefaults {
 }
 
 impl PageMarginTextDefaults {
-    fn from_computed_style(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> Self {
+    fn from_computed_style(
+        style: &ComputedStyle,
+        fonts: &dyn crate::font_registry::FontRegistry,
+    ) -> Self {
         Self {
             font_family: Self::resolve_font_family(style, fonts),
             font_size: used_font_size(style, fonts),
@@ -1788,7 +1795,10 @@ impl PageMarginTextDefaults {
 
     /// Keeps the built-in page default stable while resolving an authored
     /// custom stack past an unavailable first family.
-    fn resolve_font_family(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> FontFamily {
+    fn resolve_font_family(
+        style: &ComputedStyle,
+        fonts: &dyn crate::font_registry::FontRegistry,
+    ) -> FontFamily {
         let FontFamily::Custom(name) = &style.font_family else {
             return style.font_family.clone();
         };
@@ -1829,7 +1839,7 @@ impl PageMarginTextContext {
         &self,
         page: PageSelectorContext<'_>,
         margin_style: &PageTextStyle,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> PageMarginTextDefaults {
         let has_matching_page_rule = self
             .page_rules
@@ -2010,7 +2020,7 @@ pub fn layout_with_rules_and_fonts(
     page_size: PageSize,
     margin: Margin,
     rules: &[CssRule],
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     page_background: Option<&ComputedStyle>,
     page_bleed: f32,
     footnote_area: FootnoteAreaLayout,
@@ -2045,7 +2055,7 @@ pub(crate) fn layout_with_rules_and_fonts_raster_quality(
     nodes: &[DomNode],
     geometry: DocumentGeometry,
     rules: &[CssRule],
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     font_locale: crate::font_pack::FontLocale,
     page_background: &super::page_context::PageBackgroundContext,
     pagination_context: super::paginate::PaginationContext,

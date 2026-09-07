@@ -4,18 +4,18 @@
 //! borrowed context explicit makes `ex` and `ch` resolution safe, local, and
 //! independent of thread-local state.
 
-use std::collections::HashMap;
-
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{ComputedStyle, FontFamily, FontWeight};
+#[cfg(test)]
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, Default)]
 pub(crate) struct FontMetrics<'a> {
-    fonts: Option<&'a HashMap<String, TtfFont>>,
+    fonts: Option<&'a dyn crate::font_registry::FontRegistry>,
 }
 
 impl<'a> FontMetrics<'a> {
-    pub(crate) const fn new(fonts: &'a HashMap<String, TtfFont>) -> Self {
+    pub(crate) const fn new(fonts: &'a dyn crate::font_registry::FontRegistry) -> Self {
         Self { fonts: Some(fonts) }
     }
 

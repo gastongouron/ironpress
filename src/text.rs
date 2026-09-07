@@ -67,7 +67,7 @@ pub(crate) fn resolve_custom_font<'a>(
     font_family: &FontFamily,
     bold: bool,
     italic: bool,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 ) -> Option<(&'a str, &'a TtfFont)> {
     let FontFamily::Custom(name) = font_family else {
         return None;
@@ -82,7 +82,7 @@ pub(crate) fn measure_text_width(
     font_family: &FontFamily,
     bold: bool,
     italic: bool,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     measure_text_width_with_shaping(
         text,
@@ -106,7 +106,7 @@ pub(crate) fn measure_text_width_with_shaping(
     bold: bool,
     italic: bool,
     shaping: TextShaping,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     if let Some(width) = measure_text_width_by_font_face_ranges(
         text,
@@ -142,7 +142,7 @@ pub(crate) fn custom_font_line_height(
     font_family: &FontFamily,
     bold: bool,
     italic: bool,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     let (_, font) = resolve_custom_font(font_family, bold, italic, fonts)?;
     Some(
@@ -151,7 +151,10 @@ pub(crate) fn custom_font_line_height(
     )
 }
 
-pub(crate) fn shape_text_run(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> Option<ShapedRun> {
+pub(crate) fn shape_text_run(
+    run: &TextRun,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> Option<ShapedRun> {
     let (_, font) = resolve_custom_font(
         &run.font_family,
         run.bold,
@@ -170,7 +173,7 @@ pub(crate) fn shape_text_run(run: &TextRun, fonts: &HashMap<String, TtfFont>) ->
 /// here.
 pub(crate) fn shape_upright_vertical_run<'a>(
     run: &TextRun,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 ) -> Option<VerticalShapedFontRun<'a>> {
     let (font_key, font) = resolve_upright_vertical_font(run, fonts)?;
     let shaped = shape_vertical_text_with_font(&run.text, run.font_size, font, run.shaping)?;
@@ -188,7 +191,7 @@ pub(crate) fn shape_upright_vertical_run<'a>(
 /// the line geometry that surrounds its vertical glyphs.
 pub(crate) fn upright_vertical_font_metrics(
     run: &TextRun,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<UprightVerticalFontMetrics> {
     resolve_upright_vertical_font(run, fonts).map(|(_, font)| UprightVerticalFontMetrics {
         line_metrics: font.typographic_vertical_metrics(),
@@ -204,7 +207,7 @@ pub(crate) fn upright_vertical_font_metrics(
 /// order while allowing line geometry to use the same metrics before painting.
 fn resolve_upright_vertical_font<'a>(
     run: &TextRun,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 ) -> Option<(&'a str, &'a TtfFont)> {
     if !needs_unicode_fallback(run, fonts) {
         return resolve_custom_font(
@@ -231,7 +234,6 @@ fn resolve_upright_vertical_font<'a>(
             fonts
                 .get_key_value(key)
                 .filter(|(_, font)| font_covers_text(font, &run.text))
-                .map(|(key, font)| (key.as_str(), font))
         })
 }
 
@@ -259,7 +261,7 @@ impl<'a> AuthoredFontFaces<'a> {
         font_family: &FontFamily,
         bold: bool,
         italic: bool,
-        fonts: &'a HashMap<String, TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let FontFamily::Custom(name) = font_family else {
             return Self { custom: None };
@@ -310,7 +312,7 @@ pub(crate) fn shape_text_with_explicit_font(
 pub(crate) fn inline_boundary_kerning_advance(
     left: &TextRun,
     right: &TextRun,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     if !left.shaping.kerning
         || !right.shaping.kerning
@@ -402,7 +404,7 @@ pub(crate) fn inline_boundary_kerning_advance(
 /// the text.  The returned `font_key` is the key into the custom fonts map.
 pub(crate) fn shape_with_unicode_fallback<'a>(
     run: &TextRun,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 ) -> Option<(ShapedRun, &'a str, &'a TtfFont)> {
     if let Some((shaped_run, font_key, font)) = shape_with_font_face_range(run, fonts) {
         return Some((shaped_run, font_key, font));
@@ -452,7 +454,7 @@ fn shape_with_fallback_font<'a>(
     font_size: f32,
     shaping: TextShaping,
     locale: crate::font_pack::FontLocale,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 ) -> Option<(ShapedRun, &'a str, &'a TtfFont)> {
     let fallback_keys = crate::font_pack::fallback_keys(locale);
     for fallback_key in fallback_keys {
@@ -460,7 +462,7 @@ fn shape_with_fallback_font<'a>(
             && let Some(shaped) = shape_text_with_font(text, font_size, font, shaping)
             && shaped_has_no_missing_glyphs(&shaped)
         {
-            return Some((shaped, key.as_str(), font));
+            return Some((shaped, key, font));
         }
     }
     None
@@ -477,7 +479,7 @@ fn measure_text_width_by_font_face_ranges(
     bold: bool,
     italic: bool,
     shaping: TextShaping,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     let FontFamily::Custom(name) = font_family else {
         return None;
@@ -500,7 +502,7 @@ fn measure_text_width_by_font_face_ranges(
 
 fn shape_with_font_face_range<'a>(
     run: &TextRun,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 ) -> Option<(ShapedRun, &'a str, &'a TtfFont)> {
     let FontFamily::Custom(name) = &run.font_family else {
         return None;
@@ -533,7 +535,7 @@ fn split_text_by_font_face_ranges<'a>(
     family: &str,
     bold: bool,
     italic: bool,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 ) -> Option<Vec<FontFaceRangeSegment<'a>>> {
     let (_, primary_font) = crate::system_fonts::find_font(fonts, family, bold, italic)?;
     let mut segments = Vec::new();
@@ -574,7 +576,7 @@ fn split_text_by_font_face_ranges<'a>(
 }
 
 fn font_face_range_fonts<'a>(
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
     family: &str,
     bold: bool,
     italic: bool,
@@ -583,14 +585,16 @@ fn font_face_range_fonts<'a>(
         "{}__fontface_",
         crate::system_fonts::font_variant_key(family, bold, italic)
     );
-    let mut matches: Vec<_> = fonts
-        .iter()
-        .filter_map(|(key, font)| {
-            key.strip_prefix(&prefix)
-                .and_then(|suffix| suffix.parse::<usize>().ok())
-                .map(|index| (index, key.as_str(), font))
-        })
-        .collect();
+    let mut matches = Vec::new();
+    fonts.visit(&mut |key, font| {
+        if let Some(entry) = key
+            .strip_prefix(&prefix)
+            .and_then(|suffix| suffix.parse::<usize>().ok())
+            .map(|index| (index, key, font))
+        {
+            matches.push(entry);
+        }
+    });
     matches.sort_by_key(|(index, _, _)| *index);
     matches
         .into_iter()
@@ -599,7 +603,10 @@ fn font_face_range_fonts<'a>(
 }
 
 /// Check if a run needs unicode fallback (has characters the primary font can't cover).
-pub(crate) fn needs_unicode_fallback(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> bool {
+pub(crate) fn needs_unicode_fallback(
+    run: &TextRun,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> bool {
     if let FontFamily::Custom(name) = &run.font_family {
         if let Some((_, font)) =
             crate::system_fonts::find_font(fonts, name, run.bold, run.font_style.is_slanted())
@@ -638,7 +645,7 @@ pub(crate) fn contains_cjk_vertical_text(text: &str) -> bool {
 /// segment should be rendered with the unicode fallback font.
 pub(crate) fn split_run_by_font_coverage(
     run: &TextRun,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<(String, bool)> {
     let primary_font = if let FontFamily::Custom(name) = &run.font_family {
         crate::system_fonts::find_font(fonts, name, run.bold, run.font_style.is_slanted())
@@ -732,7 +739,7 @@ fn shape_text_glyphs(
         return Some(Vec::new());
     }
 
-    let face = font.shaping.as_ref()?.face();
+    let face = font.program.shaping_face()?;
     let scale = font.adjusted_font_size(font_size) / (face.units_per_em() as f32).max(1.0);
 
     let mut buffer = rustybuzz::UnicodeBuffer::new();
@@ -854,7 +861,6 @@ mod tests {
         use crate::parser::ttf::{FontVerticalMetricSet, FontVerticalMetrics, TtfFont};
         TtfFont {
             font_name: "Stub".into(),
-            face_index: Default::default(),
             units_per_em: 1000,
             size_adjust: 1.0,
             bbox: [0, 0, 0, 0],
@@ -866,8 +872,7 @@ mod tests {
             is_bold: false,
             is_italic: false,
             text_metrics: Default::default(),
-            data: std::sync::Arc::new(Vec::new()),
-            shaping: None,
+            program: crate::parser::ttf::FontProgram::unshapeable_for_tests(Vec::new()),
         }
     }
 
@@ -1141,7 +1146,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // shape_text_with_font – returns None when font.data is not a valid face
+    // shape_text_with_font returns None when the program has no shaping face.
     // -----------------------------------------------------------------------
 
     #[test]

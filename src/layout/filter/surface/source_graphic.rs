@@ -1,9 +1,6 @@
 //! Two-pass allocation for one recursively painted filter source.
 
-use std::collections::HashMap;
-
 use crate::layout::elements::LayoutElement;
-use crate::parser::ttf::TtfFont;
 use crate::render::raster_pixels::PremultipliedRgba8;
 use crate::types::EdgeSizes;
 
@@ -21,7 +18,7 @@ impl SourcePaintPass {
     fn paint(
         element: &dyn LayoutElement,
         geometry: &SourceRasterGeometry,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
         filter_dpi: f32,
     ) -> Option<Self> {
         let dimensions = geometry.dimensions();
@@ -64,7 +61,7 @@ impl SourcePaintPass {
 /// pass discovers positioned descendants outside the provisional allocation.
 pub(crate) fn paint_source_graphic(
     element: &dyn LayoutElement,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
     raster_space: SourceRasterSpace,
 ) -> Option<SourceGraphic> {

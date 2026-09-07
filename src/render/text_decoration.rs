@@ -1,9 +1,6 @@
 //! Renderer-independent geometry for horizontal CSS text decorations.
 
-use std::collections::HashMap;
-
 use crate::layout::engine::TextRun;
-use crate::parser::ttf::TtfFont;
 
 mod ink_skip;
 
@@ -89,7 +86,7 @@ pub(crate) fn overline_lift(run: &TextRun) -> f32 {
 /// Width of leading and trailing whitespace excluded from a decoration line.
 pub(crate) fn whitespace_insets(
     run: &TextRun,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> (f32, f32) {
     if run.inline_box.is_some() {
         return (0.0, 0.0);

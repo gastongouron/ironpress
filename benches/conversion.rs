@@ -134,6 +134,11 @@ fn emphasized_text_html(run_count: usize) -> String {
     )
 }
 
+fn custom_font_html(paragraph_count: usize) -> String {
+    let paragraphs = "<p>Warm custom-font conversion office.</p>".repeat(paragraph_count);
+    format!(r#"<style>body {{ font-family: "Bench Font"; }}</style>{paragraphs}"#)
+}
+
 fn bench_simple(c: &mut Criterion) {
     c.bench_function("simple_html", |b| {
         b.iter(|| ironpress::html_to_pdf(black_box(SIMPLE_HTML)).unwrap())
@@ -186,6 +191,64 @@ fn bench_text_emphasis(c: &mut Criterion) {
     });
 }
 
+fn bench_custom_font(c: &mut Criterion, label: &str, font: Vec<u8>) {
+    let html = custom_font_html(100);
+    let converter = ironpress::HtmlConverter::new().add_font("Bench Font", font.clone());
+
+    c.bench_function(&format!("custom_font/{label}/warm_converter"), |b| {
+        b.iter(|| converter.convert(black_box(&html)).unwrap())
+    });
+    c.bench_function(&format!("custom_font/{label}/cold_converter"), |b| {
+        b.iter(|| {
+            ironpress::HtmlConverter::new()
+                .add_font("Bench Font", font.clone())
+                .convert(black_box(&html))
+                .unwrap()
+        })
+    });
+}
+
+fn bench_large_font_pack(c: &mut Criterion, font: Vec<u8>) {
+    let html = "<p lang='zh-CN'>中文字体</p>";
+    let pack =
+        ironpress::FontPack::parse(ironpress::FontPackKind::CjkSimplifiedChinese, font.clone())
+            .expect("IRONPRESS_BENCH_LARGE_FONT must be a supported OpenType font");
+    let converter = ironpress::HtmlConverter::new().add_font_pack(pack);
+
+    c.bench_function("font_pack/large_font/warm_converter", |b| {
+        b.iter(|| converter.convert(black_box(html)).unwrap())
+    });
+    c.bench_function("font_pack/large_font/cold_converter", |b| {
+        b.iter(|| {
+            let pack = ironpress::FontPack::parse(
+                ironpress::FontPackKind::CjkSimplifiedChinese,
+                font.clone(),
+            )
+            .unwrap();
+            ironpress::HtmlConverter::new()
+                .add_font_pack(pack)
+                .convert(black_box(html))
+                .unwrap()
+        })
+    });
+}
+
+fn bench_custom_fonts(c: &mut Criterion) {
+    bench_custom_font(
+        c,
+        "liberation_sans",
+        include_bytes!("../assets/LiberationSans-Regular.ttf").to_vec(),
+    );
+
+    // Reproduce the large-font measurement without adding a platform asset:
+    // IRONPRESS_BENCH_LARGE_FONT=/path/to/font.ttc cargo bench --bench conversion -- \
+    //   font_pack/large_font
+    if let Some(path) = std::env::var_os("IRONPRESS_BENCH_LARGE_FONT") {
+        let font = std::fs::read(path).expect("read IRONPRESS_BENCH_LARGE_FONT");
+        bench_large_font_pack(c, font);
+    }
+}
+
 criterion_group!(
     benches,
     bench_simple,
@@ -195,5 +258,6 @@ criterion_group!(
     bench_markdown,
     bench_with_header_footer,
     bench_text_emphasis,
+    bench_custom_fonts,
 );
 criterion_main!(benches);

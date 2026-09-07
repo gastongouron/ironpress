@@ -39,7 +39,6 @@ fn custom_font_embedding_in_pdf() {
     }
     let ttf = TtfFont {
         font_name: "TestFont".to_string(),
-        face_index: Default::default(),
         units_per_em: 1000,
         size_adjust: 1.0,
         bbox: [0, -200, 800, 800],
@@ -53,8 +52,7 @@ fn custom_font_embedding_in_pdf() {
         is_bold: false,
         is_italic: false,
         text_metrics: Default::default(),
-        data: std::sync::Arc::new(vec![0u8; 64]), // Minimal dummy font data
-        shaping: None,
+        program: crate::parser::ttf::FontProgram::unshapeable_for_tests(vec![0u8; 64]),
     };
     let mut fonts = HashMap::new();
     fonts.insert("TestFont".to_string(), ttf);
@@ -129,7 +127,6 @@ fn render_run_glyphs_falls_back_to_standard_font_when_custom_shaping_fails() {
     }
     let ttf = TtfFont {
         font_name: "TestFont".to_string(),
-        face_index: Default::default(),
         units_per_em: 1000,
         size_adjust: 1.0,
         bbox: [0, -200, 800, 800],
@@ -143,8 +140,7 @@ fn render_run_glyphs_falls_back_to_standard_font_when_custom_shaping_fails() {
         is_bold: false,
         is_italic: false,
         text_metrics: Default::default(),
-        data: std::sync::Arc::new(vec![0u8; 64]),
-        shaping: None,
+        program: crate::parser::ttf::FontProgram::unshapeable_for_tests(vec![0u8; 64]),
     };
     let mut fonts = HashMap::new();
     fonts.insert(
@@ -180,7 +176,6 @@ fn render_run_glyphs_falls_back_to_standard_font_when_custom_shaping_fails() {
 fn tj_test_font() -> crate::parser::ttf::TtfFont {
     crate::parser::ttf::TtfFont {
         font_name: "TestFont".to_string(),
-        face_index: Default::default(),
         units_per_em: 1000,
         size_adjust: 1.0,
         bbox: [0, -200, 800, 800],
@@ -194,8 +189,7 @@ fn tj_test_font() -> crate::parser::ttf::TtfFont {
         is_bold: false,
         is_italic: false,
         text_metrics: Default::default(),
-        data: std::sync::Arc::new(Vec::new()),
-        shaping: None,
+        program: crate::parser::ttf::FontProgram::unshapeable_for_tests(Vec::new()),
     }
 }
 

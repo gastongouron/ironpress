@@ -47,7 +47,7 @@ pub(crate) struct SvgPdfResources<'a> {
     /// Loaded custom (bundled) fonts, keyed by resolved face name. Lets SVG
     /// `<text>` shape and render with a registered custom family (e.g. a
     /// bundled `@font-face`) instead of a base-14 standard font.
-    pub custom_fonts: Option<&'a std::collections::HashMap<String, crate::parser::ttf::TtfFont>>,
+    pub custom_fonts: Option<&'a dyn crate::font_registry::FontRegistry>,
     /// Subsetted/prepared custom fonts that mirror what body text already
     /// embedded, so SVG text references the SAME font resource (no duplicate
     /// embedding) and uses the same subset glyph-id remapping.

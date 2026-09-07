@@ -6,13 +6,11 @@ use crate::layout::elements::{
 use crate::layout::flow_metrics::BlockMargins;
 use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BoxSizing, ComputedStyle, Display, Float, FontFamily, Overflow, Position, TextAlign,
     TextOverflow, WhiteSpace, compute_style_with_context_with_font_metrics,
 };
 use crate::types::EdgeSizes;
-use std::collections::HashMap;
 
 use super::context::{ContainingBlock, LayoutContext, LayoutEnv};
 use super::engine::{
@@ -138,7 +136,7 @@ fn offset_text_block_top(element: &mut dyn LayoutElement, offset: f32) {
 
 fn cap_height_ratio_for_initial_letter(
     style: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     let FontFamily::Custom(family) = resolve_style_font_family(style, fonts) else {
         return None;
@@ -153,7 +151,7 @@ fn initial_letter_font_size(
     block_font_size: f32,
     block_line_height: f32,
     size: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let Some(cap_ratio) = cap_height_ratio_for_initial_letter(style, fonts) else {
         return block_line_height * size;
@@ -165,7 +163,7 @@ fn initial_letter_font_size(
 fn restyle_runs_for_first_line_wrap(
     runs: &mut [TextRun],
     fl: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     let family = resolve_style_font_family(fl, fonts);
     let line_height = text_run_line_height_factor(fl, fonts);
@@ -285,7 +283,7 @@ fn wrap_text_runs_with_first_line_style(
     runs: Vec<TextRun>,
     options: TextWrapOptions,
     fl: &ComputedStyle,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<TextLine> {
     let mut styled_runs = runs.clone();
     restyle_runs_for_first_line_wrap(&mut styled_runs, fl, fonts);
@@ -853,7 +851,7 @@ pub(crate) fn layout_block_element(
                       auto_offset_left: f32,
                       el: &ElementNode,
                       output: &mut Vec<LayoutNode>,
-                      fonts: &HashMap<String, TtfFont>| {
+                      fonts: &dyn crate::font_registry::FontRegistry| {
         if runs.is_empty() {
             return;
         }
@@ -2457,7 +2455,7 @@ fn apply_line_clamp(
     lines: &mut Vec<crate::layout::engine::TextLine>,
     max_lines: usize,
     max_width: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     if max_lines == 0 || lines.len() <= max_lines {
         return;
@@ -2510,7 +2508,7 @@ fn apply_text_align_last(
     lines: &mut [crate::layout::engine::TextLine],
     style: &ComputedStyle,
     inner_width: f32,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     let Some(align) = style.text_align_last else {
         return;

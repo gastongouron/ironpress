@@ -4,8 +4,15 @@
 //! fonts. Each width is given in units of 1/1000 em. To obtain the width in
 //! points, multiply: `afm_width / 1000.0 * font_size`.
 
+mod emoji;
+
+pub(crate) use emoji::EmojiPresentation;
+
+#[cfg(test)]
+use crate::parser::ttf::TtfFont;
 use crate::style::computed::FontFamily;
-use crate::{parser::ttf::TtfFont, system_fonts, text};
+use crate::{system_fonts, text};
+#[cfg(test)]
 use std::collections::HashMap;
 
 /// One CSS reference pixel expressed in the point-based layout coordinate system.
@@ -462,7 +469,7 @@ pub(crate) fn font_metrics_ratios(
     font_family: &FontFamily,
     bold: bool,
     italic: bool,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> (f32, f32) {
     if let FontFamily::Custom(name) = font_family {
         if let Some((_, ttf)) = system_fonts::find_font(custom_fonts, name, bold, italic) {
@@ -509,7 +516,7 @@ pub(crate) fn exact_font_line_metrics(
     font_size: f32,
     bold: bool,
     italic: bool,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> FontLineMetrics {
     let (ascent_ratio, descent_ratio, line_gap_ratio) = if let FontFamily::Custom(name) =
         font_family
@@ -541,7 +548,7 @@ pub(crate) fn font_line_metrics(
     font_size: f32,
     bold: bool,
     italic: bool,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> FontLineMetrics {
     exact_font_line_metrics(font_family, font_size, bold, italic, custom_fonts)
         .rounded_to_css_pixel_grid()
@@ -551,7 +558,7 @@ pub(crate) fn normal_line_height_factor(
     font_family: &FontFamily,
     bold: bool,
     italic: bool,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     if matches!(font_family, FontFamily::Custom(_)) {
         if let Some(height) = text::custom_font_line_height(font_family, bold, italic, custom_fonts)
@@ -845,19 +852,7 @@ fn is_fullwidth_char(code: u32) -> bool {
 
 /// Returns true for emoji codepoints.
 pub(crate) fn is_emoji_char(code: u32) -> bool {
-    matches!(code,
-        0x1F600..=0x1F64F   // Emoticons
-        | 0x1F300..=0x1F5FF // Misc Symbols and Pictographs
-        | 0x1F680..=0x1F6FF // Transport and Map
-        | 0x1F1E0..=0x1F1FF // Flags (regional indicators)
-        | 0x2600..=0x26FF   // Misc symbols
-        | 0x2700..=0x27BF   // Dingbats
-        | 0x1F900..=0x1F9FF // Supplemental Symbols
-        | 0x1FA00..=0x1FA6F // Chess Symbols
-        | 0x1FA70..=0x1FAFF // Symbols and Pictographs Extended-A
-        | 0xFE00..=0xFE0F   // Variation Selectors
-        | 0x200D            // ZWJ
-    )
+    EmojiPresentation::scalar_has_emoji_property(code)
 }
 
 #[cfg(test)]

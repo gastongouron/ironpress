@@ -77,13 +77,13 @@ impl PdfWriter {
 
 fn type3_char_proc(ttf: &TtfFont, glyph_id: u16, glyph_style: Type3GlyphStyle) -> String {
     let width = ttf.glyph_width(glyph_id);
-    let Ok(face) = rustybuzz::ttf_parser::Face::parse(&ttf.data, ttf.face_index.get()) else {
+    let Some(face) = ttf.program.shaping_face() else {
         let [left, bottom, right, top] = type3_font_bbox(ttf, glyph_style);
         return format!("{width} 0 {left} {bottom} {right} {top} d1\n");
     };
 
     let glyph = rustybuzz::ttf_parser::GlyphId(glyph_id);
-    let Some(source) = glyph_path(&face, glyph) else {
+    let Some(source) = glyph_path(face, glyph) else {
         return format!("{width} 0 d0\n");
     };
     let bounds = face.glyph_bounding_box(glyph).map_or(ttf.bbox, |bbox| {

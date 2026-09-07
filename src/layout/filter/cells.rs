@@ -5,12 +5,9 @@
 //! the shared boundary that attaches that result to the concrete cell instead
 //! of teaching every renderer a formatting-context-specific workaround.
 
-use std::collections::HashMap;
-
 use crate::layout::cells::{CellPaintHolder, GridCell};
 use crate::layout::elements::{FilterHolder, FlexRow, GridRow};
 use crate::layout::engine::FlexCell;
-use crate::parser::ttf::TtfFont;
 use crate::types::Size;
 
 use super::ResolvedFilter;
@@ -30,7 +27,7 @@ pub(super) fn materialize_flex_row(
     flex: &mut FlexRow,
     anchor: PageBoxAnchor,
     inherited_space: InheritedFilterPaintSpace,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) {
     let frames = super::surface::flex_cell_source_frames(flex, fonts);
@@ -64,7 +61,7 @@ fn composite_flex_cell(
     size: Size,
     raster_space: super::surface::SourceRasterSpace,
     filter: &ResolvedFilter,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) -> bool {
     if !filter.requires_source_surface() {
@@ -91,7 +88,7 @@ pub(super) fn materialize_grid_row(
     grid: &mut GridRow,
     anchor: PageBoxAnchor,
     inherited_space: InheritedFilterPaintSpace,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) {
     let frames = super::surface::grid_cell_source_frames(grid);
@@ -124,7 +121,7 @@ fn composite_grid_cell(
     size: Size,
     raster_space: super::surface::SourceRasterSpace,
     filter: &ResolvedFilter,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) -> bool {
     if !filter.requires_source_surface() {

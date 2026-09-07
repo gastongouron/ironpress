@@ -7,7 +7,7 @@ pub(super) use decoration::*;
 
 pub(super) fn register_used_custom_fonts(
     pdf_writer: &mut PdfWriter,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
 ) {
     for (font_name, prepared_font) in prepared_custom_fonts {
@@ -58,7 +58,7 @@ pub(super) fn resolve_font_name(
     run: &TextRun,
     custom_font: Option<(&str, &TtfFont)>,
     shaped: Option<&crate::text::ShapedRun>,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> String {
     if let (Some((resolved_name, _)), Some(_)) = (custom_font, shaped) {
         sanitize_pdf_name(&prepared_font_name_for_run(
@@ -75,7 +75,7 @@ pub(super) fn inline_background_y_and_height(
     run: &TextRun,
     text_y: f32,
     padding: EdgeSizes,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> (f32, f32) {
     let line_height = crate::fonts::font_line_metrics(
         run.css_font_family(),
@@ -142,7 +142,7 @@ pub(super) fn render_text_emphasis_marks(
     content: &mut String,
     run: &TextRun,
     placement: TextEmphasisPlacement,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
@@ -188,7 +188,7 @@ pub(super) fn render_text_emphasis_marks(
 
 pub(super) fn estimate_run_width_with_fonts(
     run: &TextRun,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     if let Some(advance) = run.atomic_inline_advance() {
         return advance;

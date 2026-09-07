@@ -5,12 +5,11 @@ use super::text::{collapse_whitespace, estimate_word_width, resolve_style_font_f
 use super::traversal::ElementSiblingPosition;
 use crate::parser::css::{AncestorInfo, CssRule, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode};
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
     BoxSizing, ComputedStyle, Display, FontFamily, FontWeight, IntrinsicWidthKeyword,
     compute_style_with_context,
 };
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 /// css-sizing-3 § 5.1 intrinsic inline sizes for one box edge.
 ///
@@ -53,7 +52,7 @@ fn box_horizontal_extra(style: &ComputedStyle) -> f32 {
 #[derive(Clone, Copy)]
 struct IntrinsicMeasurement<'context, 'dom> {
     rules: &'context [CssRule],
-    fonts: &'context HashMap<String, TtfFont>,
+    fonts: &'context dyn crate::font_registry::FontRegistry,
     ancestors: &'context [AncestorInfo<'dom>],
     selector: &'context SelectorContext<'dom>,
 }
@@ -63,7 +62,7 @@ pub(crate) fn intrinsic_border_box_widths(
     el: &ElementNode,
     style: &ComputedStyle,
     rules: &[CssRule],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     ancestors: &[AncestorInfo],
     selector: &SelectorContext,
 ) -> IntrinsicWidths {
@@ -85,7 +84,7 @@ pub(crate) fn content_intrinsic_border_box_widths(
     el: &ElementNode,
     style: &ComputedStyle,
     rules: &[CssRule],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     ancestors: &[AncestorInfo],
     selector: &SelectorContext,
 ) -> IntrinsicWidths {
@@ -340,11 +339,11 @@ struct TextMeasurement<'a> {
     family: FontFamily,
     bold: bool,
     italic: bool,
-    fonts: &'a HashMap<String, TtfFont>,
+    fonts: &'a dyn crate::font_registry::FontRegistry,
 }
 
 impl<'a> TextMeasurement<'a> {
-    fn new(style: &ComputedStyle, fonts: &'a HashMap<String, TtfFont>) -> Self {
+    fn new(style: &ComputedStyle, fonts: &'a dyn crate::font_registry::FontRegistry) -> Self {
         Self {
             font_size: style.font_size,
             family: resolve_style_font_family(style, fonts),
@@ -425,7 +424,7 @@ pub(crate) fn resolve_intrinsic_keyword_width(
     keyword: IntrinsicWidthKeyword,
     available_width: f32,
     rules: &[CssRule],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     // A min/max-width keyword constrains the preferred width; it does not
     // measure that preferred width. Using `intrinsic_border_box_widths` here

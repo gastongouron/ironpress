@@ -9,7 +9,7 @@ pub(super) fn render_text_shadow_blur(
     baseline_y_pt: f32,
     blur_pt: f32,
     color: (f32, f32, f32, f32),
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) -> bool {
@@ -96,7 +96,7 @@ pub(super) fn render_run_glyphs(
     x: f32,
     text_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     pdf_writer: &mut PdfWriter,
@@ -125,7 +125,7 @@ pub(super) fn render_run_glyphs_without_shadows(
     x: f32,
     text_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     pdf_writer: &mut PdfWriter,
@@ -154,7 +154,7 @@ pub(super) fn render_run_text_shadows(
     x: f32,
     text_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     pdf_writer: &mut PdfWriter,
@@ -182,7 +182,7 @@ pub(super) fn render_run_text_shadows_in_space(
     x: f32,
     text_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     pdf_writer: &mut PdfWriter,
@@ -219,7 +219,7 @@ pub(super) fn render_run_glyph_layers_in_space(
     x: f32,
     text_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     justification_word_spacing: f32,
     pdf_writer: &mut PdfWriter,
@@ -466,7 +466,7 @@ fn paint_run_text_shadows_at_baseline(
     x: f32,
     text_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     justification_word_spacing: f32,
     pdf_writer: &mut PdfWriter,
@@ -532,7 +532,7 @@ fn paint_run_text_shadows_at_baseline(
 /// axis when their shaped advance exceeds one em.
 pub(super) fn text_combine_advance(
     run: &TextRun,
-    _custom_fonts: &HashMap<String, TtfFont>,
+    _custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     run.metadata
         .text_combine_upright
@@ -553,7 +553,7 @@ pub(super) fn render_text_combine_run(
     x: f32,
     text_y: f32,
     parent_font_size: f32,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     word_spacing: f32,
     pdf_writer: &mut PdfWriter,
@@ -631,7 +631,7 @@ pub(crate) const SUB_SHIFT_RATIO: f32 = 0.23;
 /// text.
 pub(super) fn line_primary_x_height_ratio(
     runs: &[TextRun],
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let pick = runs
         .iter()

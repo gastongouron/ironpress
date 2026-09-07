@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
 use crate::layout::elements::{
     BackgroundBox, BackgroundBoxGeometry, IntoLayoutNode, PageAreaInFlowSpace,
 };
 use crate::layout::engine::Page;
 use crate::parser::css::{PageRule, PageSelector, PageSelectorContext, StyleMap};
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{ComputedStyle, apply_style_map_with_font_metrics};
 use crate::style::font_metrics::FontMetrics;
 use crate::style::raster_quality::RasterQuality;
@@ -245,7 +242,7 @@ impl PageBackgroundContext {
         pages: &mut [Page],
         default_page_size: PageSize,
         default_margin: Margin,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) {
         for (page_index, page) in pages.iter_mut().enumerate() {
             let page_number = page_index + 1;
@@ -290,7 +287,7 @@ impl PageBackgroundContext {
     fn resolve(
         &self,
         page: PageSelectorContext<'_>,
-        fonts: &HashMap<String, TtfFont>,
+        fonts: &dyn crate::font_registry::FontRegistry,
     ) -> Option<ComputedStyle> {
         if self.rules.is_empty() {
             return crate::layout::helpers::has_background_paint(&self.initial_style)

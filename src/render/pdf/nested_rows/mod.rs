@@ -89,7 +89,7 @@ struct NestedRowsRenderer<'call, 'fonts> {
     cursor_y: f32,
     page_ext_gstates: &'call mut Vec<(String, f32)>,
     bg_alpha_counter: &'call mut usize,
-    custom_fonts: &'fonts HashMap<String, TtfFont>,
+    custom_fonts: &'fonts dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &'fonts PreparedCustomFonts,
     page_shadings: &'call mut Vec<ShadingEntry>,
     shading_counter: &'call mut usize,

@@ -23,7 +23,6 @@ use crate::layout::elements::{
 };
 use crate::layout::engine::{LayoutBorder, RasterImageAsset};
 use crate::parser::dom::ElementNode;
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{ComputedStyle, FilterOperation, NormalizedFilterRegion, ObjectFit};
 use crate::types::EdgeSizes;
 
@@ -194,7 +193,7 @@ pub(crate) fn retain_for_fragmentation(
 pub(crate) fn composite_source(
     element: &dyn crate::layout::elements::LayoutElement,
     filter: &ResolvedFilter,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
     raster_space: surface::SourceRasterSpace,
 ) -> Option<FilteredGraphic> {

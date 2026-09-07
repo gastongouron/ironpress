@@ -71,6 +71,7 @@ impl LayoutVisitor for FlexFilterOwnership {
 
 #[test]
 fn filtered_flex_item_keeps_document_order_ownership() {
+    let fonts = std::collections::HashMap::<String, crate::parser::ttf::TtfFont>::new();
     let pages = layout_pages_with_fonts(
         r#"
         <style>
@@ -84,7 +85,7 @@ fn filtered_flex_item_keeps_document_order_ownership() {
             <div class="item second"></div>
         </div>
         "#,
-        &Default::default(),
+        &fonts,
     );
     let mut ownership = FlexFilterOwnership::default();
     for page in pages {

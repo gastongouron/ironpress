@@ -15,7 +15,7 @@ pub(in crate::render::pdf) use stroke::*;
 /// shadows, underline/overline, glyphs, then line-through.
 pub(in crate::render::pdf) struct HorizontalRunDecorations<'a> {
     run: &'a TextRun,
-    custom_fonts: &'a HashMap<String, TtfFont>,
+    custom_fonts: &'a dyn crate::font_registry::FontRegistry,
     origin: f32,
     start: f32,
     end: f32,
@@ -41,7 +41,7 @@ pub(in crate::render::pdf) fn paint_horizontal_line_text(
     content: &mut String,
     runs: &[TextRun],
     paint: HorizontalLinePaint,
-    custom_fonts: &HashMap<String, TtfFont>,
+    custom_fonts: &dyn crate::font_registry::FontRegistry,
     prepared_custom_fonts: &PreparedCustomFonts,
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
@@ -146,7 +146,7 @@ impl<'a> HorizontalRunDecorations<'a> {
         start: f32,
         width: f32,
         baseline: f32,
-        custom_fonts: &'a HashMap<String, TtfFont>,
+        custom_fonts: &'a dyn crate::font_registry::FontRegistry,
     ) -> Self {
         let (leading, trailing) = decoration_ws_insets(run, custom_fonts);
         Self {

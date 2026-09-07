@@ -1,11 +1,8 @@
 //! Generic recursive dispatch for filter source painting.
 
-use std::collections::HashMap;
-
 use crate::layout::elements::{
     BoxModel, BoxPaint, Container, FlexRow, LayoutElement, Positioning, TextBlock,
 };
-use crate::parser::ttf::TtfFont;
 use crate::render::borders::CssRoundedRect;
 use crate::style::computed::Position;
 use crate::types::{Point, Size};
@@ -156,7 +153,7 @@ impl DescendantPaintArea {
 pub(super) struct SourcePainter<'a> {
     pub(super) canvas: RasterCanvas<'a>,
     pub(super) space: ElementPaintSpace,
-    pub(super) fonts: &'a HashMap<String, TtfFont>,
+    pub(super) fonts: &'a dyn crate::font_registry::FontRegistry,
     pub(super) filter_dpi: f32,
     pub(super) result: Option<()>,
 }
@@ -165,7 +162,7 @@ impl<'a> SourcePainter<'a> {
     pub(super) const fn new(
         canvas: RasterCanvas<'a>,
         space: ElementPaintSpace,
-        fonts: &'a HashMap<String, TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
         filter_dpi: f32,
     ) -> Self {
         Self {
@@ -284,7 +281,7 @@ pub(super) fn paint_element(
     canvas: &mut RasterCanvas<'_>,
     element: &dyn LayoutElement,
     space: ElementPaintSpace,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
     filter_dpi: f32,
 ) -> Option<()> {
     let painter_canvas = RasterCanvas {

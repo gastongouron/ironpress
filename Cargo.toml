@@ -57,7 +57,6 @@ pulldown-cmark = "0.13"
 markup5ever_rcdom = "0.39"
 fontdb = "0.23"
 flate2 = "1"
-lru = "0.18"
 resvg = "0.47"
 rustybuzz = "0.20"
 self_cell = "1"
@@ -80,6 +79,7 @@ language-tags = "0.3.2"
 getrandom = { version = "0.3", optional = true }
 unicode-bidi = "0.3.18"
 unicode-linebreak = "0.1.5"
+unicode-properties = { version = "0.1.4", features = ["emoji"] }
 unicode-segmentation = "1.13.2"
 
 [dev-dependencies]

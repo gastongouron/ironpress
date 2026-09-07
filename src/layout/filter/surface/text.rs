@@ -1,9 +1,6 @@
 //! Text and decoration painting into a filter `SourceGraphic`.
 
-use std::collections::HashMap;
-
 use crate::layout::engine::{FlexCell, TextLine, TextRun};
-use crate::parser::ttf::TtfFont;
 use crate::style::computed::{AlignItems, TextAlign};
 use crate::types::{Color, Point, Size};
 
@@ -270,7 +267,10 @@ fn apply_authored_spacing(run: &TextRun, glyphs: &mut [crate::text::ShapedGlyph]
     }
 }
 
-pub(super) fn flex_cell_baseline(cell: &FlexCell, fonts: &HashMap<String, TtfFont>) -> Option<f32> {
+pub(super) fn flex_cell_baseline(
+    cell: &FlexCell,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> Option<f32> {
     let mut prior = 0.0;
     let last = cell
         .lines
@@ -292,7 +292,7 @@ pub(super) fn flex_cell_baseline(cell: &FlexCell, fonts: &HashMap<String, TtfFon
 pub(super) fn flex_line_max_baseline(
     cells: &[FlexCell],
     alignment: AlignItems,
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<f32> {
     cells
         .iter()
@@ -303,7 +303,7 @@ pub(super) fn flex_line_max_baseline(
 
 pub(crate) fn table_row_baseline_shifts(
     cells: &[crate::layout::cells::TableCell],
-    fonts: &HashMap<String, TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<f32> {
     let baselines = cells
         .iter()
@@ -337,7 +337,10 @@ pub(crate) fn table_row_baseline_shifts(
         .collect()
 }
 
-pub(super) fn line_baseline_ascent(line: &TextLine, fonts: &HashMap<String, TtfFont>) -> f32 {
+pub(super) fn line_baseline_ascent(
+    line: &TextLine,
+    fonts: &dyn crate::font_registry::FontRegistry,
+) -> f32 {
     line.baseline_ascent.unwrap_or_else(|| {
         let (ascent, descent) = line
             .runs
@@ -359,7 +362,7 @@ pub(super) fn line_baseline_ascent(line: &TextLine, fonts: &HashMap<String, TtfF
     })
 }
 
-fn run_width(run: &TextRun, fonts: &HashMap<String, TtfFont>) -> Option<f32> {
+fn run_width(run: &TextRun, fonts: &dyn crate::font_registry::FontRegistry) -> Option<f32> {
     if run.inline_box.is_some() {
         return None;
     }

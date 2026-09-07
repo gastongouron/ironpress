@@ -92,7 +92,7 @@ fn footnote_line_policy_break_index(
     element_height: f32,
     content_height: f32,
     footnote_area: FootnoteAreaLayout,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Option<usize> {
     struct LinePolicyVisitor<'a> {
         current_footnotes: &'a [FootnoteItem],
@@ -100,7 +100,7 @@ fn footnote_line_policy_break_index(
         element_height: f32,
         content_height: f32,
         footnote_area: FootnoteAreaLayout,
-        fonts: &'a HashMap<String, crate::parser::ttf::TtfFont>,
+        fonts: &'a dyn crate::font_registry::FontRegistry,
         break_index: Option<usize>,
     }
 
@@ -158,7 +158,7 @@ fn footnote_block_policy_requires_break(
     element_height: f32,
     content_height: f32,
     footnote_area: FootnoteAreaLayout,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> bool {
     if !pending_footnotes
         .iter()
@@ -297,7 +297,7 @@ impl Default for FootnoteAreaLayout {
 fn footnote_lines_height(
     footnotes: &[FootnoteItem],
     content_width: f32,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     let mut total = 0.0f32;
     let mut compact_runs: Vec<TextRun> = Vec::new();
@@ -358,7 +358,7 @@ fn footnote_content_width(area: FootnoteAreaLayout) -> f32 {
 fn footnote_content_height(
     footnotes: &[FootnoteItem],
     area: FootnoteAreaLayout,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     footnote_lines_height(footnotes, footnote_content_width(area), fonts)
 }
@@ -366,7 +366,7 @@ fn footnote_content_height(
 fn footnote_reserved_height(
     groups: &[&[FootnoteItem]],
     area: FootnoteAreaLayout,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> f32 {
     if groups.iter().all(|footnotes| footnotes.is_empty()) {
         return 0.0;
@@ -387,7 +387,7 @@ fn footnote_reserved_height(
 pub(crate) fn move_overflow_footnotes_to_next_page(
     pages: &mut Vec<Page>,
     area: FootnoteAreaLayout,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) {
     let Some(max_height) = area.max_height else {
         return;
@@ -2657,7 +2657,7 @@ pub(crate) fn paginate(
 pub(crate) fn paginate_with_context(
     elements: Vec<LayoutNode>,
     context: PaginationContext,
-    fonts: &HashMap<String, crate::parser::ttf::TtfFont>,
+    fonts: &dyn crate::font_registry::FontRegistry,
 ) -> Vec<Page> {
     let footnote_area = context.footnote_area;
     let root_margin_top = context.root_margin_top;
