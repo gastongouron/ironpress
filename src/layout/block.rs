@@ -31,7 +31,8 @@ use super::helpers::{
     selector_context_from_ancestors,
 };
 use super::inline::{
-    layout_inline_block_group_with_spacing, layout_inline_mixed_sequence_with_env,
+    InlineRowBoxOwnership, layout_inline_block_group_with_spacing,
+    layout_inline_mixed_sequence_with_env,
 };
 use super::inline_formatting::{
     AnonymousInlineFormattingContext, AtomicInlineEmission, GeneratedContentStyles,
@@ -1139,6 +1140,7 @@ pub(crate) fn layout_block_element(
                             &ctx.with_parent(inner_width, Some(available_height), style.font_size),
                             target,
                             child_ancestors,
+                            InlineRowBoxOwnership::Row,
                             env,
                         )
                     {
@@ -1419,6 +1421,7 @@ pub(crate) fn layout_block_element(
                 &ctx.with_parent(inner_width, Some(available_height), style.font_size),
                 output,
                 child_ancestors,
+                InlineRowBoxOwnership::Row,
                 env,
             )
         {

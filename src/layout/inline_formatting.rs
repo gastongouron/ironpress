@@ -325,30 +325,6 @@ impl<'a> GeneratedInlineContent<'a> {
             after.append_inline(runs, fonts, counter_state, resources);
         }
     }
-
-    pub(crate) fn append_before_measurement(
-        self,
-        runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
-        counter_state: &mut CounterState,
-        resources: &mut crate::security::resources::ResourceLoader,
-    ) {
-        if let Some(before) = self.before {
-            before.append_measurement_run(runs, fonts, counter_state, resources);
-        }
-    }
-
-    pub(crate) fn append_after_measurement(
-        self,
-        runs: &mut Vec<TextRun>,
-        fonts: &HashMap<String, TtfFont>,
-        counter_state: &mut CounterState,
-        resources: &mut crate::security::resources::ResourceLoader,
-    ) {
-        if let Some(after) = self.after {
-            after.append_measurement_run(runs, fonts, counter_state, resources);
-        }
-    }
 }
 
 /// The complete source-order content of one inline formatting context.
@@ -552,6 +528,19 @@ pub(crate) enum AtomicInlineEmission {
     MixedRow,
 }
 
+/// Layout route for one complete inline sibling sequence.
+///
+/// `MixedRow` is selected only when every visible element belongs to the
+/// inline formatting context and at least one atomic box needs its principal
+/// element layout. Otherwise the caller keeps its ordinary text/independent
+/// child flow.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum InlineSequenceLayout {
+    #[default]
+    FlowChildren,
+    MixedRow,
+}
+
 impl AtomicInlineEmission {
     const fn owns(self, role: InlineFormattingRole) -> bool {
         match self {
@@ -674,6 +663,11 @@ impl InlineFormattingRole {
                 && element.tag.is_inline()
     }
 
+    pub(crate) fn needs_principal_atomic_layout(self, element: &ElementNode) -> bool {
+        matches!(self, Self::Atomic(AtomicInlineKind::InlineBlock))
+            && !self.uses_text_run_layout(element)
+    }
+
     pub(crate) fn of(element: &ElementNode, style: &ComputedStyle) -> Self {
         if style.display == Display::None {
             return Self::Hidden;
@@ -766,6 +760,56 @@ impl<'a> InlineFormattingContext<'a> {
             })
             .collect();
         InlineFormattingChildren(roles)
+    }
+
+    /// Choose the mixed-row path when an inline-block cannot be represented by
+    /// the text-only `InlineBox` payload. Out-of-flow or outside participants
+    /// retain the caller's independent child layout and split the sequence.
+    pub(crate) fn sequence_layout(
+        &self,
+        sequence: InlineContentSequence<'_>,
+    ) -> InlineSequenceLayout {
+        let mut siblings = InlineSiblingCursor::starting_at(
+            sequence.source_nodes(),
+            sequence.starting_element_index(),
+        );
+        let mut needs_mixed_row = false;
+
+        for node in sequence.nodes() {
+            let DomNode::Element(element) = node else {
+                continue;
+            };
+            let selector_context = siblings.next_context(element, self.ancestors);
+            let classes = element.class_list();
+            let style = compute_style_with_context_with_font_metrics(
+                element.tag,
+                element.style_attr(),
+                self.parent_style,
+                self.rules,
+                element.tag_name(),
+                &classes,
+                element.id(),
+                &element.attributes,
+                &selector_context,
+                self.font_metrics,
+            );
+            let role = InlineFormattingRole::of(element, &style);
+            match role {
+                InlineFormattingRole::Outside | InlineFormattingRole::OutOfFlow => {
+                    return InlineSequenceLayout::FlowChildren;
+                }
+                InlineFormattingRole::Atomic(_) => {
+                    needs_mixed_row |= role.needs_principal_atomic_layout(element);
+                }
+                InlineFormattingRole::Hidden | InlineFormattingRole::Text => {}
+            }
+        }
+
+        if needs_mixed_row {
+            InlineSequenceLayout::MixedRow
+        } else {
+            InlineSequenceLayout::FlowChildren
+        }
     }
 
     /// Returns true only when every visible child can share one inline

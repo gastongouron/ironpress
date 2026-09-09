@@ -26,7 +26,7 @@ use super::engine::{
     ElementSiblingContext, ElementSiblingPosition, LayoutBorder, LayoutTreeContext,
     element_is_empty, flatten_element,
 };
-use super::inline::layout_inline_mixed_sequence_with_env;
+use super::inline::{InlineRowBoxOwnership, layout_inline_mixed_sequence_with_env};
 use super::inline_formatting::{
     AnonymousInlineFormattingContext, GeneratedContentStyles, GeneratedInlineContent,
     InlineContentSequence, InlineFormattingContext, InlineFormattingRole,
@@ -1905,6 +1905,7 @@ fn layout_grid_item_content_inner(
             &child_ctx,
             &mut out,
             &child_ancestors,
+            InlineRowBoxOwnership::Row,
             env,
         )
     {

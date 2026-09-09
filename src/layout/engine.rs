@@ -41,7 +41,8 @@ use super::grid::layout_grid_container;
 pub(crate) use super::helpers::*;
 use super::images::*;
 use super::inline::{
-    layout_inline_block_group_with_env_and_spacing, layout_inline_mixed_sequence_with_env,
+    InlineRowBoxOwnership, layout_inline_block_group_with_env_and_spacing,
+    layout_inline_mixed_sequence_with_env,
 };
 pub use super::inline_box::{CenteredStroke, InlineBox, InlineBoxPaint};
 use super::inline_formatting::{
@@ -2990,6 +2991,7 @@ pub(crate) fn flatten_nodes(
             ctx,
             output,
             ancestors,
+            InlineRowBoxOwnership::Row,
             env,
         )
     {
@@ -3093,6 +3095,7 @@ pub(crate) fn flatten_nodes(
                 ctx,
                 output,
                 ancestors,
+                InlineRowBoxOwnership::Row,
                 env,
             ) {
                 for segment_node in segment.nodes() {

@@ -3,11 +3,11 @@ use crate::layout::cells::{
     TableCellHeightConstraint, TableCellSpan, TableCellState,
 };
 use crate::layout::elements::{
-    BoxModel, BoxPaint, CollapsedTableBorders, Container, Image, InlineOffset, IntoLayoutNode,
-    LayoutElement, LayoutNode, LayoutSize, LayoutVisitor, LayoutVisitorMut, PageBreak, PaintGroup,
-    Positioning, SizeConstraints, Svg, Table, TableBoxDecoration, TableCells, TableFormatting,
-    TableFragmentGroup, TableFragmentation, TableGridIdentity, TableInlineGeometry, TableRow,
-    TextBlock,
+    BoxModel, BoxPaint, CollapsedTableBorders, Container, FlexRow, Image, InlineOffset,
+    IntoLayoutNode, LayoutElement, LayoutNode, LayoutSize, LayoutVisitor, LayoutVisitorMut,
+    PageBreak, PaintGroup, Positioning, SizeConstraints, Svg, Table, TableBoxDecoration,
+    TableCells, TableFormatting, TableFragmentGroup, TableFragmentation, TableGridIdentity,
+    TableInlineGeometry, TableRow, TextBlock,
 };
 use crate::layout::flow_metrics::{BlockFlowSpacing, BlockMargins};
 use crate::parser::css::{AncestorInfo, CssRule, CssValue, SelectorContext};
@@ -28,9 +28,11 @@ use super::engine::{
     forward_siblings, has_background_paint, recurses_as_layout_child,
 };
 use super::helpers::{PseudoBoxContext, build_pseudo_block, pseudo_is_block_like};
+use super::inline::{InlineRowBoxOwnership, layout_inline_mixed_sequence_with_env};
 use super::inline_formatting::{
     AnonymousInlineFormattingContext, GeneratedBox, GeneratedContentStyles, GeneratedInlineContent,
-    IndependentFlowLayout, InlineFormattingChild, InlineFormattingRole, layout_mixed_flow_children,
+    IndependentFlowLayout, InlineContentSequence, InlineFormattingChild, InlineFormattingContext,
+    InlineFormattingRole, InlineSequenceLayout, layout_mixed_flow_children,
 };
 #[cfg(test)]
 use super::paginate::estimate_element_height;
@@ -361,6 +363,10 @@ fn nested_element_preferred_width(element: &dyn LayoutElement) -> f32 {
                 .unwrap_or_default();
         }
 
+        fn visit_flex_row(&mut self, element: &FlexRow) {
+            self.0 = element.content.intrinsic_inline_extent();
+        }
+
         fn visit_image(&mut self, element: &Image) {
             self.0 = element.geometry.size.width;
         }
@@ -485,6 +491,44 @@ struct GeneratedCellLayout<'a> {
     resources: &'a mut crate::security::resources::ResourceLoader,
 }
 
+/// Generated children partitioned by their CSS formatting participation.
+///
+/// Inline boundaries belong to the same source-ordered sequence as the cell's
+/// authored children. Block-like boundaries remain independent table-cell
+/// children. Parsing this distinction once prevents either boundary from
+/// being emitted into both flows.
+#[derive(Clone, Copy, Default)]
+struct TableCellGeneratedChildren<'a> {
+    inline: GeneratedInlineContent<'a>,
+    before_block: Option<GeneratedBox<'a>>,
+    after_block: Option<GeneratedBox<'a>>,
+}
+
+impl<'a> TableCellGeneratedChildren<'a> {
+    fn from_generated(generated: GeneratedInlineContent<'a>) -> Self {
+        let (inline_before, before_block) = Self::partition(generated.before());
+        let (inline_after, after_block) = Self::partition(generated.after());
+        Self {
+            inline: GeneratedInlineContent::from_boxes(inline_before, inline_after),
+            before_block,
+            after_block,
+        }
+    }
+
+    fn partition(
+        generated: Option<GeneratedBox<'a>>,
+    ) -> (Option<GeneratedBox<'a>>, Option<GeneratedBox<'a>>) {
+        match generated {
+            Some(generated) if pseudo_is_block_like(generated.style()) => (None, Some(generated)),
+            inline => (inline, None),
+        }
+    }
+
+    const fn is_empty(self) -> bool {
+        self.inline.is_empty() && self.before_block.is_none() && self.after_block.is_none()
+    }
+}
+
 fn append_generated_cell_layout(
     generated: Option<GeneratedBox<'_>>,
     output: GeneratedCellLayout<'_>,
@@ -524,15 +568,32 @@ struct TableRowSource<'a> {
     section_role: EffectiveTableSectionRole,
 }
 
+#[derive(Clone, Copy)]
+enum TableCellGeneratedOrigin<'a> {
+    Authored,
+    TableFixup(GeneratedInlineContent<'a>),
+}
+
 impl<'a> TableRowSource<'a> {
-    fn generated_cell_content(&self, cell_index: usize) -> GeneratedInlineContent<'a> {
+    fn generated_cell_origin(
+        &self,
+        cell: &ElementNode,
+        cell_index: usize,
+    ) -> TableCellGeneratedOrigin<'a> {
         match &self.node {
-            TableRowNode::Element(_) => GeneratedInlineContent::default(),
-            TableRowNode::Anonymous(row) => row
-                .generated_cells
-                .get(cell_index)
-                .copied()
-                .unwrap_or_default(),
+            TableRowNode::Anonymous(row)
+                if anonymous_table_box_role(cell) == Some(TableBoxRole::Cell) =>
+            {
+                TableCellGeneratedOrigin::TableFixup(
+                    row.generated_cells
+                        .get(cell_index)
+                        .copied()
+                        .unwrap_or_default(),
+                )
+            }
+            TableRowNode::Element(_) | TableRowNode::Anonymous(_) => {
+                TableCellGeneratedOrigin::Authored
+            }
         }
     }
 }
@@ -1359,6 +1420,8 @@ fn measure_caption_min_width(
         };
         layout_table_cell_flow(
             &caption_el.children,
+            GeneratedInlineContent::default(),
+            TableCellGeneratedFallback::InlineRuns,
             &mut runs,
             &mut nested,
             TableCellFlowContext {
@@ -2378,8 +2441,8 @@ pub(crate) fn flatten_table(
                         row_child_idx,
                         row_child_count,
                     );
-                    let generated_cell_content =
-                        row_sources[sizing_row_idx].generated_cell_content(row_child_idx);
+                    let generated_origin =
+                        row_sources[sizing_row_idx].generated_cell_origin(cell_el, row_child_idx);
                     row_child_idx += 1;
                     if is_cell {
                         while col_pos < num_cols && sizing_occupied[col_pos] > 0 {
@@ -2420,30 +2483,38 @@ pub(crate) fn flatten_table(
                             });
                         let cell_counter_scope =
                             measurement_counter_state.enter_element(&cell_style);
-                        let authored_generated = GeneratedContentStyles::resolve(
-                            cell_el,
-                            &cell_style,
-                            rules,
-                            &cell_sizing_ctx,
-                            fonts,
-                        );
-                        let authored_generated = authored_generated.boxes(cell_el);
+                        let authored_generated_styles =
+                            matches!(generated_origin, TableCellGeneratedOrigin::Authored).then(
+                                || {
+                                    GeneratedContentStyles::resolve(
+                                        cell_el,
+                                        &cell_style,
+                                        rules,
+                                        &cell_sizing_ctx,
+                                        fonts,
+                                    )
+                                },
+                            );
+                        let generated = match generated_origin {
+                            TableCellGeneratedOrigin::Authored => authored_generated_styles
+                                .as_ref()
+                                .map(|styles| styles.boxes(cell_el))
+                                .unwrap_or_default(),
+                            TableCellGeneratedOrigin::TableFixup(generated) => generated,
+                        };
+                        let cell_generated = TableCellGeneratedChildren::from_generated(generated);
                         let mut runs = Vec::new();
                         let mut nested_rows = Vec::new();
                         let mut text_ancestors = cell_sizing_ctx.ancestors.clone();
                         push_table_dom_ancestor(&mut text_ancestors, cell_el, cell_siblings);
-                        generated_cell_content.append_before_measurement(
-                            &mut runs,
-                            fonts,
-                            &mut measurement_counter_state,
-                            &mut *resources,
-                        );
-                        authored_generated.append_before_measurement(
-                            &mut runs,
-                            fonts,
-                            &mut measurement_counter_state,
-                            &mut *resources,
-                        );
+                        if let Some(before) = cell_generated.before_block {
+                            before.append_measurement_run(
+                                &mut runs,
+                                fonts,
+                                &mut measurement_counter_state,
+                                &mut *resources,
+                            );
+                        }
                         {
                             let mut measurement_env = LayoutEnv {
                                 rules,
@@ -2455,6 +2526,8 @@ pub(crate) fn flatten_table(
                             };
                             layout_table_cell_flow(
                                 &cell_el.children,
+                                cell_generated.inline,
+                                TableCellGeneratedFallback::InlineRuns,
                                 &mut runs,
                                 &mut nested_rows,
                                 TableCellFlowContext {
@@ -2466,18 +2539,14 @@ pub(crate) fn flatten_table(
                                 &mut measurement_env,
                             );
                         }
-                        generated_cell_content.append_after_measurement(
-                            &mut runs,
-                            fonts,
-                            &mut measurement_counter_state,
-                            &mut *resources,
-                        );
-                        authored_generated.append_after_measurement(
-                            &mut runs,
-                            fonts,
-                            &mut measurement_counter_state,
-                            &mut *resources,
-                        );
+                        if let Some(after) = cell_generated.after_block {
+                            after.append_measurement_run(
+                                &mut runs,
+                                fonts,
+                                &mut measurement_counter_state,
+                                &mut *resources,
+                            );
+                        }
                         runs.as_mut_slice().resolve_unclaimed_boundaries(
                             crate::layout::elements::TextSpacing::from_style(&cell_style),
                         );
@@ -3011,8 +3080,8 @@ pub(crate) fn flatten_table(
             next_cell = child_iter.next();
             let cell_el = cell_source.element;
             let cell_siblings = cell_source.siblings(&authored_siblings);
-            let generated_cell_content =
-                row_sources[row_idx].generated_cell_content(cell_source_index);
+            let generated_origin =
+                row_sources[row_idx].generated_cell_origin(cell_el, cell_source_index);
 
             let colspan = parse_cell_colspan(cell_el);
             let rowspan = parse_cell_rowspan(
@@ -3044,14 +3113,30 @@ pub(crate) fn flatten_table(
                 )
             });
             let cell_counter_scope = counter_state.enter_element(&cell_style);
-            let authored_generated = GeneratedContentStyles::resolve(
-                cell_el,
-                &cell_style,
-                rules,
-                &cell_selector_ctx,
-                fonts,
-            );
-            let authored_generated = authored_generated.boxes(cell_el);
+            let authored_generated_styles =
+                matches!(generated_origin, TableCellGeneratedOrigin::Authored).then(|| {
+                    GeneratedContentStyles::resolve(
+                        cell_el,
+                        &cell_style,
+                        rules,
+                        &cell_selector_ctx,
+                        fonts,
+                    )
+                });
+            let generated = match generated_origin {
+                TableCellGeneratedOrigin::Authored => authored_generated_styles
+                    .as_ref()
+                    .map(|styles| styles.boxes(cell_el))
+                    .unwrap_or_default(),
+                TableCellGeneratedOrigin::TableFixup(generated) => generated,
+            };
+            let cell_generated = TableCellGeneratedChildren::from_generated(generated);
+            let generated_fallback = match generated_origin {
+                TableCellGeneratedOrigin::Authored => TableCellGeneratedFallback::InlineRuns,
+                TableCellGeneratedOrigin::TableFixup(_) => {
+                    TableCellGeneratedFallback::TableFixupBoundaries
+                }
+            };
             // Compute effective width from auto-sized column widths. Cell borders
             // are painted INSIDE the cell box (CSS2 §17.6: the border-box is the
             // column width), so the content box is inset by the border and the
@@ -3097,21 +3182,8 @@ pub(crate) fn flatten_table(
                 &text_ancestors,
                 FontMetrics::new(fonts),
             );
-            if let Some(before) = generated_cell_content.before()
-                && let Some(boundary) = generated_table_cell_boundary(
-                    before,
-                    &cell_content_style,
-                    cell_inner,
-                    fonts,
-                    filter_defs,
-                    counter_state,
-                    &mut *resources,
-                )
-            {
-                nested_rows.push(boundary);
-            }
             append_generated_cell_layout(
-                authored_generated.before(),
+                cell_generated.before_block,
                 GeneratedCellLayout {
                     runs: &mut runs,
                     blocks: &mut nested_rows,
@@ -3134,6 +3206,8 @@ pub(crate) fn flatten_table(
                 };
                 layout_table_cell_flow(
                     &cell_el.children,
+                    cell_generated.inline,
+                    generated_fallback,
                     &mut runs,
                     &mut nested_rows,
                     TableCellFlowContext {
@@ -3145,21 +3219,8 @@ pub(crate) fn flatten_table(
                     &mut flow_env,
                 );
             }
-            if let Some(after) = generated_cell_content.after()
-                && let Some(boundary) = generated_table_cell_boundary(
-                    after,
-                    &cell_content_style,
-                    cell_inner,
-                    fonts,
-                    filter_defs,
-                    counter_state,
-                    &mut *resources,
-                )
-            {
-                nested_rows.push(boundary);
-            }
             append_generated_cell_layout(
-                authored_generated.after(),
+                cell_generated.after_block,
                 GeneratedCellLayout {
                     runs: &mut runs,
                     blocks: &mut nested_rows,
@@ -3207,7 +3268,7 @@ pub(crate) fn flatten_table(
             let hide_if_empty = style.border_collapse == BorderCollapse::Separate
                 && cell_style.empty_cells == crate::style::computed::EmptyCells::Hide
                 && cell_has_no_content(cell_el)
-                && generated_cell_content.is_empty();
+                && cell_generated.is_empty();
             let row_span_share = min_content_height;
             let mut box_paint = BoxPaint::from_style(
                 &cell_style,
@@ -3556,6 +3617,8 @@ pub(crate) fn flatten_table(
             };
             layout_table_cell_flow(
                 &caption_el.children,
+                GeneratedInlineContent::default(),
+                TableCellGeneratedFallback::InlineRuns,
                 &mut caption_runs,
                 &mut caption_nested,
                 TableCellFlowContext {
@@ -3782,9 +3845,8 @@ fn table_cell_child_should_flatten(el: &ElementNode, style: &ComputedStyle) -> b
     {
         return true;
     }
-    let participates_in_text_flow =
-        InlineFormattingRole::of(el, style).participates_in_table_cell_text_flow();
-    !participates_in_text_flow
+    let role = InlineFormattingRole::of(el, style);
+    !role.uses_text_run_layout(el)
         && ((recurses_as_layout_child(el.tag) && !collects_as_inline_text(el.tag))
             || style.display != Display::Inline)
 }
@@ -3795,6 +3857,45 @@ struct TableCellFlowContext<'style, 'ancestors, 'dom> {
     ancestors: &'ancestors [AncestorInfo<'dom>],
     available_width: f32,
     descendant_layout: TableDescendantLayout,
+}
+
+#[derive(Clone, Copy)]
+enum TableCellGeneratedFallback {
+    InlineRuns,
+    TableFixupBoundaries,
+}
+
+impl TableCellGeneratedFallback {
+    fn append(
+        self,
+        generated: Option<GeneratedBox<'_>>,
+        runs: &mut Vec<TextRun>,
+        nested_rows: &mut Vec<LayoutNode>,
+        context: TableCellFlowContext<'_, '_, '_>,
+        env: &mut LayoutEnv<'_>,
+    ) {
+        let Some(generated) = generated else {
+            return;
+        };
+        match self {
+            Self::InlineRuns => {
+                generated.append_inline(runs, env.fonts, env.counter_state, &mut *env.resources)
+            }
+            Self::TableFixupBoundaries => {
+                if let Some(boundary) = generated_table_cell_boundary(
+                    generated,
+                    context.style,
+                    context.available_width,
+                    env.fonts,
+                    env.filter_defs,
+                    env.counter_state,
+                    &mut *env.resources,
+                ) {
+                    nested_rows.push(boundary);
+                }
+            }
+        }
+    }
 }
 
 struct TableCellChildLayout<'output, 'style, 'ancestors, 'dom> {
@@ -3834,23 +3935,53 @@ impl IndependentFlowLayout for TableCellChildLayout<'_, '_, '_, '_> {
 
 fn layout_table_cell_flow(
     nodes: &[DomNode],
+    generated: GeneratedInlineContent<'_>,
+    generated_fallback: TableCellGeneratedFallback,
     runs: &mut Vec<TextRun>,
     nested_rows: &mut Vec<LayoutNode>,
     context: TableCellFlowContext<'_, '_, '_>,
     env: &mut LayoutEnv,
 ) {
-    let mut child_layout = TableCellChildLayout {
-        context,
-        output: nested_rows,
-    };
-    layout_mixed_flow_children(
-        nodes,
+    let sequence = InlineContentSequence::with_generated(nodes, generated);
+    let formatting = InlineFormattingContext::new(
         context.style,
-        runs,
+        env.rules,
         context.ancestors,
-        env,
-        &mut child_layout,
+        env.font_metrics(),
     );
+    if formatting.sequence_layout(sequence) == InlineSequenceLayout::MixedRow {
+        let layout = context
+            .descendant_layout
+            .child_context(context.available_width, context.style);
+        if layout_inline_mixed_sequence_with_env(
+            sequence,
+            context.style,
+            &layout,
+            nested_rows,
+            context.ancestors,
+            InlineRowBoxOwnership::EnclosingContext,
+            env,
+        ) {
+            return;
+        }
+    }
+
+    generated_fallback.append(generated.before(), runs, nested_rows, context, env);
+    {
+        let mut child_layout = TableCellChildLayout {
+            context,
+            output: nested_rows,
+        };
+        layout_mixed_flow_children(
+            nodes,
+            context.style,
+            runs,
+            context.ancestors,
+            env,
+            &mut child_layout,
+        );
+    }
+    generated_fallback.append(generated.after(), runs, nested_rows, context, env);
 }
 
 #[cfg(test)]
@@ -3859,7 +3990,8 @@ mod subpoint_width_tests {
     use crate::layout::cells::TableRowCells;
     use crate::layout::elements::{LayoutElementTestExt, visit_layout_tree};
     use crate::layout::engine::{
-        SyntheticFontWeight, layout, layout_with_rules, layout_with_rules_and_fonts,
+        FlexCell, MathBlock, SyntheticFontWeight, TextLine, layout, layout_with_rules,
+        layout_with_rules_and_fonts,
     };
     use crate::parser::css::parse_stylesheet;
     use crate::parser::html::{parse_html, parse_html_with_styles};
@@ -3880,6 +4012,90 @@ mod subpoint_width_tests {
             visit_layout_tree(element.as_ref(), &mut rows);
         }
         rows.0
+    }
+
+    #[derive(Default)]
+    struct LayoutText(String);
+
+    impl LayoutText {
+        fn append_lines(&mut self, lines: &[TextLine]) {
+            for run in lines.iter().flat_map(|line| &line.runs) {
+                self.0.push_str(&run.text);
+            }
+        }
+    }
+
+    impl LayoutVisitor for LayoutText {
+        fn visit_text_block(&mut self, block: &TextBlock) {
+            self.append_lines(&block.lines);
+        }
+
+        fn visit_flex_row(&mut self, row: &FlexRow) {
+            for cell in &row.content.cells {
+                self.append_lines(&cell.lines);
+            }
+        }
+    }
+
+    fn table_cell_text(cell: &CellBox) -> String {
+        let mut text = LayoutText::default();
+        text.append_lines(&cell.content.lines);
+        for child in &cell.content.children {
+            visit_layout_tree(child.as_ref(), &mut text);
+        }
+        text.0
+    }
+
+    fn flex_cell_text(cell: &FlexCell) -> String {
+        let mut text = LayoutText::default();
+        text.append_lines(&cell.lines);
+        for child in &cell.nested_elements {
+            visit_layout_tree(child.as_ref(), &mut text);
+        }
+        text.0
+    }
+
+    fn table_cell_contains_math(cell: &CellBox) -> bool {
+        #[derive(Default)]
+        struct Math(bool);
+
+        impl LayoutVisitor for Math {
+            fn visit_math_block(&mut self, _block: &MathBlock) {
+                self.0 = true;
+            }
+        }
+
+        let mut math = Math::default();
+        for child in &cell.content.children {
+            visit_layout_tree(child.as_ref(), &mut math);
+        }
+        math.0
+    }
+
+    fn table_cell_flex_widths(cell: &CellBox) -> Vec<Vec<f32>> {
+        cell.content
+            .children
+            .iter()
+            .filter_map(|child| {
+                child.inspect_flex(|row| row.content.cells.iter().map(|cell| cell.width).collect())
+            })
+            .collect()
+    }
+
+    fn table_cell_flex_geometry(cell: &CellBox) -> Vec<Vec<(f32, f32)>> {
+        cell.content
+            .children
+            .iter()
+            .filter_map(|child| {
+                child.inspect_flex(|row| {
+                    row.content
+                        .cells
+                        .iter()
+                        .map(|cell| (cell.x_offset, cell.width))
+                        .collect()
+                })
+            })
+            .collect()
     }
 
     /// An inline-tagged `display:inline-block` inside a table cell stays in
@@ -3929,17 +4145,309 @@ mod subpoint_width_tests {
         let rows = table_rows(&pages[0]);
         let cell = &rows[0].content.cells[0].layout;
 
+        let text = table_cell_text(cell);
         assert!(
-            cell.content.children.is_empty(),
-            "computed inline-block must not become a stacked table-cell child"
+            text.contains("Before") && text.contains("box") && text.contains("after"),
+            "the complete inline sequence must remain visible: {text:?}"
         );
-        assert_eq!(cell.content.lines.len(), 1);
         assert!(
-            cell.content.lines[0]
-                .runs
-                .iter()
-                .any(|run| run.inline_box.is_some()),
-            "computed inline-block must remain an atomic inline run"
+            cell.content.children.iter().any(|child| child
+                .inspect_flex(|row| row.content.cells.len() == 3)
+                .unwrap_or(false)),
+            "text and the computed inline-block must share one atomic inline row"
+        );
+    }
+
+    /// An inline-block establishes a flow root. Its block descendants remain
+    /// inside that atomic box instead of being discarded by text collection
+    /// (CSS Display 3 sections 2.1 and 2.2).
+    #[test]
+    fn block_tagged_inline_block_keeps_its_block_descendants_in_table_cell_flow() {
+        let nodes = parse_html(
+            r#"<table><tr><td>Before<div style="display:inline-block;width:60pt"><div>Nested</div></div>After</td></tr></table>"#,
+        )
+        .expect("valid nested inline-block fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+
+        let text = table_cell_text(cell);
+        assert!(
+            text.contains("Before"),
+            "leading text must remain: {text:?}"
+        );
+        assert!(
+            text.contains("Nested"),
+            "block descendant must remain: {text:?}"
+        );
+        assert!(
+            text.contains("After"),
+            "trailing text must remain: {text:?}"
+        );
+        assert!(
+            cell.content.children.iter().any(|child| child
+                .inspect_flex(|row| row.content.cells.len() == 3)
+                .unwrap_or(false)),
+            "text and the atomic flow root must share one mixed inline row"
+        );
+        let inline_width = table_cell_flex_widths(cell)
+            .into_iter()
+            .next()
+            .unwrap_or_default()
+            .into_iter()
+            .sum::<f32>();
+        assert!(
+            rows[0].box_inline_extent() >= inline_width,
+            "the table track must contain its atomic inline row"
+        );
+    }
+
+    /// CSS 2.1 section 9.4.2 includes an inline-block's horizontal margins in
+    /// its inline formatting advance. The principal child keeps the margin
+    /// paint offset, while the enclosing atomic slot reserves the full margin
+    /// box so the following text and table track cannot overlap it.
+    #[test]
+    fn principal_inline_block_reserves_its_horizontal_margins() {
+        let nodes = parse_html(
+            r#"<table><tr><td>Before<div style="display:inline-block;width:60pt;margin-left:10pt;margin-right:15pt"><div>Nested</div></div>After</td></tr></table>"#,
+        )
+        .expect("valid margin-box fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+        let geometry = table_cell_flex_geometry(cell);
+        let row = geometry.first().expect("one mixed inline row");
+
+        assert_eq!(row.len(), 3, "text, atomic box, text: {geometry:?}");
+        assert!(
+            (row[1].1 - 85.0).abs() < 0.001,
+            "the atomic slot must equal the 60pt border box plus 25pt margins: {geometry:?}"
+        );
+        assert!(
+            (row[2].0 - (row[1].0 + 85.0)).abs() < 0.001,
+            "following text must start after the complete margin box: {geometry:?}"
+        );
+    }
+
+    /// CSS Generated Content 3 section 4 inserts ::before and ::after as the
+    /// first and last children of the originating cell. They therefore share
+    /// the same inline sequence as its text and atomic inline-block.
+    #[test]
+    fn generated_content_surrounds_principal_inline_block_in_source_order() {
+        let document = parse_html_with_styles(
+            r#"<style>td::before{content:"BEF"}td::after{content:"AFT"}</style><table><tr><td>L<div style="display:inline-block;width:60pt"><div>Box</div></div>R</td></tr></table>"#,
+        )
+        .expect("valid generated-content fixture");
+        let rules = document
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &document.nodes,
+            PageSize::new(400.0, 300.0),
+            Margin::uniform(10.0),
+            &rules,
+        );
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+        let sequences = cell
+            .content
+            .children
+            .iter()
+            .filter_map(|child| {
+                child.inspect_flex(|row| {
+                    row.content
+                        .cells
+                        .iter()
+                        .map(flex_cell_text)
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(sequences, vec![vec!["BEFL", "Box", "RAFT"]]);
+    }
+
+    /// CSS Tables 3 fixup places consecutive improper table children in one
+    /// anonymous cell. Generated boundaries of the table remain the first and
+    /// last items of that same source-ordered inline formatting context.
+    #[test]
+    fn table_fixup_generated_content_surrounds_the_anonymous_cell_flow() {
+        let document = parse_html_with_styles(
+            r#"<style>.table{display:table}.table::before{content:"BEF"}.table::after{content:"AFT"}</style><div class="table">L<div style="display:inline-block;width:60pt"><div>Box</div></div>R</div>"#,
+        )
+        .expect("valid anonymous-cell generated-content fixture");
+        let rules = document
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &document.nodes,
+            PageSize::new(400.0, 300.0),
+            Margin::uniform(10.0),
+            &rules,
+        );
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+        let sequences = cell
+            .content
+            .children
+            .iter()
+            .filter_map(|child| {
+                child.inspect_flex(|row| {
+                    row.content
+                        .cells
+                        .iter()
+                        .map(flex_cell_text)
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(sequences, vec![vec!["BEFL", "Box", "RAFT"]]);
+    }
+
+    /// Table fixup may synthesize a row around an authored table cell. The row
+    /// is anonymous, but the cell keeps its own generated-content styles.
+    #[test]
+    fn authored_cell_in_anonymous_row_keeps_generated_content() {
+        let document = parse_html_with_styles(
+            r#"<style>.table{display:table}.cell{display:table-cell}.cell::before{content:"BEF"}.cell::after{content:"AFT"}</style><div class="table"><div class="cell">L<div style="display:inline-block;width:60pt"><div>Box</div></div>R</div></div>"#,
+        )
+        .expect("valid anonymous-row generated-content fixture");
+        let rules = document
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &document.nodes,
+            PageSize::new(400.0, 300.0),
+            Margin::uniform(10.0),
+            &rules,
+        );
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+        let sequences = cell
+            .content
+            .children
+            .iter()
+            .filter_map(|child| {
+                child.inspect_flex(|row| {
+                    row.content
+                        .cells
+                        .iter()
+                        .map(flex_cell_text)
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(sequences, vec![vec!["BEFL", "Box", "RAFT"]]);
+    }
+
+    /// Specialized principal boxes still own their content when their outer
+    /// display participates atomically in a table-cell line.
+    #[test]
+    fn inline_block_math_keeps_its_specialized_layout_in_table_cell_flow() {
+        let nodes = parse_html(
+            r#"<table><tr><td>Before<div class="math-display" data-math="x+y" style="display:inline-block"></div>After</td></tr></table>"#,
+        )
+        .expect("valid math inline-block fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+
+        assert!(
+            table_cell_contains_math(cell),
+            "the data-math principal box must remain a MathBlock"
+        );
+        let widths = table_cell_flex_widths(cell);
+        assert!(
+            cell.content.children.iter().any(|child| child
+                .inspect_flex(|row| {
+                    row.content.cells.len() == 3 && row.content.cells[1].width > 0.0
+                })
+                .unwrap_or(false)),
+            "the math principal box must reserve inline space: {widths:?}"
+        );
+    }
+
+    #[test]
+    fn inline_block_video_keeps_its_specialized_layout_in_table_cell_flow() {
+        let nodes = parse_html(
+            r#"<table><tr><td>Before<video style="display:inline-block;width:60pt;height:30pt"></video>After</td></tr></table>"#,
+        )
+        .expect("valid video inline-block fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+
+        let text = table_cell_text(cell);
+        assert!(
+            text.contains("Video"),
+            "the video principal box must retain its placeholder: {text:?}"
+        );
+        let widths = table_cell_flex_widths(cell);
+        assert!(
+            cell.content.children.iter().any(|child| child
+                .inspect_flex(|row| {
+                    row.content.cells.len() == 3 && row.content.cells[1].width >= 60.0
+                })
+                .unwrap_or(false)),
+            "the video principal box must reserve its authored inline size: {widths:?}"
+        );
+    }
+
+    #[test]
+    fn absolute_inline_block_remains_out_of_flow_in_a_table_cell() {
+        let nodes = parse_html(
+            r#"<table><tr><td style="position:relative">Before<div style="display:inline-block;position:absolute;left:2pt;top:3pt">Abs</div>After</td></tr></table>"#,
+        )
+        .expect("valid absolute inline-block fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+
+        assert!(
+            cell.content.children.iter().any(|child| {
+                child
+                    .inspect_text(|block| {
+                        block.positioning.scheme == crate::style::computed::Position::Absolute
+                            && block
+                                .lines
+                                .iter()
+                                .flat_map(|line| &line.runs)
+                                .any(|run| run.text.contains("Abs"))
+                    })
+                    .unwrap_or(false)
+            }),
+            "the absolute inline-block must stay independently positioned"
+        );
+    }
+
+    /// An out-of-flow sibling does not make an atomic flow root lose its own
+    /// descendants when the cell falls back to independent child layout.
+    #[test]
+    fn absolute_sibling_keeps_inline_block_principal_content() {
+        let nodes = parse_html(
+            r#"<table><tr><td style="position:relative">Before<div style="display:inline-block;width:60pt"><div>Nested</div></div><span style="position:absolute;left:2pt;top:3pt">Abs</span>After</td></tr></table>"#,
+        )
+        .expect("valid mixed positioned fixture");
+        let pages = layout(&nodes, PageSize::new(400.0, 300.0), Margin::uniform(10.0));
+        let rows = table_rows(&pages[0]);
+        let cell = &rows[0].content.cells[0].layout;
+        let text = table_cell_text(cell);
+
+        assert!(
+            text.contains("Before") && text.contains("Nested") && text.contains("After"),
+            "the in-flow principal content must remain visible: {text:?}"
+        );
+        assert!(
+            text.contains("Abs"),
+            "the independently positioned sibling must remain visible: {text:?}"
         );
     }
 

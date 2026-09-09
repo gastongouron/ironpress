@@ -245,6 +245,15 @@ impl BlockFlowParticipant for MathBlock {
     }
 }
 
+impl InlineFlowExtent for MathBlock {
+    fn normal_flow_right_edge(&self) -> Option<f32> {
+        self.layout
+            .width
+            .is_finite()
+            .then_some(self.layout.width.max(0.0))
+    }
+}
+
 impl PaintGroupOwner for MathBlock {
     fn paint_group(&self) -> &PaintGroup {
         &self.group
@@ -273,6 +282,10 @@ impl LayoutElement for MathBlock {
     }
 
     fn margin_holder_mut(&mut self) -> Option<&mut dyn MarginHolder> {
+        Some(self)
+    }
+
+    fn inline_flow_extent(&self) -> Option<&dyn InlineFlowExtent> {
         Some(self)
     }
 

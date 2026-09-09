@@ -18,9 +18,9 @@ use super::box_model::ResolvedBoxDimensions;
 use super::cells::CellPaint;
 use super::context::{LayoutContext, LayoutEnv};
 use super::engine::{
-    CounterState, ElementSiblingContext, FlexCell, FlexItemFragmentation, FlexItemRole,
-    LayoutBorder, LayoutTreeContext, TextLine, apply_direct_flex_item_filters, flatten_element,
-    forward_siblings,
+    CounterState, ElementSiblingContext, ElementSiblingPosition, FlexCell, FlexItemFragmentation,
+    FlexItemRole, LayoutBorder, LayoutTreeContext, TextLine, apply_direct_flex_item_filters,
+    flatten_element, forward_siblings,
 };
 use super::flex::layout_flex_container;
 use super::grid::layout_grid_container;
@@ -43,6 +43,21 @@ use super::text::{
 mod row_cursor;
 
 use row_cursor::{InlineRowCursor, InlineRowSeparator, InlineRowUnit};
+
+/// Which layout object owns the parent formatting context's box decoration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InlineRowBoxOwnership {
+    /// The mixed row is the principal box for its parent style.
+    Row,
+    /// An enclosing formatting-context object already owns that box.
+    EnclosingContext,
+}
+
+impl InlineRowBoxOwnership {
+    const fn row_owns_parent_box(self) -> bool {
+        matches!(self, Self::Row)
+    }
+}
 
 fn content_only_flex_style(
     style: &ComputedStyle,
@@ -347,6 +362,7 @@ fn inline_atomic_cell(
     child_el: &ElementNode,
     child_style: &ComputedStyle,
     kind: AtomicInlineKind,
+    parent_style: &ComputedStyle,
     ctx: &LayoutContext,
     selector_context: &SelectorContext<'_>,
     env: &mut LayoutEnv,
@@ -551,6 +567,48 @@ fn inline_atomic_cell(
                 )
             }
             Display::InlineBlock => {
+                if InlineFormattingRole::Atomic(kind).needs_principal_atomic_layout(child_el) {
+                    let source = ElementSiblingPosition::from_selector_context(selector_context);
+                    let mut principal_box = Vec::new();
+                    flatten_element(
+                        child_el,
+                        LayoutTreeContext::new(parent_style, ctx, ancestors)
+                            .for_element(source.as_context()),
+                        &mut principal_box,
+                        env,
+                    );
+                    let width = child_style.width.map_or_else(
+                        || inline_block_nested_outer_width(&principal_box),
+                        |_| {
+                            ResolvedBoxDimensions::from_style(
+                                child_style,
+                                Size::new(ctx.available_width(), ctx.available_height()),
+                            )
+                            .border_box
+                            .width
+                        },
+                    );
+                    let height = principal_box
+                        .iter()
+                        .map(|element| estimate_element_height(element.as_ref()))
+                        .sum::<f32>();
+                    // The nested principal box retains its own margin offset.
+                    // This transparent flex cell owns the complete margin-box
+                    // slot so both the inline cursor and table intrinsic width
+                    // reserve the same outer extent.
+                    let margin_box_width = width + child_style.margin.horizontal();
+                    return Some((
+                        FlexCell {
+                            width: margin_box_width,
+                            natural_height: height,
+                            fragmentation: FlexItemFragmentation::definite(),
+                            nested_elements: principal_box,
+                            role: FlexItemRole::AtomicInline(kind),
+                            ..Default::default()
+                        },
+                        margin_box_width,
+                    ));
+                }
                 let mut runs = Vec::new();
                 let mut nested_elements = Vec::new();
                 let mut child_layout = InlineBlockChildLayout {
@@ -660,6 +718,7 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
     ctx: &LayoutContext,
     output: &mut Vec<LayoutNode>,
     ancestors: &[AncestorInfo],
+    box_ownership: InlineRowBoxOwnership,
     env: &mut LayoutEnv,
 ) -> bool {
     let nodes = sequence.nodes();
@@ -778,9 +837,15 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
                             );
                             emitted_text = true;
                         }
-                        if let Some((cell, advance)) =
-                            inline_atomic_cell(el, &child_style, kind, ctx, &selector_ctx, env)
-                        {
+                        if let Some((cell, advance)) = inline_atomic_cell(
+                            el,
+                            &child_style,
+                            kind,
+                            parent_style,
+                            ctx,
+                            &selector_ctx,
+                            env,
+                        ) {
                             if child_style.vertical_align
                                 == crate::style::computed::VerticalAlign::Middle
                             {
@@ -909,8 +974,9 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
     // changes this row's local inline formatting origin even without visible
     // box paint. Carry only the latter to avoid applying body/html padding
     // twice while keeping unpainted padded descendants correct.
-    let carries_parent_box_geometry =
-        paints_parent_box || (!ancestors.is_empty() && !parent_style.padding.is_zero());
+    let row_owns_parent_box = box_ownership.row_owns_parent_box();
+    let carries_parent_box_geometry = row_owns_parent_box
+        && (paints_parent_box || (!ancestors.is_empty() && !parent_style.padding.is_zero()));
     let container_width = if carries_parent_box_geometry {
         parent_style.width.unwrap_or(ctx.available_width())
     } else {
@@ -920,6 +986,19 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
         parent_style.padding
     } else {
         EdgeSizes::ZERO
+    };
+    let box_model = if row_owns_parent_box {
+        crate::layout::elements::BoxModel {
+            size: crate::layout::elements::LayoutSize::fixed(container_width, parent_style.height),
+            margins: BlockMargins::new(parent_style.margin.top, parent_style.margin.bottom),
+            padding,
+            border: parent_border,
+        }
+    } else {
+        crate::layout::elements::BoxModel {
+            size: crate::layout::elements::LayoutSize::fixed(container_width, None),
+            ..Default::default()
+        }
     };
     output.push(inline_row_node(
         FlexContent {
@@ -932,14 +1011,17 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
             },
             ..Default::default()
         },
-        crate::layout::elements::BoxModel {
-            size: crate::layout::elements::LayoutSize::fixed(container_width, parent_style.height),
-            margins: BlockMargins::new(parent_style.margin.top, parent_style.margin.bottom),
-            padding,
-            border: parent_border,
+        box_model,
+        crate::layout::elements::InlineOffset::new(if row_owns_parent_box {
+            parent_style.margin.left
+        } else {
+            0.0
+        }),
+        if row_owns_parent_box {
+            parent_style.background_color
+        } else {
+            None
         },
-        crate::layout::elements::InlineOffset::new(parent_style.margin.left),
-        parent_style.background_color,
     ));
     true
 }

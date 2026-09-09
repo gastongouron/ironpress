@@ -18,6 +18,21 @@ pub(crate) struct FlexContent {
     pub(crate) alignment: AlignItems,
 }
 
+impl FlexContent {
+    /// Inline extent occupied by the source-ordered cells in this line.
+    ///
+    /// Cell offsets already include collapsed whitespace and tracking inserted
+    /// by the inline cursor, so the furthest cell edge is the intrinsic line
+    /// contribution independently from its later fill-available box width.
+    pub(crate) fn intrinsic_inline_extent(&self) -> f32 {
+        self.cells
+            .iter()
+            .map(|cell| cell.x_offset + cell.width)
+            .filter(|extent| extent.is_finite())
+            .fold(0.0_f32, f32::max)
+    }
+}
+
 /// One laid-out flex line. Shared box properties use the same semantic groups
 /// as text and container nodes.
 #[derive(Debug, Clone, Default)]

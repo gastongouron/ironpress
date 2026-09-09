@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@page{size:360px 128px;margin:0}
+html{font-family:ParitySans;font-size:16px;line-height:1.25}
+*{margin:0;box-sizing:border-box}
+html,body{background:#fff}
+body{padding:12px}
+table{border-collapse:collapse}
+td{border:2px solid #222;padding:7px 9px;vertical-align:top;white-space:nowrap}
+td::before{content:"[B] ";color:#8b2f2f}
+td::after{content:" [A]";color:#2f6b3b}
+.principal{display:inline-block;width:112px;padding:3px 5px;border:2px solid #2f5f87;
+  margin-left:8px;margin-right:12px;background:#dceeff;vertical-align:middle;white-space:normal}
+.principal>div{background:#b7dbf4}
+.principal>div+div{margin-top:2px;background:#e6f4ff}
+</style>
+</head>
+<body>
+<table><tr><td>Before <div class="principal"><div>Nested block</div><div>Second line</div></div> after</td></tr></table>
+</body>
+</html>

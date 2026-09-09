@@ -1421,5 +1421,19 @@
       "probe-fill-box",
       "probe-block-flow"
     ]
+  },
+  {
+    "id": "tables-cell-inline-block-principal-flow",
+    "category": "tables",
+    "feature": "table-cell-children",
+    "subfeature": "inline-block-principal-flow",
+    "description": "A block-tagged inline-block inside a table cell keeps its nested block formatting context, generated-content order, and margin-box advance while remaining atomic between adjacent text.",
+    "file": "cases/tables/tables-cell-inline-block-principal-flow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ]
   }
 ]

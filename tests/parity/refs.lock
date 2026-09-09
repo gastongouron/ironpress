@@ -19992,6 +19992,20 @@
       "reference_file": "cases/tables/tables-cell-inline-block-inline-flow.html",
       "reference_html_sha256": "36bddccc9727fdb546deaf086c03bc7f6ddd9b219917230e3fd6a6251dc5ab0c"
     },
+    "tables-cell-inline-block-principal-flow": {
+      "category": "tables",
+      "file": "cases/tables/tables-cell-inline-block-principal-flow.html",
+      "html_sha256": "d55b1bc72f258b82bb5864f7ffb74153bf4f01e2d5c960c13a8b52150b386f76",
+      "manifest_sha256": "27debf551b471e24577811fef9f0daf750805c3790a68e7c10dc34c55ca60f75",
+      "oracle": "chrome",
+      "pdf": {
+        "file": "oracles/tables/tables-cell-inline-block-principal-flow.pdf",
+        "sha256": "bc18ee5ad0348f5a651d3ae03d1bf213e66e339c1143a1197b53b285a9496b64"
+      },
+      "provenance": "8235440bd6c57ac48c2daac7bc12d5b86b86c615716a2a8f08c00df061c8a529",
+      "reference_file": "cases/tables/tables-cell-inline-block-principal-flow.html",
+      "reference_html_sha256": "d55b1bc72f258b82bb5864f7ffb74153bf4f01e2d5c960c13a8b52150b386f76"
+    },
     "tables-cell-inline-svg-child": {
       "category": "tables",
       "file": "cases/tables/tables-cell-inline-svg-child.html",
