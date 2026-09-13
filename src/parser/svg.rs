@@ -1559,6 +1559,8 @@ fn svg_style_is_default(style: &SvgStyle) -> bool {
         && matches!(style.stroke, SvgPaint::Unspecified)
         && style.clip_path.is_none()
         && style.stroke_width.is_none()
+        && style.font_size.is_none()
+        && style.letter_spacing.is_none()
         && (style.opacity - 1.0).abs() < f32::EPSILON
 }
 
@@ -4184,6 +4186,29 @@ mod tests {
                 assert_eq!(children.len(), 1);
             }
             other => panic!("expected wrapped root group, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_from_element_preserves_root_text_sizing_for_descendants() {
+        let text = make_el("text", vec![("x", "10"), ("y", "30")]);
+        let svg = make_svg_el(
+            vec![("font-size", "20"), ("letter-spacing", "0.25em")],
+            vec![text],
+        );
+
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Group {
+                children, style, ..
+            } => {
+                let font_size = style.font_size.expect("root font size");
+                assert_eq!(font_size.resolve_user_units(12.0), 20.0);
+                let letter_spacing = style.letter_spacing.as_ref().expect("root tracking");
+                assert_eq!(letter_spacing.resolve_user_units(20.0), 5.0);
+                assert!(matches!(children.as_slice(), [SvgNode::Text { .. }]));
+            }
+            other => panic!("expected root style wrapper, got {other:?}"),
         }
     }
 
