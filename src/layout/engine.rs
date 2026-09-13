@@ -296,9 +296,7 @@ impl CounterState {
     }
     fn pop_resets(&mut self, resets: &[(String, i32)]) {
         for (name, _) in resets {
-            if let Some(stack) = self.stacks.get_mut(name) {
-                stack.pop();
-            }
+            self.pop_name(name);
         }
     }
     pub(crate) fn get(&self, name: &str) -> i32 {
@@ -331,8 +329,12 @@ impl CounterState {
         }
     }
     fn pop_name(&mut self, name: &str) {
-        if let Some(stack) = self.stacks.get_mut(name) {
+        let became_empty = self.stacks.get_mut(name).is_some_and(|stack| {
             stack.pop();
+            stack.is_empty()
+        });
+        if became_empty {
+            self.stacks.remove(name);
         }
     }
     pub(crate) fn get_all(&self, name: &str, sep: &str) -> String {
@@ -8254,6 +8256,17 @@ mod tests {
         // Pop nested reset
         cs.pop_resets(&[("section".to_string(), 0)]);
         assert_eq!(cs.get("section"), 1); // Back to outer counter value
+    }
+
+    #[test]
+    fn counter_state_is_context_free_after_its_last_reset_scope_leaves() {
+        let mut state = CounterState::default();
+        state.apply_resets(&[("section".to_string(), 0)]);
+        assert!(!state.is_generated_content_context_free());
+
+        state.pop_resets(&[("section".to_string(), 0)]);
+
+        assert!(state.is_generated_content_context_free());
     }
 
     #[test]
