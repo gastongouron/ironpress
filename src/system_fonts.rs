@@ -7,7 +7,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
 use std::num::NonZeroUsize;
 use std::process::Command;
-use std::sync::{LazyLock, Mutex, OnceLock};
+use std::sync::{LazyLock, OnceLock};
 
 const FONT_VARIANTS: &[FontVariant] = &[
     FontVariant::new(false, false),
@@ -842,36 +842,13 @@ struct ResolvedFontFile {
     face_index: FontFaceIndex,
 }
 
-/// Process-wide cache of resolved fontconfig font files, keyed by the exact
-/// `fc-match` pattern. Ensures `fc-match` is spawned **at most once per
-/// distinct pattern for the entire process lifetime** (and never on the hot
-/// path once warm), instead of once per font variant × family × render.
+/// Resolve one fontconfig fallback inside the bounded system-font lookup.
 ///
-/// We cache the resolved file and its selected face, not the parsed `TtfFont`,
-/// so the entry is cheap to clone and shared across threads; the small per-call
-/// parse is negligible next to a subprocess spawn + fontconfig re-init.
-fn fontconfig_path_cache() -> &'static Mutex<HashMap<String, Option<ResolvedFontFile>>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, Option<ResolvedFontFile>>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
+/// Production callers stay below [`load_system_font_cached`], which owns the
+/// only document-keyed process cache on this path.
 fn query_fontconfig_font(query: &SystemFontQuery<'_>) -> Option<TtfFont> {
     let pattern = query.fontconfig_pattern();
-
-    // Fast path: serve from the cache without spawning.
-    if let Ok(cache) = fontconfig_path_cache().lock() {
-        if let Some(cached) = cache.get(&pattern) {
-            return cached.as_ref().and_then(parse_resolved_font);
-        }
-    }
-
-    // Cache miss: resolve via fc-match at most once for this pattern, then store
-    // the result (including negative results) so it is never spawned again.
     let resolved = resolve_fontconfig_font(query, &pattern);
-    if let Ok(mut cache) = fontconfig_path_cache().lock() {
-        cache.insert(pattern, resolved.clone());
-    }
-
     resolved.as_ref().and_then(parse_resolved_font)
 }
 
@@ -883,9 +860,10 @@ fn parse_resolved_font(resolved: &ResolvedFontFile) -> Option<TtfFont> {
     .ok()
 }
 
-/// Spawn `fc-match` once for `pattern` and return the selected font file if the
-/// returned family matches the requested family (same guard as before). No
-/// sleep-polling: `output()` blocks on the child directly.
+/// Spawn `fc-match` for `pattern` and return the selected font file if the
+/// returned family matches the requested family. The bounded system-font cache
+/// above owns both positive and negative memoization; keeping a second cache
+/// here would let document-supplied patterns accumulate without its ceiling.
 fn resolve_fontconfig_font(query: &SystemFontQuery<'_>, pattern: &str) -> Option<ResolvedFontFile> {
     if !fontconfig_available() {
         return None;
