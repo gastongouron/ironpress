@@ -229,7 +229,7 @@ pub(crate) fn find_font<'a>(
 }
 
 #[cfg(test)]
-/// Resolve a raw CSS `font-family` list (`"MyFace, Helvetica"`) against the
+/// Resolve a raw CSS `font-family` list (`"MyFace", Helvetica`) against the
 /// registered fonts: the first listed family with a registered face wins, so an
 /// author-listed custom face beats a later base-14 fallback. The list goes
 /// through the engine's CSS font-stack parser, so a quoted family name may

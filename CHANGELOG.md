@@ -24,7 +24,7 @@
 
 ### Fixed
 
-- SVG `<text>` with a CSS font-family list (`"MyFace, Helvetica"`) resolves
+- SVG `<text>` with a CSS font-family list (`"MyFace", Helvetica`) resolves
   registered custom faces, including quoted names that contain commas, and
   every font the SVG renderer binds is also subset and embedded; `<text>`
   inside CSS background-image SVGs uses the registered custom fonts instead of
