@@ -506,8 +506,10 @@ impl FontBytesKey {
 /// faces, so a few dozen entries keep a repeated conversion warm. The ceiling is
 /// what stops a caller that registers font after font from pinning every one of
 /// them for the life of the process.
-const PARSED_FONT_CACHE_CAPACITY: NonZeroUsize =
-    NonZeroUsize::new(32).expect("parsed-font cache capacity is non-zero");
+const PARSED_FONT_CACHE_CAPACITY: NonZeroUsize = match NonZeroUsize::new(32) {
+    Some(capacity) => capacity,
+    None => NonZeroUsize::MIN,
+};
 
 /// Recently parsed fonts, keyed by a hash bucket of their raw bytes.
 ///

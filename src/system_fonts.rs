@@ -768,8 +768,10 @@ fn load_family_variants(db: &fontdb::Database, family: &str, fonts: &mut HashMap
 /// can name unlimited families, and misses are remembered too, so the ceiling is
 /// what keeps document input from growing this table for the life of the
 /// process.
-const SYSTEM_FONT_RESOLUTION_CAPACITY: NonZeroUsize =
-    NonZeroUsize::new(256).expect("system-font resolution capacity is non-zero");
+const SYSTEM_FONT_RESOLUTION_CAPACITY: NonZeroUsize = match NonZeroUsize::new(256) {
+    Some(capacity) => capacity,
+    None => NonZeroUsize::MIN,
+};
 
 /// Resolved system fonts, keyed by variant key (family plus bold and italic).
 ///
