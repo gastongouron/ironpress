@@ -1,12 +1,12 @@
 {
   "schema_version": 12,
-  "invocation_id": "9689aece8d637c4af67da775534dfee3",
+  "invocation_id": "833a7c73de28387aff1c192bbb467999",
   "run_complete": true,
   "env": {
     "dpi": 300,
     "pdftoppm_available": true,
     "rasterizer_source_path": "/usr/bin/pdftoppm",
-    "rasterizer_executed_path": "/tmp/ironpress-pdftoppm-5827-1788561594503082027-0/pdftoppm",
+    "rasterizer_executed_path": "/tmp/ironpress-pdftoppm-2934-1789380988743528414-0/pdftoppm",
     "rasterizer_arguments": "[-r, 300, -png, <PDF>, <PREFIX>]",
     "rasterizer_version": "pdftoppm version 24.08.0",
     "rasterizer_sha256": "b1f76a56605df368efd233e09faad3bd910e50c0d6556c616a7c0b0adebf6013"
