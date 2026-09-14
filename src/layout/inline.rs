@@ -172,27 +172,6 @@ fn layout_inline_block_contents(
 ///
 /// The bool carried with each element records whether source whitespace appeared
 /// immediately before it inside the current inline formatting context.
-pub(crate) fn layout_inline_block_group_with_spacing(
-    elements: &[(&ElementNode, bool)],
-    parent_style: &ComputedStyle,
-    ctx: &LayoutContext,
-    output: &mut Vec<LayoutNode>,
-    rules: &[CssRule],
-    ancestors: &[AncestorInfo],
-    fonts: &HashMap<String, TtfFont>,
-) {
-    layout_inline_block_group_inner(
-        elements,
-        parent_style,
-        ctx,
-        output,
-        rules,
-        ancestors,
-        fonts,
-        None,
-    );
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn layout_inline_block_group_with_env_and_spacing(
     elements: &[(&ElementNode, bool)],
