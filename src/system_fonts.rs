@@ -478,9 +478,7 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
         let db = system_fontdb();
         for family in UNICODE_FALLBACK_FAMILIES {
             let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-            if let Some(font) =
-                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
-            {
+            if let Some(font) = load_system_font_cached(db, &query) {
                 return Some(font);
             }
         }
