@@ -35,13 +35,22 @@
         let prepared_fonts = PreparedCustomFonts::new();
         let mut ts_pdf_writer = PdfWriter::new();
         let mut ts_page_images = Vec::new();
-        let mut text_context = TextRenderContext::new(
-            TEST_PAGE_PAINT_BOX.height,
-            &fonts,
-            &prepared_fonts,
-            &mut annotations,
+        let mut ts_shadings = Vec::new();
+        let mut ts_shading_counter = 0usize;
+        let mut ts_ext_gstates = Vec::new();
+        let mut ts_alpha_counter = 0usize;
+        let mut text_context = PageRenderContext::new(
             &mut ts_pdf_writer,
             &mut ts_page_images,
+            &fonts,
+            &prepared_fonts,
+            &mut ts_shadings,
+            &mut ts_shading_counter,
+            &mut ts_ext_gstates,
+            &mut ts_alpha_counter,
+            &mut annotations,
+            TEST_PAGE_PAINT_BOX,
+            TEST_PAGE_PAINT_BOX.height,
         );
         render_cell_text(
             &mut content,

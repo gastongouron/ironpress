@@ -555,7 +555,8 @@ pub(in crate::render::pdf) fn render_text_block(
                 ctx.shadings,
                 ctx.shading_counter,
                 Some(ctx.page_ext_gstates),
-            ),
+            )
+            .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
             paint,
         );
         if tb_bg_blended {

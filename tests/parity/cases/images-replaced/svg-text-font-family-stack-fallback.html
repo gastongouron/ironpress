@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>svg text font-family stack fallback</title>
+<style>
+  @page { size: 344px 136px; margin: 0; }
+  html { font-family: ParitySans; line-height: 1.5; }
+  * { margin: 0; box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <svg width="344" height="136" viewBox="0 0 344 136" xmlns="http://www.w3.org/2000/svg">
+    <text x="16" y="52" font-family="NoSuchFamily, ParitySans" font-size="36" fill="#111111">Stack A</text>
+    <text x="16" y="112" style="font-family: 'Acme, Sans', ParitySerif" font-size="36" fill="#111111">Stack B</text>
+  </svg>
+</body>
+</html>

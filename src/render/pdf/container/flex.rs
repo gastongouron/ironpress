@@ -199,7 +199,8 @@ pub(super) fn render_flex_child(
                     ctx.shadings,
                     ctx.shading_counter,
                     Some(&mut *ctx.page_ext_gstates),
-                ),
+                )
+                .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
                 PdfBackgroundPaintContext::local(BackgroundPaintContext::new(
                     flex_image_reference.into(),
                     flex_background.image_destination_box.into(),

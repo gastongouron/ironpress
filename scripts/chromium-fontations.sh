@@ -27,6 +27,11 @@ for argument in "$@"; do
   esac
 done
 
+# Custom Fontconfig files make Chromium instantiate system faces through its
+# legacy metric path even when the Fontations features are enabled. The parity
+# fonts are installed in the default user font directory and authenticated by
+# refs.lock, so the oracle launcher must use Chromium's default font discovery.
+unset FONTCONFIG_FILE FONTCONFIG_PATH
 export FC_FONTATIONS=1
 exec "$chromium" "$@" \
   --enable-features="$FONTATIONS_FEATURES"

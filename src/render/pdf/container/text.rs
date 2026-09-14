@@ -168,7 +168,8 @@ pub(super) fn render_text_child(
                     ctx.shadings,
                     ctx.shading_counter,
                     Some(ctx.page_ext_gstates),
-                ),
+                )
+                .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
                 BlockBackground {
                     geometry: tb_box_geometry,
                     border_radii: *tb_radii,
@@ -535,7 +536,8 @@ pub(super) fn render_text_child(
                     ctx.shadings,
                     ctx.shading_counter,
                     Some(ctx.page_ext_gstates),
-                ),
+                )
+                .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
                 BlockBackground {
                     geometry: tb_box_geometry,
                     border_radii: *tb_radii,

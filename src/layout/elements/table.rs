@@ -300,6 +300,12 @@ mod tests {
 
         assert_eq!(first, first_clone);
         assert_ne!(first, sibling);
+
+        let nested = first.descendant([0]);
+        let sibling_nested = sibling.descendant([0]);
+        let flat_path = TableGridIdentity::from_source_path([3, 0]);
+        assert_ne!(nested, sibling_nested);
+        assert_ne!(nested, flat_path);
     }
 }
 
@@ -374,21 +380,113 @@ impl TableFragmentGroup {
     }
 }
 
-/// Stable source-tree identity shared by every row of one table grid.
+/// Stable semantic identity shared by every row of one table grid.
 ///
 /// Rows are flattened so pagination can fragment them independently, but table
 /// backgrounds and borders still require one coordinated paint schedule. The
-/// source path preserves that relationship across cloning and fragmentation
-/// without reference counting or renderer-side guesses based on geometry.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// authored source path and normalized containing-cell scopes preserve that
+/// relationship across cloning and fragmentation without reference counting or
+/// renderer-side guesses based on geometry.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub(crate) struct TableGridIdentity {
-    source_path: Box<[usize]>,
+    source: Box<[TableIdentityPart]>,
 }
 
 impl TableGridIdentity {
     pub(crate) fn from_source_path(path: impl IntoIterator<Item = usize>) -> Self {
-        let source_path = path.into_iter().collect::<Vec<_>>().into_boxed_slice();
-        Self { source_path }
+        Self {
+            source: vec![TableIdentityPart::Grid(TableSourcePath::new(path))].into_boxed_slice(),
+        }
+    }
+
+    pub(crate) fn descendant(&self, path: impl IntoIterator<Item = usize>) -> Self {
+        self.descendant_scoped(&[], path)
+    }
+
+    pub(crate) fn from_scoped_source_path(
+        scopes: &[TableSourcePath],
+        path: impl IntoIterator<Item = usize>,
+    ) -> Self {
+        Self::default().descendant_scoped(scopes, path)
+    }
+
+    pub(crate) fn descendant_scoped(
+        &self,
+        scopes: &[TableSourcePath],
+        path: impl IntoIterator<Item = usize>,
+    ) -> Self {
+        let mut source = self.source.to_vec();
+        source.extend(
+            scopes
+                .iter()
+                .cloned()
+                .map(TableIdentityPart::FlatteningScope),
+        );
+        source.push(TableIdentityPart::Grid(TableSourcePath::new(path)));
+        Self {
+            source: source.into_boxed_slice(),
+        }
+    }
+
+    pub(crate) fn cell_descendant_scoped(
+        &self,
+        cell: TableCellPosition,
+        scopes: &[TableSourcePath],
+        path: impl IntoIterator<Item = usize>,
+    ) -> Self {
+        let mut source = self.source.to_vec();
+        source.push(TableIdentityPart::Cell(cell));
+        source.extend(
+            scopes
+                .iter()
+                .cloned()
+                .map(TableIdentityPart::FlatteningScope),
+        );
+        source.push(TableIdentityPart::Grid(TableSourcePath::new(path)));
+        Self {
+            source: source.into_boxed_slice(),
+        }
+    }
+}
+
+/// One semantically distinct component of a table-grid identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum TableIdentityPart {
+    Cell(TableCellPosition),
+    FlatteningScope(TableSourcePath),
+    Grid(TableSourcePath),
+}
+
+/// Position of one cell in the normalized row sequence of a table grid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct TableCellPosition {
+    row: NormalizedTableRow,
+    cell: NormalizedTableCell,
+}
+
+impl TableCellPosition {
+    pub(crate) const fn new(normalized_row: usize, normalized_cell: usize) -> Self {
+        Self {
+            row: NormalizedTableRow(normalized_row),
+            cell: NormalizedTableCell(normalized_cell),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct NormalizedTableRow(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct NormalizedTableCell(usize);
+
+/// Authored source-tree path captured before a formatting context clones or
+/// removes boxes from its layout child sequence.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub(crate) struct TableSourcePath(Box<[usize]>);
+
+impl TableSourcePath {
+    pub(crate) fn new(path: impl IntoIterator<Item = usize>) -> Self {
+        Self(path.into_iter().collect::<Vec<_>>().into_boxed_slice())
     }
 }
 

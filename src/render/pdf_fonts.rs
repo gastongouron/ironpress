@@ -1,7 +1,7 @@
 use crate::layout::elements::{
     AvoidPageBreak, ColumnRule, Container, FlexRow, GridRow, HorizontalRule, Image, LayoutElement,
     LayoutVisitor, MathBlock, NamedString, PageBreak, ProgressBar, RunningElement, Svg, TableRow,
-    TextBlock, visit_layout_tree,
+    TextBlock,
 };
 use crate::layout::engine::{Page, TextLine, TextRun};
 use crate::parser::ttf::TtfFont;
@@ -235,7 +235,20 @@ fn collect_font_usage_from_element(
         custom_fonts,
         usage,
     };
-    visit_layout_tree(element, &mut collector);
+    collect_font_usage_walk(element, &mut collector);
+}
+
+/// Depth-first walk pairing the node visitor with a per-box background check:
+/// custom-font `<text>` inside a CSS background-image SVG must be subset and
+/// embedded exactly like foreground SVG text.
+fn collect_font_usage_walk(element: &dyn LayoutElement, collector: &mut FontUsageCollector<'_>) {
+    if let Some(owner) = element.box_paint_owner()
+        && let Some(svg) = owner.box_paint().background.layers.svg.as_ref()
+    {
+        collect_font_usage_from_svg(svg, collector.custom_fonts, collector.usage);
+    }
+    element.accept(collector);
+    element.visit_children(&mut |child| collect_font_usage_walk(child, collector));
 }
 
 struct FontUsageCollector<'a> {
@@ -255,6 +268,9 @@ impl LayoutVisitor for FontUsageCollector<'_> {
                 self.custom_fonts,
                 self.usage,
             );
+            if let Some(svg) = cell.layout.paint.box_paint.background.layers.svg.as_ref() {
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+            }
         }
     }
 
@@ -265,12 +281,18 @@ impl LayoutVisitor for FontUsageCollector<'_> {
                 self.custom_fonts,
                 self.usage,
             );
+            if let Some(svg) = cell.layout.paint.box_paint.background.layers.svg.as_ref() {
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+            }
         }
     }
 
     fn visit_flex_row(&mut self, element: &FlexRow) {
         for cell in &element.content.cells {
             collect_font_usage_from_lines(&cell.lines, self.custom_fonts, self.usage);
+            if let Some(svg) = cell.paint.background.layers.svg.as_ref() {
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+            }
         }
     }
 
@@ -308,6 +330,7 @@ fn collect_font_usage_from_svg(
             None,
             None,
             None,
+            crate::render::svg_text::SvgTextSizing::initial(tree.text_ctx.font_size),
             custom_fonts,
             usage,
         );
@@ -321,6 +344,7 @@ fn collect_font_usage_from_svg_node(
     inherited_family: Option<&str>,
     inherited_bold: Option<bool>,
     inherited_italic: Option<bool>,
+    inherited_sizing: crate::render::svg_text::SvgTextSizing,
     custom_fonts: &HashMap<String, TtfFont>,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
 ) {
@@ -332,6 +356,7 @@ fn collect_font_usage_from_svg_node(
             let family = style.font_family.as_deref().or(inherited_family);
             let bold = style.font_bold.or(inherited_bold);
             let italic = style.font_italic.or(inherited_italic);
+            let sizing = inherited_sizing.cascade(style.font_size, style.letter_spacing.as_ref());
             for child in children {
                 collect_font_usage_from_svg_node(
                     child,
@@ -339,6 +364,7 @@ fn collect_font_usage_from_svg_node(
                     family,
                     bold,
                     italic,
+                    sizing,
                     custom_fonts,
                     usage,
                 );
@@ -372,17 +398,29 @@ fn collect_font_usage_from_svg_node(
                 .or(style.font_italic)
                 .or(inherited_italic)
                 .unwrap_or(text_ctx.font_italic);
-            let Some((resolved_name, font)) =
-                crate::system_fonts::find_font(custom_fonts, &family, bold, italic)
-            else {
-                return;
-            };
-            // Glyph identity is size-independent for our shaping path, so shape
-            // at a nominal size purely to discover the used glyph ids.
-            let font_usage = usage.entry(FontUsageKey::plain(resolved_name)).or_default();
-            if let Some(shaped) = crate::text::shape_text_with_explicit_font(content, 16.0, font) {
-                for glyph in shaped.glyphs {
-                    font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+            let sizing = inherited_sizing.cascade(style.font_size, style.letter_spacing.as_ref());
+            let runs = crate::render::svg_text::fonts::resolve_svg_text_font_runs(
+                content,
+                &family,
+                &text_ctx.font_family,
+                bold,
+                italic,
+                Some(custom_fonts),
+            );
+            for run in runs {
+                let crate::render::svg_text::fonts::SvgTextFace::Custom(face) = run.face else {
+                    continue;
+                };
+                if let Some(shaped) = crate::text::shape_text_with_explicit_font_and_shaping(
+                    run.text,
+                    sizing.font_size(),
+                    face.font(),
+                    sizing.shaping(),
+                ) {
+                    let font_usage = usage.entry(FontUsageKey::plain(face.key())).or_default();
+                    for glyph in shaped.glyphs {
+                        font_usage.record_glyph(glyph.glyph_id, glyph.unicode);
+                    }
                 }
             }
         }
@@ -723,6 +761,7 @@ mod tests {
             is_italic: false,
             text_metrics: Default::default(),
             data: std::sync::Arc::new(Vec::new()), // empty ⟹ subsetting always fails → fallback_font path
+            shaping: None,
         }
     }
 
@@ -742,6 +781,7 @@ mod tests {
             is_italic: false,
             text_metrics: Default::default(),
             data: std::sync::Arc::new(Vec::new()),
+            shaping: None,
         }
     }
 
@@ -1011,6 +1051,50 @@ mod tests {
             collected.to_unicode_map.get(&ligature.glyph_id),
             Some(&vec![b'f' as u16, b'i' as u16])
         );
+    }
+
+    #[test]
+    fn svg_font_subset_uses_the_used_font_size_for_letter_spacing_shaping() {
+        let bytes = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/parity/fonts/ParitySans.ttf"),
+        )
+        .expect("ParitySans test font");
+        let font = crate::parser::ttf::parse_ttf(bytes).expect("valid ParitySans font");
+        let fonts = HashMap::from([("paritysans".to_string(), font)]);
+        let tree = crate::parser::svg::parse_svg_from_string(
+            r#"<svg xmlns="http://www.w3.org/2000/svg">
+                <text font-family="ParitySans" font-size="20"
+                      letter-spacing="calc(1em - 16px)">office</text>
+            </svg>"#,
+        )
+        .expect("valid SVG");
+        let mut usage = BTreeMap::new();
+
+        collect_font_usage_from_svg(&tree, &fonts, &mut usage);
+
+        let font = fonts.get("paritysans").expect("registered font");
+        let painted = crate::text::shape_text_with_explicit_font_and_shaping(
+            "office",
+            20.0,
+            font,
+            crate::layout::engine::TextShaping::KERNING_ONLY,
+        )
+        .expect("SVG text must shape");
+        let painted_glyphs = painted
+            .glyphs
+            .iter()
+            .map(|glyph| glyph.glyph_id)
+            .collect::<BTreeSet<_>>();
+        let collected = usage
+            .get(&FontUsageKey::plain("paritysans"))
+            .expect("ParitySans usage");
+
+        assert_eq!(collected.glyphs, painted_glyphs);
+        for character in ['f', 'i'] {
+            let glyph_id = font.cmap[&(character as u32)];
+            assert!(collected.glyphs.contains(&glyph_id));
+        }
     }
 
     #[test]

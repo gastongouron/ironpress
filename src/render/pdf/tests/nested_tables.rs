@@ -124,13 +124,22 @@
         let mut annotations = Vec::new();
         let mut ts_pdf_writer = PdfWriter::new();
         let mut ts_page_images = Vec::new();
-        let mut ctx = TextRenderContext::new(
-            TEST_PAGE_PAINT_BOX.height,
-            &custom_fonts,
-            &prepared_custom_fonts,
-            &mut annotations,
+        let mut ts_shadings = Vec::new();
+        let mut ts_shading_counter = 0usize;
+        let mut ts_ext_gstates = Vec::new();
+        let mut ts_alpha_counter = 0usize;
+        let mut ctx = PageRenderContext::new(
             &mut ts_pdf_writer,
             &mut ts_page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut ts_shadings,
+            &mut ts_shading_counter,
+            &mut ts_ext_gstates,
+            &mut ts_alpha_counter,
+            &mut annotations,
+            TEST_PAGE_PAINT_BOX,
+            TEST_PAGE_PAINT_BOX.height,
         );
 
         let run = test_text_run("Aligned");
@@ -190,13 +199,22 @@
         let mut annotations = Vec::new();
         let mut ts_pdf_writer = PdfWriter::new();
         let mut ts_page_images = Vec::new();
-        let mut ctx = TextRenderContext::new(
-            TEST_PAGE_PAINT_BOX.height,
-            &custom_fonts,
-            &prepared_custom_fonts,
-            &mut annotations,
+        let mut ts_shadings = Vec::new();
+        let mut ts_shading_counter = 0usize;
+        let mut ts_ext_gstates = Vec::new();
+        let mut ts_alpha_counter = 0usize;
+        let mut ctx = PageRenderContext::new(
             &mut ts_pdf_writer,
             &mut ts_page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut ts_shadings,
+            &mut ts_shading_counter,
+            &mut ts_ext_gstates,
+            &mut ts_alpha_counter,
+            &mut annotations,
+            TEST_PAGE_PAINT_BOX,
+            TEST_PAGE_PAINT_BOX.height,
         );
 
         let underline_run = TextRun {
@@ -268,13 +286,22 @@
         let mut annotations = Vec::new();
         let mut ts_pdf_writer = PdfWriter::new();
         let mut ts_page_images = Vec::new();
-        let mut ctx = TextRenderContext::new(
-            TEST_PAGE_PAINT_BOX.height,
-            &custom_fonts,
-            &prepared_custom_fonts,
-            &mut annotations,
+        let mut ts_shadings = Vec::new();
+        let mut ts_shading_counter = 0usize;
+        let mut ts_ext_gstates = Vec::new();
+        let mut ts_alpha_counter = 0usize;
+        let mut ctx = PageRenderContext::new(
             &mut ts_pdf_writer,
             &mut ts_page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut ts_shadings,
+            &mut ts_shading_counter,
+            &mut ts_ext_gstates,
+            &mut ts_alpha_counter,
+            &mut annotations,
+            TEST_PAGE_PAINT_BOX,
+            TEST_PAGE_PAINT_BOX.height,
         );
 
         let run = TextRun {
@@ -323,13 +350,22 @@
         let mut annotations = Vec::new();
         let mut ts_pdf_writer = PdfWriter::new();
         let mut ts_page_images = Vec::new();
-        let mut ctx = TextRenderContext::new(
-            TEST_PAGE_PAINT_BOX.height,
-            &custom_fonts,
-            &prepared_custom_fonts,
-            &mut annotations,
+        let mut ts_shadings = Vec::new();
+        let mut ts_shading_counter = 0usize;
+        let mut ts_ext_gstates = Vec::new();
+        let mut ts_alpha_counter = 0usize;
+        let mut ctx = PageRenderContext::new(
             &mut ts_pdf_writer,
             &mut ts_page_images,
+            &custom_fonts,
+            &prepared_custom_fonts,
+            &mut ts_shadings,
+            &mut ts_shading_counter,
+            &mut ts_ext_gstates,
+            &mut ts_alpha_counter,
+            &mut annotations,
+            TEST_PAGE_PAINT_BOX,
+            TEST_PAGE_PAINT_BOX.height,
         );
 
         let run = TextRun {

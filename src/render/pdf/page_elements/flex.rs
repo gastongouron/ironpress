@@ -187,7 +187,8 @@ pub(in crate::render::pdf) fn render_flex_row(
                     ctx.shadings,
                     ctx.shading_counter,
                     Some(ctx.page_ext_gstates),
-                ),
+                )
+                .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
                 PdfBackgroundPaintContext::local(BackgroundPaintContext::new(
                     flex_image_reference.into(),
                     flex_background_geometry.image_destination_box.into(),
@@ -403,7 +404,8 @@ pub(in crate::render::pdf) fn render_flex_row(
                         ctx.shadings,
                         ctx.shading_counter,
                         Some(ctx.page_ext_gstates),
-                    ),
+                    )
+                    .with_custom_fonts(ctx.text.custom_fonts, ctx.text.prepared_custom_fonts),
                     PdfBackgroundPaintContext::local(BackgroundPaintContext::new(
                         cell_background
                             .positioning_area

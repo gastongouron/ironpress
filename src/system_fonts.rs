@@ -1,11 +1,13 @@
+use crate::bounded_cache::BoundedProcessCache;
 use crate::parser::css::{CssRule, CssValue, FontStretch, parse_inline_style};
 use crate::parser::dom::DomNode;
 use crate::parser::ttf::{FontFaceIndex, TtfFont, parse_ttf_with_index};
 use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap};
+use std::num::NonZeroUsize;
 use std::process::Command;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{LazyLock, OnceLock};
 
 const FONT_VARIANTS: &[FontVariant] = &[
     FontVariant::new(false, false),
@@ -224,6 +226,25 @@ pub(crate) fn find_font<'a>(
             .get_key_value(&key)
             .map(|(name, font)| (name.as_str(), font))
     })
+}
+
+#[cfg(test)]
+/// Resolve a raw CSS `font-family` list (`"MyFace", Helvetica`) against the
+/// registered fonts: the first listed family with a registered face wins, so an
+/// author-listed custom face beats a later base-14 fallback. The list goes
+/// through the engine's CSS font-stack parser, so a quoted family name may
+/// contain commas, and a single family name resolves exactly like
+/// [`find_font`].
+pub(crate) fn find_font_in_stack<'a>(
+    fonts: &'a HashMap<String, TtfFont>,
+    stack: &str,
+    bold: bool,
+    italic: bool,
+) -> Option<(&'a str, &'a TtfFont)> {
+    parse_font_stack(stack)
+        .families()
+        .iter()
+        .find_map(|family| find_font(fonts, family.name(), bold, italic))
 }
 
 /// Resolve a face using CSS Fonts' discrete width matching order before style
@@ -457,9 +478,7 @@ pub(crate) fn load_unicode_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
         let db = system_fontdb();
         for family in UNICODE_FALLBACK_FAMILIES {
             let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-            if let Some(font) =
-                query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
-            {
+            if let Some(font) = load_system_font_cached(db, &query) {
                 return Some(font);
             }
         }
@@ -482,8 +501,7 @@ pub(crate) fn load_emoji_fallback_font(fonts: &mut HashMap<String, TtfFont>) {
     let db = system_fontdb();
     for family in EMOJI_FALLBACK_FAMILIES {
         let query = SystemFontQuery::new(family, FontVariant::new(false, false));
-        if let Some(font) = query_fontdb_font(db, &query).or_else(|| query_fontconfig_font(&query))
-        {
+        if let Some(font) = load_system_font_cached(db, &query) {
             fonts.insert(EMOJI_FALLBACK_KEY.to_string(), font);
             return;
         }
@@ -732,13 +750,50 @@ fn load_family_variants(db: &fontdb::Database, family: &str, fonts: &mut HashMap
         match fonts.entry(query.variant_key()) {
             Entry::Occupied(_) => {}
             Entry::Vacant(slot) => {
-                let Some(font) = load_system_font(db, &query) else {
+                let Some(font) = load_system_font_cached(db, &query) else {
                     continue;
                 };
                 slot.insert(font);
             }
         }
     }
+}
+
+/// How many resolved variant keys stay resident.
+///
+/// A document asks for a handful of families, each in up to four variants, plus
+/// the fallbacks, so a few hundred entries hold several documents' worth. CSS
+/// can name unlimited families, and misses are remembered too, so the ceiling is
+/// what keeps document input from growing this table for the life of the
+/// process.
+const SYSTEM_FONT_RESOLUTION_CAPACITY: NonZeroUsize = match NonZeroUsize::new(256) {
+    Some(capacity) => capacity,
+    None => NonZeroUsize::MIN,
+};
+
+/// Resolved system fonts, keyed by variant key (family plus bold and italic).
+///
+/// Resolution queries the process-wide fontdb and parses the matched face. Both
+/// steps are deterministic for a given key, so repeating them for every
+/// page-requested family and for the emoji fallback on every render is pure
+/// repeat work. An absent family is stored as `None` on purpose: that negative
+/// entry is what stops a repeated miss from re-querying fontdb and re-spawning
+/// `fc-match`, and the capacity above is what makes keeping it safe.
+static SYSTEM_FONT_RESOLUTION_CACHE: LazyLock<BoundedProcessCache<String, Option<TtfFont>>> =
+    LazyLock::new(|| BoundedProcessCache::new(SYSTEM_FONT_RESOLUTION_CAPACITY));
+
+/// Memoized [`load_system_font`].
+///
+/// The variant key fully determines resolution, including the ui-sans-serif
+/// preference path, so a cached value is always what a fresh call would return.
+fn load_system_font_cached(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Option<TtfFont> {
+    let key = query.variant_key();
+    if let Some(resolved) = SYSTEM_FONT_RESOLUTION_CACHE.get(&key) {
+        return resolved;
+    }
+    let resolved = load_system_font(db, query);
+    SYSTEM_FONT_RESOLUTION_CACHE.insert(key, resolved.clone());
+    resolved
 }
 
 fn load_system_font(db: &fontdb::Database, query: &SystemFontQuery<'_>) -> Option<TtfFont> {
@@ -787,36 +842,13 @@ struct ResolvedFontFile {
     face_index: FontFaceIndex,
 }
 
-/// Process-wide cache of resolved fontconfig font files, keyed by the exact
-/// `fc-match` pattern. Ensures `fc-match` is spawned **at most once per
-/// distinct pattern for the entire process lifetime** (and never on the hot
-/// path once warm), instead of once per font variant × family × render.
+/// Resolve one fontconfig fallback inside the bounded system-font lookup.
 ///
-/// We cache the resolved file and its selected face, not the parsed `TtfFont`,
-/// so the entry is cheap to clone and shared across threads; the small per-call
-/// parse is negligible next to a subprocess spawn + fontconfig re-init.
-fn fontconfig_path_cache() -> &'static Mutex<HashMap<String, Option<ResolvedFontFile>>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, Option<ResolvedFontFile>>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
+/// Production callers stay below [`load_system_font_cached`], which owns the
+/// only document-keyed process cache on this path.
 fn query_fontconfig_font(query: &SystemFontQuery<'_>) -> Option<TtfFont> {
     let pattern = query.fontconfig_pattern();
-
-    // Fast path: serve from the cache without spawning.
-    if let Ok(cache) = fontconfig_path_cache().lock() {
-        if let Some(cached) = cache.get(&pattern) {
-            return cached.as_ref().and_then(parse_resolved_font);
-        }
-    }
-
-    // Cache miss: resolve via fc-match at most once for this pattern, then store
-    // the result (including negative results) so it is never spawned again.
     let resolved = resolve_fontconfig_font(query, &pattern);
-    if let Ok(mut cache) = fontconfig_path_cache().lock() {
-        cache.insert(pattern, resolved.clone());
-    }
-
     resolved.as_ref().and_then(parse_resolved_font)
 }
 
@@ -828,9 +860,10 @@ fn parse_resolved_font(resolved: &ResolvedFontFile) -> Option<TtfFont> {
     .ok()
 }
 
-/// Spawn `fc-match` once for `pattern` and return the selected font file if the
-/// returned family matches the requested family (same guard as before). No
-/// sleep-polling: `output()` blocks on the child directly.
+/// Spawn `fc-match` for `pattern` and return the selected font file if the
+/// returned family matches the requested family. The bounded system-font cache
+/// above owns both positive and negative memoization; keeping a second cache
+/// here would let document-supplied patterns accumulate without its ceiling.
 fn resolve_fontconfig_font(query: &SystemFontQuery<'_>, pattern: &str) -> Option<ResolvedFontFile> {
     if !fontconfig_available() {
         return None;
@@ -894,6 +927,18 @@ mod tests {
     use crate::parser::ttf::{FontVerticalMetricSet, FontVerticalMetrics, TtfFont};
     use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
 
+    #[test]
+    fn find_font_in_stack_splits_the_list_like_css() {
+        let fonts = HashMap::from([("myface".to_string(), stub_font("MyFace"))]);
+        // A quoted family name may contain a comma; it is one (missing) family.
+        let found = find_font_in_stack(&fonts, "'ACME, Sans', MyFace, Helvetica", false, false);
+        assert_eq!(found.map(|(name, _)| name), Some("myface"));
+        assert!(find_font_in_stack(&fonts, "'MyFace, Sans'", false, false).is_none());
+        assert!(find_font_in_stack(&fonts, "Helvetica", false, false).is_none());
+        let single = find_font_in_stack(&fonts, "\"MyFace\"", false, false);
+        assert_eq!(single.map(|(name, _)| name), Some("myface"));
+    }
+
     fn stub_font(name: &str) -> TtfFont {
         let metrics = FontVerticalMetrics::new(800, -200, 0);
         TtfFont {
@@ -911,6 +956,7 @@ mod tests {
             is_italic: false,
             text_metrics: Default::default(),
             data: std::sync::Arc::new(vec![]),
+            shaping: None,
         }
     }
 

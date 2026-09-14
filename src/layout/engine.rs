@@ -249,6 +249,11 @@ pub(crate) struct CounterScope {
 
 #[allow(dead_code)]
 impl CounterState {
+    /// Whether no generated-content counter or quote context is active.
+    pub(crate) fn is_generated_content_context_free(&self) -> bool {
+        self.stacks.is_empty() && self.quote_depth == 0
+    }
+
     pub(crate) fn enter_element(&mut self, style: &ComputedStyle) -> CounterScope {
         self.apply_resets(&style.counter_reset);
         self.apply_increments(&style.counter_increment);
@@ -291,9 +296,7 @@ impl CounterState {
     }
     fn pop_resets(&mut self, resets: &[(String, i32)]) {
         for (name, _) in resets {
-            if let Some(stack) = self.stacks.get_mut(name) {
-                stack.pop();
-            }
+            self.pop_name(name);
         }
     }
     pub(crate) fn get(&self, name: &str) -> i32 {
@@ -326,8 +329,12 @@ impl CounterState {
         }
     }
     fn pop_name(&mut self, name: &str) {
-        if let Some(stack) = self.stacks.get_mut(name) {
+        let became_empty = self.stacks.get_mut(name).is_some_and(|stack| {
             stack.pop();
+            stack.is_empty()
+        });
+        if became_empty {
+            self.stacks.remove(name);
         }
     }
     pub(crate) fn get_all(&self, name: &str, sep: &str) -> String {
@@ -860,6 +867,17 @@ impl TextShaping {
         ligatures: false,
         kerning: true,
     };
+
+    /// The feature set once CSS tracking applies: a non-zero `letter-spacing`
+    /// suppresses optional ligatures, because a ligature would swallow the
+    /// spacing between its component characters (CSS Text 3 §8.2). Kerning is
+    /// controlled independently by `font-kerning`, so it is left as is.
+    pub const fn tracked(self, letter_spacing: f32) -> Self {
+        Self {
+            ligatures: self.ligatures && letter_spacing == 0.0,
+            kerning: self.kerning,
+        }
+    }
 }
 
 impl Default for TextShaping {
@@ -2159,6 +2177,9 @@ pub(crate) fn layout_with_rules_and_fonts_raster_quality(
     // element regardless of where in the tree it lives.
     let mut filter_defs: HashMap<String, ElementNode> = HashMap::new();
     collect_id_defs(nodes, &mut filter_defs);
+    // Owned by this layout and dropped with it; nested table scopes borrow it
+    // explicitly through the layout environment.
+    let mut table_cell_sizing = super::table::TableCellSizingMemo::default();
     let mut env = LayoutEnv {
         rules,
         fonts: custom_fonts,
@@ -2166,6 +2187,7 @@ pub(crate) fn layout_with_rules_and_fonts_raster_quality(
         resources,
         filter_defs: &filter_defs,
         filter_dpi: raster_quality.filter_dpi,
+        table_cell_sizing: super::table::TableCellSizingContext::root(&mut table_cell_sizing),
     };
     if let Some(root) =
         RootFormattingContext::from_projected_body(nodes, &body_style, available_width)
@@ -2958,6 +2980,40 @@ fn svg_displacement_channel(value: Option<&String>) -> usize {
     }
 }
 
+/// Consecutive authored table cells awaiting anonymous table fixup.
+#[derive(Default)]
+struct AnonymousTableCellGroup<'dom> {
+    pending: Option<PendingAnonymousTableCells<'dom>>,
+}
+
+struct PendingAnonymousTableCells<'dom> {
+    first_source_index: usize,
+    cells: Vec<&'dom ElementNode>,
+}
+
+impl<'dom> AnonymousTableCellGroup<'dom> {
+    fn push(&mut self, cell: &'dom ElementNode, source_index: usize) {
+        if let Some(pending) = &mut self.pending {
+            pending.cells.push(cell);
+        } else {
+            self.pending = Some(PendingAnonymousTableCells {
+                first_source_index: source_index,
+                cells: vec![cell],
+            });
+        }
+    }
+
+    fn take(&mut self) -> Option<PendingAnonymousTableCells<'dom>> {
+        self.pending.take()
+    }
+}
+
+impl<'dom> PendingAnonymousTableCells<'dom> {
+    fn into_parts(self) -> (usize, Vec<&'dom ElementNode>) {
+        (self.first_source_index, self.cells)
+    }
+}
+
 /// Flatten a list of DOM nodes into layout elements.
 ///
 /// Iterates over `nodes`, collecting inline-block groups and dispatching
@@ -3006,7 +3062,7 @@ pub(crate) fn flatten_nodes(
     // Accumulator for consecutive inline-block elements
     let mut ib_group: Vec<(&ElementNode, bool)> = Vec::new();
     let mut pending_inline_space = false;
-    let mut table_cell_group: Vec<&ElementNode> = Vec::new();
+    let mut table_cell_group = AnonymousTableCellGroup::default();
 
     // Helper closure-like macro for flushing an inline-block group.
     // We use a nested fn instead since closures can't borrow multiple fields.
@@ -3036,7 +3092,7 @@ pub(crate) fn flatten_nodes(
 
     #[allow(clippy::too_many_arguments)]
     fn flush_table_cells(
-        group: &mut Vec<&ElementNode>,
+        group: &mut AnonymousTableCellGroup<'_>,
         parent_style: &ComputedStyle,
         ctx: &LayoutContext,
         output: &mut Vec<LayoutNode>,
@@ -3046,10 +3102,10 @@ pub(crate) fn flatten_nodes(
         positioned_depth: usize,
         env: &mut LayoutEnv,
     ) {
-        if group.is_empty() {
+        let Some(pending) = group.take() else {
             return;
-        }
-        let taken = std::mem::take(group);
+        };
+        let (first_source_index, taken) = pending.into_parts();
         let table = anonymous_table_from_cells(&taken);
         let Some(table_style) = anonymous_table_box_style(&table, parent_style) else {
             return;
@@ -3060,10 +3116,11 @@ pub(crate) fn flatten_nodes(
             output,
             super::inline_formatting::GeneratedInlineContent::new(&table, None, None),
             env,
-            TableLayoutContext::new(
+            TableLayoutContext::for_anonymous_table(
                 ctx,
                 ancestors,
                 ElementSiblingContext::new(child_index, sibling_count),
+                ElementSiblingContext::new(first_source_index, sibling_count),
                 positioned_depth,
             ),
         );
@@ -3251,7 +3308,7 @@ pub(crate) fn flatten_nodes(
                 } else if style.display == Display::TableCell {
                     flush_ib(&mut ib_group, parent_style, &ib_ctx, output, ancestors, env);
                     pending_inline_space = false;
-                    table_cell_group.push(el);
+                    table_cell_group.push(el, element_index);
                 } else if matches!(
                     InlineFormattingRole::of(el, &style),
                     InlineFormattingRole::Atomic(
@@ -8199,6 +8256,17 @@ mod tests {
         // Pop nested reset
         cs.pop_resets(&[("section".to_string(), 0)]);
         assert_eq!(cs.get("section"), 1); // Back to outer counter value
+    }
+
+    #[test]
+    fn counter_state_is_context_free_after_its_last_reset_scope_leaves() {
+        let mut state = CounterState::default();
+        state.apply_resets(&[("section".to_string(), 0)]);
+        assert!(!state.is_generated_content_context_free());
+
+        state.pop_resets(&[("section".to_string(), 0)]);
+
+        assert!(state.is_generated_content_context_free());
     }
 
     #[test]

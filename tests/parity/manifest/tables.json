@@ -1407,5 +1407,19 @@
       "probe-fill-box",
       "probe-block-flow"
     ]
+  },
+  {
+    "id": "tables-cell-inline-block-inline-flow",
+    "category": "tables",
+    "feature": "table-cell-children",
+    "subfeature": "inline-block-inline-flow",
+    "description": "An inline-tagged display:inline-block inside a table cell (a fill-in underline box and a checkbox square) participates in the cell's inline formatting context (CSS 2 §9.2.2): label, boxes, and trailing text share one line instead of the boxes dropping onto their own stacked lines.",
+    "file": "cases/tables/tables-cell-inline-block-inline-flow.html",
+    "kind": "feature",
+    "expected_support": "implemented",
+    "depends_on": [
+      "probe-fill-box",
+      "probe-block-flow"
+    ]
   }
 ]

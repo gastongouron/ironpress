@@ -54,6 +54,7 @@ fn custom_font_embedding_in_pdf() {
         is_italic: false,
         text_metrics: Default::default(),
         data: std::sync::Arc::new(vec![0u8; 64]), // Minimal dummy font data
+        shaping: None,
     };
     let mut fonts = HashMap::new();
     fonts.insert("TestFont".to_string(), ttf);
@@ -143,6 +144,7 @@ fn render_run_glyphs_falls_back_to_standard_font_when_custom_shaping_fails() {
         is_italic: false,
         text_metrics: Default::default(),
         data: std::sync::Arc::new(vec![0u8; 64]),
+        shaping: None,
     };
     let mut fonts = HashMap::new();
     fonts.insert(
@@ -193,6 +195,7 @@ fn tj_test_font() -> crate::parser::ttf::TtfFont {
         is_italic: false,
         text_metrics: Default::default(),
         data: std::sync::Arc::new(Vec::new()),
+        shaping: None,
     }
 }
 
@@ -203,6 +206,7 @@ fn append_tj_shaped_text_uses_single_text_matrix() {
         glyphs: vec![
             crate::text::ShapedGlyph {
                 glyph_id: 1,
+                cluster: 0,
                 x_advance: 6.0,
                 y_advance: 0.0,
                 x_offset: 0.0,
@@ -211,6 +215,7 @@ fn append_tj_shaped_text_uses_single_text_matrix() {
             },
             crate::text::ShapedGlyph {
                 glyph_id: 2,
+                cluster: 1,
                 x_advance: 6.0,
                 y_advance: 0.0,
                 x_offset: 0.0,
@@ -254,8 +259,9 @@ fn append_tj_shaped_text_keeps_repeated_subthreshold_adjustments() {
     let glyph_count = 17;
     let shaped = crate::text::ShapedRun {
         glyphs: (0..glyph_count)
-            .map(|_| crate::text::ShapedGlyph {
+            .map(|cluster| crate::text::ShapedGlyph {
                 glyph_id: 1,
+                cluster,
                 x_advance: 6.0,
                 y_advance: 0.0,
                 x_offset: 0.0,
@@ -307,6 +313,7 @@ fn synthetic_italic_shear_keeps_its_visual_direction_in_each_text_space() {
     let shaped = crate::text::ShapedRun {
         glyphs: vec![crate::text::ShapedGlyph {
             glyph_id: 1,
+            cluster: 0,
             x_advance: 6.0,
             y_advance: 0.0,
             x_offset: 0.0,
