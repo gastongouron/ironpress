@@ -1559,6 +1559,9 @@ fn svg_style_is_default(style: &SvgStyle) -> bool {
         && matches!(style.stroke, SvgPaint::Unspecified)
         && style.clip_path.is_none()
         && style.stroke_width.is_none()
+        && style.font_family.is_none()
+        && style.font_bold.is_none()
+        && style.font_italic.is_none()
         && style.font_size.is_none()
         && style.letter_spacing.is_none()
         && (style.opacity - 1.0).abs() < f32::EPSILON
@@ -4207,6 +4210,29 @@ mod tests {
                 let letter_spacing = style.letter_spacing.as_ref().expect("root tracking");
                 assert_eq!(letter_spacing.resolve_user_units(20.0), 5.0);
                 assert!(matches!(children.as_slice(), [SvgNode::Text { .. }]));
+            }
+            other => panic!("expected root style wrapper, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_svg_from_element_preserves_other_inherited_root_styles() {
+        let text = make_el("text", vec![("x", "10"), ("y", "30")]);
+        let svg = make_svg_el(
+            vec![
+                ("font-family", "Courier"),
+                ("font-weight", "bold"),
+                ("font-style", "italic"),
+            ],
+            vec![text],
+        );
+
+        let tree = parse_svg_from_element(&svg).unwrap();
+        match &tree.children[0] {
+            SvgNode::Group { style, .. } => {
+                assert_eq!(style.font_family.as_deref(), Some("Courier"));
+                assert_eq!(style.font_bold, Some(true));
+                assert_eq!(style.font_italic, Some(true));
             }
             other => panic!("expected root style wrapper, got {other:?}"),
         }
