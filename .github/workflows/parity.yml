@@ -37,6 +37,12 @@ jobs:
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "::warning::Base commit $BASE_SHA is unavailable; running full parity."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           changed_paths="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
           run_parity=false
           while IFS= read -r changed_path; do
