@@ -11,7 +11,7 @@
 
     <PackageId>Ironpress</PackageId>
     <Title>Ironpress for .NET</Title>
-    <Version>1.6.0</Version>
+    <Version>1.7.0</Version>
     <Authors>Paul Gaston Gouron and Ironpress contributors</Authors>
     <Description>In-process HTML, CSS, and Markdown to PDF rendering for .NET.</Description>
     <PackageTags>pdf;html;css;markdown;converter</PackageTags>

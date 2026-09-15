@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "ironpress"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "bogon",
  "core-net",
@@ -1005,14 +1005,14 @@ dependencies = [
 
 [[package]]
 name = "ironpress-ffi"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "ironpress",
 ]
 
 [[package]]
 name = "ironpress-python"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "ironpress",
  "pyo3",
@@ -1020,7 +1020,7 @@ dependencies = [
 
 [[package]]
 name = "ironpress-ruby"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "ironpress",
  "magnus",
