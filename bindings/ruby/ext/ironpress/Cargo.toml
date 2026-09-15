@@ -1,6 +1,6 @@
 [package]
 name = "ironpress-ruby"
-version = "1.6.0"
+version = "1.7.0"
 edition = "2024"
 publish = false
 description = "Ruby bindings for the Ironpress HTML-to-PDF engine"
@@ -12,6 +12,6 @@ name = "ironpress_ruby"
 crate-type = ["cdylib"]
 
 [dependencies]
-ironpress-core = { version = "=1.6.0", package = "ironpress" }
+ironpress-core = { version = "=1.7.0", package = "ironpress" }
 magnus = "0.7"
 rb-sys = { version = "0.9", default-features = false, features = ["stable-api-compiled-fallback"] }

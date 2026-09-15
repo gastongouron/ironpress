@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.7.0] — 2026-09-15
+
 ### Added
 
 - Conan 2 and vcpkg source recipes package the existing C and C++ bindings and

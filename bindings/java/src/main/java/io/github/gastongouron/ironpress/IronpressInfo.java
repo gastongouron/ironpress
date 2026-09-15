@@ -6,7 +6,7 @@ public final class IronpressInfo {
   public static final int REQUIRED_ABI_VERSION = 1;
 
   /** Ironpress version carried by this Maven artifact. */
-  public static final String PACKAGE_VERSION = "1.6.0";
+  public static final String PACKAGE_VERSION = "1.7.0";
 
   private IronpressInfo() {}
 

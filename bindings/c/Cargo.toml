@@ -1,6 +1,6 @@
 [package]
 name = "ironpress-ffi"
-version = "1.6.0"
+version = "1.7.0"
 edition = "2024"
 rust-version = "1.88"
 publish = false
@@ -12,4 +12,4 @@ repository = "https://github.com/gastongouron/ironpress"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-ironpress-core = { version = "=1.6.0", path = "../..", package = "ironpress" }
+ironpress-core = { version = "=1.7.0", path = "../..", package = "ironpress" }
