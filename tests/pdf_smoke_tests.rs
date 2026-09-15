@@ -536,3 +536,140 @@ fn smoke_filter_blur_text_element_no_crash() {
     assert!(pdf_has_text(&pdf, "/SMask"));
     assert!(pdf_has_text(&pdf, "Normal text"));
 }
+
+// === Inline-block children (issue #261) ===
+
+/// Every Unicode scalar reachable through the document's embedded `ToUnicode`
+/// CMaps.
+///
+/// Font subsetting only embeds the glyphs a document actually paints, so a box
+/// that never reaches layout leaves no entry behind. That makes this a reliable
+/// presence signal even where `pdf_has_text` cannot reassemble a `TJ` run.
+fn pdf_embedded_letters(pdf: &[u8]) -> std::collections::BTreeSet<char> {
+    let content = String::from_utf8_lossy(pdf);
+    let mut letters = std::collections::BTreeSet::new();
+    let mut pos = 0;
+    while let Some(start) = content[pos..].find("beginbfchar") {
+        let block_start = pos + start + 11;
+        let block_end = content[block_start..]
+            .find("endbfchar")
+            .map(|end| block_start + end)
+            .unwrap_or(content.len());
+        for line in content[block_start..block_end].lines() {
+            let fields: Vec<&str> = line
+                .trim()
+                .split(|c: char| c == '<' || c == '>' || c.is_whitespace())
+                .filter(|field| !field.is_empty())
+                .collect();
+            if let Some(target) = fields.get(1)
+                && let Ok(code) = u32::from_str_radix(target, 16)
+                && let Some(ch) = char::from_u32(code)
+            {
+                letters.insert(ch);
+            }
+        }
+        pos = block_end;
+    }
+    letters
+}
+
+/// Whether `marker` was painted, judged by its glyphs being embedded.
+///
+/// Callers must give every marker in a fixture at least one letter that no other
+/// marker uses, otherwise one marker's glyphs can vouch for another. The markers
+/// below satisfy this: `BLOCKKID` owns C/D/I/K/O, `ALPHA` owns H/P, `BETA` owns
+/// E/T.
+fn pdf_painted_marker(pdf: &[u8], marker: &str) -> bool {
+    let letters = pdf_embedded_letters(pdf);
+    marker.chars().all(|c| letters.contains(&c))
+}
+
+fn inline_block_fixture(wrapper_style: &str, body: &str) -> String {
+    format!(
+        "<html><head><style>\
+         @page {{ size: A4 portrait; margin: 1cm; }}\
+         .wrapper {{ {wrapper_style} }}\
+         .item {{ display: inline-block; width: 45%; }}\
+         </style></head><body><div class=\"wrapper\">{body}</div></body></html>"
+    )
+}
+
+/// An in-flow `inline-block` generates a block container that participates in
+/// its parent's inline formatting context (CSS Display 3 § 2.1, CSS 2.1 § 9.2.1),
+/// so its contents must be laid out and painted. Padding on the container does
+/// not take descendants out of flow, and neither does a block-level sibling.
+///
+/// Regression test for issue #261, where both items vanished from the content
+/// stream with no error raised.
+#[test]
+fn inline_block_content_survives_padded_container_with_block_sibling() {
+    let pdf = smoke_html_to_pdf(&inline_block_fixture(
+        "padding: 4px 0;",
+        "<p>BLOCKKID</p>\
+         <div class=\"item\"><p>ALPHA</p></div>\
+         <div class=\"item\"><p>BETA</p></div>",
+    ));
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_painted_marker(&pdf, "BLOCKKID"));
+    assert!(pdf_painted_marker(&pdf, "ALPHA"));
+    assert!(pdf_painted_marker(&pdf, "BETA"));
+}
+
+/// The block-level sibling named in issue #261 is not part of the trigger. With
+/// only inline-blocks in a padded container the whole page came out blank, which
+/// is the same root cause with a wider blast radius.
+#[test]
+fn inline_block_with_block_content_paints_without_a_block_sibling() {
+    let pdf = smoke_html_to_pdf(&inline_block_fixture(
+        "padding: 4px 0;",
+        "<div class=\"item\"><p>ALPHA</p></div>\
+         <div class=\"item\"><p>BETA</p></div>",
+    ));
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_painted_marker(&pdf, "ALPHA"));
+    assert!(pdf_painted_marker(&pdf, "BETA"));
+}
+
+/// Guard: an unstyled container never took the wrapper path, so this rendered
+/// correctly before the fix and must keep doing so.
+#[test]
+fn inline_block_with_block_content_paints_without_container_padding() {
+    let pdf = smoke_html_to_pdf(&inline_block_fixture(
+        "",
+        "<p>BLOCKKID</p>\
+         <div class=\"item\"><p>ALPHA</p></div>\
+         <div class=\"item\"><p>BETA</p></div>",
+    ));
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_painted_marker(&pdf, "BLOCKKID"));
+    assert!(pdf_painted_marker(&pdf, "ALPHA"));
+    assert!(pdf_painted_marker(&pdf, "BETA"));
+}
+
+/// Guard: inline-blocks holding only inline content survived the old path
+/// because it collected text runs. A fix must not trade one case for the other.
+#[test]
+fn inline_block_text_survives_padded_container_with_block_sibling() {
+    let pdf = smoke_html_to_pdf(&inline_block_fixture(
+        "padding: 4px 0;",
+        "<p>BLOCKKID</p>\
+         <div class=\"item\">ALPHA</div>\
+         <div class=\"item\">BETA</div>",
+    ));
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_painted_marker(&pdf, "BLOCKKID"));
+    assert!(pdf_painted_marker(&pdf, "ALPHA"));
+    assert!(pdf_painted_marker(&pdf, "BETA"));
+}
+
+/// Guard: the same inline-only content without a block sibling.
+#[test]
+fn inline_block_text_survives_padded_container_without_block_sibling() {
+    let pdf = smoke_html_to_pdf(&inline_block_fixture(
+        "padding: 4px 0;",
+        "<div class=\"item\">ALPHA</div><div class=\"item\">BETA</div>",
+    ));
+    assert!(pdf_is_valid(&pdf));
+    assert!(pdf_painted_marker(&pdf, "ALPHA"));
+    assert!(pdf_painted_marker(&pdf, "BETA"));
+}
