@@ -269,6 +269,7 @@ fn table_cell_text_wrap_options(
     .with_bidi_override(style.bidi_override)
     .with_bidi_plaintext(style.bidi_plaintext)
     .with_word_break_keep_all(style.word_break_keep_all)
+    .with_line_break_anywhere(style.line_break_anywhere)
     .with_hyphens_manual(style.hyphens_manual)
     .with_white_space(style.white_space)
     .with_text_indent(style.text_indent.resolve(available_width))
@@ -1379,6 +1380,7 @@ fn measure_caption_min_width(
             ancestors: &caption_ancestors,
             available_width: available_width.max(0.0),
             descendant_layout,
+            intrinsic_measurement: false,
         },
         env,
     );
@@ -1419,14 +1421,14 @@ fn assign_explicit_col_widths(
 
 fn resolve_table_inner_width(
     style: &ComputedStyle,
+    specified: TableSpecifiedWidth,
     available_width: f32,
     box_model: TableRootBoxModel,
 ) -> f32 {
     let containing_width = (available_width - style.margin.horizontal()).max(0.0);
-    let specified = style.width.or_else(|| {
-        style
-            .percentage_sizing
-            .width
+    let specified = specified.width.or_else(|| {
+        specified
+            .percentage
             .map(|percent| containing_width * percent / 100.0)
     });
     specified.map_or(containing_width, |width| {
@@ -1440,9 +1442,39 @@ fn resolve_table_inner_height(style: &ComputedStyle, box_model: TableRootBoxMode
         .map(|height| box_model.resolve_block_extent(height))
 }
 
-fn uses_fixed_table_layout(style: &ComputedStyle) -> bool {
+fn uses_fixed_table_layout(style: &ComputedStyle, specified: TableSpecifiedWidth) -> bool {
     style.table_layout == TableLayout::Fixed
-        && (style.width.is_some() || style.percentage_sizing.width.is_some())
+        && (specified.width.is_some() || specified.percentage.is_some())
+}
+
+/// The table's authored inline size as this layout may use it.
+#[derive(Debug, Clone, Copy)]
+struct TableSpecifiedWidth {
+    /// `width` as the cascade resolved it (a percentage is already a length here).
+    width: Option<f32>,
+    /// The percentage the cascade resolved `width` from, if any.
+    percentage: Option<f32>,
+}
+
+/// A percentage inline size against an indefinite containing block behaves as
+/// `auto` (CSS 2.1 §17.5.2.2, css-sizing-3 §5.2.1). An enclosing auto-layout
+/// table measures a cell's intrinsic width by laying the cell out at the whole
+/// table width; a `width: 100%` table inside that cell would otherwise report
+/// that whole width as its own minimum, widen the outer table past the page,
+/// and shrink the entire printed document to fit. The cascade has already
+/// turned the percentage into a length in `style.width`, so both go together.
+fn table_specified_width(style: &ComputedStyle, context: &LayoutContext) -> TableSpecifiedWidth {
+    if context.inline_size_indefinite() && style.percentage_sizing.width.is_some() {
+        TableSpecifiedWidth {
+            width: None,
+            percentage: None,
+        }
+    } else {
+        TableSpecifiedWidth {
+            width: style.width,
+            percentage: style.percentage_sizing.width,
+        }
+    }
 }
 
 fn resolve_cell_track_width(
@@ -1813,7 +1845,9 @@ pub(crate) fn flatten_table(
         style.padding,
         table_border.widths(),
     );
-    let inner_width = resolve_table_inner_width(style, available_width, table_box_model);
+    let specified_width = table_specified_width(style, context.layout);
+    let inner_width =
+        resolve_table_inner_width(style, specified_width, available_width, table_box_model);
     let table_grid_box_insets = table_box_model.grid_insets();
     // Row construction needs the table grid's local inset, but the table
     // wrapper's final inline position cannot be resolved until auto layout has
@@ -2237,7 +2271,8 @@ pub(crate) fn flatten_table(
     let has_explicit_widths = explicit_col_widths.iter().any(|width| width.is_some());
     // A table with no explicit `width` shrinks to fit its content/column widths
     // (CSS auto table layout) instead of stretching to the containing block.
-    let table_has_explicit_width = style.width.is_some() || style.percentage_sizing.width.is_some();
+    let table_has_explicit_width =
+        specified_width.width.is_some() || specified_width.percentage.is_some();
     // When `border-collapse: separate`, horizontal `border-spacing` is drawn between
     // every pair of adjacent cells AND on the outer edges, so the space available for
     // the N columns is `inner_width - (N+1) * border_spacing`. Without this reduction
@@ -2274,7 +2309,7 @@ pub(crate) fn flatten_table(
     } else {
         inner_width
     };
-    let mut col_widths: Vec<f32> = if uses_fixed_table_layout(style) {
+    let mut col_widths: Vec<f32> = if uses_fixed_table_layout(style, specified_width) {
         resolve_fixed_table_columns(
             style,
             columns_width,
@@ -2507,6 +2542,7 @@ pub(crate) fn flatten_table(
                                         ancestors: &text_ancestors,
                                         available_width: inner_width,
                                         descendant_layout,
+                                        intrinsic_measurement: true,
                                     },
                                     &mut measurement_env,
                                 );
@@ -3206,6 +3242,7 @@ pub(crate) fn flatten_table(
                         ancestors: &text_ancestors,
                         available_width: cell_inner,
                         descendant_layout,
+                        intrinsic_measurement: false,
                     },
                     &mut flow_env,
                 );
@@ -3629,6 +3666,7 @@ pub(crate) fn flatten_table(
                     ancestors: &caption_ancestors,
                     available_width: caption_inner,
                     descendant_layout,
+                    intrinsic_measurement: false,
                 },
                 &mut flow_env,
             );
@@ -3861,6 +3899,9 @@ struct TableCellFlowContext<'style, 'ancestors, 'dom> {
     ancestors: &'ancestors [AncestorInfo<'dom>],
     available_width: f32,
     descendant_layout: TableDescendantLayout,
+    /// The cell is being laid out to measure its intrinsic width, so its own
+    /// inline size is not yet known to descendants.
+    intrinsic_measurement: bool,
 }
 
 struct TableCellChildLayout<'output, 'style, 'ancestors, 'dom> {
@@ -3883,10 +3924,13 @@ impl IndependentFlowLayout for TableCellChildLayout<'_, '_, '_, '_> {
         child: &InlineFormattingChild,
         env: &mut LayoutEnv<'_>,
     ) {
-        let cell_context = self
+        let mut cell_context = self
             .context
             .descendant_layout
             .child_context(self.context.available_width, self.context.style);
+        if self.context.intrinsic_measurement {
+            cell_context = cell_context.with_indefinite_inline_size();
+        }
         flatten_element(
             element,
             LayoutTreeContext::new(self.context.style, &cell_context, self.context.ancestors)
@@ -5074,6 +5118,66 @@ mod nested_table_sizing_tests {
             }
         }
         widths.0
+    }
+
+    /// A `table-layout: fixed; width: 100%` table inside a cell of an
+    /// auto-layout table. While the outer table measures that cell it lays the
+    /// cell out at the whole table width, so the percentage must behave as
+    /// `auto` there: otherwise the nested table reports the entire outer width
+    /// as its minimum, the 25% column balloons past the page, and the document
+    /// print-fits to a fraction of the sheet (the anaesthesia checklist rows
+    /// printed at roughly a third of the page).
+    #[test]
+    fn percentage_fixed_table_in_an_auto_cell_keeps_the_outer_table_on_the_page() {
+        let body = "<table style=\"width:100%\"><tr>\
+            <td style=\"width:25%\">\
+              <table style=\"table-layout:fixed;width:100%\"><tr>\
+                <td style=\"width:3mm\">x</td><td>VITAMINS</td>\
+              </tr></table>\
+            </td>\
+            <td style=\"width:25%\">B</td><td style=\"width:50%\">C</td>\
+          </tr></table>";
+        let document = parse_html_with_styles(&format!("{}{body}", reset()))
+            .expect("valid nested percentage table fixture");
+        let rules = document
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(&document.nodes, PAGE, Margin::uniform(0.0), &rules);
+
+        let widths = {
+            #[derive(Default)]
+            struct ColumnWidths(Vec<Vec<f32>>);
+            impl LayoutVisitor for ColumnWidths {
+                fn visit_table_row(&mut self, row: &TableRow) {
+                    self.0.push(row.content.column_widths.clone());
+                }
+            }
+            let mut widths = ColumnWidths::default();
+            for page in &pages {
+                for (_, element) in &page.elements {
+                    visit_layout_tree(element.as_ref(), &mut widths);
+                }
+            }
+            widths.0
+        };
+        assert_eq!(widths.len(), 2, "outer row then nested row: {widths:?}");
+        let outer: f32 = widths[0].iter().sum();
+        assert!(
+            outer <= PAGE.width + 0.01,
+            "outer table {outer} must stay within the {} page: {widths:?}",
+            PAGE.width
+        );
+        assert!(
+            (widths[0][0] - PAGE.width * 0.25).abs() < 0.5,
+            "the 25% column keeps its share: {widths:?}"
+        );
+        assert!(
+            pages[0].print_content_scale.is_identity(),
+            "nothing overflowed, so the page must not print-fit: {:?}",
+            pages[0].print_content_scale
+        );
     }
 
     /// CSS 2.1 § 17.5.2.2: a cell is never narrower than its content, and the

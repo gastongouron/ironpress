@@ -806,6 +806,9 @@ pub(crate) struct TextWrapOptions {
     pub(crate) line_height_factor: f32,
     pub(crate) overflow_wrap: OverflowWrap,
     pub(crate) word_break_keep_all: bool,
+    /// `line-break: anywhere`: a soft wrap opportunity around every
+    /// typographic character unit (css-text-3 §5.3).
+    pub(crate) line_break_anywhere: bool,
     pub(crate) hyphens_manual: bool,
     /// Paragraph base direction for the Unicode Bidi Algorithm. Set to `true`
     /// when the containing block has `direction: rtl` (or `dir="rtl"`).
@@ -847,6 +850,7 @@ impl TextWrapOptions {
             line_height_factor,
             overflow_wrap,
             word_break_keep_all: false,
+            line_break_anywhere: false,
             hyphens_manual: true,
             paragraph_rtl: false,
             bidi_override: false,
@@ -898,6 +902,11 @@ impl TextWrapOptions {
 
     pub(crate) const fn with_word_break_keep_all(mut self, keep_all: bool) -> Self {
         self.word_break_keep_all = keep_all;
+        self
+    }
+
+    pub(crate) const fn with_line_break_anywhere(mut self, anywhere: bool) -> Self {
+        self.line_break_anywhere = anywhere;
         self
     }
 
@@ -1472,6 +1481,7 @@ fn push_word_with_hyphen_breaks(
     run_index: usize,
     out: &mut Vec<StyledWord>,
     keep_all: bool,
+    line_break_anywhere: bool,
     hyphens_manual: bool,
 ) {
     // Cross-reference content is resolved only after pagination establishes
@@ -1491,7 +1501,7 @@ fn push_word_with_hyphen_breaks(
         return;
     }
 
-    if should_break_as_char_tokens(word, keep_all) {
+    if should_break_as_char_tokens(word, keep_all, line_break_anywhere) {
         push_char_break_tokens(word, run_index, out);
         return;
     }
@@ -1696,7 +1706,7 @@ fn is_cjk_closing_punctuation(ch: char) -> bool {
     )
 }
 
-fn should_break_as_char_tokens(word: &str, keep_all: bool) -> bool {
+fn should_break_as_char_tokens(word: &str, keep_all: bool, line_break_anywhere: bool) -> bool {
     if word.chars().count() <= 1 {
         return false;
     }
@@ -1704,17 +1714,12 @@ fn should_break_as_char_tokens(word: &str, keep_all: bool) -> bool {
     if has_cjk {
         return !keep_all;
     }
-    // `line-break:anywhere` is not represented in ComputedStyle yet, but CSS
-    // Text's anywhere behavior is needed for punctuation-heavy unspaced runs.
-    // Restrict arbitrary Latin breaks to runs that carry visible punctuation so
-    // ordinary prose words still keep their normal unbreakable min-content.
-    if word
-        .chars()
-        .any(|ch| matches!(ch, '/' | '+' | '(' | ')' | '[' | ']' | '{' | '}'))
-    {
-        return true;
-    }
-    false
+    // `line-break: anywhere` (css-text-3 §5.3) is the only property that puts a
+    // soft wrap opportunity around every typographic character unit. Without
+    // it a Latin word keeps its UAX #14 opportunities only, so a token such as
+    // `(dexmedetomidine)` moves whole onto the next line — as Chromium lays it
+    // out — instead of being cut before its last character.
+    line_break_anywhere
 }
 
 fn push_char_break_tokens(word: &str, run_index: usize, out: &mut Vec<StyledWord>) {
@@ -2082,6 +2087,7 @@ fn tokenize_text_runs(runs: &[TextRun], options: TextWrapOptions) -> Vec<StyledW
                             run_index,
                             &mut styled_words,
                             options.word_break_keep_all,
+                            options.line_break_anywhere,
                             options.hyphens_manual,
                         );
                     }
@@ -2112,6 +2118,7 @@ fn tokenize_text_runs(runs: &[TextRun], options: TextWrapOptions) -> Vec<StyledW
                     run_index,
                     &mut styled_words,
                     options.word_break_keep_all,
+                    options.line_break_anywhere,
                     options.hyphens_manual,
                 );
             }
@@ -3276,6 +3283,7 @@ fn build_inline_box(
             .with_bidi_override(style.bidi_override)
             .with_bidi_plaintext(style.bidi_plaintext)
             .with_word_break_keep_all(style.word_break_keep_all)
+            .with_line_break_anywhere(style.line_break_anywhere)
             .with_hyphens_manual(style.hyphens_manual),
             fonts,
         )
@@ -4459,7 +4467,7 @@ mod indent_tests {
     fn hyphen_breaks_follow_uax14_and_css_digit_tailoring() {
         let parts = |word: &str| {
             let mut tokens = Vec::new();
-            push_word_with_hyphen_breaks(word, 0, &mut tokens, false, true);
+            push_word_with_hyphen_breaks(word, 0, &mut tokens, false, false, true);
             tokens
                 .into_iter()
                 .map(|token| token.text)
@@ -4883,7 +4891,10 @@ mod indent_tests {
         let fonts = parity_sans_fonts();
         let run = parity_run("verification/path");
         let prefix_width = estimate_text_width_for_run("verification", &run, &fonts);
-        let options = TextWrapOptions::new(prefix_width, 16.0, 1.2, OverflowWrap::Normal);
+        // `line-break: anywhere` is what tokenises a Latin word per character;
+        // without it `verification/path` keeps only its UAX #14 opportunities.
+        let options = TextWrapOptions::new(prefix_width, 16.0, 1.2, OverflowWrap::Normal)
+            .with_line_break_anywhere(true);
 
         let lines = wrap_text_runs(vec![run], options, &fonts);
 
@@ -5149,8 +5160,65 @@ mod indent_tests {
 
     #[test]
     fn word_break_keep_all_keeps_cjk_punctuation_runs_whole() {
-        assert!(should_break_as_char_tokens("你好/世界", false));
-        assert!(!should_break_as_char_tokens("你好/世界", true));
+        assert!(should_break_as_char_tokens("你好/世界", false, false));
+        assert!(!should_break_as_char_tokens("你好/世界", true, false));
+    }
+
+    #[test]
+    fn latin_punctuation_words_split_per_character_only_under_line_break_anywhere() {
+        // A word carrying `/ + ( ) [ ] { }` used to be tokenised per character
+        // unconditionally, so `(dexmedetomidine)` was cut before its final
+        // character whenever the line ran out of room. Chromium keeps such a
+        // word whole unless `line-break: anywhere` applies.
+        assert!(!should_break_as_char_tokens(
+            "(dexmedetomidine)",
+            false,
+            false
+        ));
+        assert!(!should_break_as_char_tokens("AB/CD+EF(GH)", false, false));
+        assert!(should_break_as_char_tokens("AB/CD+EF(GH)", false, true));
+        assert!(should_break_as_char_tokens("plainword", false, true));
+        assert!(!should_break_as_char_tokens("(", false, true));
+    }
+
+    #[test]
+    fn parenthesised_word_wraps_whole_onto_the_next_line() {
+        let fonts: HashMap<String, TtfFont> = HashMap::new();
+        let runs = vec![plain_run("Precedex (dexmedetomidine)")];
+        let first = estimate_word_width(
+            "Precedex",
+            16.0,
+            &FontFamily::Helvetica,
+            false,
+            false,
+            &fonts,
+        );
+        let second = estimate_word_width(
+            "(dexmedetomidine)",
+            16.0,
+            &FontFamily::Helvetica,
+            false,
+            false,
+            &fonts,
+        );
+        // Room for either word alone, never for both on one line.
+        let width = first.max(second) + 4.0;
+        let opts = TextWrapOptions::new(width, 16.0, 1.2, OverflowWrap::Normal);
+
+        let lines = wrap_text_runs(runs.clone(), opts, &fonts);
+        let texts = lines
+            .iter()
+            .map(|line| line_text(line).trim().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(texts, ["Precedex", "(dexmedetomidine)"]);
+
+        // `line-break: anywhere` still fills the first line past the space.
+        let anywhere = wrap_text_runs(runs, opts.with_line_break_anywhere(true), &fonts);
+        assert!(
+            line_text(&anywhere[0]).trim().len() > "Precedex".len(),
+            "line-break:anywhere should fill the first line: {:?}",
+            line_text(&anywhere[0])
+        );
     }
 
     /// Concatenate a line's runs back into its rendered text.

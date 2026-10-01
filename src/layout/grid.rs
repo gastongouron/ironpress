@@ -1545,6 +1545,7 @@ fn grid_item_intrinsic_widths(
         .with_bidi_override(cs.bidi_override)
         .with_bidi_plaintext(cs.bidi_plaintext)
         .with_word_break_keep_all(cs.word_break_keep_all)
+        .with_line_break_anywhere(cs.line_break_anywhere)
         .with_hyphens_manual(cs.hyphens_manual),
         !matches!(cs.white_space, WhiteSpace::NoWrap | WhiteSpace::Pre),
         env.fonts,

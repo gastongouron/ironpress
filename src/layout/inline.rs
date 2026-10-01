@@ -238,7 +238,8 @@ fn inline_text_cell(
         .with_rtl(parent_style.direction_rtl)
         .with_bidi_override(parent_style.bidi_override)
         .with_bidi_plaintext(parent_style.bidi_plaintext)
-        .with_word_break_keep_all(parent_style.word_break_keep_all),
+        .with_word_break_keep_all(parent_style.word_break_keep_all)
+        .with_line_break_anywhere(parent_style.line_break_anywhere),
         fonts,
     );
     if lines.is_empty() {
@@ -578,7 +579,8 @@ fn inline_atomic_cell(
                     )
                     .with_white_space(child_style.white_space)
                     .with_parent_strut(parent_line_strut(child_style, env.fonts))
-                    .with_word_break_keep_all(child_style.word_break_keep_all),
+                    .with_word_break_keep_all(child_style.word_break_keep_all)
+                    .with_line_break_anywhere(child_style.line_break_anywhere),
                     env.fonts,
                 );
                 let content_w = child_style.width.unwrap_or_else(|| {
@@ -1230,6 +1232,7 @@ fn layout_inline_block_group_inner(
                 .with_bidi_override(child_style.bidi_override)
                 .with_bidi_plaintext(child_style.bidi_plaintext)
                 .with_word_break_keep_all(child_style.word_break_keep_all)
+                .with_line_break_anywhere(child_style.line_break_anywhere)
                 .with_hyphens_manual(child_style.hyphens_manual),
                 fonts,
             )

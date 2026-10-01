@@ -3295,6 +3295,7 @@ pub struct ComputedStyle {
     pub text_align: TextAlign,
     pub text_align_last: Option<TextAlign>,
     pub word_break_keep_all: bool,
+    pub line_break_anywhere: bool,
     pub hyphens_manual: bool,
     pub text_wrap_mode_nowrap: bool,
     /// CSS direction property (ltr/rtl), set from `dir` attribute or CSS.
@@ -3722,6 +3723,7 @@ impl Default for ComputedStyle {
             text_align: TextAlign::Left,
             text_align_last: None,
             word_break_keep_all: false,
+            line_break_anywhere: false,
             hyphens_manual: true,
             text_wrap_mode_nowrap: false,
             direction_rtl: false,
@@ -4748,6 +4750,7 @@ fn is_inherited_property(property: &str) -> bool {
             | "overflow-wrap"
             | "word-wrap"
             | "word-break"
+            | "line-break"
             | "hyphens"
             | "border-collapse"
             | "border-spacing"
@@ -4978,6 +4981,7 @@ fn reset_to_initial(style: &mut ComputedStyle, property: &str) {
         "text-overflow" => style.text_overflow = default.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = default.overflow_wrap,
         "word-break" => style.word_break_keep_all = default.word_break_keep_all,
+        "line-break" => style.line_break_anywhere = default.line_break_anywhere,
         "white-space-collapse" => style.white_space = default.white_space,
         "text-wrap-mode" => style.text_wrap_mode_nowrap = default.text_wrap_mode_nowrap,
         "border-collapse" => style.border_collapse = default.border_collapse,
@@ -5282,6 +5286,7 @@ fn restore_from_parent(style: &mut ComputedStyle, property: &str, parent: &Compu
         "text-overflow" => style.text_overflow = parent.text_overflow,
         "overflow-wrap" | "word-wrap" => style.overflow_wrap = parent.overflow_wrap,
         "word-break" => style.word_break_keep_all = parent.word_break_keep_all,
+        "line-break" => style.line_break_anywhere = parent.line_break_anywhere,
         "white-space-collapse" => style.white_space = parent.white_space,
         "text-wrap-mode" => style.text_wrap_mode_nowrap = parent.text_wrap_mode_nowrap,
         "empty-cells" => style.empty_cells = parent.empty_cells,
@@ -7598,6 +7603,12 @@ fn apply_style_map_with_percentage_basis(
         if k == "break-all" && style.overflow_wrap == OverflowWrap::Normal {
             style.overflow_wrap = OverflowWrap::Anywhere;
         }
+    }
+    // `line-break: anywhere` (css-text-3 §5.3) puts a soft wrap opportunity
+    // around every typographic character unit. It is the only value that lets
+    // a Latin word split at arbitrary points without `overflow-wrap`.
+    if let Some(CssValue::Keyword(k)) = get_non_special(map, "line-break") {
+        style.line_break_anywhere = k == "anywhere";
     }
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "hyphens") {
         style.hyphens_manual = k != "none";
@@ -14766,6 +14777,25 @@ mod tests {
 
         assert_eq!(inherited.font_size_adjust, parent.font_size_adjust);
         assert_eq!(reset.font_size_adjust, FontSizeAdjust::none());
+    }
+
+    #[test]
+    fn line_break_anywhere_parses_inherits_and_resets() {
+        // css-text-3 §5.3: `line-break` is inherited, its initial value is
+        // `auto`, and only `anywhere` adds a soft wrap opportunity around
+        // every typographic character unit.
+        let parent = ComputedStyle::default();
+        let anywhere = compute_style(HtmlTag::Span, Some("line-break: anywhere"), &parent);
+        assert!(anywhere.line_break_anywhere);
+        let strict = compute_style(HtmlTag::Span, Some("line-break: strict"), &parent);
+        assert!(!strict.line_break_anywhere);
+
+        let inherited = compute_style(HtmlTag::Span, None, &anywhere);
+        assert!(inherited.line_break_anywhere);
+        let explicit = compute_style(HtmlTag::Span, Some("line-break: inherit"), &anywhere);
+        assert!(explicit.line_break_anywhere);
+        let initial = compute_style(HtmlTag::Span, Some("line-break: initial"), &anywhere);
+        assert!(!initial.line_break_anywhere);
     }
 
     #[test]

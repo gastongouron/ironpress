@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fixed
+
+- A `width: 100%` table (or any percentage-width table) nested inside a cell
+  of an auto-layout table no longer reports the whole outer table width as
+  that cell's minimum while the cell is being measured: the percentage behaves
+  as `auto` against the still-indefinite cell width (CSS 2.1 §17.5.2.2), so
+  the outer table stays on the page and the document is no longer print-fitted
+  to a fraction of the sheet.
+- Collapsed table borders thinner than one CSS pixel (a `0.2mm` checkbox
+  rule) are painted at least one pixel thick before pixel snapping, so an edge
+  can no longer round away to nothing depending on its fractional position.
+- A Latin word carrying `/ + ( ) [ ] { }` is split per character only under
+  `line-break: anywhere`, which is now a real property; `(dexmedetomidine)`
+  moves whole onto the next line as in Chromium instead of being cut before
+  its last character.
+
 ## [1.7.0] — 2026-09-15
 
 ### Added

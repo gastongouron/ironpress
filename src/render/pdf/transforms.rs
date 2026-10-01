@@ -454,6 +454,21 @@ impl PageContentTransform {
         PdfRect::new(left, bottom, right - left, top - bottom)
     }
 
+    /// Thickness at which a painted border band stays on the CSS-pixel grid.
+    ///
+    /// Chromium never paints a border thinner than one CSS pixel. A thinner
+    /// band (a 0.2mm rule is 0.76px) can have both of its snapped edges round
+    /// onto the same grid line, after which `snap_layout_box` returns an empty
+    /// rectangle and the edge silently disappears. Wider bands keep their
+    /// authored thickness: two edges more than a pixel apart always snap to
+    /// distinct grid lines.
+    pub(in crate::render::pdf) fn snapped_border_width(self, width: f32) -> f32 {
+        if self.page_size.is_none() || width <= 0.0 {
+            return width;
+        }
+        width.max(crate::fonts::PT_PER_CSS_PX)
+    }
+
     /// Snap a horizontal text baseline in top-down page coordinates while the
     /// line-flow cursor itself remains fractional.
     pub(super) fn snap_horizontal_baseline(self, baseline: f32) -> f32 {

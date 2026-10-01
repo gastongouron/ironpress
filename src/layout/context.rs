@@ -116,6 +116,12 @@ pub struct LayoutContext {
     /// element replaces this with its own content box for its children.
     pub percent_height_cb: Option<ContainingBlock>,
     pub root_font_size: f32,
+    /// The parent's inline size is still being determined (an auto table
+    /// measuring a cell's intrinsic width). A percentage inline size against
+    /// such a containing block behaves as `auto` (CSS 2.1 §17.5.2.2,
+    /// css-sizing-3 §5.2.1) instead of reporting the whole outer width as the
+    /// descendant's own minimum size.
+    pub inline_size_indefinite: bool,
 }
 
 #[allow(dead_code)]
@@ -126,6 +132,17 @@ impl LayoutContext {
     }
 
     /// Height available for the current element, falling back to viewport.
+    pub const fn inline_size_indefinite(&self) -> bool {
+        self.inline_size_indefinite
+    }
+
+    /// Mark the parent inline size as not yet determined; every context
+    /// derived from this one inherits the mark.
+    pub const fn with_indefinite_inline_size(mut self) -> Self {
+        self.inline_size_indefinite = true;
+        self
+    }
+
     pub fn available_height(&self) -> f32 {
         self.parent.content_height.unwrap_or(self.viewport.height)
     }
