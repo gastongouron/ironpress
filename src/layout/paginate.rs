@@ -3364,9 +3364,6 @@ pub(crate) fn paginate_with_context(
         // resolve (i.e. taller than a full empty page, or a too-tall box already
         // at the page top). Every box that fits — the entire existing corpus —
         // skips this block and takes the unchanged whole-placement path below.
-        let followed_by_forced_break = work
-            .front()
-            .is_some_and(|pending| page_break_data(pending.element.as_ref()).is_some());
         let avail_below_box_top = effective_content_height - (y + effective_margin_top);
         // A forced break retained inside this box occurs before any top-level
         // break marker that follows the box. The following marker must not make
@@ -3390,7 +3387,6 @@ pub(crate) fn paginate_with_context(
             continue;
         }
         if elem_position == Position::Static
-            && !followed_by_forced_break
             && may_fragment_internally
             && exceeds_with_roundoff(y + effective_element_height, effective_content_height)
         {

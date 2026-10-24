@@ -29,6 +29,12 @@
 - Ruby binding: magnus 0.9 drops Ruby 3.0 (end of life since April 2024). The
   gem requires Ruby 3.1 or later.
 
+### Fixed
+
+- A box taller than the space left on the page that is followed by a forced
+  break, such as a long table before `break-before: page`, continues on the
+  next page instead of losing everything past the page edge.
+
 ## [1.7.0] — 2026-09-15
 
 ### Added

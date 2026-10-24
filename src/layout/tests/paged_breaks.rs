@@ -1,7 +1,7 @@
 use super::support::layout_pages_at;
 use crate::layout::cells::GridInset;
 use crate::layout::elements::{
-    ColumnRule, Container, FlexRow, GridRow, LayoutVisitor, MulticolContainer, TextBlock,
+    ColumnRule, Container, FlexRow, GridRow, LayoutVisitor, MulticolContainer, TableRow, TextBlock,
 };
 use crate::layout::engine::{FlexFragmentRole, visit_layout_tree};
 use crate::types::PageSize;
@@ -382,4 +382,59 @@ fn descendant_break_fills_each_auto_sized_ancestor_fragment() {
             && fragment.child_count == 1),
         "page 1: {first_page:#?}"
     );
+}
+
+#[derive(Debug, Default)]
+struct TableRowTexts(Vec<String>);
+
+impl LayoutVisitor for TableRowTexts {
+    fn visit_table_row(&mut self, row: &TableRow) {
+        let words = row
+            .content
+            .cells
+            .iter()
+            .flat_map(|cell| &cell.layout.content.lines)
+            .flat_map(|line| &line.runs)
+            .map(|run| run.text.trim())
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>();
+        self.0.push(words.join(" "));
+    }
+}
+
+/// CSS Fragmentation 3 §4.4: unforced breaks keep content from overflowing the
+/// fragmentainer, and a forced break after a box doesn't exempt that box. A table
+/// taller than the page that is followed by a forced break continues on the next
+/// page instead of overflowing the first.
+#[test]
+fn box_taller_than_the_page_fragments_before_a_forced_break() {
+    let rows = (1..=40)
+        .map(|row| format!("<tr><td>Row {row}</td></tr>"))
+        .collect::<String>();
+    let pages = layout_pages_at(
+        &format!(
+            r#"
+                <style>@page {{ size: 200pt 150pt; margin: 0 }} * {{ margin: 0 }}</style>
+                <table>{rows}</table>
+                <p style="break-before: page">After</p>
+            "#
+        ),
+        PageSize::new(200.0, 150.0),
+    );
+
+    let mut rows_laid_out = TableRowTexts::default();
+    for (page_index, page) in pages.iter().enumerate() {
+        for (y, element) in &page.elements {
+            let bottom = y + crate::layout::paginate::estimate_element_height(element.as_ref());
+            assert!(
+                bottom <= 150.0 + 0.01,
+                "page {} has an element ending at {bottom}pt",
+                page_index + 1
+            );
+            visit_layout_tree(element.as_ref(), &mut rows_laid_out);
+        }
+    }
+    let expected = (1..=40).map(|row| format!("Row {row}")).collect::<Vec<_>>();
+    assert_eq!(rows_laid_out.0, expected);
+    assert!(pages.len() >= 3, "{} pages", pages.len());
 }

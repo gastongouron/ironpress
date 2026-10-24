@@ -293,6 +293,45 @@ fn table_row_break_slices_its_wrapper_decoration() {
     assert_eq!(continuation.box_model.margins.end, -20.0);
 }
 
+/// A first table row starts with the table's top border, padding and
+/// `border-spacing`. Its open fragment fills the rest of the fragmentainer,
+/// so the cells must stop that much earlier, or the fragment overflows the
+/// page and pagination splits it again onto an extra page.
+#[test]
+fn table_row_break_fragment_ends_at_the_fragmentainer_end_after_its_internal_start() {
+    let table = TableRow {
+        content: TableCells {
+            cells: vec![TableCell {
+                layout: CellBox {
+                    content: CellContent {
+                        children: vec![
+                            container(Vec::new(), Some(10.0)),
+                            PageBreak {
+                                side: PageBreakSide::Any,
+                                page_name: None,
+                            }
+                            .boxed(),
+                            container(Vec::new(), Some(20.0)),
+                        ],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            }],
+            column_widths: vec![40.0],
+        },
+        flow: crate::layout::flow_metrics::BlockFlowSpacing::from_internal_start(9.0),
+        ..Default::default()
+    }
+    .boxed();
+
+    let split = split_sequence(&[table], FragmentainerSpace::new(100.0))
+        .expect("forced break inside the table cell");
+
+    assert_eq!(estimate_element_height(split.before[0].as_ref()), 100.0);
+}
+
 #[test]
 fn fixed_container_descendant_break_becomes_overflow_fragment() {
     let nested = container(

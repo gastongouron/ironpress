@@ -869,6 +869,10 @@ fn split_table_row(
     element: &TableRow,
     space: FragmentainerSpace,
 ) -> Option<ForcedBreak<LayoutNode>> {
+    // The row's block extent starts with its internal table spacing (the
+    // table's top border, padding and `border-spacing` on a first row), so the
+    // cells start, and the first fragment's cells end, that much further down.
+    let space = space.after(element.flow.internal.start);
     for (index, cell) in element.content.cells.iter().enumerate() {
         if cell.table.clips {
             continue;
