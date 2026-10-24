@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+
+- Ruby native gems are built for Ruby 4.0, so installing on Ruby 4 no longer
+  falls back to compiling the extension from source.
+
 ### Changed
 
 - Text shaping runs on harfrust and glyph outlines, bounds and advances come
