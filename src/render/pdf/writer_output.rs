@@ -538,8 +538,8 @@ impl PdfWriter {
                 let page_obj_id = self.page_ids.get(bm.page_index).copied().unwrap_or(1);
 
                 let mut entry = format!(
-                    "{entry_id} 0 obj\n<< /Title ({title}) /Parent {root_id} 0 R /Dest [{page_obj_id} 0 R /XYZ 0 {dest_y} 0]",
-                    title = escape_pdf_string(&bm.title),
+                    "{entry_id} 0 obj\n<< /Title {title} /Parent {root_id} 0 R /Dest [{page_obj_id} 0 R /XYZ 0 {dest_y} 0]",
+                    title = pdf_text_string(&bm.title),
                     dest_y = bm.y_pos,
                 );
                 if i > 0 {
