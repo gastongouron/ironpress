@@ -630,6 +630,24 @@ fn render_progress_bar_full_fraction() {
 }
 
 #[test]
+fn pdf_text_string_encodes_non_ascii_as_utf16be() {
+    // PDF 32000-1 §7.9.2.2: a text string is PDFDocEncoding or UTF-16BE with a BOM.
+    assert_eq!(pdf_text_string("A (b)"), "(A \\(b\\))");
+    assert_eq!(pdf_text_string("Ș"), "<FEFF0218>");
+    assert_eq!(pdf_text_string("𝄞"), "<FEFFD834DD1E>");
+}
+
+#[test]
+fn render_bookmark_non_ascii_title() {
+    let pdf = crate::html_to_pdf("<h1>Știri</h1>").unwrap();
+    let content = String::from_utf8_lossy(&pdf);
+    assert!(
+        content.contains("/Title <FEFF02180074006900720069>"),
+        "Expected a UTF-16BE outline title"
+    );
+}
+
+#[test]
 fn render_bookmark_special_chars() {
     let html = r#"<h1>Title with (parens) &amp; "quotes"</h1>"#;
     let pdf = crate::html_to_pdf(html).unwrap();

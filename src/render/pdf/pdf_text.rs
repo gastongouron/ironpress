@@ -100,6 +100,21 @@ pub(crate) fn encode_pdf_text(text: &str) -> String {
     result
 }
 
+/// A PDF text string, delimiters included: a literal `(...)` when the text is
+/// printable ASCII, otherwise UTF-16BE with a byte-order mark as `<FEFF...>`
+/// (PDF 32000-1 §7.9.2.2), since raw UTF-8 bytes are read as PDFDocEncoding.
+pub(super) fn pdf_text_string(s: &str) -> String {
+    if s.bytes().all(|b| (0x20..=0x7E).contains(&b)) {
+        return format!("({})", escape_pdf_string(s));
+    }
+    let mut hex = String::from("<FEFF");
+    for unit in s.encode_utf16() {
+        hex.push_str(&format!("{unit:04X}"));
+    }
+    hex.push('>');
+    hex
+}
+
 pub(super) fn escape_pdf_string(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('(', "\\(")

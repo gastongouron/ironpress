@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+
+- PDF outline (bookmark) titles with non-ASCII characters are written as
+  UTF-16BE text strings with a byte-order mark, as PDF 32000-1 §7.9.2.2
+  requires. They were raw UTF-8 in a literal string, which readers decode as
+  PDFDocEncoding: a heading `Știri` showed as `ÈŸtiri` in the outline. ASCII
+  titles are unchanged.
+
 ### Changed
 
 - Text shaping runs on harfrust and glyph outlines, bounds and advances come

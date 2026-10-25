@@ -154,7 +154,7 @@ use patterns::{
     gradient_layer_pattern, paint_css_box_pattern, paint_css_page_pattern, paint_distributed_tiles,
     paint_shading_pattern, paint_tiling_pattern,
 };
-use pdf_text::{build_tounicode_cmap, escape_pdf_string};
+use pdf_text::{build_tounicode_cmap, escape_pdf_string, pdf_text_string};
 #[allow(unused_imports)]
 pub(crate) use pdf_text::{
     encode_pdf_text, is_winansi_char, is_winansi_encodable, utf8_to_winansi,
