@@ -1,8 +1,8 @@
-use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext};
+use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext, SiblingNames};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    ComputedStyle, Display, compute_pseudo_element_style_with_font_metrics,
+    ComputedStyle, Display, Float, compute_pseudo_element_style_with_font_metrics,
     compute_style_with_context_with_font_metrics,
 };
 use crate::style::font_metrics::FontMetrics;
@@ -10,8 +10,7 @@ use std::collections::HashMap;
 
 use super::elements::{BoxModel, IntoLayoutNode, LayoutNode, TextBlock};
 use super::engine::{
-    CounterState, ElementSiblingPosition, TextRun, element_is_empty, element_sibling_list,
-    forward_siblings,
+    CounterState, ElementSiblingContext, TextRun, element_is_empty, element_sibling_list,
 };
 use super::helpers::{append_pseudo_inline_run, build_pseudo_inline_run};
 use super::text::{
@@ -28,13 +27,13 @@ pub(crate) use flow::{IndependentFlowLayout, layout_mixed_flow_children};
 /// `:first-of-type`, `:last-of-type`, sibling combinators, `:empty`, and the
 /// ancestor metadata used by descendant selectors identical at every depth.
 pub(crate) struct InlineSiblingCursor {
-    siblings: Vec<(String, Vec<String>)>,
+    siblings: SiblingNames<'static>,
     next_index: usize,
 }
 
 impl InlineSiblingCursor {
     pub(crate) fn starting_at(nodes: &[DomNode], next_index: usize) -> Self {
-        let siblings = element_sibling_list(nodes);
+        let siblings = SiblingNames::from(element_sibling_list(nodes));
         Self {
             next_index: next_index.min(siblings.len()),
             siblings,
@@ -42,7 +41,7 @@ impl InlineSiblingCursor {
     }
 
     pub(crate) fn next_context<'a>(
-        &mut self,
+        &'a mut self,
         element: &'a ElementNode,
         ancestors: &[AncestorInfo<'a>],
     ) -> SelectorContext<'a> {
@@ -52,12 +51,8 @@ impl InlineSiblingCursor {
             ancestors: ancestors.to_vec(),
             child_index,
             sibling_count: self.siblings.len(),
-            preceding_siblings: self
-                .siblings
-                .get(..child_index)
-                .unwrap_or_default()
-                .to_vec(),
-            following_siblings: forward_siblings(&self.siblings, child_index).to_vec(),
+            preceding_siblings: self.siblings.window(..child_index),
+            following_siblings: self.siblings.window(child_index.saturating_add(1)..),
             is_empty: element_is_empty(element),
         }
     }
@@ -566,28 +561,30 @@ impl AtomicInlineEmission {
 }
 
 /// Computed participation of one element child in an inline formatting context.
-pub(crate) struct InlineFormattingChild {
+pub(crate) struct InlineFormattingChild<'siblings> {
     pub(crate) style: ComputedStyle,
     pub(crate) role: InlineFormattingRole,
-    source: ElementSiblingPosition,
+    source: ElementSiblingContext<'siblings>,
 }
 
-impl InlineFormattingChild {
-    pub(crate) const fn source(&self) -> &ElementSiblingPosition {
-        &self.source
+impl<'siblings> InlineFormattingChild<'siblings> {
+    /// The child's position among its parent's element children, borrowing
+    /// the parent's sibling list.
+    pub(crate) const fn source(&self) -> ElementSiblingContext<'siblings> {
+        self.source
     }
 }
 
 /// One authoritative style/classification pass for an inline sibling sequence.
 /// Indices are element-sibling indices, never raw DOM-node indices.
-pub(crate) struct InlineFormattingChildren(Vec<InlineFormattingChild>);
+pub(crate) struct InlineFormattingChildren<'siblings>(Vec<InlineFormattingChild<'siblings>>);
 
-impl InlineFormattingChildren {
-    pub(crate) fn get(&self, element_index: usize) -> Option<&InlineFormattingChild> {
+impl<'siblings> InlineFormattingChildren<'siblings> {
+    pub(crate) fn get(&self, element_index: usize) -> Option<&InlineFormattingChild<'siblings>> {
         self.0.get(element_index)
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &InlineFormattingChild> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &InlineFormattingChild<'siblings>> {
         self.0.iter()
     }
 
@@ -732,11 +729,90 @@ impl<'a> InlineFormattingContext<'a> {
         }
     }
 
-    pub(crate) fn children(&self, sequence: InlineContentSequence<'_>) -> InlineFormattingChildren {
-        let mut siblings = InlineSiblingCursor::starting_at(
-            sequence.source_nodes(),
-            sequence.starting_element_index(),
-        );
+    /// How `element` takes part in this formatting context.
+    ///
+    /// An inline box that contains an in-flow block-level box is broken
+    /// around it (CSS 2.1 § 9.2.1.1), so it cannot be laid out as text runs:
+    /// it is laid out as a block-level participant, whose own children are
+    /// split into anonymous blocks around the block-level box.
+    pub(crate) fn role(
+        &self,
+        element: &ElementNode,
+        style: &ComputedStyle,
+        selector_context: &SelectorContext<'_>,
+    ) -> InlineFormattingRole {
+        match InlineFormattingRole::of(element, style) {
+            InlineFormattingRole::Text
+                if self.contains_block_level(element, style, selector_context) =>
+            {
+                InlineFormattingRole::Outside
+            }
+            role => role,
+        }
+    }
+
+    /// Whether an in-flow block-level box descends from the inline box
+    /// `element` through inline boxes only.
+    fn contains_block_level(
+        &self,
+        element: &ElementNode,
+        style: &ComputedStyle,
+        selector_context: &SelectorContext<'_>,
+    ) -> bool {
+        let mut ancestors = self.ancestors.to_vec();
+        ancestors.push(selector_context.as_ancestor(element));
+        let inner = InlineFormattingContext::new(style, self.rules, &ancestors, self.font_metrics);
+        let mut siblings = InlineSiblingCursor::starting_at(&element.children, 0);
+        element.children.iter().any(|node| {
+            let DomNode::Element(child) = node else {
+                return false;
+            };
+            let child_context = siblings.next_context(child, &ancestors);
+            let child_style = inner.style(child, &child_context);
+            match InlineFormattingRole::of(child, &child_style) {
+                // A float is out of flow: it does not break the inline box
+                // (CSS 2.1 § 9.5).
+                InlineFormattingRole::Outside => {
+                    child_style.display.is_block_level()
+                        && child_style.float == Float::None
+                        && child.tag != HtmlTag::Svg
+                }
+                InlineFormattingRole::Text => {
+                    inner.contains_block_level(child, &child_style, &child_context)
+                }
+                _ => false,
+            }
+        })
+    }
+
+    fn style(
+        &self,
+        element: &ElementNode,
+        selector_context: &SelectorContext<'_>,
+    ) -> ComputedStyle {
+        compute_style_with_context_with_font_metrics(
+            element.tag,
+            element.style_attr(),
+            self.parent_style,
+            self.rules,
+            element.tag_name(),
+            &element.class_list(),
+            element.id(),
+            &element.attributes,
+            selector_context,
+            self.font_metrics,
+        )
+    }
+
+    /// Style and classify the element children of `sequence`. `siblings` is
+    /// the element-sibling list of the sequence's source nodes
+    /// ([`element_sibling_list`]); every child's position borrows it.
+    pub(crate) fn children<'siblings>(
+        &self,
+        sequence: InlineContentSequence<'_>,
+        siblings: &'siblings [(String, Vec<String>)],
+    ) -> InlineFormattingChildren<'siblings> {
+        let mut child_index = sequence.starting_element_index().min(siblings.len());
         let roles = sequence
             .nodes()
             .iter()
@@ -744,7 +820,16 @@ impl<'a> InlineFormattingContext<'a> {
                 let DomNode::Element(element) = node else {
                     return None;
                 };
-                let selector_context = siblings.next_context(element, self.ancestors);
+                let source = ElementSiblingContext::new(child_index, siblings.len())
+                    .with_neighbors(
+                        siblings.get(..child_index).unwrap_or_default(),
+                        siblings
+                            .get(child_index.saturating_add(1)..)
+                            .unwrap_or_default(),
+                    );
+                child_index = child_index.saturating_add(1);
+                let selector_context =
+                    source.selector_context(self.ancestors, element_is_empty(element));
                 let classes = element.class_list();
                 let style = compute_style_with_context_with_font_metrics(
                     element.tag,
@@ -759,9 +844,9 @@ impl<'a> InlineFormattingContext<'a> {
                     self.font_metrics,
                 );
                 Some(InlineFormattingChild {
-                    role: InlineFormattingRole::of(element, &style),
+                    role: self.role(element, &style, &selector_context),
                     style,
-                    source: ElementSiblingPosition::from_selector_context(&selector_context),
+                    source,
                 })
             })
             .collect();
@@ -797,7 +882,7 @@ impl<'a> InlineFormattingContext<'a> {
                 self.font_metrics,
             );
 
-            match InlineFormattingRole::of(element, &style) {
+            match self.role(element, &style, &selector_context) {
                 InlineFormattingRole::Atomic(kind) => {
                     saw_atomic |= kind.requires_environment_aware_layout();
                 }
@@ -868,7 +953,7 @@ impl<'a> InlineFormattingContext<'a> {
                 self.font_metrics,
             );
 
-            match InlineFormattingRole::of(element, &style) {
+            match self.role(element, &style, &selector_context) {
                 InlineFormattingRole::Atomic(kind) => {
                     segment_has_atomic |= requires_segment(kind);
                 }

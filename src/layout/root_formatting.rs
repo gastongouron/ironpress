@@ -75,8 +75,8 @@ impl DocumentRootStyles {
                     element: &html_element,
                     child_index: 0,
                     sibling_count: 1,
-                    preceding_siblings: Vec::new(),
-                    following_siblings: Vec::new(),
+                    preceding_siblings: Default::default(),
+                    following_siblings: Default::default(),
                     is_empty: false,
                 }],
                 sibling_count: 1,
@@ -161,8 +161,8 @@ impl RootFormattingContext {
             element: &self.element,
             child_index: 0,
             sibling_count: 1,
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: Default::default(),
+            following_siblings: Default::default(),
             is_empty: self.element.children.is_empty(),
         }]
     }

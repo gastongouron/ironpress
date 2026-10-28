@@ -23,7 +23,7 @@ pub use model::{
     AncestorInfo, BackgroundLayerSource, CssRule, CssValue, FontFaceRule, FontStretch, ImportRule,
     MarginBox, MarginBoxAlign, MarginBoxBand, MarginBoxPosition, MarginContentToken, MediaContext,
     PageContentPolicy, PageContentReference, PageRule, PageSelector, PageSelectorContext,
-    PageTextStyle, PseudoElement, SelectorContext, SpecifiedColor, StyleMap,
+    PageTextStyle, PseudoElement, SelectorContext, SiblingNames, SpecifiedColor, StyleMap,
 };
 #[cfg(test)]
 #[allow(unused_imports)]

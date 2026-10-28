@@ -916,11 +916,11 @@ fn inject_gcpm_footnote_declarations(css: &str, rules: &mut Vec<parser::css::Css
                     .map(str::trim)
                     .filter(|part| !part.is_empty())
                 {
-                    rules.push(parser::css::CssRule {
-                        selector: selector.to_string(),
-                        declarations: map.clone(),
-                        pseudo_element: None,
-                    });
+                    rules.push(parser::css::CssRule::new(
+                        selector.to_string(),
+                        map.clone(),
+                        None,
+                    ));
                 }
             }
         }
@@ -971,11 +971,11 @@ fn rules_with_font_face_local_sources(
             "font-family",
             parser::css::CssValue::Keyword(local_name.clone()),
         );
-        requested.push(parser::css::CssRule {
-            selector: format!("__font_face_local_source_{local_name}"),
+        requested.push(parser::css::CssRule::new(
+            format!("__font_face_local_source_{local_name}"),
             declarations,
-            pseudo_element: None,
-        });
+            None,
+        ));
     }
     requested
 }

@@ -1,4 +1,4 @@
-use crate::parser::css::{AncestorInfo, SelectorContext};
+use crate::parser::css::{AncestorInfo, SelectorContext, SiblingNames};
 use crate::parser::dom::ElementNode;
 use crate::style::computed::ComputedStyle;
 
@@ -97,8 +97,8 @@ pub(crate) struct ElementSiblingContext<'siblings> {
 pub(crate) struct ElementSiblingPosition {
     child_index: usize,
     sibling_count: usize,
-    preceding: Vec<(String, Vec<String>)>,
-    following: Vec<(String, Vec<String>)>,
+    preceding: SiblingNames<'static>,
+    following: SiblingNames<'static>,
 }
 
 impl ElementSiblingPosition {
@@ -129,8 +129,8 @@ impl ElementSiblingPosition {
         Self {
             child_index: context.child_index,
             sibling_count: context.sibling_count,
-            preceding: context.preceding_siblings.clone(),
-            following: context.following_siblings.clone(),
+            preceding: context.preceding_siblings.to_vec().into(),
+            following: context.following_siblings.to_vec().into(),
         }
     }
 
@@ -139,11 +139,11 @@ impl ElementSiblingPosition {
             .with_neighbors(&self.preceding, &self.following)
     }
 
-    pub(crate) fn ancestor<'dom>(
-        &self,
-        element: &'dom ElementNode,
+    pub(crate) fn ancestor<'a>(
+        &'a self,
+        element: &'a ElementNode,
         is_empty: bool,
-    ) -> AncestorInfo<'dom> {
+    ) -> AncestorInfo<'a> {
         self.as_context().ancestor(element, is_empty)
     }
 }
@@ -176,40 +176,48 @@ impl<'siblings> ElementSiblingContext<'siblings> {
         self.sibling_count
     }
 
-    pub(crate) const fn preceding(self) -> &'siblings [(String, Vec<String>)] {
-        self.preceding
+    /// The preceding siblings, borrowed for a selector context.
+    pub(crate) fn preceding_names(self) -> SiblingNames<'siblings> {
+        self.preceding.into()
     }
 
-    pub(crate) const fn following(self) -> &'siblings [(String, Vec<String>)] {
-        self.following
+    /// The following siblings, borrowed for a selector context.
+    pub(crate) fn following_names(self) -> SiblingNames<'siblings> {
+        self.following.into()
     }
 
-    pub(crate) fn selector_context<'dom>(
+    pub(crate) fn selector_context<'ctx>(
         self,
-        ancestors: &[AncestorInfo<'dom>],
+        ancestors: &[AncestorInfo<'ctx>],
         is_empty: bool,
-    ) -> SelectorContext<'dom> {
+    ) -> SelectorContext<'ctx>
+    where
+        'siblings: 'ctx,
+    {
         SelectorContext {
             ancestors: ancestors.to_vec(),
             child_index: self.child_index,
             sibling_count: self.sibling_count,
-            preceding_siblings: self.preceding.to_vec(),
-            following_siblings: self.following.to_vec(),
+            preceding_siblings: self.preceding.into(),
+            following_siblings: self.following.into(),
             is_empty,
         }
     }
 
-    pub(crate) fn ancestor<'dom>(
+    pub(crate) fn ancestor<'ctx>(
         self,
-        element: &'dom ElementNode,
+        element: &'ctx ElementNode,
         is_empty: bool,
-    ) -> AncestorInfo<'dom> {
+    ) -> AncestorInfo<'ctx>
+    where
+        'siblings: 'ctx,
+    {
         AncestorInfo {
             element,
             child_index: self.child_index,
             sibling_count: self.sibling_count,
-            preceding_siblings: self.preceding.to_vec(),
-            following_siblings: self.following.to_vec(),
+            preceding_siblings: self.preceding.into(),
+            following_siblings: self.following.into(),
             is_empty,
         }
     }

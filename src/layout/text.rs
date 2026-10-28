@@ -221,22 +221,20 @@ pub(crate) fn resolve_style_font_family(
 /// lengths and the computed line-height deliberately continue to use
 /// `style.font_size`.
 pub(crate) fn used_font_size(style: &ComputedStyle, fonts: &HashMap<String, TtfFont>) -> f32 {
-    let family = resolve_style_font_family(style, fonts);
-    let aspect = match &family {
-        FontFamily::Custom(name) => crate::system_fonts::find_font(
-            fonts,
-            name,
-            style.font_weight.is_bold(),
-            style.font_style.is_slanted(),
-        )
-        .map_or(0.5, |(_, font)| {
-            font.font_size_adjust_x_height_ratio(style.font_size)
-        }),
-        _ => 0.5,
-    };
-    style
-        .font_size_adjust
-        .used_font_size(style.font_size, aspect)
+    style.font_size_adjust.used_font_size(style.font_size, || {
+        match resolve_style_font_family(style, fonts) {
+            FontFamily::Custom(name) => crate::system_fonts::find_font(
+                fonts,
+                &name,
+                style.font_weight.is_bold(),
+                style.font_style.is_slanted(),
+            )
+            .map_or(0.5, |(_, font)| {
+                font.font_size_adjust_x_height_ratio(style.font_size)
+            }),
+            _ => 0.5,
+        }
+    })
 }
 
 pub(crate) fn resolved_line_height_factor(

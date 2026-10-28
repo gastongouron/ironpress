@@ -568,8 +568,7 @@ fn split_container_principal(
     // fragment. Removing the nested marker while bubbling an absent side lets
     // the same rule apply through arbitrarily deep ordinary block wrappers.
     if before_children.is_empty() {
-        let mut after = element.clone();
-        after.children = after_children;
+        let after = element.with_children(after_children);
         return ForcedBreak {
             before: None,
             after: Some(after),
@@ -577,8 +576,7 @@ fn split_container_principal(
         };
     }
     if after_children.is_empty() {
-        let mut before = element.clone();
-        before.children = before_children;
+        let before = element.with_children(before_children);
         return ForcedBreak {
             before: Some(before),
             after: None,
@@ -586,14 +584,12 @@ fn split_container_principal(
         };
     }
 
-    let mut before = element.clone();
-    let mut after = element.clone();
-    before.children = before_children;
+    let mut before = element.with_children(before_children);
+    let mut after = element.with_children(after_children);
     let fixed_height = before.box_model.size.height.is_definite();
     let overflow_content_insets =
         (before.box_model.padding + before.box_model.border.widths()).horizontal_only();
 
-    after.children = after_children;
     after.box_model.margins.start = 0.0;
     if fixed_height {
         // CSS Break 3 §5.5: content after a fixed-height box is an
@@ -955,6 +951,66 @@ fn split_grid_row(element: &GridRow, space: FragmentainerSpace) -> Option<Forced
         });
     }
     None
+}
+
+/// Whether any nested flow of `element` retains a forced break, i.e. whether
+/// [`split_flow_at_descendant_break`] can split it at all. It descends into
+/// every child store that splitter searches; clipping boxes are descended too,
+/// so a `false` answer is exact while a `true` answer may still find no split.
+pub(crate) fn contains_descendant_break(element: &dyn LayoutElement) -> bool {
+    #[derive(Default)]
+    struct Probe(bool);
+
+    impl Probe {
+        fn sequence(&mut self, elements: &[LayoutNode]) {
+            self.0 = self.0
+                || elements.iter().any(|element| {
+                    forced_break_target(element.as_ref()).is_some()
+                        || contains_descendant_break(element.as_ref())
+                });
+        }
+    }
+
+    impl LayoutVisitor for Probe {
+        fn visit_container(&mut self, element: &Container) {
+            self.sequence(&element.children);
+        }
+
+        fn visit_multicol_container(&mut self, element: &MulticolContainer) {
+            self.sequence(&element.principal.children);
+        }
+
+        fn visit_multicol_column(&mut self, element: &MulticolColumn) {
+            self.sequence(&element.principal.children);
+        }
+
+        fn visit_table(&mut self, element: &Table) {
+            self.sequence(&element.principal.children);
+        }
+
+        fn visit_flex_row(&mut self, element: &FlexRow) {
+            self.0 |= !element.content.forced_line_breaks.is_empty();
+            for cell in &element.content.cells {
+                self.sequence(&cell.nested_elements);
+            }
+        }
+
+        fn visit_table_row(&mut self, element: &TableRow) {
+            for cell in &element.content.cells {
+                self.sequence(&cell.layout.content.children);
+            }
+        }
+
+        fn visit_grid_row(&mut self, element: &GridRow) {
+            for cell in &element.content.cells {
+                self.sequence(&cell.layout.content.children);
+            }
+        }
+    }
+
+    let mut probe = Probe::default();
+    element.accept(&mut probe);
+    probe.0
 }
 
 /// Split any nested layout flow at its first retained forced break.

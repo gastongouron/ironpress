@@ -46,6 +46,22 @@ impl Container {
     }
 }
 
+impl Container {
+    /// A copy of this box holding `children` in place of its own. Fragmenting a
+    /// box replaces its children, so copying them first would be wasted work.
+    pub(crate) fn with_children(&self, children: Vec<LayoutNode>) -> Self {
+        Self {
+            children,
+            box_model: self.box_model,
+            paint: self.paint.clone(),
+            flow: self.flow,
+            positioning: self.positioning.clone(),
+            fragmentation: self.fragmentation,
+            overflow: self.overflow,
+        }
+    }
+}
+
 impl MarginHolder for Container {
     fn margins(&self) -> &BlockMargins {
         &self.box_model.margins

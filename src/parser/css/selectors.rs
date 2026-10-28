@@ -341,7 +341,7 @@ fn sibling_selector_context<'a>(
             .take(sibling_index)
             .cloned()
             .collect(),
-        following_siblings,
+        following_siblings: following_siblings.into(),
         is_empty: false,
     }
 }
@@ -992,14 +992,14 @@ fn selector_matches_virtual_body(selector: &str) -> bool {
             element: &html,
             child_index: 0,
             sibling_count: 1,
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: Default::default(),
+            following_siblings: Default::default(),
             is_empty: false,
         }],
         child_index: 0,
         sibling_count: 1,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
 
@@ -1226,8 +1226,8 @@ pub(crate) fn ancestor_info(element: &ElementNode) -> AncestorInfo<'_> {
         element,
         child_index: 0,
         sibling_count: 1,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     }
 }

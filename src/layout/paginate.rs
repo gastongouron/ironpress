@@ -4,7 +4,7 @@ use super::engine::{
     decode_footnote_link_data, target_anchor_id,
 };
 use super::flow_metrics::BlockMargins;
-use super::fragmentation::split_flow_at_descendant_break;
+use super::fragmentation::{contains_descendant_break, split_flow_at_descendant_break};
 use super::roundoff::{equal_with_roundoff, exceeds_with_roundoff, is_positive_with_roundoff};
 use super::text::{OverflowWrap, TextWrapOptions, wrap_text_runs};
 use crate::layout::elements::{
@@ -1918,10 +1918,14 @@ fn split_container_node(
                 (vec![c_first], rest_children)
             }
             // The single too-tall child cannot be split (e.g. a definite-height /
-            // clipped / replaced box). If there are later siblings, still cut after
-            // it (it overflows, as before); otherwise nothing can be done — place
-            // the whole container as-is (unchanged overflow behaviour).
-            None if children.len() >= 2 => (children[..1].to_vec(), children[1..].to_vec()),
+            // clipped / replaced box). Under the normal rule no break opportunity
+            // fits here, so the caller can break before the whole box instead.
+            // Only the emergency rule forces progress by cutting after it (it
+            // overflows, as before); with no later siblings nothing can be done —
+            // place the whole container as-is (unchanged overflow behaviour).
+            None if children.len() >= 2 && rule == FragmentBreakRule::Emergency => {
+                (children[..1].to_vec(), children[1..].to_vec())
+            }
             None => return None,
         }
     } else if idx < children.len() {
@@ -1963,8 +1967,7 @@ fn split_container_node(
     // First fragment: the children that fit, with the box's top decoration. Under
     // `slice` drop the bottom border/padding/margin (box stays open at the page
     // bottom); under `clone` keep the full decoration so the fragment closes.
-    let mut first = element.clone();
-    first.children = f_children_vec;
+    let mut first = element.with_children(f_children_vec);
     if !clone {
         first.box_model.margins.end = 0.0;
         first.box_model.padding.bottom = 0.0;
@@ -1988,8 +1991,7 @@ fn split_container_node(
     // Continuation: the remaining children. Under `slice` drop the top
     // margin/border/padding (the open box continues) and keep the bottom so the
     // LAST fragment closes it; under `clone` keep the full decoration.
-    let mut rest = element.clone();
-    rest.children = r_children_vec;
+    let mut rest = element.with_children(r_children_vec);
     rest.box_model.size.height = continuation_size;
     if !clone {
         rest.box_model.margins.start = 0.0;
@@ -2739,6 +2741,12 @@ pub(crate) fn paginate_with_context(
     // before (every existing `continue`/placement is unchanged), so the whole
     // single-page corpus is byte-for-byte identical.
     let mut work = prepare_pagination_work(elements);
+    // Fragments only ever lose descendants, so a document without a nested
+    // forced break never gains one. Probing once spares searching every
+    // remaining box again on each page.
+    let has_descendant_breaks = work
+        .iter()
+        .any(|pending| contains_descendant_break(pending.element.as_ref()));
     while let Some(PendingElement {
         mut element,
         is_fragment_continuation,
@@ -3135,18 +3143,39 @@ pub(crate) fn paginate_with_context(
             break_decision_height + break_footer_reserve,
             fresh_fit_height,
         );
-        let page_broke_mid_loop = (fits_fresh_fragmentainer
-            && exceeds_with_roundoff(
-                y + break_decision_height + break_footer_reserve,
-                effective_content_height,
-            )
+        // A box taller than a fresh fragmentainer still breaks before itself
+        // when none of its ordinary break opportunities fits in the space left
+        // here. Otherwise the internal splitter's emergency rule would force
+        // its first child (say a table caption) into a remainder too small to
+        // hold it, and the overflow would be clipped at the page edge.
+        // At the top of the page (even after an empty box) the next page
+        // offers no more room, so breaking before the box would only leave a
+        // blank page.
+        let no_break_fits_here = || {
+            may_fragment_internally
+                && is_positive_with_roundoff(y)
+                && elem_position == Position::Static
+                && elem_float == Float::None
+                && split_element(
+                    &element,
+                    effective_content_height - (y + margin_top_val),
+                    FragmentBreakRule::Normal,
+                )
+                .is_none()
+        };
+        let page_broke_mid_loop = (exceeds_with_roundoff(
+            y + break_decision_height + break_footer_reserve,
+            effective_content_height,
+        )
             // A nonzero cursor does not prove that the fragmentainer already
             // contains flow content: page 1 starts after the projected root
             // margin/padding gutter. Breaking before its first principal box
             // would manufacture a blank leading page and retry the same box at
             // the top of page 2. Use the semantic flow state instead; the
             // internal splitter below can then consume page 1 when necessary.
-            && !first_on_page)
+            && !first_on_page
+            // The trial split runs last: it is the only costly test.
+            && (fits_fresh_fragmentainer || no_break_fits_here()))
             || block_footnote_requires_break;
         if page_broke_mid_loop {
             // CSS GCPM §2.8: when a `footnote-policy: line` body cannot fit
@@ -3373,6 +3402,7 @@ pub(crate) fn paginate_with_context(
         // the earlier descendant break inert; after splitting, the ordinary
         // adjacent-break coalescing logic resolves both in document order.
         if elem_position == Position::Static
+            && has_descendant_breaks
             && let Some((first, rest, target)) =
                 split_flow_at_descendant_break(&element, avail_below_box_top)
         {
@@ -3402,6 +3432,19 @@ pub(crate) fn paginate_with_context(
             let split = split_element(&element, avail_below_box_top, FragmentBreakRule::Normal)
                 .or_else(|| {
                     split_element(&element, avail_below_box_top, FragmentBreakRule::Emergency)
+                })
+                // At the top of a page, a continuation as tall as the box
+                // consumed nothing: splitting it again on the next page would
+                // repeat forever. Such a box is unbreakable here and overflows
+                // its fragmentainer instead (CSS Fragmentation 3 § 4.4). Lower
+                // on a page the same split moves the box to the next page,
+                // where this check applies.
+                .filter(|(_, rest)| {
+                    !first_on_page
+                        || exceeds_with_roundoff(
+                            estimate_element_height(element.as_ref()),
+                            estimate_element_height(rest.as_ref()),
+                        )
                 });
             if let Some((first, rest)) = split {
                 // Place the first fragment at the (margin-adjusted) cursor; it

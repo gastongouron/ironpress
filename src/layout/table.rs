@@ -374,7 +374,7 @@ fn nested_element_preferred_width(element: &dyn LayoutElement) -> f32 {
                 .box_model
                 .size
                 .width
-                .fixed_value()
+                .preferred_value()
                 .unwrap_or_default();
         }
 
@@ -383,7 +383,7 @@ fn nested_element_preferred_width(element: &dyn LayoutElement) -> f32 {
                 .box_model
                 .size
                 .width
-                .fixed_value()
+                .preferred_value()
                 .unwrap_or_default();
         }
 
@@ -754,7 +754,7 @@ fn is_anonymous_table_box(element: &ElementNode) -> bool {
 fn push_table_dom_ancestor<'a>(
     ancestors: &mut Vec<AncestorInfo<'a>>,
     element: &'a ElementNode,
-    siblings: ElementSiblingContext<'_>,
+    siblings: ElementSiblingContext<'a>,
 ) {
     if !is_anonymous_table_box(element) {
         ancestors.push(siblings.ancestor(element, element_is_empty(element)));
@@ -986,8 +986,8 @@ fn compute_column_style(
         ancestors: ancestors.to_vec(),
         child_index,
         sibling_count,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     compute_style_with_context(
@@ -1330,8 +1330,8 @@ fn compute_caption_style(
         ancestors: table_ancestors.to_vec(),
         child_index: caption_child_idx,
         sibling_count: section_count,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     compute_style_with_context(
@@ -1364,8 +1364,8 @@ fn measure_caption_min_width(
         element: caption_el,
         child_index: caption_child_idx,
         sibling_count: section_count,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     });
     let mut runs = Vec::new();
@@ -1497,8 +1497,8 @@ fn resolve_fixed_table_columns(
                 element: section_el,
                 child_index: row_section_child_indices.first().copied().unwrap_or(0),
                 sibling_count: row_section_sibling_counts.first().copied().unwrap_or(0),
-                preceding_siblings: Vec::new(),
-                following_siblings: Vec::new(),
+                preceding_siblings: Default::default(),
+                following_siblings: Default::default(),
                 is_empty: false,
             });
         }
@@ -1506,8 +1506,8 @@ fn resolve_fixed_table_columns(
             ancestors: row_ancestors,
             child_index: row_section_indices.first().copied().unwrap_or(0),
             sibling_count: row_section_sizes.first().copied().unwrap_or(1),
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: Default::default(),
+            following_siblings: Default::default(),
             is_empty: false,
         };
         let row_classes = first_row.class_list();
@@ -1683,8 +1683,8 @@ fn collapse_outer_horizontal_borders(
                 .get(row_idx)
                 .copied()
                 .unwrap_or(0),
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: Default::default(),
+            following_siblings: Default::default(),
             is_empty: false,
         });
     }
@@ -1709,8 +1709,8 @@ fn collapse_outer_horizontal_borders(
         ancestors: row_ancestors,
         child_index: row_section_indices.get(row_idx).copied().unwrap_or(0),
         sibling_count: row_section_sizes.get(row_idx).copied().unwrap_or(1),
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let row_style =
@@ -1912,8 +1912,8 @@ pub(crate) fn flatten_table(
                     element: child_el,
                     child_index: section_child_idx,
                     sibling_count: section_count,
-                    preceding_siblings: Vec::new(),
-                    following_siblings: Vec::new(),
+                    preceding_siblings: Default::default(),
+                    following_siblings: Default::default(),
                     is_empty: false,
                 });
                 let group_style = compute_column_style(
@@ -2083,8 +2083,8 @@ pub(crate) fn flatten_table(
                             element: child_el,
                             child_index: section_child_idx,
                             sibling_count: section_count,
-                            preceding_siblings: Vec::new(),
-                            following_siblings: Vec::new(),
+                            preceding_siblings: Default::default(),
+                            following_siblings: Default::default(),
                             is_empty: false,
                         });
                         let colgroup_basis_style = {
@@ -2321,8 +2321,8 @@ pub(crate) fn flatten_table(
                     element: section_el,
                     child_index: row_section_child_indices[sizing_row_idx],
                     sibling_count: row_section_sibling_counts[sizing_row_idx],
-                    preceding_siblings: Vec::new(),
-                    following_siblings: Vec::new(),
+                    preceding_siblings: Default::default(),
+                    following_siblings: Default::default(),
                     is_empty: false,
                 });
             }
@@ -2343,8 +2343,8 @@ pub(crate) fn flatten_table(
                 ancestors: sizing_row_ancestors,
                 child_index: row_section_indices[sizing_row_idx],
                 sibling_count: row_section_sizes[sizing_row_idx],
-                preceding_siblings: Vec::new(),
-                following_siblings: Vec::new(),
+                preceding_siblings: Default::default(),
+                following_siblings: Default::default(),
                 is_empty: false,
             };
             let mut row_style =
@@ -2769,8 +2769,8 @@ pub(crate) fn flatten_table(
                 element: section_el,
                 child_index: row_section_child_indices[row_idx],
                 sibling_count: row_section_sibling_counts[row_idx],
-                preceding_siblings: Vec::new(),
-                following_siblings: Vec::new(),
+                preceding_siblings: Default::default(),
+                following_siblings: Default::default(),
                 is_empty: false,
             });
         }
@@ -2809,8 +2809,8 @@ pub(crate) fn flatten_table(
             ancestors: row_ancestors,
             child_index: section_idx,
             sibling_count: section_size,
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: Default::default(),
+            following_siblings: Default::default(),
             is_empty: false,
         };
         let mut row_style =
@@ -3604,8 +3604,8 @@ pub(crate) fn flatten_table(
             element: caption_el,
             child_index: *caption_child_idx,
             sibling_count: section_count,
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: Default::default(),
+            following_siblings: Default::default(),
             is_empty: false,
         });
         let mut caption_runs = Vec::new();
@@ -3813,7 +3813,7 @@ fn table_cell_edge_block_margins(
             child_index,
             sibling_count: element_sibling_count,
             preceding_siblings,
-            following_siblings: Vec::new(),
+            following_siblings: Default::default(),
             is_empty: false,
         };
         let child_style = compute_style_with_context_with_font_metrics(
@@ -3891,7 +3891,7 @@ impl IndependentFlowLayout for TableCellChildLayout<'_, '_, '_, '_> {
             element,
             LayoutTreeContext::new(self.context.style, &cell_context, self.context.ancestors)
                 .with_positioned_ancestor_depth(self.context.descendant_layout.positioned_depth)
-                .for_element(child.source().as_context()),
+                .for_element(child.source()),
             self.output,
             env,
         );
@@ -4595,6 +4595,47 @@ mod subpoint_width_tests {
     }
 
     #[test]
+    fn margin_narrowed_cell_blocks_do_not_widen_the_table() {
+        // Each block's used width is the measured cell width less its margin.
+        // That is not a width the block asks for, so it must not become the
+        // column's minimum: otherwise every such cell claims the whole table.
+        let parsed = parse_html_with_styles(
+            r#"<style>
+                * { margin: 0; }
+                table { width: 200px; }
+                td.n { width: 40px; }
+                td.n div { margin-left: 4px; }
+            </style>
+            <table><tr><td>a</td><td class="n"><div>x</div></td>
+            <td class="n"><div>y</div></td></tr></table>"#,
+        )
+        .expect("valid table markup");
+        let rules = parsed
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &parsed.nodes,
+            PageSize::new(300.0, 200.0),
+            Margin::uniform(0.0),
+            &rules,
+        );
+        let row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, element)| element.inspect_table(Clone::clone))
+            .expect("one table row");
+
+        assert!(
+            row.box_inline_extent() <= 200.0,
+            "{}",
+            row.box_inline_extent()
+        );
+        assert!(pages[0].print_content_scale.is_identity());
+    }
+
+    #[test]
     fn table_cell_text_preserves_font_synthesis_none() {
         let parsed = parse_html_with_styles(
             r#"<style>
@@ -4754,16 +4795,16 @@ mod cell_attribute_tests {
                         element: table,
                         child_index: 0,
                         sibling_count: 1,
-                        preceding_siblings: Vec::new(),
-                        following_siblings: Vec::new(),
+                        preceding_siblings: Default::default(),
+                        following_siblings: Default::default(),
                         is_empty: false,
                     },
                     AncestorInfo {
                         element: row,
                         child_index: 0,
                         sibling_count: 1,
-                        preceding_siblings: Vec::new(),
-                        following_siblings: Vec::new(),
+                        preceding_siblings: Default::default(),
+                        following_siblings: Default::default(),
                         is_empty: false,
                     },
                 ],

@@ -10,6 +10,7 @@ use crate::parser::dom::HtmlTag;
 use crate::style::defaults::default_style;
 use crate::style::font_metrics::FontMetrics;
 use crate::style::html_cascade::html_cascade_layers;
+use crate::style::measured_font_units::MeasuredFontUnits;
 use crate::style::raster_quality::{RasterQuality, background_raster_dimensions};
 use crate::types::{
     Color, CornerRadii, CornerRadius, EdgeSizes, PhysicalEdges, PhysicalSide, Point, Size,
@@ -81,6 +82,15 @@ impl Display {
             Self::InlineTable => Self::Table,
             other => other,
         }
+    }
+
+    /// Block-level outer display types (CSS Display 3 § 2.1), whose in-flow
+    /// boxes cannot share a line with inline content.
+    pub(crate) const fn is_block_level(self) -> bool {
+        matches!(
+            self,
+            Self::Block | Self::ListItem | Self::Flex | Self::Grid | Self::Table
+        )
     }
 
     /// Atomic inline boxes stop decorations imposed by their ancestors from
@@ -731,10 +741,18 @@ impl FontSizeAdjust {
     }
 
     /// Resolve the CSS Fonts used font size for one selected face.
-    pub fn used_font_size(self, computed_font_size: f32, actual_aspect: f32) -> f32 {
+    ///
+    /// The face's actual aspect is measured only when an adjustment applies:
+    /// measuring it hints the face's outlines.
+    pub fn used_font_size(
+        self,
+        computed_font_size: f32,
+        actual_aspect: impl FnOnce() -> f32,
+    ) -> f32 {
         let Some(target_aspect) = self.target_ex_height() else {
             return computed_font_size;
         };
+        let actual_aspect = actual_aspect();
         if !computed_font_size.is_finite()
             || !target_aspect.is_finite()
             || !actual_aspect.is_finite()
@@ -3278,6 +3296,10 @@ pub struct ComputedStyle {
     pub font_size_adjust: FontSizeAdjust,
     pub font_family: FontFamily,
     pub font_stack: FontStack,
+    /// `ex` and `ch` of the font this style selects, with that font. A child
+    /// starts as a copy of its parent and reuses them while its font is the
+    /// same; see [`MeasuredFontUnits`].
+    pub(crate) measured_font_units: Option<MeasuredFontUnits>,
     pub(crate) font_locale: crate::font_pack::FontLocale,
     pub color: Color,
     pub background_color: Option<Color>,
@@ -3702,6 +3724,7 @@ impl Default for ComputedStyle {
             font_size: 12.0,
             root_font_size: 12.0,
             root_font_units: FontUnitLengths::default(),
+            measured_font_units: None,
             viewport_width: 595.28,
             viewport_height: 841.89,
             font_weight: FontWeight::Normal,
@@ -4430,6 +4453,16 @@ fn compute_style_with_context_and_percentage_basis_impl(
     // final. Typed provenance remains on inherited text-shadow/emphasis values
     // so descendants can rebind them to their own foreground color.
     resolve_current_color(&mut style);
+
+    // Measure the font once its properties are final, so that descendants
+    // selecting the same font reuse it.
+    if !style
+        .measured_font_units
+        .as_ref()
+        .is_some_and(|units| units.is_for(&style))
+    {
+        style.measured_font_units = MeasuredFontUnits::measure(&style, font_metrics);
+    }
 
     style
 }
@@ -5810,9 +5843,17 @@ fn apply_style_map_with_percentage_basis(
     // width element (e.g. a `width: 95%` inner bar looking 100% wide).
     let parent_width = percentage_basis.width_or_parent(parent);
     let parent_width_known = parent_width.is_some();
+    // Length contexts carry `ex` and `ch`, which measure the font. A
+    // declaration set that cannot use them gets contexts without that
+    // measurement; their fallback values are never read.
+    let unit_metrics = if map.may_use_font_metric_units() {
+        font_metrics
+    } else {
+        FontMetrics::default()
+    };
     let length_context = crate::style::resolve::LengthResolutionContext::new(
         parent_width.unwrap_or(parent.viewport_width),
-        style.math_unit_context(font_metrics),
+        style.math_unit_context(unit_metrics),
     );
 
     // Handle inherit, initial, unset keywords before normal property application
@@ -5904,7 +5945,7 @@ fn apply_style_map_with_percentage_basis(
     // length-valued property. Within line-height itself, `lh`/`rlh` use the
     // parent's metrics to avoid a self-reference.
     let line_height_context =
-        line_height_length_context(style, parent, length_context, font_metrics);
+        line_height_length_context(style, parent, length_context, unit_metrics);
     if let Some(CssValue::Keyword(k)) = get_non_special(map, "line-height") {
         if k == "normal" {
             style.line_height = f32::NAN;
@@ -5953,7 +5994,7 @@ fn apply_style_map_with_percentage_basis(
 
     // All remaining font-relative properties use the element's completed font
     // metrics and line height, never reconstructed font-size-only defaults.
-    let length_context = style_length_context(style, length_context, font_metrics);
+    let length_context = style_length_context(style, length_context, unit_metrics);
 
     if let Some(value) = get_non_special(map, "background-color")
         && let Some(color) = specified_color_from_value(value, &style.custom_properties)
@@ -13279,9 +13320,11 @@ fn line_height_length_context(
 
 impl ComputedStyle {
     pub(crate) fn font_unit_lengths(&self, font_metrics: FontMetrics<'_>) -> FontUnitLengths {
+        let measured =
+            MeasuredFontUnits::metrics_for(self.measured_font_units.as_ref(), self, font_metrics);
         FontUnitLengths {
-            ex: style_ex_length(self, font_metrics),
-            ch: self.font_size * font_metrics.style_ch_ratio(self).unwrap_or(0.5),
+            ex: measured.ex.unwrap_or(self.font_size * 0.5),
+            ch: self.font_size * measured.ch_ratio.unwrap_or(0.5),
             cap: self.font_size * style_cap_height_ratio(self),
             // CSS Values 4 requires a 1em fallback when the ideographic
             // advance cannot be determined.
@@ -13474,8 +13517,8 @@ fn style_cap_height_ratio(_style: &ComputedStyle) -> f32 {
 }
 
 fn style_ex_length(style: &ComputedStyle, font_metrics: FontMetrics<'_>) -> f32 {
-    font_metrics
-        .style_x_height(style)
+    MeasuredFontUnits::metrics_for(style.measured_font_units.as_ref(), style, font_metrics)
+        .ex
         .unwrap_or(style.font_size * 0.5)
 }
 
@@ -19021,11 +19064,7 @@ mod tests {
     fn make_keyword_rule(prop: &str, val: &str) -> CssRule {
         let mut map = StyleMap::new();
         map.set(prop, CssValue::Keyword(val.to_string()));
-        CssRule {
-            selector: "div".to_string(),
-            declarations: map,
-            pseudo_element: None,
-        }
+        CssRule::new("div".to_string(), map, None)
     }
 
     #[test]
@@ -21131,20 +21170,16 @@ mod tests {
     #[test]
     fn later_background_image_url_replaces_lower_gradient_atomically() {
         let parent = ComputedStyle::default();
-        let lower = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
-                "background-image: linear-gradient(red, blue)",
-            ),
-            pseudo_element: None,
-        };
-        let higher = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
-                "background-image: url(higher.png)",
-            ),
-            pseudo_element: None,
-        };
+        let lower = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style("background-image: linear-gradient(red, blue)"),
+            None,
+        );
+        let higher = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style("background-image: url(higher.png)"),
+            None,
+        );
         let style = compute_style_with_rules(
             HtmlTag::Div,
             None,
@@ -21162,20 +21197,16 @@ mod tests {
     #[test]
     fn later_background_image_gradient_replaces_lower_url_atomically() {
         let parent = ComputedStyle::default();
-        let lower = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
-                "background-image: url(lower.png)",
-            ),
-            pseudo_element: None,
-        };
-        let higher = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
-                "background-image: linear-gradient(red, blue)",
-            ),
-            pseudo_element: None,
-        };
+        let lower = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style("background-image: url(lower.png)"),
+            None,
+        );
+        let higher = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style("background-image: linear-gradient(red, blue)"),
+            None,
+        );
         let style = compute_style_with_rules(
             HtmlTag::Div,
             None,
@@ -21193,20 +21224,18 @@ mod tests {
     #[test]
     fn normal_background_image_cannot_replace_lower_important_image_list() {
         let parent = ComputedStyle::default();
-        let lower = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
+        let lower = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style(
                 "background-image: linear-gradient(red, blue) !important",
             ),
-            pseudo_element: None,
-        };
-        let higher = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
-                "background-image: url(normal.png)",
-            ),
-            pseudo_element: None,
-        };
+            None,
+        );
+        let higher = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style("background-image: url(normal.png)"),
+            None,
+        );
         let style = compute_style_with_rules(
             HtmlTag::Div,
             None,
@@ -21273,20 +21302,20 @@ mod tests {
     #[test]
     fn background_shorthand_resets_omitted_longhands_from_previous_rule() {
         let parent = ComputedStyle::default();
-        let prior_rule = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
+        let prior_rule = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style(
                 "background-repeat: no-repeat; background-position: center; background-origin: content-box; background-size: cover; background-color: red",
             ),
-            pseudo_element: None,
-        };
-        let later_rule = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
+            None,
+        );
+        let later_rule = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style(
                 r#"background: url("data:image/png;base64,AAAA")"#,
             ),
-            pseudo_element: None,
-        };
+            None,
+        );
         let style = compute_style_with_rules(
             HtmlTag::Div,
             None,
@@ -21307,18 +21336,18 @@ mod tests {
     #[test]
     fn later_background_initial_rule_resets_previous_background_state() {
         let parent = ComputedStyle::default();
-        let prior_rule = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
+        let prior_rule = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style(
                 r#"background: url("data:image/png;base64,AAAA") no-repeat center / cover content-box"#,
             ),
-            pseudo_element: None,
-        };
-        let later_rule = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style("background: initial"),
-            pseudo_element: None,
-        };
+            None,
+        );
+        let later_rule = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style("background: initial"),
+            None,
+        );
         let style = compute_style_with_rules(
             HtmlTag::Div,
             None,
@@ -21356,18 +21385,18 @@ mod tests {
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>"#,
         );
 
-        let prior_rule = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style(
+        let prior_rule = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style(
                 r#"background: url("data:image/png;base64,AAAA") no-repeat center / cover content-box"#,
             ),
-            pseudo_element: None,
-        };
-        let later_rule = CssRule {
-            selector: "div".to_string(),
-            declarations: crate::parser::css::parse_inline_style("background: inherit"),
-            pseudo_element: None,
-        };
+            None,
+        );
+        let later_rule = CssRule::new(
+            "div".to_string(),
+            crate::parser::css::parse_inline_style("background: inherit"),
+            None,
+        );
         let style = compute_style_with_rules(
             HtmlTag::Div,
             None,

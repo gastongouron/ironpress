@@ -809,7 +809,8 @@ fn shape_text_glyphs(
         return Some(Vec::new());
     }
 
-    let face = font.shaping.as_ref()?.font();
+    let shaping_face = font.shaping.as_ref()?;
+    let face = shaping_face.font();
     let scale = font.adjusted_font_size(font_size) / (face.units_per_em() as f32).max(1.0);
 
     let mut buffer = harfrust::Buffer::new();
@@ -837,7 +838,9 @@ fn shape_text_glyphs(
     }
 
     let shaper = harfrust::ShaperFont::new(face);
-    let options = harfrust::ShapeOptions::new().features(&features);
+    let options = harfrust::ShapeOptions::new()
+        .features(&features)
+        .plan(shaping_face.common_plan(&buffer, &features));
     harfrust::shape(&shaper, &mut buffer, options).ok()?;
     let infos = buffer.glyph_infos();
     let positions = buffer.glyph_positions();

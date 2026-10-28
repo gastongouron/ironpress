@@ -2,6 +2,57 @@
 
 ## Unreleased
 
+### Fixed
+
+- A block-level box inside an inline box is laid out (CSS 2.1 § 9.2.1.1)
+  instead of being dropped with everything after it. `<div>a <span>b<div>c</div>
+  d</span></div>` lost `c`, and an unclosed `<span>` before a block, common in
+  HTML pasted from word processors, lost the rest of the document. Block
+  containers, table cells and flex items now break the inline box around the
+  block, as they already did at the root.
+- Elements nested more than 30 deep are laid out instead of silently dropped.
+  Element layout grows its stack on the heap as nesting deepens (via
+  `stacker`) and lays out up to 512 levels. Other recursive passes (inline
+  run collection, pagination, rendering) still run on the calling thread's
+  stack, so very deep inline nesting can exhaust a small thread stack (about
+  130 nested `<span>`s on a 2 MB thread).
+- Pagination no longer loops forever on a box whose split leaves a continuation
+  as tall as the box itself, such as a table row whose cell holds a line taller
+  than a page. It emitted empty pages until memory ran out; the box now
+  overflows its page as an unbreakable box (CSS Fragmentation 3 § 4.4).
+- Table column sizing no longer takes a block's margin-narrowed width as a
+  width the block asks for. Cells are measured at the table's width, so a
+  `<p style="margin-left:4.5pt">` in a cell claimed nearly the whole table as
+  its column's minimum. A Word table of such cells grew many times wider than
+  declared, and print fitting then shrank every page of the document to fit
+  it, to 11% in one case.
+- A box taller than a page now breaks before itself when none of its break
+  points fits in the space left on the page, instead of forcing its first
+  child into that space. A table caption landing in the last few points of a
+  page was clipped at the page edge.
+
+### Performance
+
+- Paginating a box that spans many pages no longer copies its remaining
+  content at every page break, and no longer searches all of it for forced
+  breaks when the document has none. Both made long, deeply nested documents
+  quadratic in their page count.
+- The class lists `:has()` matching reads are gathered only when a style sheet
+  uses `:has()`. Gathering them walked the subtree of every element.
+- A text run measures its face's x-height only when `font-size-adjust` applies.
+  Every run measured it, and each measurement hints the face's outlines.
+- Style resolution measures `ex` and `ch` only for declarations that can use
+  them, and a computed style keeps what it measured with the font it belongs
+  to, so a child selecting the same font reuses it. Every style selected and
+  hinted its face several times, which dominated layout time on long
+  documents.
+- Selector contexts borrow their siblings' names from one list per parent
+  instead of copying them for every element and every ancestor, which was
+  quadratic in both nesting depth and sibling count.
+- A font compiles its shape plans for Latin and script-neutral text with
+  default features once, when it is loaded. Every run compiled its own plan,
+  collecting and sorting the font's lookups.
+
 ### Changed
 
 - Text shaping runs on harfrust and glyph outlines, bounds and advances come

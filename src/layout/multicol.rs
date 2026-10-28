@@ -158,8 +158,8 @@ pub(crate) fn layout_multicol_container(
         element: el,
         child_index: 0,
         sibling_count: 0,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     });
 

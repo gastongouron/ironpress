@@ -12,8 +12,17 @@ use crate::style::computed::{
 use crate::types::EdgeSizes;
 use std::collections::HashMap;
 
-pub(crate) fn selector_attributes_with_has(el: &ElementNode) -> HashMap<String, String> {
+pub(crate) fn selector_attributes_with_has(
+    el: &ElementNode,
+    rules: &[CssRule],
+) -> HashMap<String, String> {
     let mut attrs = el.attributes.clone();
+    // Only `:has()` reads the synthetic class lists. Gathering the descendant
+    // list walks the element's whole subtree, which for every element of a
+    // deep document is quadratic, so skip it when no selector can read it.
+    if !rules.iter().any(CssRule::uses_has) {
+        return attrs;
+    }
     let child_classes = el
         .children
         .iter()
@@ -39,6 +48,8 @@ pub(crate) fn selector_attributes_with_has(el: &ElementNode) -> HashMap<String, 
     attrs
 }
 
+/// Whether `selector` contains a `:has()` pseudo-class (names are ASCII
+/// case-insensitive).
 fn collect_descendant_classes(el: &ElementNode, out: &mut Vec<String>) {
     for child in &el.children {
         if let DomNode::Element(child_el) = child {
@@ -71,7 +82,7 @@ pub(crate) fn authored_pseudo_keyword_property(
     let mut winner: Option<(bool, u8, u32, usize, CssValue)> = None;
     let classes = el.class_list();
     let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
-    let selector_attrs = selector_attributes_with_has(el);
+    let selector_attrs = selector_attributes_with_has(el, rules);
 
     for (source_idx, rule) in rules.iter().enumerate() {
         if rule.pseudo_element != Some(pseudo) {
@@ -121,7 +132,7 @@ pub(crate) fn authored_property_value(
     let mut winner: Option<(bool, u8, u32, usize, CssValue)> = None;
     let classes = el.class_list();
     let class_refs: Vec<&str> = classes.iter().map(|s| s.as_ref()).collect();
-    let selector_attrs = selector_attributes_with_has(el);
+    let selector_attrs = selector_attributes_with_has(el, rules);
 
     for (source_idx, rule) in rules.iter().enumerate() {
         if rule.pseudo_element.is_some() {
@@ -2389,5 +2400,49 @@ mod generated_content_tests {
         let mut state = cs();
         let s = resolve_content_with_quotes(&items, &HashMap::new(), &mut state, None);
         assert_eq!(s, "");
+    }
+}
+
+#[cfg(test)]
+mod has_selector_tests {
+    use super::selector_attributes_with_has;
+    use crate::parser::css::{CssRule, StyleMap};
+    use crate::parser::html::parse_html;
+
+    fn rule(selector: &str) -> CssRule {
+        CssRule::new(selector.to_string(), StyleMap::new(), None)
+    }
+
+    #[test]
+    fn has_pseudo_class_is_detected_case_insensitively() {
+        assert!(rule("div:has(> p)").uses_has());
+        assert!(rule("li:HAS(.done)").uses_has());
+        assert!(!rule("div.hash").uses_has());
+        assert!(!rule("a:hover").uses_has());
+    }
+
+    #[test]
+    fn child_class_lists_are_gathered_only_for_has_selectors() {
+        // Only `:has()` reads the synthetic class lists, so without such a
+        // rule the element keeps just its own attributes.
+        let nodes =
+            parse_html(r#"<div id="list"><p class="done">x</p></div>"#).expect("valid markup");
+        let element = nodes
+            .iter()
+            .find_map(|node| match node {
+                crate::parser::dom::DomNode::Element(element) => Some(element),
+                crate::parser::dom::DomNode::Text(_) => None,
+            })
+            .expect("one element");
+
+        let plain = selector_attributes_with_has(element, &[rule("div > p")]);
+        assert_eq!(plain, element.attributes);
+        let relational = selector_attributes_with_has(element, &[rule("div:has(.done)")]);
+        assert_eq!(
+            relational
+                .get("__ironpress_has_child_classes")
+                .map(String::as_str),
+            Some("done")
+        );
     }
 }

@@ -1,7 +1,9 @@
 use super::page_descriptors::PageSheetDescriptors;
 use crate::parser::dom::ElementNode;
 use crate::types::{Color, EdgeSizes};
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::{Bound, Deref, RangeBounds};
 
 use super::math::{CssMathExpression, PendingMathExpression};
 
@@ -14,6 +16,76 @@ pub struct MediaContext {
     pub height: f32,
 }
 
+/// Tag name and class list of each sibling of an element, in document order.
+///
+/// Every child's selector context, and every descendant's ancestor chain,
+/// carries such lists, so copying them made deep or wide documents
+/// quadratic. A parent builds its children's list once, and each child's
+/// preceding and following siblings borrow a window of it.
+#[derive(Debug, Clone, Default)]
+pub struct SiblingNames<'a> {
+    names: Cow<'a, [(String, Vec<String>)]>,
+}
+
+impl SiblingNames<'_> {
+    /// The names in `range` of this list, borrowed from it. A range past the
+    /// end is clamped, so the siblings after the last one are empty.
+    pub(crate) fn window(&self, range: impl RangeBounds<usize>) -> SiblingNames<'_> {
+        let len = self.len();
+        let start = match range.start_bound() {
+            Bound::Included(&start) => start,
+            Bound::Excluded(&start) => start.saturating_add(1),
+            Bound::Unbounded => 0,
+        }
+        .min(len);
+        let end = match range.end_bound() {
+            Bound::Included(&end) => end.saturating_add(1),
+            Bound::Excluded(&end) => end,
+            Bound::Unbounded => len,
+        }
+        .clamp(start, len);
+        SiblingNames {
+            names: Cow::Borrowed(self.names.get(start..end).unwrap_or_default()),
+        }
+    }
+}
+
+impl Deref for SiblingNames<'_> {
+    type Target = [(String, Vec<String>)];
+
+    fn deref(&self) -> &Self::Target {
+        &self.names
+    }
+}
+
+impl PartialEq for SiblingNames<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
+}
+
+impl From<Vec<(String, Vec<String>)>> for SiblingNames<'_> {
+    fn from(names: Vec<(String, Vec<String>)>) -> Self {
+        Self {
+            names: Cow::Owned(names),
+        }
+    }
+}
+
+impl<'a> From<&'a [(String, Vec<String>)]> for SiblingNames<'a> {
+    fn from(names: &'a [(String, Vec<String>)]) -> Self {
+        Self {
+            names: Cow::Borrowed(names),
+        }
+    }
+}
+
+impl FromIterator<(String, Vec<String>)> for SiblingNames<'_> {
+    fn from_iter<I: IntoIterator<Item = (String, Vec<String>)>>(names: I) -> Self {
+        names.into_iter().collect::<Vec<_>>().into()
+    }
+}
+
 /// Per-ancestor context for nth-child matching in descendant selectors.
 #[derive(Debug, Clone)]
 pub struct AncestorInfo<'a> {
@@ -24,9 +96,9 @@ pub struct AncestorInfo<'a> {
     /// Total number of children in this ancestor's parent.
     pub sibling_count: usize,
     /// Preceding sibling elements for this ancestor within its parent.
-    pub preceding_siblings: Vec<(String, Vec<String>)>,
+    pub preceding_siblings: SiblingNames<'a>,
     /// Following sibling elements for this ancestor within its parent.
-    pub following_siblings: Vec<(String, Vec<String>)>,
+    pub following_siblings: SiblingNames<'a>,
     /// Whether this ancestor has no element children / non-whitespace text.
     pub is_empty: bool,
 }
@@ -41,12 +113,12 @@ pub struct SelectorContext<'a> {
     /// Total number of element children in the parent.
     pub sibling_count: usize,
     /// Preceding sibling elements (tag name, class list) in document order.
-    pub preceding_siblings: Vec<(String, Vec<String>)>,
+    pub preceding_siblings: SiblingNames<'a>,
     /// Following sibling elements (tag name, class list) in document order.
     /// Needed for `:last-of-type`, `:only-of-type`, `:nth-last-of-type`, and
     /// `:has(~ ...)`/`:has(+ ...)` relational matching. Defaults to empty in
     /// layout paths that don't track forward siblings.
-    pub following_siblings: Vec<(String, Vec<String>)>,
+    pub following_siblings: SiblingNames<'a>,
     /// Whether this element has no element children and no non-whitespace text
     /// (drives `:empty`). Defaults to `false` where not tracked.
     pub is_empty: bool,
@@ -135,6 +207,37 @@ pub enum CssValue {
     BackgroundLayers(Vec<BackgroundLayerSource>),
 }
 
+impl CssValue {
+    /// Whether resolving this value may need the font's measured `ex` or
+    /// `ch`. Conservative: math, unsubstituted references and background
+    /// layers may hold either unit, and so may raw text kept for later
+    /// parsing, counted whenever it contains either unit's letters.
+    pub(crate) fn may_use_font_metric_units(&self) -> bool {
+        match self {
+            Self::Ex(_)
+            | Self::Ch(_)
+            | Self::Math(_)
+            | Self::PendingMath(_)
+            | Self::Var(..)
+            | Self::BackgroundLayers(_) => true,
+            Self::Keyword(text) => {
+                let text = text.to_ascii_lowercase();
+                text.contains("ex") || text.contains("ch")
+            }
+            Self::Length(_)
+            | Self::Em(_)
+            | Self::Color(_)
+            | Self::Number(_)
+            | Self::Percentage(_)
+            | Self::Rem(_)
+            | Self::Vw(_)
+            | Self::Vh(_)
+            | Self::Vmin(_)
+            | Self::Vmax(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum BackgroundLayerSource {
     Raster(String),
@@ -160,6 +263,14 @@ pub struct StyleMap {
 impl StyleMap {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Whether any declaration may resolve a length against the font's
+    /// measured metrics (`ex`, `ch`); see [`CssValue::may_use_font_metric_units`].
+    pub(crate) fn may_use_font_metric_units(&self) -> bool {
+        self.properties
+            .values()
+            .any(CssValue::may_use_font_metric_units)
     }
 
     pub fn set(&mut self, key: &str, value: CssValue) {
@@ -293,9 +404,34 @@ pub struct CssRule {
     pub declarations: StyleMap,
     /// If this rule targets a `::before` or `::after` pseudo-element.
     pub pseudo_element: Option<PseudoElement>,
+    /// Whether the selector contains `:has()`, decided once from the selector
+    /// text so matching never rescans it.
+    uses_has: bool,
 }
 
 impl CssRule {
+    pub(crate) fn new(
+        selector: String,
+        declarations: StyleMap,
+        pseudo_element: Option<PseudoElement>,
+    ) -> Self {
+        let uses_has = selector
+            .as_bytes()
+            .windows(b":has(".len())
+            .any(|window| window.eq_ignore_ascii_case(b":has("));
+        Self {
+            selector,
+            declarations,
+            pseudo_element,
+            uses_has,
+        }
+    }
+
+    /// Whether the selector contains the relational `:has()` pseudo-class.
+    pub(crate) const fn uses_has(&self) -> bool {
+        self.uses_has
+    }
+
     pub(crate) fn counter_style_name(&self) -> Option<&str> {
         const AT_RULE: &str = "@counter-style";
         let selector = self.selector.trim();

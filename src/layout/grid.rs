@@ -215,7 +215,7 @@ impl GridItemStyle {
     }
 
     fn descendant_ancestors<'dom>(
-        &self,
+        &'dom self,
         element: &'dom ElementNode,
         ancestors: &[AncestorInfo<'dom>],
     ) -> Vec<AncestorInfo<'dom>> {
@@ -792,8 +792,8 @@ fn winning_grid_track_declaration(
         ancestors: ancestors.to_vec(),
         child_index: 0,
         sibling_count: 0,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let mut matched: Vec<(u32, usize, &CssRule)> = Vec::new();
@@ -1203,8 +1203,8 @@ fn matched_grid_track_pattern(
         ancestors: ancestors.to_vec(),
         child_index: 0,
         sibling_count: 0,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let mut matched: Vec<(u32, usize, &CssRule)> = Vec::new();
@@ -1273,8 +1273,8 @@ fn matched_display_contents(
         ancestors: ancestors.to_vec(),
         child_index: 0,
         sibling_count: 0,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let mut matched: Vec<(u32, usize, &CssRule)> = Vec::new();
@@ -2023,8 +2023,8 @@ fn layout_grid_item_content_inner(
                 ancestors: child_ancestors.clone(),
                 child_index: idx,
                 sibling_count,
-                preceding_siblings: preceding.clone(),
-                following_siblings: Vec::new(),
+                preceding_siblings: preceding.clone().into(),
+                following_siblings: Default::default(),
                 is_empty: false,
             },
             env.font_metrics(),
@@ -2748,8 +2748,8 @@ fn layout_grid_container_inner(
         element: el,
         child_index: 0,
         sibling_count: 0,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     });
 
@@ -2776,8 +2776,8 @@ fn layout_grid_container_inner(
                 ancestors: child_ancestors.clone(),
                 child_index: idx,
                 sibling_count: total_child_count,
-                preceding_siblings: child_siblings[..idx].to_vec(),
-                following_siblings: child_siblings[idx + 1..].to_vec(),
+                preceding_siblings: child_siblings[..idx].into(),
+                following_siblings: child_siblings[idx + 1..].into(),
                 is_empty: false,
             };
             let principal = compute_style_with_context_with_font_metrics(
@@ -2811,8 +2811,8 @@ fn layout_grid_container_inner(
         ancestors: ancestors.to_vec(),
         child_index: 0,
         sibling_count: 0,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let generated_styles =
@@ -2849,8 +2849,8 @@ fn layout_grid_container_inner(
                         element: child_el,
                         child_index: direct_idx,
                         sibling_count: total_child_count,
-                        preceding_siblings: Vec::new(),
-                        following_siblings: Vec::new(),
+                        preceding_siblings: Default::default(),
+                        following_siblings: Default::default(),
                         is_empty: false,
                     });
                     let flattened: Vec<&ElementNode> = child_el
@@ -2868,8 +2868,8 @@ fn layout_grid_container_inner(
                             ancestors: wrapper_ancestors.clone(),
                             child_index: flat_idx,
                             sibling_count: flattened_count,
-                            preceding_siblings: Vec::new(),
-                            following_siblings: Vec::new(),
+                            preceding_siblings: Default::default(),
+                            following_siblings: Default::default(),
                             is_empty: false,
                         };
                         let flat_style = compute_style_with_context_with_font_metrics(
@@ -3623,8 +3623,8 @@ fn layout_grid_container_inner(
                 element: child_el,
                 child_index: idx,
                 sibling_count: total_child_count,
-                preceding_siblings: Vec::new(),
-                following_siblings: Vec::new(),
+                preceding_siblings: Default::default(),
+                following_siblings: Default::default(),
                 is_empty: false,
             });
             let child_ctx = ctx

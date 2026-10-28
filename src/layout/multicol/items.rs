@@ -223,8 +223,8 @@ pub(super) fn child_multicol_info(
         ancestors: child_ancestors.to_vec(),
         child_index,
         sibling_count,
-        preceding_siblings: preceding_siblings.to_vec(),
-        following_siblings: Vec::new(),
+        preceding_siblings: preceding_siblings.into(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let cs = compute_style_with_context(

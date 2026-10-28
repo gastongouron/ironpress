@@ -19,6 +19,12 @@ impl<'a> FontMetrics<'a> {
         Self { fonts: Some(fonts) }
     }
 
+    /// Whether faces can be measured, rather than every font-relative length
+    /// taking its CSS fallback.
+    pub(crate) const fn has_fonts(self) -> bool {
+        self.fonts.is_some()
+    }
+
     /// Used x-height for the font a style selects.
     ///
     /// Outline-derived browser metrics are grid-fitted by the font's hinting

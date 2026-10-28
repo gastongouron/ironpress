@@ -1,5 +1,5 @@
 use crate::layout::context::LayoutEnv;
-use crate::layout::engine::TextRun;
+use crate::layout::engine::{TextRun, element_sibling_list};
 use crate::layout::text::{InlineRunCollector, InlineRunContext};
 use crate::parser::css::AncestorInfo;
 use crate::parser::dom::{DomNode, ElementNode};
@@ -43,9 +43,10 @@ pub(crate) fn layout_mixed_flow_children<'dom>(
     independent_layout: &mut impl IndependentFlowLayout,
 ) {
     let sequence = InlineContentSequence::new(nodes);
+    let siblings = element_sibling_list(nodes);
     let children =
         InlineFormattingContext::new(parent_style, env.rules, ancestors, env.font_metrics())
-            .children(sequence);
+            .children(sequence, &siblings);
     let mut element_index = 0;
     let run_context = independent_layout.inline_run_context();
 
@@ -72,7 +73,11 @@ pub(crate) fn layout_mixed_flow_children<'dom>(
         if child.role == InlineFormattingRole::Hidden {
             continue;
         }
-        if independent_layout.lays_out_independently(element, child) {
+        // A block-level participant, including an inline box broken around a
+        // block-level descendant, never collects into text runs.
+        if child.role == InlineFormattingRole::Outside
+            || independent_layout.lays_out_independently(element, child)
+        {
             independent_layout.layout_independently(element, child, env);
         } else {
             InlineRunCollector::new(env.rules, env.fonts, env.counter_state, &mut *env.resources)

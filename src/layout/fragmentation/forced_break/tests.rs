@@ -365,3 +365,27 @@ fn minimum_sized_flex_item_keeps_principal_box_fragments() {
     assert_eq!(after.flex_cell_border_top, 0.0);
     assert_eq!(after.flex_cell_border_bottom, 1.0);
 }
+
+#[test]
+fn descendant_break_probe_agrees_with_the_splitter() {
+    let page_break = || {
+        PageBreak {
+            side: PageBreakSide::Any,
+            page_name: None,
+        }
+        .boxed()
+    };
+    let with_break = container(
+        vec![
+            container(Vec::new(), Some(10.0)),
+            row(vec![container(vec![page_break()], None)]),
+        ],
+        None,
+    );
+    let without_break = container(vec![row(vec![container(Vec::new(), Some(10.0))])], None);
+
+    assert!(contains_descendant_break(with_break.as_ref()));
+    assert!(split_flow_at_descendant_break(with_break.as_ref(), 100.0).is_some());
+    assert!(!contains_descendant_break(without_break.as_ref()));
+    assert!(split_flow_at_descendant_break(without_break.as_ref(), 100.0).is_none());
+}

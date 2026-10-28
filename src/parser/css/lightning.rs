@@ -56,11 +56,7 @@ pub(super) fn parse_stylesheet_rules_with_lightning(css: &str) -> Option<Vec<Css
             for selector in &style_rule.selectors.0 {
                 let selector = selector.to_css_string(PrinterOptions::default()).ok()?;
                 let (selector, pseudo_element) = extract_pseudo_element(&selector);
-                rules.push(CssRule {
-                    selector,
-                    declarations: declarations.clone(),
-                    pseudo_element,
-                });
+                rules.push(CssRule::new(selector, declarations.clone(), pseudo_element));
             }
         }
     }

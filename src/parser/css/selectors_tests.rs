@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use super::SelectorContext;
 use super::selectors::{
     ancestor_info, rfind_descendant_space, selector_matches, selector_matches_with_context,
     specificity,
 };
+use super::{SelectorContext, SiblingNames};
 use crate::parser::dom::{ElementNode, HtmlTag};
 
 /// Pack an (a, b, c) specificity triple the same way `specificity` does.
@@ -34,8 +34,8 @@ fn selector_matches_descendant_and_child_combinators() {
         ancestors: vec![ancestor_info(&parent)],
         child_index: 0,
         sibling_count: 1,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     assert!(selector_matches_with_context(
@@ -84,15 +84,15 @@ fn selector_matches_chained_child_and_descendant_combinators() {
                 element: &parent,
                 child_index: 0,
                 sibling_count: 1,
-                preceding_siblings: Vec::new(),
-                following_siblings: Vec::new(),
+                preceding_siblings: Default::default(),
+                following_siblings: Default::default(),
                 is_empty: false,
             },
         ],
         child_index: 0,
         sibling_count: 1,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
 
@@ -121,8 +121,8 @@ fn selector_matches_ancestor_side_sibling_combinators() {
         ancestors: Vec::new(),
         child_index: 1,
         sibling_count: 2,
-        preceding_siblings: vec![("section".to_string(), vec![])],
-        following_siblings: Vec::new(),
+        preceding_siblings: vec![("section".to_string(), vec![])].into(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     assert!(selector_matches_with_context(
@@ -138,14 +138,14 @@ fn selector_matches_ancestor_side_sibling_combinators() {
             element: &article,
             child_index: 1,
             sibling_count: 2,
-            preceding_siblings: vec![("section".to_string(), vec![])],
-            following_siblings: Vec::new(),
+            preceding_siblings: vec![("section".to_string(), vec![])].into(),
+            following_siblings: Default::default(),
             is_empty: false,
         }],
         child_index: 0,
         sibling_count: 1,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
 
@@ -165,8 +165,8 @@ fn selector_matches_sibling_combinators() {
         ancestors: Vec::new(),
         child_index: 1,
         sibling_count: 2,
-        preceding_siblings: vec![("h1".to_string(), vec![])],
-        following_siblings: Vec::new(),
+        preceding_siblings: vec![("h1".to_string(), vec![])].into(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     assert!(selector_matches_with_context(
@@ -193,8 +193,8 @@ fn selector_matches_chained_sibling_combinators() {
         ancestors: Vec::new(),
         child_index: 2,
         sibling_count: 3,
-        preceding_siblings: vec![("h1".to_string(), vec![]), ("p".to_string(), vec![])],
-        following_siblings: Vec::new(),
+        preceding_siblings: vec![("h1".to_string(), vec![]), ("p".to_string(), vec![])].into(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
 
@@ -229,8 +229,9 @@ fn selector_matches_class_sibling_combinators_like_fixtures() {
         preceding_siblings: vec![(
             "div".to_string(),
             vec!["box".to_string(), "marker".to_string()],
-        )],
-        following_siblings: Vec::new(),
+        )]
+        .into(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let third_box = SelectorContext {
@@ -243,8 +244,9 @@ fn selector_matches_class_sibling_combinators_like_fixtures() {
                 vec!["box".to_string(), "marker".to_string()],
             ),
             ("div".to_string(), vec!["box".to_string()]),
-        ],
-        following_siblings: Vec::new(),
+        ]
+        .into(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
 
@@ -335,16 +337,16 @@ fn selector_matches_pseudo_classes() {
         ancestors: Vec::new(),
         child_index: 0,
         sibling_count: 3,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let third_child = SelectorContext {
         ancestors: Vec::new(),
         child_index: 2,
         sibling_count: 3,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     assert!(selector_matches_with_context(
@@ -381,24 +383,24 @@ fn selector_matches_nth_child_keywords_and_spaced_formulas() {
         ancestors: Vec::new(),
         child_index: 0,
         sibling_count: 4,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let second_child = SelectorContext {
         ancestors: Vec::new(),
         child_index: 1,
         sibling_count: 4,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
     let third_child = SelectorContext {
         ancestors: Vec::new(),
         child_index: 2,
         sibling_count: 4,
-        preceding_siblings: Vec::new(),
-        following_siblings: Vec::new(),
+        preceding_siblings: Default::default(),
+        following_siblings: Default::default(),
         is_empty: false,
     };
 
@@ -603,8 +605,8 @@ fn of_type_pseudo_classes() {
     let third = SelectorContext {
         child_index: 2,
         sibling_count: 4,
-        preceding_siblings: vec![("p".to_string(), vec![]), ("span".to_string(), vec![])],
-        following_siblings: vec![("p".to_string(), vec![])],
+        preceding_siblings: vec![("p".to_string(), vec![]), ("span".to_string(), vec![])].into(),
+        following_siblings: vec![("p".to_string(), vec![])].into(),
         ..Default::default()
     };
     // It's the 2nd <p> from the start.
@@ -638,12 +640,13 @@ fn of_type_pseudo_classes() {
     let first = SelectorContext {
         child_index: 0,
         sibling_count: 4,
-        preceding_siblings: vec![],
+        preceding_siblings: vec![].into(),
         following_siblings: vec![
             ("span".to_string(), vec![]),
             ("p".to_string(), vec![]),
             ("p".to_string(), vec![]),
-        ],
+        ]
+        .into(),
         ..Default::default()
     };
     assert!(selector_matches_with_context(
@@ -707,7 +710,7 @@ fn logical_pseudo_classes() {
 fn has_relational_forward_sibling() {
     // div:has(+ .next) where the element has a following sibling with .next.
     let ctx = SelectorContext {
-        following_siblings: vec![("span".to_string(), vec!["next".to_string()])],
+        following_siblings: vec![("span".to_string(), vec!["next".to_string()])].into(),
         ..Default::default()
     };
     assert!(selector_matches_with_context(
@@ -780,4 +783,26 @@ fn specificity_selector_list_takes_max() {
     // A selector list takes the highest-specificity alternative.
     assert_eq!(specificity("#id, div"), spec(1, 0, 0));
     assert_eq!(specificity("div, #id"), spec(1, 0, 0));
+}
+
+#[test]
+fn sibling_name_windows_borrow_one_list_and_clamp() {
+    let names = SiblingNames::from(vec![
+        ("h1".to_string(), Vec::new()),
+        ("p".to_string(), vec!["lead".to_string()]),
+        ("ul".to_string(), Vec::new()),
+    ]);
+
+    let preceding = names.window(..1);
+    let following = names.window(2..);
+    assert_eq!(preceding.len(), 1);
+    assert_eq!(preceding[0].0, "h1");
+    assert_eq!(following.len(), 1);
+    assert_eq!(following[0].0, "ul");
+    assert_eq!(names.window(1..).window(..1)[0].1, vec!["lead".to_string()]);
+    assert!(names.window(3..).is_empty());
+    assert!(names.window(7..).is_empty());
+    assert_eq!(names.window(..), names);
+    // A window is the parent's storage, not a copy of it.
+    assert!(std::ptr::eq(following.as_ptr(), names[2..].as_ptr()));
 }

@@ -150,7 +150,7 @@ impl IndependentFlowLayout for InlineBlockChildLayout<'_, '_> {
         flatten_element(
             element,
             LayoutTreeContext::new(self.parent_style, &context, self.ancestors)
-                .for_element(child.source().as_context()),
+                .for_element(child.source()),
             self.output,
             env,
         );
@@ -729,8 +729,8 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
                     ancestors: ancestors.to_vec(),
                     child_index: element_index,
                     sibling_count: element_count,
-                    preceding_siblings: preceding_siblings.clone(),
-                    following_siblings: forward_siblings(&sibling_list, element_index).to_vec(),
+                    preceding_siblings: preceding_siblings.clone().into(),
+                    following_siblings: forward_siblings(&sibling_list, element_index).into(),
                     is_empty: false,
                 };
                 let child_style = compute_style_with_context_with_font_metrics(
@@ -995,8 +995,8 @@ fn layout_inline_block_group_inner(
             ancestors: ancestors.to_vec(),
             child_index: idx,
             sibling_count: child_count,
-            preceding_siblings: sibling_list[..idx].to_vec(),
-            following_siblings: sibling_list[idx + 1..].to_vec(),
+            preceding_siblings: sibling_list[..idx].into(),
+            following_siblings: sibling_list[idx + 1..].into(),
             is_empty: false,
         };
         let child_style = compute_style_with_context_with_font_metrics(
@@ -1043,8 +1043,8 @@ fn layout_inline_block_group_inner(
             element: child_el,
             child_index: idx,
             sibling_count: child_count,
-            preceding_siblings: Vec::new(),
-            following_siblings: Vec::new(),
+            preceding_siblings: Default::default(),
+            following_siblings: Default::default(),
             is_empty: false,
         });
         if child_style.display == Display::InlineGrid
