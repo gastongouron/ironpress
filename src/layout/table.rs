@@ -374,7 +374,7 @@ fn nested_element_preferred_width(element: &dyn LayoutElement) -> f32 {
                 .box_model
                 .size
                 .width
-                .fixed_value()
+                .preferred_value()
                 .unwrap_or_default();
         }
 
@@ -383,7 +383,7 @@ fn nested_element_preferred_width(element: &dyn LayoutElement) -> f32 {
                 .box_model
                 .size
                 .width
-                .fixed_value()
+                .preferred_value()
                 .unwrap_or_default();
         }
 
@@ -4591,6 +4591,47 @@ mod subpoint_width_tests {
 
         assert_eq!(row.content.column_widths, vec![90.0, 90.0]);
         assert_eq!(row.box_inline_extent(), 180.0);
+        assert!(pages[0].print_content_scale.is_identity());
+    }
+
+    #[test]
+    fn margin_narrowed_cell_blocks_do_not_widen_the_table() {
+        // Each block's used width is the measured cell width less its margin.
+        // That is not a width the block asks for, so it must not become the
+        // column's minimum: otherwise every such cell claims the whole table.
+        let parsed = parse_html_with_styles(
+            r#"<style>
+                * { margin: 0; }
+                table { width: 200px; }
+                td.n { width: 40px; }
+                td.n div { margin-left: 4px; }
+            </style>
+            <table><tr><td>a</td><td class="n"><div>x</div></td>
+            <td class="n"><div>y</div></td></tr></table>"#,
+        )
+        .expect("valid table markup");
+        let rules = parsed
+            .stylesheets
+            .iter()
+            .flat_map(|stylesheet| parse_stylesheet(stylesheet))
+            .collect::<Vec<_>>();
+        let pages = layout_with_rules(
+            &parsed.nodes,
+            PageSize::new(300.0, 200.0),
+            Margin::uniform(0.0),
+            &rules,
+        );
+        let row = pages[0]
+            .elements
+            .iter()
+            .find_map(|(_, element)| element.inspect_table(Clone::clone))
+            .expect("one table row");
+
+        assert!(
+            row.box_inline_extent() <= 200.0,
+            "{}",
+            row.box_inline_extent()
+        );
         assert!(pages[0].print_content_scale.is_identity());
     }
 

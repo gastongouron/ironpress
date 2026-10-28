@@ -19,13 +19,24 @@ use crate::types::{Color, CornerRadii, EdgeSizes, PhysicalEdges, Point, Rect, Si
 /// out of a raw `Option<f32>` prevents authored `width: auto` from being
 /// confused with unresolved geometry.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub(crate) struct InlineSize(Option<f32>);
+pub(crate) struct InlineSize {
+    used: Option<f32>,
+    /// The used width is the offered space less margins, not a width the box
+    /// asks for, so it must not feed back into intrinsic sizing.
+    derived_from_available: bool,
+}
 
 impl InlineSize {
-    pub(crate) const FILL_AVAILABLE: Self = Self(None);
+    pub(crate) const FILL_AVAILABLE: Self = Self {
+        used: None,
+        derived_from_available: false,
+    };
 
     pub(crate) const fn fixed(width: f32) -> Self {
-        Self(Some(width))
+        Self {
+            used: Some(width),
+            derived_from_available: false,
+        }
     }
 
     pub(crate) fn from_fixed_value(width: Option<f32>) -> Self {
@@ -33,23 +44,37 @@ impl InlineSize {
     }
 
     pub(crate) fn from_used(width: f32, available_width: f32, fixed_by_layout: bool) -> Self {
-        if fixed_by_layout || width != available_width {
+        if fixed_by_layout {
             Self::fixed(width)
+        } else if width != available_width {
+            Self {
+                used: Some(width),
+                derived_from_available: true,
+            }
         } else {
             Self::FILL_AVAILABLE
         }
     }
 
     pub(crate) const fn fixed_value(self) -> Option<f32> {
-        self.0
+        self.used
+    }
+
+    /// The width this box asks for independently of the space it was offered.
+    pub(crate) const fn preferred_value(self) -> Option<f32> {
+        if self.derived_from_available {
+            None
+        } else {
+            self.used
+        }
     }
 
     pub(crate) const fn is_fill_available(self) -> bool {
-        self.0.is_none()
+        self.used.is_none()
     }
 
     pub(crate) fn resolve(self, available_width: f32) -> f32 {
-        self.0.unwrap_or(available_width)
+        self.used.unwrap_or(available_width)
     }
 }
 
@@ -1004,6 +1029,19 @@ mod tests {
         );
         assert!(InlineSize::FILL_AVAILABLE.is_fill_available());
         assert_eq!(InlineSize::fixed(180.0).fixed_value(), Some(180.0));
+    }
+
+    #[test]
+    fn margin_narrowed_width_is_used_but_not_preferred() {
+        let narrowed = InlineSize::from_used(315.5, 320.0, false);
+        assert_eq!(narrowed.fixed_value(), Some(315.5));
+        assert_eq!(narrowed.resolve(320.0), 315.5);
+        assert_eq!(narrowed.preferred_value(), None);
+        assert_eq!(
+            InlineSize::from_used(180.0, 320.0, true).preferred_value(),
+            Some(180.0)
+        );
+        assert_eq!(InlineSize::fixed(180.0).preferred_value(), Some(180.0));
     }
 
     #[test]

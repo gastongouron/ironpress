@@ -536,3 +536,106 @@ fn smoke_filter_blur_text_element_no_crash() {
     assert!(pdf_has_text(&pdf, "/SMask"));
     assert!(pdf_has_text(&pdf, "Normal text"));
 }
+
+// === Block-level boxes inside inline boxes (CSS 2.1 § 9.2.1.1) ===
+
+#[test]
+fn smoke_block_inside_inline_is_laid_out() {
+    let html =
+        r#"<div>Lead <span>Inline start<div>Nested block</div>Inline end</span></div><p>After</p>"#;
+    let pdf = smoke_html_to_pdf(html);
+    assert!(pdf_is_valid(&pdf));
+    for text in [
+        "Lead",
+        "Inline start",
+        "Nested block",
+        "Inline end",
+        "After",
+    ] {
+        assert!(pdf_has_text(&pdf, text), "missing {text:?}");
+    }
+}
+
+#[test]
+fn smoke_unclosed_inline_keeps_following_blocks() {
+    // The parser keeps an unclosed <span> open, so every later block nests
+    // inside it.
+    let html =
+        r#"<center>Lead <span>Open span<div>First block</div><p>Second block</p><h2>Heading</h2>"#;
+    let pdf = smoke_html_to_pdf(html);
+    for text in ["Open span", "First block", "Second block", "Heading"] {
+        assert!(pdf_has_text(&pdf, text), "missing {text:?}");
+    }
+}
+
+#[test]
+fn smoke_css_block_inside_inline_is_laid_out() {
+    let html = r#"<style>em.block { display: block }</style>
+        <div>Lead <b>Bold<em class="block">Styled block</em>Bold end</b></div>"#;
+    let pdf = smoke_html_to_pdf(html);
+    for text in ["Styled block", "Bold end"] {
+        assert!(pdf_has_text(&pdf, text), "missing {text:?}");
+    }
+}
+
+#[test]
+fn smoke_block_inside_inline_in_table_cell_and_flex_item() {
+    let html = r#"
+        <table><tr><td>Cell <span>Cell inline<div>Cell block</div></span></td></tr></table>
+        <div style="display:flex"><div>Item <span>Item inline<div>Item block</div></span></div></div>"#;
+    let pdf = smoke_html_to_pdf(html);
+    for text in ["Cell inline", "Cell block", "Item inline", "Item block"] {
+        assert!(pdf_has_text(&pdf, text), "missing {text:?}");
+    }
+}
+
+// === Deeply nested documents ===
+
+#[test]
+fn smoke_deeply_nested_content_is_laid_out() {
+    // 200 levels: deeper than the default stack would allow without growth,
+    // within the sanitizer's nesting limit.
+    let depth = 200;
+    let html = format!(
+        "{}<p>Deepest text</p>{}<p>After nesting</p>",
+        "<div style=\"padding-left:1px\">".repeat(depth),
+        "</div>".repeat(depth)
+    );
+    let pdf = smoke_html_to_pdf(&html);
+    assert!(pdf_has_text(&pdf, "Deepest text"));
+    assert!(pdf_has_text(&pdf, "After nesting"));
+}
+
+#[test]
+fn smoke_unbreakable_table_row_taller_than_page_terminates() {
+    // The single line is taller than a page, so the row cannot be broken:
+    // it must overflow one page instead of being split into empty pages
+    // forever. A worker thread turns a regression into a failure, not a hang.
+    let html = "<table><tr><td><div style=\"line-height:780pt\">Tall line</div></td></tr></table>\
+                <p>After table</p>";
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(smoke_html_to_pdf(html));
+    });
+    let pdf = receiver
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .expect("pagination did not terminate");
+    assert!(pdf_has_text(&pdf, "Tall line"));
+    assert!(pdf_has_text(&pdf, "After table"));
+}
+
+#[test]
+fn smoke_split_that_moves_a_box_to_the_next_page_is_kept_below_the_page_top() {
+    // Only the empty first child fits below the spacer, so the split leaves a
+    // continuation as tall as the box. Lower on a page that is progress: the
+    // box continues on the next pages instead of overflowing this one.
+    let lines: String = (0..30).map(|i| format!("Line {i}<br>")).collect();
+    let html = format!(
+        "<style>@page {{ size: 200pt 150pt; margin: 0 }} * {{ margin: 0 }}</style>\
+         <div style=\"height:140pt\"></div>\
+         <div style=\"background:red\"><div style=\"height:0\"></div><p>{lines}</p></div>"
+    );
+    let pdf = smoke_html_to_pdf(&html);
+    assert!(pdf_page_count(&pdf) >= 4, "{} pages", pdf_page_count(&pdf));
+    assert!(pdf_has_text(&pdf, "Line 29"));
+}

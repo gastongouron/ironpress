@@ -232,3 +232,40 @@ fn positioned_inline_inside_flex_item_uses_the_general_item_context() {
         "snapshots: {snapshots:#?}"
     );
 }
+
+#[test]
+fn a_float_inside_an_inline_box_does_not_break_it() {
+    // Only an in-flow block-level descendant breaks an inline box (CSS 2.1
+    // § 9.2.1.1); a float is out of flow, so the line stays whole.
+    #[derive(Default)]
+    struct Lines(Vec<String>);
+
+    impl LayoutVisitor for Lines {
+        fn visit_text_block(&mut self, block: &TextBlock) {
+            for line in &block.lines {
+                let text: String = line.runs.iter().map(|run| run.text.as_str()).collect();
+                if !text.trim().is_empty() {
+                    self.0.push(text);
+                }
+            }
+        }
+    }
+
+    let mut lines = Lines::default();
+    for page in layout_pages(
+        r#"<style>* { margin: 0 }</style>
+        <div>a <span>b<div style="float:left">F</div>d</span> e</div>"#,
+    ) {
+        for (_, element) in page.elements {
+            visit_layout_tree(element.as_ref(), &mut lines);
+        }
+    }
+    assert!(
+        lines.0.iter().any(|line| {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            words.contains(&"a") && words.contains(&"e")
+        }),
+        "{:?}",
+        lines.0
+    );
+}

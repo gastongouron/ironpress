@@ -72,7 +72,11 @@ pub(crate) fn layout_mixed_flow_children<'dom>(
         if child.role == InlineFormattingRole::Hidden {
             continue;
         }
-        if independent_layout.lays_out_independently(element, child) {
+        // A block-level participant, including an inline box broken around a
+        // block-level descendant, never collects into text runs.
+        if child.role == InlineFormattingRole::Outside
+            || independent_layout.lays_out_independently(element, child)
+        {
             independent_layout.layout_independently(element, child, env);
         } else {
             InlineRunCollector::new(env.rules, env.fonts, env.counter_state, &mut *env.resources)

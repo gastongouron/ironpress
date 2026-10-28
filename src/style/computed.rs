@@ -83,6 +83,15 @@ impl Display {
         }
     }
 
+    /// Block-level outer display types (CSS Display 3 § 2.1), whose in-flow
+    /// boxes cannot share a line with inline content.
+    pub(crate) const fn is_block_level(self) -> bool {
+        matches!(
+            self,
+            Self::Block | Self::ListItem | Self::Flex | Self::Grid | Self::Table
+        )
+    }
+
     /// Atomic inline boxes stop decorations imposed by their ancestors from
     /// entering their contents. A decoration originated on the atomic box
     /// itself can still propagate to its own in-flow children.

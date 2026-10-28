@@ -383,3 +383,79 @@ fn descendant_break_fills_each_auto_sized_ancestor_fragment() {
         "page 1: {first_page:#?}"
     );
 }
+
+#[test]
+fn table_caption_with_no_room_left_moves_to_the_next_page_with_its_table() {
+    // The table is taller than a page and starts with less room left than
+    // its caption needs. Breaking before the table keeps the caption with its
+    // rows; forcing the caption into the sliver clipped it at the page edge.
+    #[derive(Default)]
+    struct CaptionPage(bool);
+
+    impl LayoutVisitor for CaptionPage {
+        fn visit_text_block(&mut self, element: &TextBlock) {
+            self.0 |= element
+                .lines
+                .iter()
+                .flat_map(|line| line.runs.iter())
+                .any(|run| run.text.contains("Caption"));
+        }
+    }
+
+    let rows: String = (0..20)
+        .map(|i| format!("<tr><td>Row {i}</td></tr>"))
+        .collect();
+    let pages = layout_pages_at(
+        &format!(
+            "<style>* {{ margin: 0 }}</style><div style=\"height:140pt\"></div>\
+             <table><caption>Caption</caption>{rows}</table>"
+        ),
+        PageSize::new(200.0, 150.0),
+    );
+
+    let caption_pages: Vec<usize> = pages
+        .iter()
+        .enumerate()
+        .filter(|(_, page)| {
+            let mut caption = CaptionPage::default();
+            for (_, element) in &page.elements {
+                visit_layout_tree(element.as_ref(), &mut caption);
+            }
+            caption.0
+        })
+        .map(|(index, _)| index)
+        .collect();
+    assert_eq!(caption_pages, vec![1]);
+}
+
+#[test]
+fn a_box_after_an_empty_box_at_the_page_top_does_not_leave_a_blank_page() {
+    // The empty box marks the page as started, but the cursor is still at
+    // its top: breaking before the tall box would only add a blank page.
+    #[derive(Default)]
+    struct HasText(bool);
+
+    impl LayoutVisitor for HasText {
+        fn visit_text_block(&mut self, element: &TextBlock) {
+            self.0 |= element
+                .lines
+                .iter()
+                .flat_map(|line| line.runs.iter())
+                .any(|run| run.text.contains("Big"));
+        }
+    }
+
+    let pages = layout_pages_at(
+        "<style>* { margin: 0 }</style><div style=\"height:0\"></div>\
+         <div style=\"background:red\"><div style=\"height:300pt;overflow:hidden\">Big</div>\
+         <p>After</p></div>",
+        PageSize::new(200.0, 150.0),
+    );
+
+    let mut first = HasText::default();
+    for (_, element) in &pages[0].elements {
+        visit_layout_tree(element.as_ref(), &mut first);
+    }
+    assert!(first.0, "page 1 holds no text");
+    assert_eq!(pages.len(), 2);
+}

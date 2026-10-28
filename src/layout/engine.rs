@@ -3436,7 +3436,30 @@ pub(crate) fn flatten_element(
     flatten_element_with_running_mode(el, context, output, env, RunningElementMode::Capture);
 }
 
+/// Stack kept free below each element's layout frame, bytes.
+const LAYOUT_STACK_RED_ZONE: usize = 1024 * 1024;
+/// Size of each extra stack segment for deeply nested documents, bytes.
+const LAYOUT_STACK_SEGMENT: usize = 4 * 1024 * 1024;
+
+/// Deepest element nesting that is laid out. It matches the sanitizer's
+/// nesting limit, so a document it accepts is laid out in full.
+const MAX_LAYOUT_DEPTH: usize = 512;
+
 fn flatten_element_with_running_mode(
+    el: &ElementNode,
+    context: ElementLayoutContext<'_, '_, '_>,
+    output: &mut Vec<LayoutNode>,
+    env: &mut LayoutEnv,
+    running_mode: RunningElementMode,
+) {
+    // Each nesting level takes tens of kilobytes of stack, so a deeply
+    // nested document grows the stack on the heap instead of overflowing it.
+    stacker::maybe_grow(LAYOUT_STACK_RED_ZONE, LAYOUT_STACK_SEGMENT, || {
+        flatten_element_in_frame(el, context, output, env, running_mode);
+    });
+}
+
+fn flatten_element_in_frame(
     el: &ElementNode,
     context: ElementLayoutContext<'_, '_, '_>,
     output: &mut Vec<LayoutNode>,
@@ -3518,8 +3541,7 @@ fn flatten_element_with_running_mode(
     // fixed-position metadata, counter cleanup, and trailing page breaks from
     // depending on which element kind happened to produce the layout nodes.
     (|| {
-        // Bail out on excessively deep nesting to prevent stack overflow.
-        if ancestors.len() > 30 {
+        if ancestors.len() > MAX_LAYOUT_DEPTH {
             return;
         }
 

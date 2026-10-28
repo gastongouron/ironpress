@@ -2,7 +2,7 @@ use crate::parser::css::{AncestorInfo, CssRule, PseudoElement, SelectorContext};
 use crate::parser::dom::{DomNode, ElementNode, HtmlTag};
 use crate::parser::ttf::TtfFont;
 use crate::style::computed::{
-    ComputedStyle, Display, compute_pseudo_element_style_with_font_metrics,
+    ComputedStyle, Display, Float, compute_pseudo_element_style_with_font_metrics,
     compute_style_with_context_with_font_metrics,
 };
 use crate::style::font_metrics::FontMetrics;
@@ -732,6 +732,81 @@ impl<'a> InlineFormattingContext<'a> {
         }
     }
 
+    /// How `element` takes part in this formatting context.
+    ///
+    /// An inline box that contains an in-flow block-level box is broken
+    /// around it (CSS 2.1 § 9.2.1.1), so it cannot be laid out as text runs:
+    /// it is laid out as a block-level participant, whose own children are
+    /// split into anonymous blocks around the block-level box.
+    pub(crate) fn role(
+        &self,
+        element: &ElementNode,
+        style: &ComputedStyle,
+        selector_context: &SelectorContext<'_>,
+    ) -> InlineFormattingRole {
+        match InlineFormattingRole::of(element, style) {
+            InlineFormattingRole::Text
+                if self.contains_block_level(element, style, selector_context) =>
+            {
+                InlineFormattingRole::Outside
+            }
+            role => role,
+        }
+    }
+
+    /// Whether an in-flow block-level box descends from the inline box
+    /// `element` through inline boxes only.
+    fn contains_block_level(
+        &self,
+        element: &ElementNode,
+        style: &ComputedStyle,
+        selector_context: &SelectorContext<'_>,
+    ) -> bool {
+        let mut ancestors = self.ancestors.to_vec();
+        ancestors.push(selector_context.as_ancestor(element));
+        let inner = InlineFormattingContext::new(style, self.rules, &ancestors, self.font_metrics);
+        let mut siblings = InlineSiblingCursor::starting_at(&element.children, 0);
+        element.children.iter().any(|node| {
+            let DomNode::Element(child) = node else {
+                return false;
+            };
+            let child_context = siblings.next_context(child, &ancestors);
+            let child_style = inner.style(child, &child_context);
+            match InlineFormattingRole::of(child, &child_style) {
+                // A float is out of flow: it does not break the inline box
+                // (CSS 2.1 § 9.5).
+                InlineFormattingRole::Outside => {
+                    child_style.display.is_block_level()
+                        && child_style.float == Float::None
+                        && child.tag != HtmlTag::Svg
+                }
+                InlineFormattingRole::Text => {
+                    inner.contains_block_level(child, &child_style, &child_context)
+                }
+                _ => false,
+            }
+        })
+    }
+
+    fn style(
+        &self,
+        element: &ElementNode,
+        selector_context: &SelectorContext<'_>,
+    ) -> ComputedStyle {
+        compute_style_with_context_with_font_metrics(
+            element.tag,
+            element.style_attr(),
+            self.parent_style,
+            self.rules,
+            element.tag_name(),
+            &element.class_list(),
+            element.id(),
+            &element.attributes,
+            selector_context,
+            self.font_metrics,
+        )
+    }
+
     pub(crate) fn children(&self, sequence: InlineContentSequence<'_>) -> InlineFormattingChildren {
         let mut siblings = InlineSiblingCursor::starting_at(
             sequence.source_nodes(),
@@ -759,7 +834,7 @@ impl<'a> InlineFormattingContext<'a> {
                     self.font_metrics,
                 );
                 Some(InlineFormattingChild {
-                    role: InlineFormattingRole::of(element, &style),
+                    role: self.role(element, &style, &selector_context),
                     style,
                     source: ElementSiblingPosition::from_selector_context(&selector_context),
                 })
@@ -797,7 +872,7 @@ impl<'a> InlineFormattingContext<'a> {
                 self.font_metrics,
             );
 
-            match InlineFormattingRole::of(element, &style) {
+            match self.role(element, &style, &selector_context) {
                 InlineFormattingRole::Atomic(kind) => {
                     saw_atomic |= kind.requires_environment_aware_layout();
                 }
@@ -868,7 +943,7 @@ impl<'a> InlineFormattingContext<'a> {
                 self.font_metrics,
             );
 
-            match InlineFormattingRole::of(element, &style) {
+            match self.role(element, &style, &selector_context) {
                 InlineFormattingRole::Atomic(kind) => {
                     segment_has_atomic |= requires_segment(kind);
                 }

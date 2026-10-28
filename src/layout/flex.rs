@@ -24,6 +24,7 @@ use super::engine::{
 };
 use super::inline_formatting::{
     GeneratedBox, GeneratedContentStyles, GeneratedInlineContent, InlineContentSequence,
+    InlineFormattingContext, InlineFormattingRole,
 };
 use super::paginate::estimate_element_height;
 use super::roundoff::{equal_with_roundoff, exceeds_with_roundoff, is_positive_with_roundoff};
@@ -1305,6 +1306,8 @@ fn classify_flex_item_contents(
     env: &LayoutEnv,
 ) -> FlexItemContents {
     let mut contents = FlexItemContents::default();
+    let inline_context =
+        InlineFormattingContext::new(item_style, env.rules, ancestors, env.font_metrics());
     let sibling_count = item
         .children
         .iter()
@@ -1387,6 +1390,7 @@ fn classify_flex_item_contents(
                     | Display::TableColumn
                     | Display::TableCaption
             )
+            || inline_context.role(child, &style, &selector_ctx) == InlineFormattingRole::Outside
         {
             contents.structured = true;
         }
