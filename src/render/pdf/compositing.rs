@@ -6,6 +6,8 @@ use super::*;
 /// cells, and rasterized filter replacements: transform, clip, mask, then
 /// opacity/blending of the isolated result.
 pub(super) struct PaintGroupScope {
+    /// The owner's marked content around a group cut into a form XObject.
+    mark: super::structure::OpenMark,
     group_start: Option<usize>,
     prior_paint_transform: Option<PdfMatrix>,
     clipped: bool,
@@ -25,6 +27,17 @@ impl PaintGroupScope {
         let group = owner.paint_group();
         let effects = &group.effects;
         let grouped = effects.needs_source_isolation();
+        // Content cut into a form XObject inherits the marked content that
+        // invokes the form, so the owner's mark opens before the cut point
+        // and nothing inside the form allocates an MCID of its own.
+        let mark = if grouped || effects.masking.image.is_some() {
+            ctx.text
+                .pdf_writer
+                .structure
+                .begin_group(content, group.owner)
+        } else {
+            super::structure::OpenMark::Skipped
+        };
         let group_start = grouped.then_some(content.len());
 
         let resolved_transform = group.transform.value.as_ref().map(|transform| {
@@ -64,6 +77,7 @@ impl PaintGroupScope {
         });
 
         Self {
+            mark,
             group_start,
             prior_paint_transform,
             clipped,
@@ -102,6 +116,7 @@ impl PaintGroupScope {
                 self.paint_box,
             );
         }
+        ctx.text.pdf_writer.structure.end(content, self.mark);
     }
 }
 

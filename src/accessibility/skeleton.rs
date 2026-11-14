@@ -32,6 +32,8 @@ pub(crate) struct NodeFacts {
     pub(crate) col_span: u32,
     pub(crate) row_span: u32,
     pub(crate) id: Option<String>,
+    /// The `src` attribute, for diagnostics.
+    pub(crate) source: Option<String>,
     pub(crate) formula_source: Option<String>,
     /// The `<title>` child of an inline `<svg>`, its accessible name.
     pub(crate) svg_title: Option<String>,
@@ -98,8 +100,12 @@ impl StructureSkeleton {
         skeleton
     }
 
+    /// Every node in pre-order; index 0 is the `Document`.
+    pub(crate) fn nodes(&self) -> &[SkeletonNode] {
+        &self.nodes
+    }
+
     /// The node assigned `ordinal`, if the skeleton assigned one.
-    #[allow(dead_code)] // read by the structure tree builder
     pub(crate) fn node(&self, ordinal: ElementOrdinal) -> Option<&SkeletonNode> {
         ordinal
             .skeleton_index()
@@ -132,11 +138,24 @@ impl NodeFacts {
             col_span: span_attribute(element, "colspan", 1, 1000),
             row_span: span_attribute(element, "rowspan", 1, 65_534),
             id: attribute("id"),
+            source: attribute("src"),
             formula_source: attribute("data-math"),
             svg_title: (element.tag == HtmlTag::Svg)
                 .then(|| svg_title(element))
                 .flatten(),
         }
+    }
+}
+
+impl NodeFacts {
+    /// The text alternative of a figure, in HTML accessible-name order:
+    /// `alt`, then `aria-label`, `title`, and an inline SVG's `<title>`.
+    pub(crate) fn accessible_name(&self) -> Option<&str> {
+        [&self.alt, &self.aria_label, &self.title, &self.svg_title]
+            .into_iter()
+            .filter_map(|name| name.as_deref())
+            .map(str::trim)
+            .find(|name| !name.is_empty())
     }
 }
 

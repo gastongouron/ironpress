@@ -4,6 +4,10 @@ use super::*;
 pub(super) struct LinkAnnotation {
     pub(super) rect: PdfRect,
     pub(super) url: String,
+    /// The link element the annotation belongs to in the structure tree.
+    pub(super) owner: crate::accessibility::StructureRef,
+    /// The linked text, for the annotation's `/Contents` description.
+    pub(super) text: String,
 }
 
 pub(super) fn text_run_link_annotation(run: &TextRun, rect: PdfRect) -> Option<LinkAnnotation> {
@@ -17,7 +21,75 @@ pub(super) fn text_run_link_annotation(run: &TextRun, rect: PdfRect) -> Option<L
     Some(LinkAnnotation {
         rect,
         url: url.clone(),
+        owner: run.metadata.structure,
+        text: run.text.clone(),
     })
+}
+
+/// The 9 pt grey text of `--header` and `--footer`, as an embedded-font run.
+///
+/// Untagged output keeps painting it with the unembedded base-14 Helvetica;
+/// accessible output must embed every font a text operator reaches
+/// (ISO 14289-1 7.21.4.1), so it goes through the same path as margin boxes.
+pub(super) fn page_text_run(text: &str, custom_fonts: &HashMap<String, TtfFont>) -> TextRun {
+    TextRun {
+        text: text.to_string(),
+        font_size: 9.0,
+        color: crate::types::Color {
+            r: 102.0,
+            g: 102.0,
+            b: 102.0,
+            a: 255.0,
+        },
+        font_family: crate::system_fonts::resolve_font_family(
+            &crate::style::computed::FontStack::from_family(FontFamily::Helvetica),
+            custom_fonts,
+            false,
+            false,
+            crate::parser::css::FontStretch::default(),
+        ),
+        line_height_factor: 1.2,
+        ..Default::default()
+    }
+}
+
+/// Paint one `--header`/`--footer` string with its baseline at `origin`.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn paint_page_text(
+    content: &mut String,
+    text: &str,
+    origin: PdfPoint,
+    custom_fonts: &HashMap<String, TtfFont>,
+    prepared_custom_fonts: &PreparedCustomFonts,
+    pdf_writer: &mut PdfWriter,
+    page_images: &mut Vec<ImageRef>,
+) {
+    if !pdf_writer.structure.is_enabled() {
+        let encoded = encode_pdf_text(text);
+        content.push_str("BT\n");
+        content.push_str("/Helvetica 9 Tf\n");
+        content.push_str("0.4 0.4 0.4 rg\n");
+        content.push_str(&format!("{} {} Td\n", origin.x, origin.y));
+        content.push_str(&format!("({encoded}) Tj\n"));
+        content.push_str("ET\n");
+        return;
+    }
+    let runs = vec![page_text_run(text, custom_fonts)];
+    let line_box = PageMarginLineBox::from_runs(&runs, custom_fonts);
+    paint_horizontal_line_text(
+        content,
+        &runs,
+        HorizontalLinePaint {
+            origin,
+            line_ascender: line_box.baseline_from_top,
+            justification_word_spacing: 0.0,
+            text_space: PdfContentSpace::Points,
+        },
+        custom_fonts,
+        prepared_custom_fonts,
+        pdf_writer,
+        page_images,
+    );
 }
 
 /// A bookmark entry for PDF outline (table of contents).
@@ -892,6 +964,7 @@ pub(super) fn margin_box_font_usage(
     pages: &[Page],
     decoration: Option<&PageDecoration>,
     custom_fonts: &HashMap<String, TtfFont>,
+    embed_page_text: bool,
 ) -> MarginBoxFontUsage {
     let Some(decoration) = decoration else {
         return MarginBoxFontUsage::default();
@@ -903,6 +976,17 @@ pub(super) fn margin_box_font_usage(
 
     for (page_index, (page, runs)) in pages.iter().zip(&mut usage.per_page_runs).enumerate() {
         let page_number = page_index + 1;
+        if embed_page_text {
+            for text in [&decoration.header, &decoration.footer]
+                .into_iter()
+                .flatten()
+            {
+                let text = text
+                    .replace("{page}", &page_number.to_string())
+                    .replace("{pages}", &pages.len().to_string());
+                runs.push(page_text_run(&text, custom_fonts));
+            }
+        }
         for (margin_box_index, margin_box) in decoration.margin_boxes.iter().enumerate() {
             if !page_margin_box_wins(
                 &decoration.margin_boxes,

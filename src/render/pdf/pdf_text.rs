@@ -145,7 +145,7 @@ end\n",
 /// PDFDocEncoding), otherwise a hex string of UTF-16BE with a byte-order mark.
 /// Used for the dictionary strings assistive technology reads (`/Title`,
 /// `/Alt`, `/ActualText`, `/Contents`, `/Lang`).
-pub(super) struct PdfTextString(String);
+pub(crate) struct PdfTextString(String);
 
 impl From<&str> for PdfTextString {
     fn from(text: &str) -> Self {

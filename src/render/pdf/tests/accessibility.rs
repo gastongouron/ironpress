@@ -1,28 +1,46 @@
-use crate::accessibility::{DocumentLanguage, DocumentMetadata, DocumentTitle};
+use crate::accessibility::{
+    DocumentLanguage, DocumentMetadata, DocumentStructure, DocumentTitle, MissingAltPolicy,
+    StructureRef, StructureSkeleton,
+};
 use crate::render::pdf::PdfWriter;
+use crate::render::pdf::structure::{MarkKind, StructureRecorder};
 use crate::render::pdf::writer_output::PagePaintStreams;
 
-fn metadata(title: &str, language: &str) -> DocumentMetadata {
-    DocumentMetadata {
-        title: title.parse::<DocumentTitle>().unwrap(),
-        language: language.parse::<DocumentLanguage>().unwrap(),
-    }
-}
-
-fn one_page_pdf(tagged: Option<&DocumentMetadata>) -> String {
+fn tagged_writer(title: &str, language: &str) -> PdfWriter {
     let mut writer = PdfWriter::new();
     writer.opts.compress = false;
+    writer.structure = StructureRecorder::for_document(&DocumentStructure {
+        metadata: DocumentMetadata {
+            title: title.parse::<DocumentTitle>().unwrap(),
+            language: language.parse::<DocumentLanguage>().unwrap(),
+        },
+        skeleton: StructureSkeleton::assign(&mut []),
+        missing_alt: MissingAltPolicy::Error,
+    });
+    writer
+}
+
+/// One page with a marked text object and an unmarked filled rectangle.
+fn one_page_pdf(mut writer: PdfWriter) -> String {
+    let mut content = String::new();
+    let mark = writer
+        .structure
+        .begin_content(&mut content, StructureRef::Untagged, MarkKind::Text);
+    content.push_str("BT /F1 12 Tf (x) Tj ET\n");
+    writer.structure.end(&mut content, mark);
+    content.push_str("0 0 10 10 re\nf\n");
+    writer.structure.normalize_page_stream(&mut content);
     writer.add_page(
         100.0,
         100.0,
-        PagePaintStreams::document_only("0 0 10 10 re f"),
+        PagePaintStreams::document_only(&content),
         Vec::new(),
         Vec::new(),
         Vec::new(),
         Vec::new(),
     );
     let mut pdf = Vec::new();
-    writer.finish_to_writer(&mut pdf, &[], tagged).unwrap();
+    writer.finish_to_writer(&mut pdf, &[]).unwrap();
     String::from_utf8(pdf).unwrap()
 }
 
@@ -51,7 +69,7 @@ fn tagged_documents_declare_pdf_ua_1_in_the_catalog_and_metadata() {
     // 7.1-8 (XMP dc:title) and 7.1-10 (/ViewerPreferences /DisplayDocTitle
     // true); ISO 32000-1 14.3.2 (/Metadata stream typed /Metadata /XML) and
     // 14.7.2 (every structure element has /P).
-    let pdf = one_page_pdf(Some(&metadata("Quarterly report", "en-GB")));
+    let pdf = one_page_pdf(tagged_writer("Quarterly report", "en-GB"));
     assert!(pdf.starts_with("%PDF-1.7\n"), "{pdf}");
 
     let trailer = &pdf[pdf.find("trailer").unwrap()..];
@@ -67,11 +85,16 @@ fn tagged_documents_declare_pdf_ua_1_in_the_catalog_and_metadata() {
         "{catalog}"
     );
 
-    let root = object(&pdf, referenced_id(catalog, "/StructTreeRoot"));
-    assert!(root.contains("/Type /StructTreeRoot /K ["), "{root}");
-    let document = object(&pdf, referenced_id(root, "/K ["));
+    let root_id = referenced_id(catalog, "/StructTreeRoot");
+    let root = object(&pdf, root_id);
+    let document_id = root_id + 1;
     assert!(
-        document.contains("/Type /StructElem /S /Document /P "),
+        root.contains(&format!("/Type /StructTreeRoot /K [{document_id} 0 R]")),
+        "{root}"
+    );
+    let document = object(&pdf, document_id);
+    assert!(
+        document.contains(&format!("/Type /StructElem /S /Document /P {root_id} 0 R")),
         "{document}"
     );
     assert!(document.contains("/Lang (en-GB)"), "{document}");
@@ -89,10 +112,45 @@ fn tagged_documents_declare_pdf_ua_1_in_the_catalog_and_metadata() {
 }
 
 #[test]
+fn marked_content_resolves_through_the_parent_tree() {
+    // ISO 32000-1 14.7.4.4: the page's /StructParents key maps each MCID to
+    // its structure element; veraPDF 7.1-3 walks that path to decide whether
+    // content is tagged. Unmarked paint is wrapped as a Layout artifact.
+    let pdf = one_page_pdf(tagged_writer("T", "en"));
+    let trailer = &pdf[pdf.find("trailer").unwrap()..];
+    let catalog = object(&pdf, referenced_id(trailer, "/Root"));
+    let root_id = referenced_id(catalog, "/StructTreeRoot");
+    let document_id = root_id + 1;
+
+    let root = object(&pdf, root_id);
+    assert!(
+        root.contains(&format!("/ParentTree << /Nums [0 [{document_id} 0 R]] >>")),
+        "{root}"
+    );
+    assert!(root.contains("/ParentTreeNextKey 1"), "{root}");
+
+    let document = object(&pdf, document_id);
+    assert!(document.contains("/K [0]"), "{document}");
+    assert!(document.contains("/Pg "), "{document}");
+
+    let page = object(&pdf, referenced_id(document, "/Pg"));
+    assert!(page.contains("/StructParents 0 /Tabs /S"), "{page}");
+
+    assert!(
+        pdf.contains("/Document << /MCID 0 >> BDC\nBT /F1 12 Tf (x) Tj ET\nEMC\n"),
+        "{pdf}"
+    );
+    assert!(
+        pdf.contains("/Artifact << /Type /Layout >> BDC\n0 0 10 10 re\nf\nEMC\n"),
+        "{pdf}"
+    );
+}
+
+#[test]
 fn tagged_cross_reference_offsets_account_for_the_longer_header() {
     // ISO 32000-1 7.5.4: every in-use xref entry holds the byte offset of its
     // object.
-    let pdf = one_page_pdf(Some(&metadata("T", "en")));
+    let pdf = one_page_pdf(tagged_writer("T", "en"));
     let xref = &pdf[pdf.find("xref\n").unwrap()..];
     let offsets: Vec<usize> = xref
         .lines()
@@ -113,16 +171,21 @@ fn tagged_cross_reference_offsets_account_for_the_longer_header() {
 
 #[test]
 fn untagged_documents_keep_the_historical_header_and_carry_no_tagging_keys() {
-    let pdf = one_page_pdf(None);
+    let mut writer = PdfWriter::new();
+    writer.opts.compress = false;
+    let pdf = one_page_pdf(writer);
     assert!(pdf.starts_with("%PDF-1.4\n"), "{pdf}");
     for key in [
         "/MarkInfo",
         "/StructTreeRoot",
+        "/StructParents",
         "/Metadata",
         "/Info",
         "/Lang",
         "/ViewerPreferences",
         "pdfuaid",
+        "BDC",
+        "EMC",
     ] {
         assert!(
             !pdf.contains(key),
@@ -135,7 +198,7 @@ fn untagged_documents_keep_the_historical_header_and_carry_no_tagging_keys() {
 fn non_ascii_titles_are_written_as_utf16_text_strings() {
     // ISO 32000-1 7.9.2.2: text strings outside PDFDocEncoding use UTF-16BE
     // with a byte-order mark.
-    let pdf = one_page_pdf(Some(&metadata("Résumé", "fr")));
+    let pdf = one_page_pdf(tagged_writer("Résumé", "fr"));
     assert!(
         pdf.contains("/Title <FEFF005200E900730075006D00E9>"),
         "{pdf}"

@@ -5,6 +5,8 @@
 
 #[cfg(test)]
 mod conversion_tests;
+#[cfg(test)]
+mod fixture_tests;
 mod identity;
 #[cfg(test)]
 mod layout_tests;
@@ -12,9 +14,10 @@ mod metadata;
 mod role;
 mod skeleton;
 
-pub(crate) use identity::{ElementOrdinal, ListNumbering, StructureRef};
+pub(crate) use identity::{ContentRole, ElementOrdinal, ListNumbering, StructureRef};
 pub(crate) use metadata::{DocumentMetadata, DocumentStructure};
-pub(crate) use skeleton::StructureSkeleton;
+pub(crate) use role::{HeadingLevel, StructureRole};
+pub(crate) use skeleton::{HeaderScope, NodeFacts, SkeletonNode, StructureSkeleton};
 
 use std::fmt;
 use std::str::FromStr;
@@ -180,6 +183,12 @@ pub(crate) enum AccessibilityError {
     MissingLanguage,
     /// The HTML carried a `lang` attribute that is not BCP 47.
     InvalidLanguage(InvalidDocumentLanguage),
+    /// An image or formula has no text alternative (ISO 14289-1 7.3 and 7.7,
+    /// veraPDF rules 7.3-1 and 7.7-1: Figure and Formula need /Alt).
+    MissingAltText {
+        /// The element, as `<img src="…">` or `<svg>`.
+        element: String,
+    },
 }
 
 impl fmt::Display for AccessibilityError {
@@ -198,6 +207,12 @@ impl fmt::Display for AccessibilityError {
                 formatter,
                 "PDF/UA: the HTML lang attribute {reason}; fix the attribute, \
                  or override it with HtmlConverter::document_language (CLI: --lang)"
+            ),
+            Self::MissingAltText { element } => write!(
+                formatter,
+                "PDF/UA: {element} has no text alternative; add an alt attribute \
+                 (alt=\"\" for a purely decorative image), or set \
+                 TaggedPdf::missing_alt to MissingAltPolicy::Artifact to hide such images"
             ),
         }
     }

@@ -364,6 +364,18 @@ pub(crate) struct TableFragmentation {
     pub(crate) repeats_as_footer: bool,
     pub(crate) avoid_inside: bool,
     pub(crate) avoid_group: Option<TableFragmentGroup>,
+    pub(crate) instance: RowInstance,
+}
+
+/// Whether a row is the authored row or a copy pagination repeated.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum RowInstance {
+    #[default]
+    Original,
+    /// A `<thead>`/`<tfoot>` row re-emitted on a later page. Page furniture
+    /// for assistive technology, which would otherwise hear every column
+    /// header again on every page.
+    RepeatedCopy,
 }
 
 /// Identity of one authored row group whose rows must move together.

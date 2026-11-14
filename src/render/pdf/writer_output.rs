@@ -153,14 +153,31 @@ impl PdfWriter {
             }
             None => format!("{document_id} 0 R"),
         };
+        // Hidden content never produces a link: ISO 14289-1 7.18.5 wants
+        // every link annotation inside a Link element.
+        let mut annotations = annotations;
+        if self.structure.is_enabled() {
+            annotations
+                .retain(|annot| annot.owner != crate::accessibility::StructureRef::Decorative);
+        }
         let page_id = self.objects.len() + annotations.len() + 1;
+        let page_keys = self.structure.page_keys(annotations.len());
 
         // Annotation objects
         let mut annot_ids = Vec::new();
-        for annot in &annotations {
+        let mut annotation_records = Vec::new();
+        for (index, annot) in annotations.iter().enumerate() {
             let annot_id = self.next_id();
+            let tagging = page_keys.as_ref().map_or_else(String::new, |keys| {
+                format!(
+                    " /F 4 /Contents {} /StructParent {}",
+                    self.structure
+                        .link_description(annot.owner, &annot.text, &annot.url),
+                    keys.annotations[index],
+                )
+            });
             self.objects.push(format!(
-                "{annot_id} 0 obj\n<< /Type /Annot /Subtype /Link /P {page_id} 0 R /Rect [{x1} {y1} {x2} {y2}] /Border [0 0 0] /A << /Type /Action /S /URI /URI ({uri}) >> >>\nendobj",
+                "{annot_id} 0 obj\n<< /Type /Annot /Subtype /Link /P {page_id} 0 R /Rect [{x1} {y1} {x2} {y2}] /Border [0 0 0] /A << /Type /Action /S /URI /URI ({uri}) >>{tagging} >>\nendobj",
                 page_id = page_id,
                 x1 = annot.rect.left,
                 y1 = annot.rect.bottom,
@@ -169,12 +186,25 @@ impl PdfWriter {
                 uri = escape_pdf_string(&annot.url),
             ));
             annot_ids.push(annot_id);
+            if let Some(keys) = &page_keys {
+                annotation_records.push(super::structure::AnnotationRecord {
+                    key: keys.annotations[index],
+                    object_id: annot_id,
+                    owner: annot.owner,
+                });
+            }
         }
 
         // Page object (placeholder — will be updated in finish())
+        let page_tagging = page_keys.as_ref().map_or_else(String::new, |keys| {
+            format!(" /StructParents {} /Tabs /S", keys.page)
+        });
         self.objects.push(format!(
-            "{page_id} 0 obj\n<< /Type /Page /MediaBox [0 0 {width} {height}] /Contents {page_contents} >>\nendobj",
+            "{page_id} 0 obj\n<< /Type /Page /MediaBox [0 0 {width} {height}]{page_tagging} /Contents {page_contents} >>\nendobj",
         ));
+        if let Some(keys) = page_keys {
+            self.structure.finish_page(keys, annotation_records);
+        }
 
         self.page_ids.push(page_id);
         self.page_annotations.push(annot_ids);
@@ -212,15 +242,15 @@ impl PdfWriter {
         self,
         out: &mut W,
         bookmarks: &[BookmarkEntry],
-        tagged: Option<&crate::accessibility::DocumentMetadata>,
     ) -> Result<(), IronpressError> {
         let mut bytes_written: usize = 0;
         // ISO 14289-1 is written against PDF 1.7, and `/Tabs` and
         // `/ActualText` are PDF 1.5 constructs; untagged output keeps its
         // historical header.
-        let header: &[u8] = match tagged {
-            Some(_) => b"%PDF-1.7\n",
-            None => b"%PDF-1.4\n",
+        let header: &[u8] = if self.structure.is_enabled() {
+            b"%PDF-1.7\n"
+        } else {
+            b"%PDF-1.4\n"
         };
         out.write_all(header)?;
         bytes_written += header.len();
@@ -565,9 +595,17 @@ impl PdfWriter {
 
         // Structure tree root, XMP metadata and document information for
         // accessible output; nothing is appended otherwise.
-        let tagged_objects = tagged.map(|metadata| {
-            super::structure::TaggedDocumentObjects::append_to(&mut all_objects, metadata)
-        });
+        let tagged_objects = self
+            .structure
+            .into_tagging()
+            .map(|tagging| {
+                super::structure::TaggedDocumentObjects::append_to(
+                    &mut all_objects,
+                    tagging,
+                    &self.page_ids,
+                )
+            })
+            .transpose()?;
         let (catalog_tagging, trailer_tagging) = match &tagged_objects {
             Some(objects) => (objects.catalog_entries(), objects.trailer_entries()),
             None => ("", ""),

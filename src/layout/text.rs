@@ -3336,6 +3336,7 @@ fn build_inline_box(
     };
 
     Some(InlineBox {
+        structure: Default::default(),
         width: total_w,
         height: total_h,
         margin_left: style.margin.left.max(0.0),

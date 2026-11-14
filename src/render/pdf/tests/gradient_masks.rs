@@ -414,7 +414,7 @@ fn local_form_resources_are_exact_and_acyclic() {
     );
 
     let mut pdf = Vec::new();
-    writer.finish_to_writer(&mut pdf, &[], None).unwrap();
+    writer.finish_to_writer(&mut pdf, &[]).unwrap();
     let pdf = String::from_utf8_lossy(&pdf);
     let object = |id| {
         let start = pdf.find(&format!("{id} 0 obj\n")).unwrap();
@@ -488,7 +488,7 @@ fn alpha_conic_mask_uses_a_vector_luminosity_shading() {
         Vec::new(),
     );
     let mut pdf = Vec::new();
-    writer.finish_to_writer(&mut pdf, &[], None).unwrap();
+    writer.finish_to_writer(&mut pdf, &[]).unwrap();
     let pdf = String::from_utf8_lossy(&pdf);
     let start = pdf.find(&format!("{form_id} 0 obj\n")).unwrap();
     let form = &pdf[start..start + pdf[start..].find("endobj").unwrap()];

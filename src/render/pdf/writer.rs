@@ -62,6 +62,8 @@ pub(crate) struct PdfWriter {
     pub(super) opts: RenderOpts,
     pub(super) page_content_transform: PageContentTransform,
     pub(super) graphics_state: PdfGraphicsState,
+    /// Marked-content recording for accessible output; disabled by default.
+    pub(crate) structure: super::structure::StructureRecorder,
 }
 
 /// Renderer-owned subset of the PDF graphics state which cannot be recovered

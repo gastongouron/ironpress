@@ -264,6 +264,14 @@ pub(super) fn render_run_glyph_layers_in_space(
         );
     }
 
+    // The run's marked content; recursive fallback and shadow calls join it
+    // or paint as artifacts, so the mark opens exactly once per run.
+    let mark = pdf_writer.structure.begin_content(
+        content,
+        run.metadata.structure,
+        super::structure::MarkKind::Text,
+    );
+
     // For runs with mixed scripts (e.g. "Chinese: 你好世界"), split into
     // segments and render each with the appropriate font: primary font for
     // characters it covers, fallback font for the rest.
@@ -342,6 +350,7 @@ pub(super) fn render_run_glyph_layers_in_space(
                 total_width += letter_spacing;
             }
         }
+        pdf_writer.structure.end(content, mark);
         return run.inline_advance(total_width);
     }
 
@@ -452,6 +461,7 @@ pub(super) fn render_run_glyph_layers_in_space(
     if let Some(end) = text_space.end_operator() {
         content.push_str(end);
     }
+    pdf_writer.structure.end(content, mark);
     run_width
 }
 
@@ -506,6 +516,8 @@ fn paint_run_text_shadows_at_baseline(
             // on the recursive call so the shift is not applied twice.
             shadow_run.vertical_align = VerticalAlign::Baseline;
             shadow_run.metadata.emphasis = Default::default();
+            // A shadow repeats the glyphs: an artifact, or readers hear it twice.
+            shadow_run.metadata.structure = crate::accessibility::StructureRef::Decorative;
             render_run_glyph_layers_in_space(
                 content,
                 &shadow_run,

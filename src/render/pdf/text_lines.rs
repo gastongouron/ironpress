@@ -156,6 +156,9 @@ pub(super) fn render_inline_box(
     let fragment_geometry = box_geometry.fragment(Default::default());
     let background_box =
         paint_geometry.background_clip_box(BackgroundClip::Border, inline.paint.border_radii);
+    // A list bullet is its item's label; any other box leaves marking to
+    // the text lines it contains.
+    let label = pdf_writer.structure.begin_label(content, inline.structure);
 
     // Background fill.
     if let Some(background) = inline.paint.background_color {
@@ -256,6 +259,7 @@ pub(super) fn render_inline_box(
             );
         }
     }
+    pdf_writer.structure.end(content, label);
 }
 
 fn paint_centered_inline_stroke(

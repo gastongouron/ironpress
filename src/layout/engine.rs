@@ -4400,6 +4400,9 @@ fn flatten_element_with_running_mode(
                 ));
             for run in &mut runs[marker_run_start..] {
                 run.metadata.structure = marker_label;
+                if let Some(inline) = run.inline_box.as_deref_mut() {
+                    inline.structure = marker_label;
+                }
             }
             if marker_suffix_gap > 0.0 {
                 runs.push(TextRun {

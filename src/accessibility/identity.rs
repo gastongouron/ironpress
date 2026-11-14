@@ -20,6 +20,9 @@ impl ElementOrdinal {
     /// No skeleton node; the element contributes to its nearest ancestor.
     pub(crate) const ANONYMOUS: Self = Self(0);
 
+    /// The `Document` root, which owns content without a known element.
+    pub(crate) const DOCUMENT: Self = Self(1);
+
     pub(crate) fn is_anonymous(self) -> bool {
         self == Self::ANONYMOUS
     }
@@ -108,6 +111,23 @@ pub(crate) enum ListNumbering {
     LowerRoman,
     UpperAlpha,
     LowerAlpha,
+}
+
+impl ListNumbering {
+    /// The `/ListNumbering` name (ISO 32000-1 Table 347).
+    pub(crate) fn pdf_name(self) -> &'static str {
+        match self {
+            Self::None => "None",
+            Self::Disc => "Disc",
+            Self::Circle => "Circle",
+            Self::Square => "Square",
+            Self::Decimal => "Decimal",
+            Self::UpperRoman => "UpperRoman",
+            Self::LowerRoman => "LowerRoman",
+            Self::UpperAlpha => "UpperAlpha",
+            Self::LowerAlpha => "LowerAlpha",
+        }
+    }
 }
 
 impl From<&ListStyleType> for ListNumbering {

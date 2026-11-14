@@ -610,6 +610,7 @@ impl EffectiveTableSectionRole {
             repeats_as_footer: matches!(self, Self::Footer),
             avoid_inside,
             avoid_group,
+            instance: crate::layout::elements::RowInstance::Original,
         }
     }
 }

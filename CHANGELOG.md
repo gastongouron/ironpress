@@ -4,14 +4,19 @@
 
 ### Added
 
-- Opt-in accessible output. `HtmlConverter::accessible(true)`, `document_title`,
+- Opt-in accessible output: `HtmlConverter::accessible(true)`, `document_title`,
   `document_language` and `tagged_pdf`, and the CLI flags `--accessible`,
-  `--lang` and `--title`, request a Tagged PDF conforming to PDF/UA-1. This
-  first step writes the identification and metadata (`%PDF-1.7`, catalog
-  `/MarkInfo`, `/Lang`, `/StructTreeRoot`, `/ViewerPreferences`, XMP
-  `pdfuaid:part` and `dc:title`, `/Info`) and fails with a hint when the
-  document title or language cannot be determined; content tagging follows.
-  Output without the option is byte-identical to before.
+  `--lang` and `--title`, produce a Tagged PDF conforming to PDF/UA-1. The
+  structure tree follows the document (headings normalized to a valid
+  sequence, paragraphs, lists with `Lbl`/`LBody`, tables with explicit header
+  scope and a regular grid, figures with `alt`, links with descriptions),
+  headers, footers, repeated table header rows and other decoration are
+  artifacts, header text is painted with an embedded font, and the catalog
+  carries `/MarkInfo`, `/Lang`, `/StructTreeRoot`, `/ViewerPreferences` and
+  XMP metadata with `pdfuaid:part` and `dc:title`. A missing title, language
+  or image `alt` is reported as a `RenderError` with a fix hint. The
+  `tests/pdfua/` fixture validates with veraPDF's `ua1` profile; output
+  without the option is byte-identical to before.
 
 ### Changed
 

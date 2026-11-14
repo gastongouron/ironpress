@@ -64,6 +64,9 @@ pub struct InlineBox {
     /// CSS relative-position paint offset (right, down) in points.
     pub rel_offset_x: f32,
     pub rel_offset_y: f32,
+    /// The element this box belongs to; a list bullet carries its item's
+    /// label role so the renderer can mark it as the `Lbl`.
+    pub structure: crate::accessibility::StructureRef,
 }
 
 impl InlineBox {

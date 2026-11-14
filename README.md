@@ -147,6 +147,7 @@ ironpress --page-size letter --landscape --margin 54 input.html output.pdf
 ironpress --header "Report" --footer "Page {page} of {pages}" input.html output.pdf
 ironpress --header-html '<strong>Report</strong>' input.html output.pdf
 echo '<h1>Hello</h1>' | ironpress --stdin output.pdf
+ironpress --accessible --lang en-GB --title "Quarterly report" input.html output.pdf
 ```
 
 ## Builder API
@@ -178,6 +179,41 @@ in one physical-DPI policy. Its default preserves sharp source/filter output
 while using 192 DPI for flattened synthetic backgrounds; lowering one field
 does not change page geometry. The CLI exposes the same controls through
 `--image-dpi`, `--filter-dpi`, and `--background-raster-dpi`.
+
+## Accessible PDFs
+
+`.accessible(true)` (CLI `--accessible`) produces a Tagged PDF that conforms
+to PDF/UA-1 (ISO 14289-1) for ordinary documents: a structure tree in document
+order (headings, paragraphs, lists, tables with header scope, figures with
+their `alt` text, links with descriptions), page furniture and decoration as
+artifacts, the language and title in the catalog and XMP metadata, and every
+font embedded. The fixture in `tests/pdfua/` passes veraPDF's `ua1` profile.
+Output without the option is byte-identical to before.
+
+```rust
+use ironpress::HtmlConverter;
+
+let pdf = HtmlConverter::new()
+    .accessible(true)
+    .document_language("en-GB".parse()?)   // overrides lang on <html>
+    .document_title("Quarterly report".parse()?) // overrides <title>, then the first heading
+    .convert(html)?;
+```
+
+The document needs a title (`<title>`, the first heading, or `.document_title`,
+CLI `--title`) and a language (`lang` on `<html>`, or `.document_language`,
+CLI `--lang`); Markdown input therefore needs `--lang`. An `<img>` without
+`alt` is an error, because a guessed description helps nobody; `alt=""` marks
+a decorative image, and `TaggedPdf { missing_alt: MissingAltPolicy::Artifact,
+.. }` hides every unnamed image instead. Heading levels are normalized in the
+structure tree (the first heading becomes H1 and no level is skipped); the
+outline keeps the authored levels.
+
+Known limits of the current step: display math, vertical CJK text and text
+inside `position: fixed` boxes are painted as artifacts (hidden from assistive
+technology); text inside an element with `opacity`, `mix-blend-mode` or a
+mask is one unit; right-to-left lines are in visual order; footnote text
+belongs to the document rather than to a `Note`.
 
 ## Features at a glance
 

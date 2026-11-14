@@ -3265,7 +3265,8 @@ pub(crate) fn paginate_with_context(
             // NOT flushed to the page edge — any reserved slack stays as
             // whitespace below it).
             if in_table_body && !pending_table_footers.is_empty() {
-                for footer in pending_table_footers.clone() {
+                for mut footer in pending_table_footers.clone() {
+                    footer.accept_mut(&mut MarkRepeatedRow);
                     let footer_h = row_content_height(&footer);
                     collect_footnotes_from_element(&footer, &mut current_footnotes);
                     current_elements.push((y, footer));
@@ -3304,7 +3305,8 @@ pub(crate) fn paginate_with_context(
                 && !suppress_repeated_headers_after_break
                 && !pending_table_headers.is_empty()
             {
-                for header in pending_table_headers.clone() {
+                for mut header in pending_table_headers.clone() {
+                    header.accept_mut(&mut MarkRepeatedRow);
                     let header_h = row_content_height(header.as_ref());
                     collect_footnotes_from_element(&header, &mut current_footnotes);
                     current_elements.push((y, header));
@@ -5001,5 +5003,14 @@ mod break_tests {
         );
         assert_eq!(pages.len(), 2);
         assert_eq!(pages[1].elements.len(), 1);
+    }
+}
+
+/// Flags re-emitted `<thead>`/`<tfoot>` rows as copies of the authored row.
+struct MarkRepeatedRow;
+
+impl crate::layout::elements::LayoutVisitorMut for MarkRepeatedRow {
+    fn visit_table_row(&mut self, element: &mut crate::layout::elements::TableRow) {
+        element.fragmentation.instance = crate::layout::elements::RowInstance::RepeatedCopy;
     }
 }

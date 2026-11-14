@@ -1,0 +1,26 @@
+name: PDF/UA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verapdf:
+    name: veraPDF ua1 (tests/pdfua)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Convert the fixture with accessible output
+        run: |
+          cargo run --quiet --bin ironpress -- --accessible \
+            --header "Quarterly report" --footer "Page {page} of {pages}" \
+            tests/pdfua/report.html target/pdfua-report.pdf
+      - name: Validate with veraPDF (PDF/UA-1 profile)
+        run: |
+          docker run --rm -v "$PWD/target:/data" \
+            ghcr.io/verapdf/cli@sha256:48318716fb12abb4e6532fb6fec40ea554b3ee6854bfe1be171baa3b9f329e21 \
+            --flavour ua1 --format text /data/pdfua-report.pdf | tee verapdf.txt
+          grep -q '^PASS ' verapdf.txt

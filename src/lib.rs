@@ -644,10 +644,14 @@ impl HtmlConverter {
         // The skeleton runs on the final tree (running header and footer
         // elements included) and only in accessible mode, so that default
         // output never sees an element ordinal.
-        let structure = metadata.map(|metadata| accessibility::DocumentStructure {
-            metadata,
-            skeleton: accessibility::StructureSkeleton::assign(&mut result.nodes),
-        });
+        let structure = match (&self.tagged_pdf, metadata) {
+            (Some(options), Some(metadata)) => Some(accessibility::DocumentStructure {
+                metadata,
+                skeleton: accessibility::StructureSkeleton::assign(&mut result.nodes),
+                missing_alt: options.missing_alt,
+            }),
+            _ => None,
+        };
         #[cfg(feature = "remote")]
         resource_loader.preload_document_resources(security::sanitizer::document_image_references(
             &result.nodes,

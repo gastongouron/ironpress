@@ -46,9 +46,58 @@ impl HeadingLevel {
     pub(crate) fn clamped(level: u32) -> Self {
         Self(level.clamp(1, 6) as u8)
     }
+
+    pub(crate) fn level(self) -> u8 {
+        self.0
+    }
+
+    /// `H1` through `H6`; the unnumbered `H` is never used (PDF/UA-1 7.4.2).
+    pub(crate) fn pdf_name(self) -> &'static str {
+        match self.0 {
+            1 => "H1",
+            2 => "H2",
+            3 => "H3",
+            4 => "H4",
+            5 => "H5",
+            _ => "H6",
+        }
+    }
 }
 
 impl StructureRole {
+    /// Whether content of this role gets a structure element of its own.
+    pub(crate) fn emits_element(self) -> bool {
+        !matches!(self, Self::Transparent | Self::Decorative)
+    }
+
+    /// The standard structure type name (ISO 32000-1 Tables 333 to 338).
+    pub(crate) fn pdf_name(self) -> &'static str {
+        match self {
+            Self::Document => "Document",
+            Self::Part => "Part",
+            Self::Art => "Art",
+            Self::Sect => "Sect",
+            Self::Div => "Div",
+            Self::BlockQuote => "BlockQuote",
+            Self::P => "P",
+            Self::Heading(level) => level.pdf_name(),
+            Self::L => "L",
+            Self::LI => "LI",
+            Self::Table => "Table",
+            Self::THead => "THead",
+            Self::TBody => "TBody",
+            Self::TFoot => "TFoot",
+            Self::TR => "TR",
+            Self::TH => "TH",
+            Self::TD => "TD",
+            Self::Caption => "Caption",
+            Self::Figure => "Figure",
+            Self::Formula => "Formula",
+            Self::Link => "Link",
+            Self::Span | Self::Transparent | Self::Decorative => "Span",
+        }
+    }
+
     /// Classify an element by its ARIA attributes first, then by its tag.
     pub(crate) fn classify(element: &ElementNode) -> Self {
         let attribute = |name: &str| element.attributes.get(name).map(|value| value.trim());

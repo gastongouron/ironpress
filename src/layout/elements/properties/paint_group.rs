@@ -134,7 +134,6 @@ impl BoxTransform {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct PaintGroup {
     /// The element this box belongs to, for the accessibility structure tree.
-    #[allow(dead_code)] // read by the renderer when marking content
     pub(crate) owner: crate::accessibility::StructureRef,
     pub(crate) stacking: Stacking,
     pub(crate) transform: BoxTransform,
