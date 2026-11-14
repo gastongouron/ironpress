@@ -269,7 +269,9 @@ pub(super) fn render_run_glyph_layers_in_space(
     let mark = pdf_writer.structure.begin_content(
         content,
         run.metadata.structure,
-        super::structure::MarkKind::Text,
+        super::structure::MarkKind::Text {
+            actual_text: run.metadata.hyphenation.actual_text(&run.text),
+        },
     );
 
     // For runs with mixed scripts (e.g. "Chinese: 你好世界"), split into

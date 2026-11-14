@@ -46,6 +46,26 @@ fn report_fixture_selects_no_base14_font() {
     assert!(base14.is_empty(), "{base14:?}");
 }
 
+/// ISO 32000-1 14.9.4: a hyphen the line breaker inserts at a soft hyphen
+/// is replaced by U+00AD in `/ActualText`, so the word reads unbroken.
+#[test]
+fn synthesized_line_end_hyphen_carries_actual_text() {
+    let pdf = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .convert(
+                r#"<html lang="en"><head><title>Hy</title></head><body>
+                <p style="width: 20pt; hyphens: manual">hy&shy;phenation</p></body></html>"#,
+            )
+            .unwrap(),
+    );
+    assert!(
+        pdf.contains("/P << /MCID 0 /ActualText <FEFF0068007900AD> >> BDC"),
+        "{pdf}"
+    );
+}
+
 #[test]
 fn report_fixture_carries_every_required_structure_type() {
     // ISO 32000-1 Tables 333–338 types as PDF/UA-1 7.1–7.9 and 7.18 use them;

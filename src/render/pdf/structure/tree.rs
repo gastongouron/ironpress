@@ -174,8 +174,8 @@ impl StructureTree {
                     TargetKind::Note => notes[node].push(recorded),
                     TargetKind::NoteLabel => note_labels[node].push(recorded),
                 }
-                if let MarkKind::Figure { bbox } = mark.kind {
-                    figure_boxes[node].get_or_insert(bbox);
+                if let MarkKind::Figure { bbox } = &mark.kind {
+                    figure_boxes[node].get_or_insert(*bbox);
                 }
                 targets.push(Target { node, kind });
             }

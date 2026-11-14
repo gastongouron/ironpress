@@ -40,24 +40,30 @@ pub(crate) struct Tagging {
 }
 
 /// What one MCID stands for.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) struct MarkRecord {
     pub(super) owner: StructureRef,
     pub(super) kind: MarkKind,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) enum MarkKind {
-    Text,
+    /// Text; `actual_text` is what a reader should see instead of the shown
+    /// glyphs (ISO 32000-1 14.9.4), for example a word whose line-end hyphen
+    /// the line breaker inserted.
+    Text { actual_text: Option<String> },
     /// A list item's geometric bullet.
     Label,
     /// A replaced image or inline SVG, with its painted box in default user
     /// space for the `Layout` `/BBox` attribute.
-    Figure {
-        bbox: PdfRect,
-    },
+    Figure { bbox: PdfRect },
     /// A composited paint group cut into a form XObject.
     Group,
+}
+
+impl MarkKind {
+    /// Text shown as is.
+    pub(crate) const TEXT: Self = Self::Text { actual_text: None };
 }
 
 /// Typed artifact regions painters open explicitly (ISO 32000-1 14.8.2.2);
@@ -168,7 +174,7 @@ impl StructureRecorder {
         if tagging.suppression > 0 || tagging.open > 0 {
             return OpenMark::Skipped;
         }
-        if tagging.paints_as_artifact(owner, kind) {
+        if tagging.paints_as_artifact(owner, &kind) {
             return tagging.begin_suppressing(content, "/Artifact BMC\n");
         }
         tagging.open += 1;
@@ -198,7 +204,7 @@ impl StructureRecorder {
         if tagging.suppression > 0 || tagging.open > 0 {
             return OpenMark::Skipped;
         }
-        if tagging.paints_as_artifact(owner, MarkKind::Group) {
+        if tagging.paints_as_artifact(owner, &MarkKind::Group) {
             return tagging.begin_suppressing(content, "/Artifact BMC\n");
         }
         tagging.begin_mark(content, owner, MarkKind::Group);
@@ -381,7 +387,7 @@ impl Tagging {
             StructureRef::Content { role, .. } => Some(role),
             _ => None,
         };
-        let tag = match (kind, footnote_role) {
+        let tag = match (&kind, footnote_role) {
             (MarkKind::Label, _) => "Lbl",
             (MarkKind::Figure { .. }, _) => "Figure",
             (_, Some(ContentRole::FootnoteCall)) => "Reference",
@@ -389,26 +395,31 @@ impl Tagging {
             (_, Some(ContentRole::NoteLabel)) => "Lbl",
             _ => self.emitting_role(owner).pdf_name(),
         };
-        let actual_text = match (kind, owner) {
+        let actual_text = match (&kind, owner) {
             (
                 MarkKind::Label,
                 StructureRef::Content {
                     role: ContentRole::Label(numbering),
                     ..
                 },
-            ) => numbering
-                .bullet()
-                .map(|bullet| format!(" /ActualText {}", PdfTextString::from(bullet)))
-                .unwrap_or_default(),
-            _ => String::new(),
-        };
+            ) => numbering.bullet().map(PdfTextString::from),
+            (
+                MarkKind::Text {
+                    actual_text: Some(text),
+                },
+                _,
+            ) => Some(PdfTextString::from(text.as_str())),
+            _ => None,
+        }
+        .map(|text| format!(" /ActualText {text}"))
+        .unwrap_or_default();
         content.push_str(&format!("/{tag} << /MCID {mcid}{actual_text} >> BDC\n"));
         self.current.push(MarkRecord { owner, kind });
     }
 
     /// Hidden content, and figures without a name under the `Artifact`
     /// policy, are painted as artifacts instead of being tagged.
-    fn paints_as_artifact(&self, owner: StructureRef, kind: MarkKind) -> bool {
+    fn paints_as_artifact(&self, owner: StructureRef, kind: &MarkKind) -> bool {
         if owner == StructureRef::Decorative {
             return true;
         }
@@ -492,7 +503,7 @@ mod tests {
     fn disabled_recorder_writes_nothing() {
         let mut recorder = StructureRecorder::default();
         let mut content = String::new();
-        let mark = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        let mark = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
         recorder.end(&mut content, mark);
         let region = recorder.begin_artifact(&mut content, ArtifactKind::Pagination);
         recorder.end(&mut content, region);
@@ -506,12 +517,12 @@ mod tests {
         // they are allocated densely from 0 per page.
         let (mut recorder, _nodes) = recorder("<p>a <em>b</em></p>");
         let mut content = String::new();
-        let outer = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
-        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::Text);
+        let outer = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
+        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::TEXT);
         assert!(matches!(inner, OpenMark::Skipped));
         recorder.end(&mut content, inner);
         recorder.end(&mut content, outer);
-        let next = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        let next = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
         recorder.end(&mut content, next);
         assert_eq!(
             content,
@@ -526,11 +537,11 @@ mod tests {
         let (mut recorder, _nodes) = recorder("<p>a</p>");
         let mut content = String::new();
         let region = recorder.begin_artifact(&mut content, ArtifactKind::Pagination);
-        let inside = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        let inside = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
         assert!(matches!(inside, OpenMark::Skipped));
         recorder.end(&mut content, inside);
         recorder.end(&mut content, region);
-        let hidden = recorder.begin_content(&mut content, StructureRef::Decorative, MarkKind::Text);
+        let hidden = recorder.begin_content(&mut content, StructureRef::Decorative, MarkKind::TEXT);
         recorder.end(&mut content, hidden);
         assert_eq!(
             content,
@@ -547,13 +558,13 @@ mod tests {
         // by the form /StructParents entry and numbered from zero.
         let (mut recorder, _nodes) = recorder("<div><p>a</p></div>");
         let mut content = String::new();
-        let first = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        let first = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
         recorder.end(&mut content, first);
         let group = recorder.begin_group(&mut content, content_ref(2));
-        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::Text);
+        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::TEXT);
         recorder.end(&mut content, inner);
         recorder.end_group(&mut content, group, Some(42));
-        let after = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        let after = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
         recorder.end(&mut content, after);
         assert_eq!(
             content,
@@ -570,10 +581,10 @@ mod tests {
     fn groups_left_inline_renumber_their_marks_into_the_page() {
         let (mut recorder, _nodes) = recorder("<div><p>a</p></div>");
         let mut content = String::new();
-        let first = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        let first = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
         recorder.end(&mut content, first);
         let group = recorder.begin_group(&mut content, content_ref(2));
-        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::Text);
+        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::TEXT);
         recorder.end(&mut content, inner);
         recorder.end_group(&mut content, group, None);
         assert_eq!(
@@ -602,6 +613,24 @@ mod tests {
         );
         let not_a_label = recorder.begin_label(&mut content, content_ref(3));
         assert!(matches!(not_a_label, OpenMark::Skipped));
+    }
+
+    #[test]
+    fn synthesized_hyphens_are_replaced_by_a_soft_hyphen_in_actual_text() {
+        // ISO 32000-1 14.9.4: a hyphen inserted at a line break is not part
+        // of the text; /ActualText carries the word with U+00AD instead.
+        let (mut recorder, _nodes) = recorder("<p>hyphenation</p>");
+        let mut content = String::new();
+        let kind = MarkKind::Text {
+            actual_text: crate::layout::engine::RunHyphenation::SynthesizedHyphen
+                .actual_text("hy-"),
+        };
+        let mark = recorder.begin_content(&mut content, content_ref(2), kind);
+        recorder.end(&mut content, mark);
+        assert_eq!(
+            content,
+            "/P << /MCID 0 /ActualText <FEFF0068007900AD> >> BDC\nEMC\n"
+        );
     }
 
     #[test]

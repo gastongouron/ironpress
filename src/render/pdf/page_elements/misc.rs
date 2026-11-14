@@ -65,7 +65,7 @@ pub(in crate::render::pdf) fn paint_math_block(
     let mark = text.pdf_writer.structure.begin_content(
         content,
         element.group.owner,
-        crate::render::pdf::structure::MarkKind::Text,
+        crate::render::pdf::structure::MarkKind::TEXT,
     );
     if text.pdf_writer.structure.font_policy().embeds_side_text() {
         for glyph in &element.layout.glyphs {

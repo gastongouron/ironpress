@@ -23,8 +23,9 @@
   XObject's own `/StructParents`, footnotes become `Reference` and `Note`
   elements with an `/IDTree`, vertical upright text is tagged, display
   formulas are `Formula` elements whose glyphs come from the embedded fonts,
-  and SVG `<text>` set in a standard font paints through the embedded face
-  body text uses.
+  SVG `<text>` set in a standard font paints through the embedded face body
+  text uses, and a hyphen inserted at a soft hyphen carries `/ActualText`
+  with U+00AD so the word reads unbroken.
 
 ### Changed
 

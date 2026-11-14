@@ -25,7 +25,7 @@ fn one_page_pdf(mut writer: PdfWriter) -> String {
     let mut content = String::new();
     let mark = writer
         .structure
-        .begin_content(&mut content, StructureRef::Untagged, MarkKind::Text);
+        .begin_content(&mut content, StructureRef::Untagged, MarkKind::TEXT);
     content.push_str("BT /F1 12 Tf (x) Tj ET\n");
     writer.structure.end(&mut content, mark);
     content.push_str("0 0 10 10 re\nf\n");

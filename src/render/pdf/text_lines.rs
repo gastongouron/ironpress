@@ -383,7 +383,7 @@ pub(super) fn render_upright_vertical_line_text(
             let upright = pdf_writer.structure.begin_content(
                 content,
                 run.metadata.structure,
-                super::structure::MarkKind::Text,
+                super::structure::MarkKind::TEXT,
             );
             let advance = render_upright_vertical_run(
                 content,

@@ -28,6 +28,7 @@ pub(crate) fn coalesce_text_runs(runs: &[TextRun]) -> Vec<TextRun> {
                 }
                 previous.text.push_str(&run.text);
                 previous.metadata.boundary = run.metadata.boundary;
+                previous.metadata.hyphenation = run.metadata.hyphenation;
             }
         } else {
             coalesced.push(run.clone());

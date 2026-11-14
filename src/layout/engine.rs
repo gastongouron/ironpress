@@ -827,9 +827,34 @@ impl InlineBoundaryAdvance {
     }
 }
 
+/// Whether a run ends in a hyphen the line breaker inserted at a soft
+/// hyphen. That hyphen is not part of the text: ISO 32000-1 14.9.4 replaces
+/// it by U+00AD in `/ActualText` so extraction and assistive technology read
+/// the unbroken word.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RunHyphenation {
+    #[default]
+    Authored,
+    SynthesizedHyphen,
+}
+
+impl RunHyphenation {
+    /// The text a reader should see instead of the shown glyphs, if any.
+    pub(crate) fn actual_text(self, shown: &str) -> Option<String> {
+        match self {
+            Self::Authored => None,
+            Self::SynthesizedHyphen => shown
+                .strip_suffix('-')
+                .map(|stem| format!("{stem}\u{00AD}")),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextRunMetadata {
     pub(crate) font_locale: crate::font_pack::FontLocale,
+    /// How this run ends at a line break.
+    pub(crate) hyphenation: RunHyphenation,
     /// The element whose content this run is, for the structure tree.
     pub(crate) structure: crate::accessibility::StructureRef,
     /// CSS `text-emphasis` state, kept together because its mark, colour,

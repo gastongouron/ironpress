@@ -1570,6 +1570,7 @@ fn finalize_soft_hyphen_line(runs: &mut [TextRun], broke_line: bool) {
                 run.text.pop();
             }
             run.text.push('-');
+            run.metadata.hyphenation = crate::layout::engine::RunHyphenation::SynthesizedHyphen;
         } else {
             run.text = strip_soft_hyphens(&run.text);
         }
