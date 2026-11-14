@@ -42,11 +42,14 @@ impl DocumentMetadata {
     }
 }
 
-/// Everything the renderer needs to tag a document. Grows with the structure
-/// skeleton once element identity flows through layout.
+/// Everything the renderer needs to tag a document.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DocumentStructure {
     pub(crate) metadata: DocumentMetadata,
+    /// Roles, parents and facts of every element, keyed by the ordinal that
+    /// layout carries on each run and box.
+    #[allow(dead_code)] // read by the structure tree builder
+    pub(crate) skeleton: super::StructureSkeleton,
 }
 
 /// The text of the first heading in document order, if it is non-blank.

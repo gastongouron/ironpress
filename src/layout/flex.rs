@@ -574,6 +574,9 @@ fn flex_cell_with_nested_item(elements: &[LayoutNode], mut cell: FlexCell) -> Fl
             continue;
         };
         cell.paint.box_paint.group = std::mem::take(owner.paint_group_mut());
+        // The nested item keeps its element identity: the cell paints the
+        // group, but the item is still the figure or text the tree describes.
+        owner.paint_group_mut().owner = cell.paint.box_paint.group.owner;
         break;
     }
     cell.paint.box_paint.group.stacking.role = StackingRole::FlexItem;
@@ -1175,7 +1178,8 @@ fn flex_intrinsic_container_width(
                     &child_el.attributes,
                     &selector_ctx,
                     env.font_metrics(),
-                );
+                )
+                .for_element(child_el);
                 if child_style.display == Display::None || child_style.position.is_absolute() {
                     continue;
                 }
@@ -1354,7 +1358,8 @@ fn classify_flex_item_contents(
             &child.attributes,
             &selector_ctx,
             env.font_metrics(),
-        );
+        )
+        .for_element(child);
         if style.display == Display::None {
             continue;
         }
@@ -1479,7 +1484,8 @@ pub(crate) fn layout_flex_container(
                 &child_el.attributes,
                 &selector_ctx,
                 env.font_metrics(),
-            );
+            )
+            .for_element(child_el);
             cs.position.is_absolute()
         })
         .collect();
@@ -1819,7 +1825,8 @@ pub(crate) fn layout_flex_container(
             &child_el.attributes,
             &selector_ctx,
             env.font_metrics(),
-        );
+        )
+        .for_element(child_el);
         if child_style.display == Display::None {
             continue;
         }
@@ -2885,7 +2892,8 @@ pub(crate) fn layout_flex_container(
                 &child_el.attributes,
                 &selector_ctx,
                 env.font_metrics(),
-            );
+            )
+            .for_element(child_el);
             // Force the item's cross size (its main size as a column flex) to the
             // stretched height. Translate the padding-box `inner_cross_size` to a
             // value the container's box-sizing interprets as that border-box.
@@ -3339,18 +3347,20 @@ pub(crate) fn layout_flex_container(
                             let relayout_selector_ctx = flex_child_positions[child_idx]
                                 .as_context()
                                 .selector_context(ancestors, child_el.children.is_empty());
-                            let relayout_child_style = compute_style_with_context_with_font_metrics(
-                                child_el.tag,
-                                child_el.style_attr(),
-                                &parent_for_children,
-                                env.rules,
-                                child_el.tag_name(),
-                                &relayout_classes,
-                                child_el.id(),
-                                &child_el.attributes,
-                                &relayout_selector_ctx,
-                                env.font_metrics(),
-                            );
+                            let relayout_child_style =
+                                compute_style_with_context_with_font_metrics(
+                                    child_el.tag,
+                                    child_el.style_attr(),
+                                    &parent_for_children,
+                                    env.rules,
+                                    child_el.tag_name(),
+                                    &relayout_classes,
+                                    child_el.id(),
+                                    &child_el.attributes,
+                                    &relayout_selector_ctx,
+                                    env.font_metrics(),
+                                )
+                                .for_element(child_el);
                             let relayout_generated_styles = GeneratedContentStyles::resolve(
                                 child_el,
                                 &relayout_child_style,
@@ -3470,18 +3480,20 @@ pub(crate) fn layout_flex_container(
                             let relayout_selector_ctx = flex_child_positions[child_idx]
                                 .as_context()
                                 .selector_context(ancestors, child_el.children.is_empty());
-                            let relayout_child_style = compute_style_with_context_with_font_metrics(
-                                child_el.tag,
-                                child_el.style_attr(),
-                                &parent_for_children,
-                                env.rules,
-                                child_el.tag_name(),
-                                &relayout_classes,
-                                child_el.id(),
-                                &child_el.attributes,
-                                &relayout_selector_ctx,
-                                env.font_metrics(),
-                            );
+                            let relayout_child_style =
+                                compute_style_with_context_with_font_metrics(
+                                    child_el.tag,
+                                    child_el.style_attr(),
+                                    &parent_for_children,
+                                    env.rules,
+                                    child_el.tag_name(),
+                                    &relayout_classes,
+                                    child_el.id(),
+                                    &child_el.attributes,
+                                    &relayout_selector_ctx,
+                                    env.font_metrics(),
+                                )
+                                .for_element(child_el);
                             let relayout_generated_styles = GeneratedContentStyles::resolve(
                                 child_el,
                                 &relayout_child_style,

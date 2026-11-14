@@ -75,7 +75,8 @@ fn resolved_metric_matches(previous: f32, next: f32) -> bool {
 }
 
 fn metadata_matches(previous: TextRunMetadata, next: TextRunMetadata) -> bool {
-    previous.emphasis == next.emphasis
+    previous.structure == next.structure
+        && previous.emphasis == next.emphasis
         && previous.spacing == next.spacing
         && previous.inline_decoration == next.inline_decoration
         && previous.is_drop_cap == next.is_drop_cap

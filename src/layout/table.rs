@@ -1001,6 +1001,7 @@ fn compute_column_style(
         &el.attributes,
         &selector_ctx,
     )
+    .for_element(el)
 }
 
 fn parse_element_width(el: &ElementNode) -> Option<TableTrackWidth> {
@@ -1345,6 +1346,7 @@ fn compute_caption_style(
         &caption_el.attributes,
         &caption_ctx,
     )
+    .for_element(caption_el)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1524,6 +1526,7 @@ fn resolve_fixed_table_columns(
                     &first_row.attributes,
                     &row_selector_ctx,
                 )
+                .for_element(first_row)
             });
         row_style.width = Some(table_width);
 
@@ -1572,6 +1575,7 @@ fn resolve_fixed_table_columns(
                     &cell_el.attributes,
                     &cell_selector_ctx,
                 )
+                .for_element(cell_el)
             });
 
             if let Some(width) = resolve_cell_track_width(cell_el, &cell_style, table_width) {
@@ -1727,6 +1731,7 @@ fn collapse_outer_horizontal_borders(
                     &first_row.attributes,
                     &row_selector_ctx,
                 )
+                .for_element(first_row)
             });
     let cells = table_row_cell_elements(first_row, &row_style, rules, &row_selector_ctx.ancestors);
     if cells.is_empty() {
@@ -1757,6 +1762,7 @@ fn collapse_outer_horizontal_borders(
                     .siblings(&authored_siblings)
                     .selector_context(&cell_ancestors, element_is_empty(cell)),
             )
+            .for_element(cell)
         })
     };
     let first = cell_border(cells[0]);
@@ -2362,6 +2368,7 @@ pub(crate) fn flatten_table(
                             &sizing_row_ctx,
                             FontMetrics::new(fonts),
                         )
+                        .for_element(row)
                     });
             // `display: none` and `visibility: collapse` rows are removed from the
             // table entirely (no cells, no reserved height), so skip measuring them.
@@ -2460,6 +2467,7 @@ pub(crate) fn flatten_table(
                                         &cell_sizing_ctx,
                                         FontMetrics::new(fonts),
                                     )
+                                    .for_element(cell_el)
                                 });
                             let cell_counter_scope =
                                 measurement_counter_state.enter_element(&cell_style);
@@ -2828,6 +2836,7 @@ pub(crate) fn flatten_table(
                         &row_selector_ctx,
                         FontMetrics::new(fonts),
                     )
+                    .for_element(row)
                 });
         // `display: none` rows are removed from the table entirely.
         if row_style.display == Display::None {
@@ -2920,6 +2929,7 @@ pub(crate) fn flatten_table(
                                 &cell_selector_ctx,
                                 FontMetrics::new(fonts),
                             )
+                            .for_element(cell_el)
                         });
                     let cell_border =
                         LayoutBorder::from_computed(&cell_style.border, cell_style.color);
@@ -3103,6 +3113,7 @@ pub(crate) fn flatten_table(
                     &cell_selector_ctx,
                     FontMetrics::new(fonts),
                 )
+                .for_element(cell_el)
             });
             let cell_counter_scope = counter_state.enter_element(&cell_style);
             let authored_generated = GeneratedContentStyles::resolve(
@@ -3827,7 +3838,8 @@ fn table_cell_edge_block_margins(
             &element.attributes,
             &selector_ctx,
             font_metrics,
-        );
+        )
+        .for_element(element);
         if child_style.display == Display::Inline {
             continue;
         }
@@ -4770,6 +4782,7 @@ mod cell_attribute_tests {
                 ..SelectorContext::default()
             },
         )
+        .for_element(&cell)
         .padding
     }
 

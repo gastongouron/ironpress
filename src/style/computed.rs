@@ -3279,6 +3279,9 @@ pub struct ComputedStyle {
     pub font_family: FontFamily,
     pub font_stack: FontStack,
     pub(crate) font_locale: crate::font_pack::FontLocale,
+    /// Identity of the element this style belongs to. Inherited on purpose:
+    /// an unstamped construct attributes its content to the nearest ancestor.
+    pub(crate) structure: crate::accessibility::StructureRef,
     pub color: Color,
     pub background_color: Option<Color>,
     pub margin: EdgeSizes,
@@ -3711,6 +3714,7 @@ impl Default for ComputedStyle {
             font_family: FontFamily::TimesRoman,
             font_stack: FontStack::default(),
             font_locale: crate::font_pack::FontLocale::Unspecified,
+            structure: crate::accessibility::StructureRef::Untagged,
             color: Color::BLACK,
             background_color: None,
             margin: EdgeSizes::default(),

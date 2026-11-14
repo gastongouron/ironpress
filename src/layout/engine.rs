@@ -830,6 +830,8 @@ impl InlineBoundaryAdvance {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextRunMetadata {
     pub(crate) font_locale: crate::font_pack::FontLocale,
+    /// The element whose content this run is, for the structure tree.
+    pub(crate) structure: crate::accessibility::StructureRef,
     /// CSS `text-emphasis` state, kept together because its mark, colour,
     /// position, and resolved ruby geometry must travel as one unit.
     pub emphasis: crate::layout::text_emphasis::TextEmphasis,
@@ -2005,7 +2007,8 @@ fn first_root_child_margin_top(
                     el.id(),
                     &selector_attributes_with_has(el),
                     &selector_ctx,
-                );
+                )
+                .for_element(el);
                 return style.margin.top;
             }
         }
@@ -2666,7 +2669,8 @@ fn direct_flex_item_filters(
             &child_el.attributes,
             &selector_ctx,
             env.font_metrics(),
-        );
+        )
+        .for_element(child_el);
         if child_style.display == Display::None || child_style.position.is_absolute() {
             continue;
         }
@@ -3272,7 +3276,8 @@ pub(crate) fn flatten_nodes(
                     &el.attributes,
                     &selector_ctx,
                     env.font_metrics(),
-                );
+                )
+                .for_element(el);
                 if let Some(marker) = string_set_marker(el, env.rules, ancestors, &selector_ctx) {
                     output.push(marker);
                 }
@@ -3483,7 +3488,8 @@ fn flatten_element_with_running_mode(
                 .map(|containing_block| containing_block.height),
         ),
         env.font_metrics(),
-    );
+    )
+    .for_element(el);
     let authored_display_contents =
         authored_display_contents(el, env.rules, ancestors, &selector_ctx);
     apply_authored_insets(&mut style, el, env.rules, ancestors, &selector_ctx);
@@ -4385,6 +4391,16 @@ fn flatten_element_with_running_mode(
                 } else {
                     0.0
                 };
+            // The marker is the item's `Lbl`; in untagged output the ref
+            // stays `Untagged`, so nothing changes.
+            let marker_label = style
+                .structure
+                .as_label(crate::accessibility::ListNumbering::from(
+                    &style.list_style_type,
+                ));
+            for run in &mut runs[marker_run_start..] {
+                run.metadata.structure = marker_label;
+            }
             if marker_suffix_gap > 0.0 {
                 runs.push(TextRun {
                     font_size: used_font_size(&style, env.fonts),
@@ -4711,7 +4727,8 @@ fn inline_loose_list_p(
                     &child_el.attributes,
                     &p_selector_ctx,
                     env.font_metrics(),
-                );
+                )
+                .for_element(child_el);
                 InlineRunCollector::new(
                     env.rules,
                     env.fonts,

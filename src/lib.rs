@@ -628,20 +628,26 @@ impl HtmlConverter {
 
         // Step 2: Parse HTML and extract stylesheets
         let mut result = parser::html::parse_html_with_styles(html)?;
-        let structure = self
+        let metadata = self
             .tagged_pdf
             .as_ref()
             .map(|options| {
                 accessibility::DocumentMetadata::resolve(options, &result.head, &result.nodes)
             })
-            .transpose()?
-            .map(|metadata| accessibility::DocumentStructure { metadata });
+            .transpose()?;
         self.page_margins.enrich_document(
             &mut result,
             self.sanitize,
             resource_loader.resources(),
         )?;
         security::sanitizer::sanitize_dom_resources(&mut result.nodes, resource_loader.resources());
+        // The skeleton runs on the final tree (running header and footer
+        // elements included) and only in accessible mode, so that default
+        // output never sees an element ordinal.
+        let structure = metadata.map(|metadata| accessibility::DocumentStructure {
+            metadata,
+            skeleton: accessibility::StructureSkeleton::assign(&mut result.nodes),
+        });
         #[cfg(feature = "remote")]
         resource_loader.preload_document_resources(security::sanitizer::document_image_references(
             &result.nodes,

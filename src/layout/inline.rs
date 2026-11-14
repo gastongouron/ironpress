@@ -744,7 +744,8 @@ pub(crate) fn layout_inline_mixed_sequence_with_env(
                     &el.attributes,
                     &selector_ctx,
                     env.font_metrics(),
-                );
+                )
+                .for_element(el);
                 if child_style.display == Display::None {
                     element_index += 1;
                     continue;
@@ -1010,7 +1011,8 @@ fn layout_inline_block_group_inner(
             &child_el.attributes,
             &selector_ctx,
             FontMetrics::new(fonts),
-        );
+        )
+        .for_element(child_el);
 
         if child_style.display == Display::None {
             continue;

@@ -353,7 +353,8 @@ fn has_direct_table_cell_child(
                 is_empty: element_is_empty(child),
             },
             font_metrics,
-        );
+        )
+        .for_element(child);
         child_index += 1;
         if style.display == Display::TableCell {
             return true;
@@ -2040,7 +2041,8 @@ pub(crate) fn layout_block_element(
                         &selector_attributes_with_has(child_el),
                         &child_selector_ctx,
                         env.font_metrics(),
-                    );
+                    )
+                    .for_element(child_el);
                     child_style.float != Float::None
                 }
                 DomNode::Text(text) => !has_non_collapsible_text(text),

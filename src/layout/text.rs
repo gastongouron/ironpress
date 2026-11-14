@@ -412,6 +412,7 @@ fn styled_text_run(
 pub(crate) fn text_run_metadata(style: &ComputedStyle) -> crate::layout::engine::TextRunMetadata {
     crate::layout::engine::TextRunMetadata {
         font_locale: style.font_locale,
+        structure: style.structure,
         emphasis: crate::layout::text_emphasis::TextEmphasis {
             mark: style.text_emphasis_mark,
             color: style.text_emphasis_color,
@@ -3616,7 +3617,8 @@ fn collect_text_runs_inner(
                     &el.attributes,
                     &selector_ctx,
                     FontMetrics::new(fonts),
-                );
+                )
+                .for_element(el);
                 let role = InlineFormattingRole::of(el, &style);
                 if context.accepts(role, el) {
                     if el.attributes.contains_key("data-math") {

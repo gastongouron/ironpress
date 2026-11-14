@@ -326,6 +326,7 @@ fn child_style(
         &el.attributes,
         selector,
     )
+    .for_element(el)
 }
 
 fn flush_inline(contributions: &mut Vec<IntrinsicWidths>, inline: &mut IntrinsicWidths) {

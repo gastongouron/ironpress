@@ -3046,6 +3046,7 @@ mod tests {
         }
         ElementNode {
             tag: HtmlTag::Unknown,
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
             raw_tag_name: raw_tag.to_string(),
             attributes,
             children: Vec::new(),
@@ -3059,6 +3060,7 @@ mod tests {
         }
         ElementNode {
             tag: HtmlTag::Svg,
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
             raw_tag_name: "svg".to_string(),
             attributes,
             children: children.into_iter().map(DomNode::Element).collect(),
@@ -4934,6 +4936,7 @@ mod tests {
         attrs_map.insert("height".to_string(), "10".to_string());
         let rect_el = ElementNode {
             tag: HtmlTag::Unknown,
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
             raw_tag_name: "rect".to_string(),
             attributes: attrs_map,
             children: vec![],
@@ -5309,6 +5312,7 @@ mod tests {
         attrs.insert("x1".to_string(), "50%".to_string());
         let el = ElementNode {
             tag: HtmlTag::Unknown,
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
             raw_tag_name: "linearGradient".to_string(),
             attributes: attrs,
             children: vec![],
@@ -5323,6 +5327,7 @@ mod tests {
         attrs.insert("x1".to_string(), "25".to_string());
         let el = ElementNode {
             tag: HtmlTag::Unknown,
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
             raw_tag_name: "linearGradient".to_string(),
             attributes: attrs,
             children: vec![],
@@ -5448,6 +5453,7 @@ mod tests {
         attrs.insert("width".to_string(), "50%".to_string());
         let el = ElementNode {
             tag: HtmlTag::Unknown,
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
             raw_tag_name: "svg".to_string(),
             attributes: attrs,
             children: vec![],

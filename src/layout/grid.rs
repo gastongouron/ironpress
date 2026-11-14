@@ -1362,6 +1362,7 @@ fn pseudo_element_node(style: &ComputedStyle) -> ElementNode {
     };
     ElementNode {
         tag: crate::parser::dom::HtmlTag::Span,
+        ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
         raw_tag_name: "span".to_string(),
         attributes: Default::default(),
         children,
@@ -2028,7 +2029,8 @@ fn layout_grid_item_content_inner(
                 is_empty: false,
             },
             env.font_metrics(),
-        );
+        )
+        .for_element(child_el);
         let role = InlineFormattingRole::of(child_el, &child_style);
         if matches!(
             role,
@@ -2791,7 +2793,8 @@ fn layout_grid_container_inner(
                 &child_el.attributes,
                 &selector_ctx,
                 env.font_metrics(),
-            );
+            )
+            .for_element(child_el);
             GridItemStyle::from_element(principal, child_el, &selector_ctx, env)
         })
         .collect();
@@ -2883,7 +2886,8 @@ fn layout_grid_container_inner(
                             &flat_el.attributes,
                             &flat_selector_context,
                             env.font_metrics(),
-                        );
+                        )
+                        .for_element(flat_el);
                         if !flat_style.position.is_absolute() {
                             element_children.push(flat_el.clone());
                             let table_source = TableSourcePath::new(

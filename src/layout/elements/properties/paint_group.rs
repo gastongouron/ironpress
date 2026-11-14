@@ -133,6 +133,9 @@ impl BoxTransform {
 /// The complete graphical group applied to a box and all descendants.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct PaintGroup {
+    /// The element this box belongs to, for the accessibility structure tree.
+    #[allow(dead_code)] // read by the renderer when marking content
+    pub(crate) owner: crate::accessibility::StructureRef,
     pub(crate) stacking: Stacking,
     pub(crate) transform: BoxTransform,
     pub(crate) effects: GroupEffects,
@@ -144,6 +147,7 @@ pub(crate) struct PaintGroup {
 impl PaintGroup {
     pub(crate) fn from_style(style: &crate::style::computed::ComputedStyle) -> Self {
         Self {
+            owner: style.structure,
             stacking: Stacking::from_style(style),
             transform: BoxTransform {
                 value: style.transform,

@@ -5,9 +5,16 @@
 
 #[cfg(test)]
 mod conversion_tests;
+mod identity;
+#[cfg(test)]
+mod layout_tests;
 mod metadata;
+mod role;
+mod skeleton;
 
+pub(crate) use identity::{ElementOrdinal, ListNumbering, StructureRef};
 pub(crate) use metadata::{DocumentMetadata, DocumentStructure};
+pub(crate) use skeleton::StructureSkeleton;
 
 use std::fmt;
 use std::str::FromStr;

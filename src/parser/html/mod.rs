@@ -108,6 +108,7 @@ fn convert_node(document: &Document, id: NodeId, stylesheets: &mut Vec<String>) 
 
             let elem = ElementNode {
                 tag,
+                ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
                 raw_tag_name: tag_name.to_ascii_lowercase(),
                 attributes,
                 children,
