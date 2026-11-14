@@ -188,7 +188,8 @@ order (headings, paragraphs, lists and definition lists, tables with header
 scope, figures with
 their `alt` text, links with descriptions, `#id` links as destinations,
 abbreviations with their `title` as the expansion, filtered boxes and
-`background-clip: text` lines with their text in `/ActualText`), page
+`background-clip: text` lines with their text in `/ActualText`, generated
+`content: url()` images with their alternative text as figures), page
 furniture and
 decoration as
 artifacts, the language and title in the catalog and XMP metadata, and every
@@ -214,7 +215,9 @@ a decorative image, and `TaggedPdf { missing_alt: MissingAltPolicy::Artifact,
 structure tree (the first heading becomes H1 and no level is skipped); the
 outline keeps the authored levels.
 
-Known limits of the current step: a `position: fixed` box is content on the
+Known limits of the current step: a generated image without alternative text
+(`content: url(x)` with no `/ "text"`) is decoration; a `position: fixed` box
+is content on the
 page where it is authored and an artifact on the pages it repeats on;
 right-to-left lines are in visual order; a formula symbol no available font
 covers (with

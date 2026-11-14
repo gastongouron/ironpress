@@ -8,7 +8,7 @@
 mod artifacts;
 mod lists;
 mod metadata;
-mod rasterized;
+mod pictures;
 mod recorder;
 mod tables;
 mod tree;

@@ -1,9 +1,10 @@
-//! Text painted as a picture, read through `/ActualText`.
+//! The marks of pictures: rasterized text, replaced images and generated
+//! images.
 
 use super::super::geometry::PdfRect;
 use super::recorder::MarkKind;
 use crate::layout::elements::{PictureMeaning, SpokenText};
-use crate::layout::engine::{TextLine, TextRun};
+use crate::layout::engine::{InlineImage, TextLine, TextRun};
 
 impl MarkKind {
     /// A run painted as an image (a blurred line): the reader sees its text
@@ -25,6 +26,16 @@ impl MarkKind {
     fn spoken(text: &SpokenText) -> Self {
         Self::Text {
             actual_text: (!text.is_empty()).then(|| text.as_str().to_string()),
+        }
+    }
+
+    /// The mark of a generated image (`content: url()`) painted in `bbox`
+    /// (default user space): a Figure named by its alternative text,
+    /// decoration without one (css-content-3 §1.2).
+    pub(crate) fn generated_figure(image: &InlineImage, bbox: PdfRect) -> Self {
+        Self::GeneratedFigure {
+            bbox,
+            alt: image.alt().map(str::to_string),
         }
     }
 

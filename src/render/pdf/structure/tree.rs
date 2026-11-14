@@ -55,6 +55,15 @@ struct Annotation {
     object_id: usize,
 }
 
+/// A generated image with alternative text: a Figure of its own under the
+/// element that generated it.
+#[derive(Debug, Clone)]
+struct GeneratedFigure {
+    mark: Mark,
+    bbox: PdfRect,
+    alt: String,
+}
+
 impl Element {
     #[cfg(test)]
     pub(super) fn parent_index(&self) -> Option<usize> {
@@ -95,6 +104,9 @@ enum TargetKind {
     Note,
     /// A footnote body's marker: the `Lbl` under the `Note`.
     NoteLabel,
+    /// A generated image: the Figure of its own, by position among the
+    /// element's generated images.
+    Figure(usize),
 }
 
 impl StructureTree {
@@ -110,6 +122,7 @@ impl StructureTree {
         let mut notes: Vec<Vec<Mark>> = vec![Vec::new(); count];
         let mut note_labels: Vec<Vec<Mark>> = vec![Vec::new(); count];
         let mut figure_boxes: Vec<Option<PdfRect>> = vec![None; count];
+        let mut figures: Vec<Vec<GeneratedFigure>> = vec![Vec::new(); count];
         let mut numbering: Vec<Option<ListNumbering>> = vec![None; count];
         let mut annotations: Vec<Vec<Annotation>> = vec![Vec::new(); count];
         let mut page_targets: Vec<Vec<Target>> = Vec::with_capacity(tagging.pages.len());
@@ -133,23 +146,48 @@ impl StructureTree {
                         .skeleton_index()
                         .unwrap_or(0)
                 };
-                let (node, kind) = match mark.owner {
-                    StructureRef::Content {
-                        element,
-                        role: ContentRole::FootnoteCall,
-                    } => (element.skeleton_index().unwrap_or(0), TargetKind::Reference),
-                    StructureRef::Content {
-                        element,
-                        role: ContentRole::Note,
-                    } => (element.skeleton_index().unwrap_or(0), TargetKind::Note),
-                    StructureRef::Content {
-                        element,
-                        role: ContentRole::NoteLabel,
-                    } => (element.skeleton_index().unwrap_or(0), TargetKind::NoteLabel),
-                    StructureRef::Content {
-                        role: ContentRole::Label(list_numbering),
-                        ..
-                    } => {
+                // A named generated image is a Figure of its own under the
+                // emitting element (css-content-3 §1.2).
+                let generated = match &mark.kind {
+                    MarkKind::GeneratedFigure {
+                        bbox,
+                        alt: Some(alt),
+                    } => Some((*bbox, alt.clone())),
+                    _ => None,
+                };
+                let (node, kind) = match (&generated, mark.owner) {
+                    (Some(_), _) => {
+                        let node = emitting();
+                        (node, TargetKind::Figure(figures[node].len()))
+                    }
+                    (
+                        None,
+                        StructureRef::Content {
+                            element,
+                            role: ContentRole::FootnoteCall,
+                        },
+                    ) => (element.skeleton_index().unwrap_or(0), TargetKind::Reference),
+                    (
+                        None,
+                        StructureRef::Content {
+                            element,
+                            role: ContentRole::Note,
+                        },
+                    ) => (element.skeleton_index().unwrap_or(0), TargetKind::Note),
+                    (
+                        None,
+                        StructureRef::Content {
+                            element,
+                            role: ContentRole::NoteLabel,
+                        },
+                    ) => (element.skeleton_index().unwrap_or(0), TargetKind::NoteLabel),
+                    (
+                        None,
+                        StructureRef::Content {
+                            role: ContentRole::Label(list_numbering),
+                            ..
+                        },
+                    ) => {
                         let node = emitting();
                         if nodes[node].role == StructureRole::LI {
                             numbering[node].get_or_insert(list_numbering);
@@ -158,7 +196,7 @@ impl StructureTree {
                             (node, TargetKind::Body)
                         }
                     }
-                    _ => (emitting(), TargetKind::Body),
+                    (None, _) => (emitting(), TargetKind::Body),
                 };
                 let recorded = Mark {
                     page,
@@ -173,6 +211,15 @@ impl StructureTree {
                     TargetKind::Reference => references[node].push(recorded),
                     TargetKind::Note => notes[node].push(recorded),
                     TargetKind::NoteLabel => note_labels[node].push(recorded),
+                    TargetKind::Figure(_) => {
+                        if let Some((bbox, alt)) = generated {
+                            figures[node].push(GeneratedFigure {
+                                mark: recorded,
+                                bbox,
+                                alt,
+                            });
+                        }
+                    }
                 }
                 if let MarkKind::Figure { bbox } = &mark.kind {
                     figure_boxes[node].get_or_insert(*bbox);
@@ -219,6 +266,7 @@ impl StructureTree {
                 || !references[index].is_empty()
                 || !notes[index].is_empty()
                 || !note_labels[index].is_empty()
+                || !figures[index].is_empty()
             {
                 alive[index] = true;
             }
@@ -262,6 +310,7 @@ impl StructureTree {
         let mut reference_of: Vec<Option<usize>> = vec![None; count];
         let mut note_of: Vec<Option<usize>> = vec![None; count];
         let mut note_label_of: Vec<Option<usize>> = vec![None; count];
+        let mut figure_of: Vec<Vec<usize>> = vec![Vec::new(); count];
         let mut definition_items = super::lists::DefinitionItems::default();
         let document = tree.push(Element::new("Document", None));
         tree.elements[document].attributes = format!(
@@ -329,6 +378,24 @@ impl StructureTree {
             }
         }
 
+        // css-content-3 §1.2 and ISO 14289-1 7.3: a generated image with
+        // alternative text is a Figure of the element that generated it.
+        for index in 0..count {
+            let Some(parent) = own[index] else {
+                continue;
+            };
+            for figure in &figures[index] {
+                let mut element = Element::new("Figure", Some(parent));
+                element.attributes = format!(
+                    " /Alt {}{}",
+                    PdfTextString::from(figure.alt.as_str()),
+                    layout_attribute(figure.bbox)
+                );
+                element.marks.push(figure.mark);
+                figure_of[index].push(tree.push(element));
+            }
+        }
+
         // 4. Attach marks and annotations.
         for index in 0..count {
             let Some(owner) = own[index] else {
@@ -386,6 +453,9 @@ impl StructureTree {
                         TargetKind::Reference => reference_of[target.node].unwrap_or(owner),
                         TargetKind::Note => note,
                         TargetKind::NoteLabel => note_label_of[target.node].unwrap_or(note),
+                        TargetKind::Figure(figure) => {
+                            figure_of[target.node].get(figure).copied().unwrap_or(owner)
+                        }
                     }
                 })
                 .collect()
@@ -629,13 +699,7 @@ fn node_attributes(
                     })?;
             attributes.push_str(&format!(" /Alt {}", PdfTextString::from(name)));
             if let Some(bbox) = figure_box {
-                attributes.push_str(&format!(
-                    " /A << /O /Layout /BBox [{} {} {} {}] >>",
-                    crate::render::pdf_syntax::format_pdf_number(bbox.left),
-                    crate::render::pdf_syntax::format_pdf_number(bbox.bottom),
-                    crate::render::pdf_syntax::format_pdf_number(bbox.right()),
-                    crate::render::pdf_syntax::format_pdf_number(bbox.top()),
-                ));
+                attributes.push_str(&layout_attribute(bbox));
             }
         }
         StructureRole::Formula => {
@@ -652,6 +716,18 @@ fn node_attributes(
         _ => {}
     }
     Ok(attributes)
+}
+
+/// The `Layout` attribute carrying a Figure's bounding box in default user
+/// space (ISO 32000-1 Table 344).
+fn layout_attribute(bbox: PdfRect) -> String {
+    format!(
+        " /A << /O /Layout /BBox [{} {} {} {}] >>",
+        crate::render::pdf_syntax::format_pdf_number(bbox.left),
+        crate::render::pdf_syntax::format_pdf_number(bbox.bottom),
+        crate::render::pdf_syntax::format_pdf_number(bbox.right()),
+        crate::render::pdf_syntax::format_pdf_number(bbox.top()),
+    )
 }
 
 fn describe_figure(facts: &NodeFacts) -> String {

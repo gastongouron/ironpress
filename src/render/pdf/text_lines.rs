@@ -175,12 +175,22 @@ pub(super) fn render_inline_box(
     // (inside the border) with the decoded raster, scaled to the box size.
     if let Some(image) = &inline.image {
         let content_box = paint_geometry.content_box();
+        // With alternative text the image is a Figure of its own; without
+        // it is decoration (css-content-3 §1.2).
+        let bbox = pdf_writer
+            .page_content_transform
+            .transform_rect(content_box);
+        let picture = pdf_writer.structure.begin_content(
+            content,
+            inline.structure,
+            super::structure::MarkKind::generated_figure(image, bbox),
+        );
         let img_obj_id = pdf_writer.add_image_object(
-            &image.data,
-            image.source_width,
-            image.source_height,
-            image.format,
-            image.png_metadata.as_ref(),
+            &image.asset.data,
+            image.asset.source_width,
+            image.asset.source_height,
+            image.asset.format,
+            image.asset.png_metadata.as_ref(),
         );
         let img_name = format!("Im{img_obj_id}");
         content.push_str(&format!(
@@ -190,6 +200,7 @@ pub(super) fn render_inline_box(
             left = content_box.left,
             bottom = content_box.bottom,
         ));
+        pdf_writer.structure.end(content, picture);
         page_images.push(ImageRef {
             name: img_name,
             obj_id: img_obj_id,

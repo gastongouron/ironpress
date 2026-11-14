@@ -188,6 +188,42 @@ fn filtered_flex_items_are_read_through_actual_text() {
     assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
 }
 
+/// css-content-3 §1.2 and ISO 14289-1 7.3 (veraPDF 7.3-1): a generated
+/// image with alternative text (`content: url() / "…"`) is a Figure of its
+/// own under the element that generated it, with that text as `/Alt` and its
+/// box as the Layout `/BBox`; `attr()` reads the element's attribute; an
+/// image without alternative text is decoration, painted as an artifact.
+#[test]
+fn generated_images_are_figures_when_named_and_artifacts_otherwise() {
+    let pdf = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .convert(&format!(
+                r#"<html lang="en"><head><title>G</title><style>
+                .named::before {{ content: url("{PIXEL}") / "Warning"; }}
+                .attr::before {{ content: url("{PIXEL}") / attr(data-alt); }}
+                .plain::before {{ content: url("{PIXEL}"); }}
+                </style></head><body>
+                <p class="named">Named</p><p class="attr" data-alt="Note">Attr</p>
+                <p class="plain">Plain</p></body></html>"#
+            ))
+            .unwrap(),
+    );
+    assert_eq!(pdf.matches("/S /Figure ").count(), 2, "{pdf}");
+    assert!(
+        pdf.contains("/Alt (Warning) /A << /O /Layout /BBox ["),
+        "{pdf}"
+    );
+    assert!(
+        pdf.contains("/Alt (Note) /A << /O /Layout /BBox ["),
+        "{pdf}"
+    );
+    assert_eq!(pdf.matches("/Figure << /MCID ").count(), 2, "{pdf}");
+    assert_eq!(pdf.matches("/Artifact BMC\n").count(), 1, "{pdf}");
+    assert_eq!(pdf.matches("/S /P ").count(), 3, "{pdf}");
+}
+
 /// ISO 32000-1 9.3.6 and 14.9.4: a `background-clip: text` line clips its
 /// gradient with one text object, which is the line's content read through
 /// `/ActualText` (a synthetic weight repeats the outlines inside it); the

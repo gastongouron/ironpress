@@ -57,6 +57,9 @@ pub(crate) enum MarkKind {
     /// A replaced image or inline SVG, with its painted box in default user
     /// space for the `Layout` `/BBox` attribute.
     Figure { bbox: PdfRect },
+    /// A generated image (`content: url()`): a Figure of its own named by
+    /// its alternative text, decoration without one (css-content-3 §1.2).
+    GeneratedFigure { bbox: PdfRect, alt: Option<String> },
     /// A composited paint group cut into a form XObject.
     Group,
 }
@@ -403,7 +406,7 @@ impl Tagging {
         };
         let tag = match (&kind, footnote_role) {
             (MarkKind::Label, _) => "Lbl",
-            (MarkKind::Figure { .. }, _) => "Figure",
+            (MarkKind::Figure { .. } | MarkKind::GeneratedFigure { .. }, _) => "Figure",
             (_, Some(ContentRole::FootnoteCall)) => "Reference",
             (_, Some(ContentRole::Note)) => "Note",
             (_, Some(ContentRole::NoteLabel)) => "Lbl",
@@ -435,6 +438,9 @@ impl Tagging {
     /// policy, are painted as artifacts instead of being tagged.
     fn paints_as_artifact(&self, owner: StructureRef, kind: &MarkKind) -> bool {
         if owner == StructureRef::Decorative {
+            return true;
+        }
+        if let MarkKind::GeneratedFigure { alt: None, .. } = kind {
             return true;
         }
         matches!(kind, MarkKind::Figure { .. })

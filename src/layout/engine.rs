@@ -43,7 +43,7 @@ use super::images::*;
 use super::inline::{
     layout_inline_block_group_with_env_and_spacing, layout_inline_mixed_sequence_with_env,
 };
-pub use super::inline_box::{CenteredStroke, InlineBox, InlineBoxPaint};
+pub use super::inline_box::{CenteredStroke, InlineBox, InlineBoxPaint, InlineImage};
 use super::inline_formatting::{
     AtomicInlineKind, GeneratedContentStyles, InlineContentSequence, InlineFormattingContext,
     InlineFormattingRole, PrincipalPseudoStyles,

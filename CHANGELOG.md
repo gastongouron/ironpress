@@ -31,8 +31,10 @@
   an `#id` link is a named destination to the anchor's page (a link to no
   element is dropped), `dl`/`dt`/`dd` become `L`/`LI` with `Lbl` and
   `LBody`, a box a `filter` paints as a picture keeps its text in
-  `/ActualText`, and a `background-clip: text` line is read once through
-  `/ActualText` however often its outlines repeat.
+  `/ActualText`, a `background-clip: text` line is read once through
+  `/ActualText` however often its outlines repeat, and a `content: url()`
+  image with alternative text (`content: url(x) / "text"`, css-content-3) is
+  a `Figure` with that `/Alt` while one without is an artifact.
 
 ### Changed
 
