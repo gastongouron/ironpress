@@ -322,7 +322,7 @@ pub(in crate::render::pdf) fn render_text_block(
         ctx.text.pdf_writer.structure.append_content(
             content,
             element.paint.group.owner,
-            crate::render::pdf::structure::MarkKind::rasterized_lines(lines),
+            crate::render::pdf::structure::MarkKind::shown_once(lines),
             &format!(
                 "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
                 w = tb_paint_box.width + 2.0 * ov,

@@ -30,8 +30,9 @@
   where it is authored (only its copies on later pages are artifacts), and
   an `#id` link is a named destination to the anchor's page (a link to no
   element is dropped), `dl`/`dt`/`dd` become `L`/`LI` with `Lbl` and
-  `LBody`, and a box a `filter` paints as a picture keeps its text in
-  `/ActualText`.
+  `LBody`, a box a `filter` paints as a picture keeps its text in
+  `/ActualText`, and a `background-clip: text` line is read once through
+  `/ActualText` however often its outlines repeat.
 
 ### Changed
 

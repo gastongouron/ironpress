@@ -210,15 +210,14 @@ pub(super) fn render_text_block_lines(
                 let gradient = linear_with_background_layer(gradient, tb_layer_box);
                 if gradient.layer_box.attachment != Some(BackgroundAttachment::Local) {
                     content.push_str("q\n");
-                    if push_line_text_clip(
+                    if push_marked_line_text_clip(
                         content,
+                        line,
                         &merged,
-                        text_x,
-                        text_y,
-                        ctx.text.custom_fonts,
-                        ctx.text.prepared_custom_fonts,
+                        PdfPoint::new(text_x, text_y),
                         justify_ws,
-                        line_text_top(line, ctx.text.custom_fonts),
+                        element.paint.group.owner,
+                        ctx,
                     ) {
                         if tb_bg_blended {
                             content.push_str("q\n");
@@ -250,15 +249,14 @@ pub(super) fn render_text_block_lines(
                 let gradient = radial_with_background_layer(gradient, tb_layer_box);
                 if gradient.layer_box.attachment != Some(BackgroundAttachment::Local) {
                     content.push_str("q\n");
-                    if push_line_text_clip(
+                    if push_marked_line_text_clip(
                         content,
+                        line,
                         &merged,
-                        text_x,
-                        text_y,
-                        ctx.text.custom_fonts,
-                        ctx.text.prepared_custom_fonts,
+                        PdfPoint::new(text_x, text_y),
                         justify_ws,
-                        line_text_top(line, ctx.text.custom_fonts),
+                        element.paint.group.owner,
+                        ctx,
                     ) {
                         if tb_bg_blended {
                             content.push_str("q\n");
@@ -284,15 +282,14 @@ pub(super) fn render_text_block_lines(
                 let gradient = conic_with_background_layer(gradient, tb_layer_box);
                 if gradient.layer_box.attachment != Some(BackgroundAttachment::Local) {
                     content.push_str("q\n");
-                    if push_line_text_clip(
+                    if push_marked_line_text_clip(
                         content,
+                        line,
                         &merged,
-                        text_x,
-                        text_y,
-                        ctx.text.custom_fonts,
-                        ctx.text.prepared_custom_fonts,
+                        PdfPoint::new(text_x, text_y),
                         justify_ws,
-                        line_text_top(line, ctx.text.custom_fonts),
+                        element.paint.group.owner,
+                        ctx,
                     ) {
                         if tb_bg_blended {
                             content.push_str("q\n");
@@ -599,4 +596,39 @@ pub(super) fn render_text_block_lines(
     if vertical {
         content.push_str("Q\n");
     }
+}
+
+/// Clip to the glyphs of `line` (`background-clip: text`). The text object
+/// is the line's content, read through `/ActualText` because a synthetic
+/// weight repeats each outline inside it (ISO 32000-1 9.3.6, 14.9.4).
+#[allow(clippy::too_many_arguments)]
+fn push_marked_line_text_clip(
+    content: &mut String,
+    line: &crate::layout::engine::TextLine,
+    merged: &[crate::layout::engine::TextRun],
+    origin: PdfPoint,
+    word_spacing: f32,
+    owner: crate::accessibility::StructureRef,
+    ctx: &mut PageRenderContext<'_>,
+) -> bool {
+    let mut clip = String::new();
+    if !push_line_text_clip(
+        &mut clip,
+        merged,
+        origin.x,
+        origin.y,
+        ctx.text.custom_fonts,
+        ctx.text.prepared_custom_fonts,
+        word_spacing,
+        line_text_top(line, ctx.text.custom_fonts),
+    ) {
+        return false;
+    }
+    ctx.text.pdf_writer.structure.append_content(
+        content,
+        owner,
+        crate::render::pdf::structure::MarkKind::shown_once(std::slice::from_ref(line)),
+        &clip,
+    );
+    true
 }

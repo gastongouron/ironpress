@@ -14,8 +14,9 @@ impl MarkKind {
         }
     }
 
-    /// A block painted as one image: the reader sees its lines.
-    pub(crate) fn rasterized_lines(lines: &[TextLine]) -> Self {
+    /// Lines shown through one mark, as a picture or as a text clip whose
+    /// outlines may repeat: the reader sees their text once.
+    pub(crate) fn shown_once(lines: &[TextLine]) -> Self {
         Self::spoken(&SpokenText::of_lines(lines))
     }
 

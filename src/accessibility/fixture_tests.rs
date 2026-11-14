@@ -140,7 +140,7 @@ fn abbreviation_titles_become_expansions() {
     assert_eq!(pdf.matches("/S /Span ").count(), 1, "{pdf}");
 }
 
-fn blurred(body: &str) -> String {
+fn tagged_body(body: &str) -> String {
     text(
         &HtmlConverter::new()
             .accessible(true)
@@ -170,7 +170,7 @@ fn rasterized_actual_text(pdf: &str) -> Vec<&str> {
 /// Figure remain.
 #[test]
 fn filtered_text_blocks_are_read_through_actual_text() {
-    let pdf = blurred(r#"<p style="filter: blur(1pt); width: 30pt">Soft text</p>"#);
+    let pdf = tagged_body(r#"<p style="filter: blur(1pt); width: 30pt">Soft text</p>"#);
     assert_eq!(rasterized_actual_text(&pdf), vec!["(Soft text)"], "{pdf}");
     assert_eq!(pdf.matches("/ActualText ").count(), 1, "{pdf}");
     assert!(!pdf.contains("/Figure"), "{pdf}");
@@ -181,18 +181,42 @@ fn filtered_text_blocks_are_read_through_actual_text() {
 /// the item's text.
 #[test]
 fn filtered_flex_items_are_read_through_actual_text() {
-    let pdf = blurred(
+    let pdf = tagged_body(
         r#"<div style="display: flex"><div style="filter: blur(1pt)">Cell <b>text</b></div></div>"#,
     );
     assert_eq!(rasterized_actual_text(&pdf), vec!["(Cell text)"], "{pdf}");
     assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
 }
 
+/// ISO 32000-1 9.3.6 and 14.9.4: a `background-clip: text` line clips its
+/// gradient with one text object, which is the line's content read through
+/// `/ActualText` (a synthetic weight repeats the outlines inside it); the
+/// gradient fill after it is a Layout artifact and the text is not shown
+/// again.
+#[test]
+fn background_clip_text_lines_are_read_once() {
+    let pdf = tagged_body(
+        r#"<p style="background: linear-gradient(red, blue); -webkit-background-clip: text; background-clip: text; color: transparent">Clipped text</p>"#,
+    );
+    let mark = "/P << /MCID 0 /ActualText (Clipped text) >> BDC\nBT\n7 Tr\n";
+    assert!(pdf.contains(mark), "{pdf}");
+    let after = &pdf[pdf.find(mark).unwrap() + mark.len()..];
+    let fill = &after[after.find("EMC\n").unwrap()..];
+    let fill = &fill[..fill.find("\nf\n").unwrap()];
+    assert!(
+        fill.contains("/Artifact << /Type /Layout >> BDC\n"),
+        "{pdf}"
+    );
+    assert_eq!(pdf.matches("/ActualText ").count(), 1, "{pdf}");
+    assert_eq!(pdf.matches("BT\n").count(), 1, "{pdf}");
+}
+
 /// ISO 32000-1 14.9.4: a blurred line painted run by run marks each picture
 /// with its run's text, so the runs read back as the authored text.
 #[test]
 fn blurred_text_runs_are_read_through_actual_text() {
-    let pdf = blurred(r#"<p style="filter: blur(1pt); border-radius: 2pt">Soft <b>text</b></p>"#);
+    let pdf =
+        tagged_body(r#"<p style="filter: blur(1pt); border-radius: 2pt">Soft <b>text</b></p>"#);
     let runs = rasterized_actual_text(&pdf);
     assert_eq!(runs.len(), 2, "{pdf}");
     assert_eq!(pdf.matches("/ActualText ").count(), 2, "{pdf}");
