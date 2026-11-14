@@ -318,7 +318,12 @@ fn collect_font_usage_walk(element: &dyn LayoutElement, collector: &mut FontUsag
     if let Some(owner) = element.box_paint_owner()
         && let Some(svg) = owner.box_paint().background.layers.svg.as_ref()
     {
-        collect_font_usage_from_svg(svg, collector.custom_fonts, collector.usage);
+        collect_font_usage_from_svg(
+            svg,
+            collector.custom_fonts,
+            collector.usage,
+            collector.policy,
+        );
     }
     element.accept(collector);
     element.visit_children(&mut |child| collect_font_usage_walk(child, collector));
@@ -343,7 +348,7 @@ impl LayoutVisitor for FontUsageCollector<'_> {
                 self.usage,
             );
             if let Some(svg) = cell.layout.paint.box_paint.background.layers.svg.as_ref() {
-                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage, self.policy);
             }
         }
     }
@@ -356,7 +361,7 @@ impl LayoutVisitor for FontUsageCollector<'_> {
                 self.usage,
             );
             if let Some(svg) = cell.layout.paint.box_paint.background.layers.svg.as_ref() {
-                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage, self.policy);
             }
         }
     }
@@ -365,13 +370,13 @@ impl LayoutVisitor for FontUsageCollector<'_> {
         for cell in &element.content.cells {
             collect_font_usage_from_lines(&cell.lines, self.custom_fonts, self.usage);
             if let Some(svg) = cell.paint.background.layers.svg.as_ref() {
-                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage);
+                collect_font_usage_from_svg(svg, self.custom_fonts, self.usage, self.policy);
             }
         }
     }
 
     fn visit_svg(&mut self, element: &Svg) {
-        collect_font_usage_from_svg(&element.tree, self.custom_fonts, self.usage);
+        collect_font_usage_from_svg(&element.tree, self.custom_fonts, self.usage, self.policy);
     }
 
     fn visit_avoid_page_break(&mut self, _element: &AvoidPageBreak) {}
@@ -406,6 +411,7 @@ fn collect_font_usage_from_svg(
     tree: &crate::parser::svg::SvgTree,
     custom_fonts: &HashMap<String, TtfFont>,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
+    policy: FontPolicy,
 ) {
     for node in &tree.children {
         collect_font_usage_from_svg_node(
@@ -417,6 +423,7 @@ fn collect_font_usage_from_svg(
             crate::render::svg_text::SvgTextSizing::initial(tree.text_ctx.font_size),
             custom_fonts,
             usage,
+            policy,
         );
     }
 }
@@ -431,6 +438,7 @@ fn collect_font_usage_from_svg_node(
     inherited_sizing: crate::render::svg_text::SvgTextSizing,
     custom_fonts: &HashMap<String, TtfFont>,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
+    policy: FontPolicy,
 ) {
     use crate::parser::svg::SvgNode;
     match node {
@@ -451,6 +459,7 @@ fn collect_font_usage_from_svg_node(
                     sizing,
                     custom_fonts,
                     usage,
+                    policy,
                 );
             }
         }
@@ -490,6 +499,7 @@ fn collect_font_usage_from_svg_node(
                 bold,
                 italic,
                 Some(custom_fonts),
+                policy,
             );
             for run in runs {
                 let crate::render::svg_text::fonts::SvgTextFace::Custom(face) = run.face else {
@@ -1160,7 +1170,7 @@ mod tests {
         .expect("valid SVG");
         let mut usage = BTreeMap::new();
 
-        collect_font_usage_from_svg(&tree, &fonts, &mut usage);
+        collect_font_usage_from_svg(&tree, &fonts, &mut usage, FontPolicy::default());
 
         let font = fonts.get("paritysans").expect("registered font");
         let painted = crate::text::shape_text_with_explicit_font_and_shaping(

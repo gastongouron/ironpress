@@ -14,6 +14,38 @@ fn tagged(html: &str) -> String {
     text(&HtmlConverter::new().accessible(true).convert(html).unwrap())
 }
 
+/// ISO 14289-1 7.21.4.1: every font used for rendering is embedded, so no
+/// text operator in accessible output selects a Base-14 font (page furniture,
+/// formulas and SVG text included).
+#[test]
+fn report_fixture_selects_no_base14_font() {
+    let pdf = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .header("Quarterly report")
+            .footer("Page {page} of {pages}")
+            .convert(REPORT)
+            .unwrap(),
+    );
+    let base14: Vec<&str> = pdf
+        .lines()
+        .filter(|line| {
+            line.ends_with(" Tf")
+                && [
+                    "/Helvetica",
+                    "/Times",
+                    "/Courier",
+                    "/Symbol",
+                    "/ZapfDingbats",
+                ]
+                .iter()
+                .any(|font| line.starts_with(font))
+        })
+        .collect();
+    assert!(base14.is_empty(), "{base14:?}");
+}
+
 #[test]
 fn report_fixture_carries_every_required_structure_type() {
     // ISO 32000-1 Tables 333–338 types as PDF/UA-1 7.1–7.9 and 7.18 use them;

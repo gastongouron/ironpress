@@ -304,6 +304,7 @@ fn render_svg_source(
     page_images: &mut Vec<ImageRef>,
 ) {
     stream.push_str(&format!("1 0 0 -1 0 {} cm\n", source_box.height));
+    let font_policy = pdf_writer.structure.font_policy();
     let mut image_sink = SvgPageImageSink {
         pdf_writer,
         page_images,
@@ -317,6 +318,7 @@ fn render_svg_source(
         raster_scale_y: image_area.height / source_box.height,
         custom_fonts: None,
         prepared_custom_fonts: None,
+        font_policy,
     };
     crate::render::svg_to_pdf::render_svg_tree_in_viewport(
         tree,

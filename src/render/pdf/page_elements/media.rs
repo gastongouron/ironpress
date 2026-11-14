@@ -381,6 +381,7 @@ pub(in crate::render::pdf) fn paint_svg_box(
             ty = placement.translate_y,
         ));
         {
+            let font_policy = ctx.text.pdf_writer.structure.font_policy();
             let mut image_sink = SvgPageImageSink {
                 pdf_writer: ctx.text.pdf_writer,
                 page_images: ctx.text.page_images,
@@ -394,6 +395,7 @@ pub(in crate::render::pdf) fn paint_svg_box(
                 raster_scale_y: placement.scale_y.abs(),
                 custom_fonts: Some(ctx.text.custom_fonts),
                 prepared_custom_fonts: Some(ctx.text.prepared_custom_fonts),
+                font_policy,
             };
             crate::render::svg_to_pdf::render_svg_tree_with_resources(
                 &element.tree,

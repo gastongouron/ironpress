@@ -1,5 +1,6 @@
 use crate::parser::ttf::TtfFont;
-use crate::style::computed::{FontFamily, parse_font_stack};
+use crate::render::pdf_fonts::FontPolicy;
+use crate::style::computed::{FontFamily, FontStack, parse_font_stack};
 use crate::style::font_family::{CssFontFamily, CssFontFamilyList};
 use crate::text::AuthoredFontFaces;
 use std::collections::HashMap;
@@ -55,6 +56,30 @@ impl SvgBase14TextFace {
     pub(crate) const fn bold(&self) -> bool {
         self.bold
     }
+
+    /// The registered face that stands in for this Base-14 face when every
+    /// font must be embedded (ISO 14289-1 7.21.4.1): the same metric-compatible
+    /// face body text in this family uses, when it covers the cluster.
+    fn embedded<'fonts>(
+        &self,
+        cluster: &str,
+        fonts: &'fonts HashMap<String, TtfFont>,
+    ) -> Option<SvgCustomTextFace<'fonts>> {
+        let FontFamily::Custom(key) = crate::system_fonts::resolve_font_family(
+            &FontStack::from_family(self.family.clone()),
+            fonts,
+            self.bold,
+            self.italic,
+            crate::parser::css::FontStretch::default(),
+        ) else {
+            return None;
+        };
+        let (key, font) = fonts.get_key_value(&key)?;
+        cluster
+            .chars()
+            .all(|ch| font.cmap.contains_key(&u32::from(ch)))
+            .then_some(SvgCustomTextFace { key, font })
+    }
 }
 
 /// One registered font face selected for a contiguous SVG text run.
@@ -109,6 +134,7 @@ pub(crate) fn resolve_svg_text_font_runs<'text, 'fonts>(
     bold: bool,
     italic: bool,
     fonts: Option<&'fonts HashMap<String, TtfFont>>,
+    policy: FontPolicy,
 ) -> Vec<SvgTextFontRun<'text, 'fonts>> {
     if text.is_empty() {
         return Vec::new();
@@ -119,7 +145,8 @@ pub(crate) fn resolve_svg_text_font_runs<'text, 'fonts>(
         bold,
         italic,
     ));
-    let candidates = SvgTextFontCandidates::new(family_stack, fonts, bold, italic, fallback);
+    let candidates =
+        SvgTextFontCandidates::new(family_stack, fonts, bold, italic, fallback, policy);
     let mut runs = Vec::new();
     let mut run_start = 0;
     let mut active_face: Option<SvgTextFace<'fonts>> = None;
@@ -213,6 +240,7 @@ struct SvgTextFontCandidates<'fonts> {
     families: Vec<SvgTextFamilyCandidate<'fonts>>,
     fonts: Option<&'fonts HashMap<String, TtfFont>>,
     fallback: SvgTextFace<'fonts>,
+    policy: FontPolicy,
 }
 
 impl<'fonts> SvgTextFontCandidates<'fonts> {
@@ -223,6 +251,7 @@ impl<'fonts> SvgTextFontCandidates<'fonts> {
         bold: bool,
         italic: bool,
         fallback: SvgTextFace<'fonts>,
+        policy: FontPolicy,
     ) -> Self {
         let families = CssFontFamilyList::parse(family_stack)
             .map(|stack| {
@@ -239,11 +268,29 @@ impl<'fonts> SvgTextFontCandidates<'fonts> {
             families,
             fonts,
             fallback,
+            policy,
+        }
+    }
+
+    /// Select the face to paint: the authored resolution, with a Base-14
+    /// face replaced by its embedded stand-in when the output embeds every
+    /// font.
+    fn resolve_cluster(&self, cluster: &str) -> SvgTextFace<'fonts> {
+        let face = self.resolve_authored_cluster(cluster);
+        if !self.policy.embeds_side_text() {
+            return face;
+        }
+        match (face, self.fonts) {
+            (SvgTextFace::Base14(base14), Some(fonts)) => match base14.embedded(cluster, fonts) {
+                Some(custom) => SvgTextFace::Custom(custom),
+                None => SvgTextFace::Base14(base14),
+            },
+            (face, _) => face,
         }
     }
 
     /// Select a face by authored family order, then compatibility fallback.
-    fn resolve_cluster(&self, cluster: &str) -> SvgTextFace<'fonts> {
+    fn resolve_authored_cluster(&self, cluster: &str) -> SvgTextFace<'fonts> {
         if let Some(face) = self
             .families
             .iter()
@@ -336,6 +383,7 @@ mod tests {
             false,
             false,
             Some(&fonts),
+            FontPolicy::default(),
         );
         let keys = runs
             .iter()
@@ -346,5 +394,34 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(keys, vec![latin_source_key, arabic_source_key]);
+    }
+
+    /// ISO 14289-1 7.21.4.1: accessible output embeds every font, so a
+    /// Base-14 face resolves to the registered face body text in that family
+    /// uses (Liberation Sans stands in for Helvetica); default output keeps
+    /// the Base-14 face.
+    #[test]
+    fn embedded_policy_replaces_base14_faces_with_registered_ones() {
+        let mut fonts = HashMap::new();
+        crate::system_fonts::load_bundled_liberation_fonts(&mut fonts);
+        let faces = |policy| {
+            resolve_svg_text_font_runs(
+                "Q3",
+                "sans-serif",
+                "Helvetica",
+                false,
+                true,
+                Some(&fonts),
+                policy,
+            )
+            .into_iter()
+            .map(|run| match run.face {
+                SvgTextFace::Custom(face) => face.key().to_string(),
+                SvgTextFace::Base14(face) => face.pdf_name().to_string(),
+            })
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(faces(FontPolicy::Historical), vec!["Helvetica-Oblique"]);
+        assert_eq!(faces(FontPolicy::Embedded), vec!["liberation sans__italic"]);
     }
 }

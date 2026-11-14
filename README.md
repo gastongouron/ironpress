@@ -209,12 +209,11 @@ a decorative image, and `TaggedPdf { missing_alt: MissingAltPolicy::Artifact,
 structure tree (the first heading becomes H1 and no level is skipped); the
 outline keeps the authored levels.
 
-Known limits of the current step: inline SVG `<text>` that falls back to a
-built-in font and text inside `position: fixed` boxes are painted as
-artifacts (hidden from assistive technology); right-to-left lines are in
-visual order; a formula symbol no available font covers (with the bundled
-fonts alone, for example `∀`, `∈`, `⊂`, `⟨⟩`) still uses the unembedded
-Symbol font.
+Known limits of the current step: text inside `position: fixed` boxes is
+painted as an artifact (hidden from assistive technology); right-to-left
+lines are in visual order; a formula symbol no available font covers (with
+the bundled fonts alone, for example `∀`, `∈`, `⊂`, `⟨⟩`) still uses the
+unembedded Symbol font.
 
 ## Features at a glance
 
