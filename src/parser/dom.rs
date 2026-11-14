@@ -153,6 +153,14 @@ impl HtmlTag {
         }
     }
 
+    /// `h1` through `h6`.
+    pub fn is_heading(&self) -> bool {
+        matches!(
+            self,
+            Self::H1 | Self::H2 | Self::H3 | Self::H4 | Self::H5 | Self::H6
+        )
+    }
+
     pub fn is_block(&self) -> bool {
         matches!(
             self,

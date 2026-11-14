@@ -139,3 +139,60 @@ end\n",
     );
     cmap
 }
+
+/// A PDF text string (ISO 32000-1 7.9.2.2) in its serialized form: a literal
+/// string when every character is printable ASCII (a subset of
+/// PDFDocEncoding), otherwise a hex string of UTF-16BE with a byte-order mark.
+/// Used for the dictionary strings assistive technology reads (`/Title`,
+/// `/Alt`, `/ActualText`, `/Contents`, `/Lang`).
+pub(super) struct PdfTextString(String);
+
+impl From<&str> for PdfTextString {
+    fn from(text: &str) -> Self {
+        if text.chars().all(|character| matches!(character, ' '..='~')) {
+            return Self(format!("({})", escape_pdf_string(text)));
+        }
+        let mut hex = String::with_capacity(6 + text.len() * 4);
+        hex.push_str("<FEFF");
+        for unit in text.encode_utf16() {
+            hex.push_str(&format!("{unit:04X}"));
+        }
+        hex.push('>');
+        Self(hex)
+    }
+}
+
+impl std::fmt::Display for PdfTextString {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+#[cfg(test)]
+mod text_string_tests {
+    use super::PdfTextString;
+
+    #[test]
+    fn printable_ascii_is_a_literal_string_with_delimiters_escaped() {
+        // ISO 32000-1 7.3.4.2: unbalanced parentheses and backslashes in a
+        // literal string must be escaped.
+        assert_eq!(
+            PdfTextString::from(r"Report (draft) \ v2").to_string(),
+            r"(Report \(draft\) \\ v2)"
+        );
+    }
+
+    #[test]
+    fn other_text_is_utf16be_with_a_byte_order_mark() {
+        // ISO 32000-1 7.9.2.2.1: UTF-16BE text strings begin with U+FEFF.
+        assert_eq!(
+            PdfTextString::from("Résumé").to_string(),
+            "<FEFF005200E900730075006D00E9>"
+        );
+        assert_eq!(PdfTextString::from("😀").to_string(), "<FEFFD83DDE00>");
+        assert_eq!(
+            PdfTextString::from("tab\t").to_string(),
+            "<FEFF0074006100620009>"
+        );
+    }
+}

@@ -212,10 +212,18 @@ impl PdfWriter {
         self,
         out: &mut W,
         bookmarks: &[BookmarkEntry],
+        tagged: Option<&crate::accessibility::DocumentMetadata>,
     ) -> Result<(), IronpressError> {
         let mut bytes_written: usize = 0;
-        out.write_all(b"%PDF-1.4\n")?;
-        bytes_written += b"%PDF-1.4\n".len();
+        // ISO 14289-1 is written against PDF 1.7, and `/Tabs` and
+        // `/ActualText` are PDF 1.5 constructs; untagged output keeps its
+        // historical header.
+        let header: &[u8] = match tagged {
+            Some(_) => b"%PDF-1.7\n",
+            None => b"%PDF-1.4\n",
+        };
+        out.write_all(header)?;
+        bytes_written += header.len();
 
         // Font objects
         let font_base_id = self.objects.len() + 1;
@@ -555,10 +563,20 @@ impl PdfWriter {
             format!(" /Outlines {root_id} 0 R /PageMode /UseOutlines")
         };
 
+        // Structure tree root, XMP metadata and document information for
+        // accessible output; nothing is appended otherwise.
+        let tagged_objects = tagged.map(|metadata| {
+            super::structure::TaggedDocumentObjects::append_to(&mut all_objects, metadata)
+        });
+        let (catalog_tagging, trailer_tagging) = match &tagged_objects {
+            Some(objects) => (objects.catalog_entries(), objects.trailer_entries()),
+            None => ("", ""),
+        };
+
         // Catalog
         let catalog_id = all_objects.len() + 1;
         all_objects.push(format!(
-            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R{outlines_ref} >>\nendobj",
+            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R{outlines_ref}{catalog_tagging} >>\nendobj",
         ));
 
         // Write objects and track offsets for xref
@@ -595,7 +613,7 @@ impl PdfWriter {
 
         // Trailer
         let trailer = format!(
-            "trailer\n<< /Size {} /Root {catalog_id} 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n",
+            "trailer\n<< /Size {} /Root {catalog_id} 0 R{trailer_tagging} >>\nstartxref\n{xref_offset}\n%%EOF\n",
             all_objects.len() + 1,
         );
         out.write_all(trailer.as_bytes())?;

@@ -76,6 +76,8 @@
 //!     .unwrap();
 //! ```
 
+/// Opt-in accessible output (Tagged PDF, PDF/UA-1).
+pub mod accessibility;
 /// Adobe Font Metrics for standard PDF fonts (Helvetica, Times, Courier).
 pub(crate) mod bidi;
 /// Capped process-lifetime memoization shared by the font caches.
@@ -99,6 +101,10 @@ pub(crate) mod text;
 pub mod types;
 pub(crate) mod util;
 
+pub use accessibility::{
+    DocumentLanguage, DocumentTitle, EmptyDocumentTitle, InvalidDocumentLanguage, MissingAltPolicy,
+    TaggedPdf,
+};
 pub use error::IronpressError;
 pub use font_pack::{FontPack, FontPackError, FontPackKind, UnknownFontPackKind};
 pub use security::resources::{InvalidRemoteHost, NetworkPolicy, RemoteHost};
@@ -248,6 +254,8 @@ pub struct HtmlConverter {
     /// Skip embedding raster images that are fully covered by a later opaque
     /// rectangular element (default false). Conservative; zero visual change.
     occlusion_cull: bool,
+    /// Accessible output options; `None` keeps the output untagged.
+    tagged_pdf: Option<TaggedPdf>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -279,6 +287,7 @@ impl HtmlConverter {
             auto_resize_images: true,
             raster_quality: RasterQuality::default(),
             occlusion_cull: false,
+            tagged_pdf: None,
         }
     }
 
@@ -350,6 +359,46 @@ impl HtmlConverter {
     /// Conservative and safe: only skips images that are guaranteed invisible.
     pub fn occlusion_cull(mut self, enabled: bool) -> Self {
         self.occlusion_cull = enabled;
+        self
+    }
+
+    /// Enable or disable accessible output: a Tagged PDF conforming to
+    /// PDF/UA-1 (ISO 14289-1). Disabled by default. Disabling discards any
+    /// [`TaggedPdf`] options set earlier, so the output is byte-identical to
+    /// that of a converter which never enabled it.
+    ///
+    /// Accessible output needs a document title and language. They come from
+    /// `<title>` (or the first heading) and `lang` on `<html>`/`<body>`, or
+    /// from [`document_title`](Self::document_title) and
+    /// [`document_language`](Self::document_language); the conversion fails
+    /// with a hint when either is missing.
+    pub fn accessible(mut self, enabled: bool) -> Self {
+        let options = self.tagged_pdf.take();
+        self.tagged_pdf = enabled.then(|| options.unwrap_or_default());
+        self
+    }
+
+    /// Enable accessible output with explicit [`TaggedPdf`] options.
+    pub fn tagged_pdf(mut self, options: TaggedPdf) -> Self {
+        self.tagged_pdf = Some(options);
+        self
+    }
+
+    /// Set the document title for accessible output (implies
+    /// [`accessible(true)`](Self::accessible)). Overrides `<title>` and the
+    /// first heading.
+    pub fn document_title(mut self, title: DocumentTitle) -> Self {
+        self.tagged_pdf.get_or_insert_with(TaggedPdf::default).title = Some(title);
+        self
+    }
+
+    /// Set the document language for accessible output (implies
+    /// [`accessible(true)`](Self::accessible)). Overrides `lang` on `<html>`
+    /// and `<body>`.
+    pub fn document_language(mut self, language: DocumentLanguage) -> Self {
+        self.tagged_pdf
+            .get_or_insert_with(TaggedPdf::default)
+            .language = Some(language);
         self
     }
 
@@ -579,6 +628,14 @@ impl HtmlConverter {
 
         // Step 2: Parse HTML and extract stylesheets
         let mut result = parser::html::parse_html_with_styles(html)?;
+        let structure = self
+            .tagged_pdf
+            .as_ref()
+            .map(|options| {
+                accessibility::DocumentMetadata::resolve(options, &result.head, &result.nodes)
+            })
+            .transpose()?
+            .map(|metadata| accessibility::DocumentStructure { metadata });
         self.page_margins.enrich_document(
             &mut result,
             self.sanitize,
@@ -776,7 +833,7 @@ impl HtmlConverter {
                 .with_initial_containing_block(initial_containing_block),
             &rules,
             &parsed_fonts,
-            result.font_locale,
+            result.head.font_locale,
             &page_background,
             layout::paginate::PaginationContext::new(page_geometry, footnote_area, 0.0),
             self.raster_quality,
@@ -841,6 +898,7 @@ impl HtmlConverter {
                 default_page_area_margin,
                 &parsed_fonts,
                 decoration.as_ref(),
+                structure.as_ref(),
             ),
             writer,
             render_opts,

@@ -8,9 +8,9 @@ use html5ever::tendril::StrTendril;
 use html5ever::{Attribute, QualName, local_name, ns};
 
 /// Index of a node in its [`Document`].
-pub(super) type NodeId = usize;
+pub(in crate::parser) type NodeId = usize;
 
-pub(super) enum NodeData {
+pub(in crate::parser) enum NodeData {
     Document,
     Doctype,
     Text(StrTendril),
@@ -24,10 +24,10 @@ pub(super) enum NodeData {
     ProcessingInstruction,
 }
 
-pub(super) struct Node {
-    pub(super) data: NodeData,
+pub(in crate::parser) struct Node {
+    pub(in crate::parser) data: NodeData,
     parent: Option<NodeId>,
-    pub(super) children: Vec<NodeId>,
+    pub(in crate::parser) children: Vec<NodeId>,
 }
 
 impl Node {
@@ -42,14 +42,14 @@ impl Node {
 
 /// The tree html5ever built. Template contents hang off their element and
 /// never appear among its children.
-pub(super) struct Document {
+pub(in crate::parser) struct Document {
     nodes: Vec<Node>,
 }
 
 impl Document {
-    pub(super) const ROOT: NodeId = 0;
+    pub(in crate::parser) const ROOT: NodeId = 0;
 
-    pub(super) fn node(&self, id: NodeId) -> &Node {
+    pub(in crate::parser) fn node(&self, id: NodeId) -> &Node {
         &self.nodes[id]
     }
 }

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- Opt-in accessible output. `HtmlConverter::accessible(true)`, `document_title`,
+  `document_language` and `tagged_pdf`, and the CLI flags `--accessible`,
+  `--lang` and `--title`, request a Tagged PDF conforming to PDF/UA-1. This
+  first step writes the identification and metadata (`%PDF-1.7`, catalog
+  `/MarkInfo`, `/Lang`, `/StructTreeRoot`, `/ViewerPreferences`, XMP
+  `pdfuaid:part` and `dc:title`, `/Info`) and fails with a hint when the
+  document title or language cannot be determined; content tagging follows.
+  Output without the option is byte-identical to before.
+
 ### Changed
 
 - Text shaping runs on harfrust and glyph outlines, bounds and advances come

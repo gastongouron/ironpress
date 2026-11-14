@@ -4,7 +4,7 @@
 //! so that all logic is covered by `cargo test`.
 
 use crate::error::IronpressError;
-use crate::{HtmlConverter, Margin, PageSize, RasterQuality};
+use crate::{HtmlConverter, Margin, PageSize, RasterQuality, TaggedPdf};
 
 /// Parsed CLI options.
 #[derive(Debug, Clone)]
@@ -47,6 +47,9 @@ pub struct CliOptions {
     pub version: bool,
     /// Base directory for resolving relative `@import` / `@font-face` URLs.
     pub base_path: Option<std::path::PathBuf>,
+    /// Accessible (Tagged PDF, PDF/UA-1) output; `--accessible`, `--lang` and
+    /// `--title` populate it.
+    pub tagged_pdf: Option<TaggedPdf>,
 }
 
 impl Default for CliOptions {
@@ -72,6 +75,7 @@ impl Default for CliOptions {
             help: false,
             version: false,
             base_path: None,
+            tagged_pdf: None,
         }
     }
 }
@@ -218,6 +222,23 @@ pub fn parse_args(args: &[String]) -> Result<CliOptions, String> {
                 let val = args.get(i).ok_or("--base-path requires a value")?;
                 opts.base_path = Some(std::path::PathBuf::from(val));
             }
+            "--accessible" => {
+                opts.tagged_pdf.get_or_insert_with(TaggedPdf::default);
+            }
+            "--lang" => {
+                i += 1;
+                let val = args.get(i).ok_or("--lang requires a value")?;
+                let language = val.parse().map_err(|error| format!("--lang: {error}"))?;
+                opts.tagged_pdf
+                    .get_or_insert_with(TaggedPdf::default)
+                    .language = Some(language);
+            }
+            "--title" => {
+                i += 1;
+                let val = args.get(i).ok_or("--title requires a value")?;
+                let title = val.parse().map_err(|error| format!("--title: {error}"))?;
+                opts.tagged_pdf.get_or_insert_with(TaggedPdf::default).title = Some(title);
+            }
             "--stdin" => opts.from_stdin = true,
             arg if arg.starts_with('-') => {
                 return Err(format!("Unknown option: {arg}"));
@@ -262,6 +283,9 @@ pub fn convert(opts: &CliOptions, html: &str) -> Result<Vec<u8>, IronpressError>
     if let Some(ref bp) = opts.base_path {
         converter = converter.base_path(bp);
     }
+    if let Some(ref tagged) = opts.tagged_pdf {
+        converter = converter.tagged_pdf(tagged.clone());
+    }
 
     converter.convert(html)
 }
@@ -297,6 +321,9 @@ pub fn convert_markdown(opts: &CliOptions, md: &str) -> Result<Vec<u8>, Ironpres
     }
     if let Some(ref bp) = opts.base_path {
         converter = converter.base_path(bp);
+    }
+    if let Some(ref tagged) = opts.tagged_pdf {
+        converter = converter.tagged_pdf(tagged.clone());
     }
 
     converter.convert_markdown(md)
@@ -334,6 +361,9 @@ OPTIONS:
                             Rasterization DPI for flattened backgrounds (default: 192)
     --occlusion-cull <BOOL> Skip raster images fully covered by a later opaque element (default: false)
     --base-path <DIR>       Base dir for relative @import / @font-face URLs
+    --accessible            Tagged PDF output conforming to PDF/UA-1
+    --lang <TAG>            Document language (BCP 47); implies --accessible
+    --title <TEXT>          Document title; implies --accessible
     --stdin                 Read HTML from stdin instead of a file
     --version               Print version
     --help                  Print this help
@@ -664,9 +694,72 @@ mod tests {
     }
 
     #[test]
+    fn parse_accessible_flags() {
+        let opts = parse_args(&args("--accessible in.html out.pdf")).unwrap();
+        assert_eq!(opts.tagged_pdf, Some(TaggedPdf::default()));
+
+        let opts = parse_args(&args("--lang en-GB in.html out.pdf")).unwrap();
+        let tagged = opts.tagged_pdf.expect("--lang implies --accessible");
+        assert_eq!(
+            tagged.language.as_ref().map(ToString::to_string).as_deref(),
+            Some("en-GB")
+        );
+        assert_eq!(tagged.title, None);
+
+        let titled: Vec<String> = ["--title", "Quarterly report", "in.html", "out.pdf"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let opts = parse_args(&titled).unwrap();
+        let title = opts.tagged_pdf.unwrap().title.unwrap();
+        assert_eq!(title.as_str(), "Quarterly report");
+    }
+
+    #[test]
+    fn parse_accessible_flags_reject_bad_values() {
+        let error = parse_args(&args("--lang en_GB in.html out.pdf")).unwrap_err();
+        assert!(error.starts_with("--lang: "), "{error}");
+        assert!(parse_args(&args("--lang")).is_err());
+
+        let blank: Vec<String> = ["--title", " ", "in.html", "out.pdf"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let error = parse_args(&blank).unwrap_err();
+        assert!(error.starts_with("--title: "), "{error}");
+        assert!(parse_args(&args("--title")).is_err());
+    }
+
+    #[test]
+    fn default_options_keep_output_untagged() {
+        assert_eq!(CliOptions::default().tagged_pdf, None);
+        let pdf = convert(&CliOptions::default(), "<h1>Hello</h1>").unwrap();
+        assert!(pdf.starts_with(b"%PDF-1.4"));
+        assert!(!String::from_utf8_lossy(&pdf).contains("/MarkInfo"));
+    }
+
+    #[test]
+    fn convert_accessible_writes_the_pdf_ua_identification() {
+        let opts = parse_args(&args("--lang en --title Hello in.html out.pdf")).unwrap();
+        let pdf = convert(&opts, "<p>Body</p>").unwrap();
+        assert!(pdf.starts_with(b"%PDF-1.7"));
+        let content = String::from_utf8_lossy(&pdf);
+        assert!(
+            content.contains("/MarkInfo << /Marked true >>"),
+            "{content}"
+        );
+        assert!(content.contains("/Lang (en)"), "{content}");
+        assert!(content.contains("/Title (Hello)"), "{content}");
+
+        let markdown = convert_markdown(&opts, "# Ignored\n\nBody").unwrap();
+        assert!(String::from_utf8_lossy(&markdown).contains("/Title (Hello)"));
+    }
+
+    #[test]
     fn help_text_contains_usage() {
         assert!(HELP.contains("USAGE:"));
         assert!(HELP.contains("--page-size"));
         assert!(HELP.contains("--stdin"));
+        assert!(HELP.contains("--accessible"));
     }
 }

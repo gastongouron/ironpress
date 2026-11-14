@@ -83,6 +83,7 @@ mod raster_placement;
 mod resources;
 mod shadows;
 mod stacking;
+mod structure;
 mod table_borders;
 mod text_baselines;
 mod text_lines;
@@ -384,7 +385,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     opts: RenderOpts,
 ) -> Result<(), IronpressError> {
     render_pdf_to_writer_full_opts_with_resources(
-        PdfRenderDocument::new(pages, page_size, margin, custom_fonts, decoration),
+        PdfRenderDocument::new(pages, page_size, margin, custom_fonts, decoration, None),
         writer,
         opts,
         crate::security::resources::ResourceLoader::default(),
@@ -397,6 +398,8 @@ pub(crate) struct PdfRenderDocument<'a> {
     margin: Margin,
     custom_fonts: &'a HashMap<String, TtfFont>,
     decoration: Option<&'a PageDecoration>,
+    /// Present only for accessible output.
+    structure: Option<&'a crate::accessibility::DocumentStructure>,
 }
 
 impl<'a> PdfRenderDocument<'a> {
@@ -406,6 +409,7 @@ impl<'a> PdfRenderDocument<'a> {
         margin: Margin,
         custom_fonts: &'a HashMap<String, TtfFont>,
         decoration: Option<&'a PageDecoration>,
+        structure: Option<&'a crate::accessibility::DocumentStructure>,
     ) -> Self {
         Self {
             pages,
@@ -413,6 +417,7 @@ impl<'a> PdfRenderDocument<'a> {
             margin,
             custom_fonts,
             decoration,
+            structure,
         }
     }
 }
@@ -429,6 +434,7 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         margin,
         custom_fonts,
         decoration,
+        structure,
     } = document;
     let mut pdf_writer = PdfWriter::with_resources(resources);
     pdf_writer.opts = opts;
@@ -865,7 +871,11 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         );
     }
 
-    pdf_writer.finish_to_writer(writer, &bookmarks)
+    pdf_writer.finish_to_writer(
+        writer,
+        &bookmarks,
+        structure.map(|structure| &structure.metadata),
+    )
 }
 
 #[cfg(test)]
