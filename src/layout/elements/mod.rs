@@ -13,6 +13,7 @@ mod media;
 mod metadata;
 mod misc;
 mod multicol;
+mod picture;
 mod placement;
 mod principal;
 mod properties;
@@ -34,6 +35,7 @@ pub(crate) use media::{
 pub(crate) use metadata::{AvoidPageBreak, NamedString, PageBreak, RunningElement};
 pub(crate) use misc::{ColumnRule, HorizontalRule, MathBlock, ProgressBar, ProgressColors};
 pub(crate) use multicol::{MulticolColumn, MulticolContainer};
+pub(crate) use picture::{PictureMeaning, SpokenText};
 pub(crate) use placement::{FragmentBox, FragmentPlacement, FragmentPlacementOwner};
 pub(crate) use principal::{PrincipalBox, impl_principal_layout_element};
 pub(crate) use properties::*;

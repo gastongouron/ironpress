@@ -187,7 +187,8 @@ to PDF/UA-1 (ISO 14289-1) for ordinary documents: a structure tree in document
 order (headings, paragraphs, lists and definition lists, tables with header
 scope, figures with
 their `alt` text, links with descriptions, `#id` links as destinations,
-abbreviations with their `title` as the expansion), page furniture and
+abbreviations with their `title` as the expansion, filtered boxes with their
+text in `/ActualText`), page furniture and
 decoration as
 artifacts, the language and title in the catalog and XMP metadata, and every
 font embedded. The fixture in `tests/pdfua/` passes veraPDF's `ua1` profile.

@@ -848,6 +848,11 @@ impl RunHyphenation {
                 .map(|stem| format!("{stem}\u{00AD}")),
         }
     }
+
+    /// The text a reader should see: `shown` unless a hyphen was synthesized.
+    pub(crate) fn spoken_text(self, shown: &str) -> String {
+        self.actual_text(shown).unwrap_or_else(|| shown.to_string())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]

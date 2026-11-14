@@ -10,6 +10,15 @@ fn figure_mark(paint_box: PdfRect, pdf_writer: &PdfWriter) -> MarkKind {
     }
 }
 
+/// The mark of a raster: a Figure, or the text of the boxes a filter
+/// rasterized.
+fn picture_mark(element: &Image, paint_box: PdfRect, pdf_writer: &PdfWriter) -> MarkKind {
+    MarkKind::picture(
+        &element.paint.meaning,
+        pdf_writer.page_content_transform.transform_rect(paint_box),
+    )
+}
+
 /// Final source and destination used to paint one replaced raster.
 ///
 /// Edge-preserving images can discard an exactly aligned invisible source
@@ -196,7 +205,7 @@ pub(in crate::render::pdf) fn paint_image_box(
             PdfImageInterpolation::for_css_image_rendering(element.sampling.rendering),
         );
         let image_name = format!("Im{image_id}");
-        let kind = figure_mark(expanded_box, ctx.text.pdf_writer);
+        let kind = picture_mark(element, expanded_box, ctx.text.pdf_writer);
         let figure =
             ctx.text
                 .pdf_writer
@@ -245,7 +254,7 @@ pub(in crate::render::pdf) fn paint_image_box(
         element.sampling.rendering,
     );
     let image_name = format!("Im{image_id}");
-    let kind = figure_mark(paint.bounds, ctx.text.pdf_writer);
+    let kind = picture_mark(element, paint.bounds, ctx.text.pdf_writer);
     let figure =
         ctx.text
             .pdf_writer

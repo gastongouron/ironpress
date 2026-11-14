@@ -780,9 +780,10 @@ pub(super) fn render_text_child(
                 );
                 decoration.paint_below_text(content);
             }
+            let mut picture = String::new();
             let rw = if *tb_bg_blur > 0.0
                 && render_text_shadow_blur(
-                    content,
+                    &mut picture,
                     run,
                     lx,
                     run_y,
@@ -792,6 +793,14 @@ pub(super) fn render_text_child(
                     ctx.text.pdf_writer,
                     ctx.text.page_images,
                 ) {
+                // The text is in the picture: the run's mark reads it through
+                // /ActualText (ISO 32000-1 14.9.4).
+                ctx.text.pdf_writer.structure.append_content(
+                    content,
+                    run.metadata.structure,
+                    crate::render::pdf::structure::MarkKind::rasterized_run(run),
+                    &picture,
+                );
                 if upright_vertical {
                     text_combine_advance(run, ctx.text.custom_fonts).unwrap_or_else(|| {
                         estimate_run_width_with_fonts(run, ctx.text.custom_fonts)

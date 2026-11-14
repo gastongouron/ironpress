@@ -182,6 +182,20 @@ impl StructureRecorder {
         OpenMark::Content
     }
 
+    /// Append `paint` inside the marked content of `owner`, for painters that
+    /// only know afterwards whether they painted anything.
+    pub(crate) fn append_content(
+        &mut self,
+        content: &mut String,
+        owner: StructureRef,
+        kind: MarkKind,
+        paint: &str,
+    ) {
+        let mark = self.begin_content(content, owner, kind);
+        content.push_str(paint);
+        self.end(content, mark);
+    }
+
     /// Open a `Lbl` mark for a list item's geometric bullet. Inline boxes with
     /// any other identity stay unmarked: their text lines mark themselves.
     pub(crate) fn begin_label(&mut self, content: &mut String, owner: StructureRef) -> OpenMark {

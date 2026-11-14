@@ -99,6 +99,8 @@ pub(crate) struct ImagePaint {
     pub(crate) raster_overflow: EdgeSizes,
     pub(crate) filter_effect: Option<ImageEffectRaster>,
     pub(crate) group: PaintGroup,
+    /// What the picture stands for in the structure tree.
+    pub(crate) meaning: super::PictureMeaning,
 }
 
 #[derive(Debug, Clone)]

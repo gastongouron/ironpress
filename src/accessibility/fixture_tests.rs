@@ -140,6 +140,70 @@ fn abbreviation_titles_become_expansions() {
     assert_eq!(pdf.matches("/S /Span ").count(), 1, "{pdf}");
 }
 
+fn blurred(body: &str) -> String {
+    text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .convert(&format!(
+                r#"<html lang="en"><head><title>B</title></head><body>{body}</body></html>"#
+            ))
+            .unwrap(),
+    )
+}
+
+/// The `/ActualText` of every mark whose content is a picture.
+fn rasterized_actual_text(pdf: &str) -> Vec<&str> {
+    pdf.match_indices("/ActualText ")
+        .filter_map(|(at, _)| {
+            let mark = &pdf[at + "/ActualText ".len()..];
+            let text = &mark[..mark.find(" >> BDC\n")?];
+            let body = &mark[..mark.find("EMC")?];
+            body.contains(" Do\n").then_some(text)
+        })
+        .collect()
+}
+
+/// ISO 32000-1 14.9.4 and ISO 14289-1 7.1: a filtered block is painted as
+/// one picture, so that picture is marked content of the block whose
+/// `/ActualText` carries its lines joined by spaces; no text operator and no
+/// Figure remain.
+#[test]
+fn filtered_text_blocks_are_read_through_actual_text() {
+    let pdf = blurred(r#"<p style="filter: blur(1pt); width: 30pt">Soft text</p>"#);
+    assert_eq!(rasterized_actual_text(&pdf), vec!["(Soft text)"], "{pdf}");
+    assert_eq!(pdf.matches("/ActualText ").count(), 1, "{pdf}");
+    assert!(!pdf.contains("/Figure"), "{pdf}");
+    assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
+}
+
+/// ISO 32000-1 14.9.4: a filtered flex item is one picture too, marked with
+/// the item's text.
+#[test]
+fn filtered_flex_items_are_read_through_actual_text() {
+    let pdf = blurred(
+        r#"<div style="display: flex"><div style="filter: blur(1pt)">Cell <b>text</b></div></div>"#,
+    );
+    assert_eq!(rasterized_actual_text(&pdf), vec!["(Cell text)"], "{pdf}");
+    assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
+}
+
+/// ISO 32000-1 14.9.4: a blurred line painted run by run marks each picture
+/// with its run's text, so the runs read back as the authored text.
+#[test]
+fn blurred_text_runs_are_read_through_actual_text() {
+    let pdf = blurred(r#"<p style="filter: blur(1pt); border-radius: 2pt">Soft <b>text</b></p>"#);
+    let runs = rasterized_actual_text(&pdf);
+    assert_eq!(runs.len(), 2, "{pdf}");
+    assert_eq!(pdf.matches("/ActualText ").count(), 2, "{pdf}");
+    let spoken: String = runs
+        .iter()
+        .map(|run| run.trim_matches(|c| c == '(' || c == ')'))
+        .collect();
+    assert_eq!(spoken, "Soft text", "{pdf}");
+    assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
+}
+
 /// ISO 32000-1 14.9.4: a hyphen the line breaker inserts at a soft hyphen
 /// is replaced by U+00AD in `/ActualText`, so the word reads unbroken.
 #[test]

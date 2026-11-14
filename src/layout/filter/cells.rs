@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use crate::layout::cells::{CellPaintHolder, GridCell};
-use crate::layout::elements::{FilterHolder, FlexRow, GridRow};
+use crate::layout::elements::{FilterHolder, FlexRow, GridRow, PictureMeaning};
 use crate::layout::engine::FlexCell;
 use crate::parser::ttf::TtfFont;
 use crate::types::Size;
@@ -76,8 +76,9 @@ fn composite_flex_cell(
     else {
         return false;
     };
+    let meaning = PictureMeaning::of_flex_cell(cell);
     let Some((output, _)) =
-        super::composite_source_graphic(source, filter, compositing, filter_dpi)
+        super::composite_source_graphic(source, filter, compositing, filter_dpi, meaning)
     else {
         return false;
     };
@@ -136,8 +137,9 @@ fn composite_grid_cell(
     else {
         return false;
     };
+    let meaning = PictureMeaning::of_cell(&cell.layout.content);
     let Some((output, _)) =
-        super::composite_source_graphic(source, filter, compositing, filter_dpi)
+        super::composite_source_graphic(source, filter, compositing, filter_dpi, meaning)
     else {
         return false;
     };

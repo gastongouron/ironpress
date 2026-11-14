@@ -508,8 +508,9 @@ pub(super) fn render_text_block_lines(
                 if run.text.is_empty() {
                     continue;
                 }
+                let mut picture = String::new();
                 if !render_text_shadow_blur(
-                    content,
+                    &mut picture,
                     run,
                     lx,
                     text_y,
@@ -522,6 +523,14 @@ pub(super) fn render_text_block_lines(
                     blurred_line = false;
                     break;
                 }
+                // The text is in the picture: the run's mark reads it through
+                // /ActualText (ISO 32000-1 14.9.4).
+                ctx.text.pdf_writer.structure.append_content(
+                    content,
+                    run.metadata.structure,
+                    crate::render::pdf::structure::MarkKind::rasterized_run(run),
+                    &picture,
+                );
                 lx += if upright_vertical {
                     text_combine_advance(run, ctx.text.custom_fonts).unwrap_or_else(|| {
                         estimate_run_width_with_fonts(run, ctx.text.custom_fonts)
