@@ -2490,15 +2490,17 @@ fn element_contains_text(element: &dyn LayoutElement, needle: &str) -> bool {
 }
 
 fn resolve_target_placeholders(pages: &mut [Page], dom_targets: &HashMap<String, String>) {
-    if dom_targets.is_empty() && !pages.iter().any(page_has_target_anchor_marker) {
+    if dom_targets.is_empty()
+        && pages
+            .iter()
+            .all(|page| page.generated_content.anchors().is_empty())
+    {
         return;
     }
     let mut page_by_id = HashMap::new();
     for (idx, page) in pages.iter().enumerate() {
-        for name in page.generated_content.named_string_names() {
-            if let Some(id) = target_anchor_id(name) {
-                page_by_id.entry(id.to_string()).or_insert(idx + 1);
-            }
+        for anchor in page.generated_content.anchors() {
+            page_by_id.entry(anchor.id.clone()).or_insert(idx + 1);
         }
     }
     for (id, text) in dom_targets {
@@ -2518,12 +2520,6 @@ fn resolve_target_placeholders(pages: &mut [Page], dom_targets: &HashMap<String,
             resolve_target_placeholders_in_element(element.as_mut(), dom_targets, &page_by_id);
         }
     }
-}
-
-fn page_has_target_anchor_marker(page: &Page) -> bool {
-    page.generated_content
-        .named_string_names()
-        .any(|name| target_anchor_id(name).is_some())
 }
 
 fn resolve_target_placeholders_in_element(

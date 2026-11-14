@@ -26,8 +26,10 @@
   SVG `<text>` set in a standard font paints through the embedded face body
   text uses, a hyphen inserted at a soft hyphen carries `/ActualText` with
   U+00AD so the word reads unbroken, `<abbr title>` becomes a `Span` whose
-  `/E` entry carries the expansion, and a `position: fixed` box is content
-  where it is authored (only its copies on later pages are artifacts).
+  `/E` entry carries the expansion, a `position: fixed` box is content
+  where it is authored (only its copies on later pages are artifacts), and
+  an `#id` link is a named destination to the anchor's page (a link to no
+  element is dropped).
 
 ### Changed
 

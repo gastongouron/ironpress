@@ -154,11 +154,14 @@ impl PdfWriter {
             None => format!("{document_id} 0 R"),
         };
         // Hidden content never produces a link: ISO 14289-1 7.18.5 wants
-        // every link annotation inside a Link element.
+        // every link annotation inside a Link element. Nor does a link to no
+        // element of the document.
         let mut annotations = annotations;
         if self.structure.is_enabled() {
-            annotations
-                .retain(|annot| annot.owner != crate::accessibility::StructureRef::Decorative);
+            annotations.retain(|annot| {
+                annot.owner != crate::accessibility::StructureRef::Decorative
+                    && self.destinations.keeps(&annot.target)
+            });
         }
         let page_id = self.objects.len() + annotations.len() + 1;
         let page_keys = self.structure.page_keys(annotations.len());
@@ -172,18 +175,18 @@ impl PdfWriter {
                 format!(
                     " /F 4 /Contents {} /StructParent {}",
                     self.structure
-                        .link_description(annot.owner, &annot.text, &annot.url),
+                        .link_description(annot.owner, &annot.text, &annot.target.href()),
                     keys.annotations[index],
                 )
             });
             self.objects.push(format!(
-                "{annot_id} 0 obj\n<< /Type /Annot /Subtype /Link /P {page_id} 0 R /Rect [{x1} {y1} {x2} {y2}] /Border [0 0 0] /A << /Type /Action /S /URI /URI ({uri}) >>{tagging} >>\nendobj",
+                "{annot_id} 0 obj\n<< /Type /Annot /Subtype /Link /P {page_id} 0 R /Rect [{x1} {y1} {x2} {y2}] /Border [0 0 0] {action}{tagging} >>\nendobj",
                 page_id = page_id,
                 x1 = annot.rect.left,
                 y1 = annot.rect.bottom,
                 x2 = annot.rect.right(),
                 y2 = annot.rect.top(),
-                uri = escape_pdf_string(&annot.url),
+                action = self.destinations.annotation_entry(&annot.target),
             ));
             annot_ids.push(annot_id);
             if let Some(keys) = &page_keys {
@@ -611,10 +614,14 @@ impl PdfWriter {
             None => ("", ""),
         };
 
+        let names_ref = self
+            .destinations
+            .append_to(&mut all_objects, &self.page_ids);
+
         // Catalog
         let catalog_id = all_objects.len() + 1;
         all_objects.push(format!(
-            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R{outlines_ref}{catalog_tagging} >>\nendobj",
+            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R{outlines_ref}{names_ref}{catalog_tagging} >>\nendobj",
         ));
 
         // Write objects and track offsets for xref

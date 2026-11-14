@@ -254,13 +254,17 @@ fn extract_page_state_markers(
     });
 }
 
+/// Place the anchors collected since the previous box at the top of the
+/// box that follows them.
 fn apply_pending_target_anchors(
     pending_target_anchors: &mut Vec<String>,
     generated_content: &mut super::page_values::PageGeneratedContent,
-    at_page_start: bool,
+    block_offset: f32,
 ) {
     for name in pending_target_anchors.drain(..) {
-        generated_content.capture_named_string(name, String::new(), at_page_start);
+        if let Some(id) = target_anchor_id(&name) {
+            generated_content.capture_anchor(id.to_string(), block_offset);
+        }
     }
 }
 
@@ -3350,7 +3354,7 @@ pub(crate) fn paginate_with_context(
             apply_pending_target_anchors(
                 &mut pending_target_anchors,
                 &mut current_generated_content,
-                first_on_page,
+                y,
             );
             collect_footnotes_from_element(&element, &mut current_footnotes);
             current_elements.push((y, element));
@@ -3416,7 +3420,7 @@ pub(crate) fn paginate_with_context(
                 apply_pending_target_anchors(
                     &mut pending_target_anchors,
                     &mut current_generated_content,
-                    first_on_page,
+                    y,
                 );
                 collect_footnotes_from_element(&first, &mut current_footnotes);
                 current_elements.push((y, first));
@@ -3476,7 +3480,7 @@ pub(crate) fn paginate_with_context(
         apply_pending_target_anchors(
             &mut pending_target_anchors,
             &mut current_generated_content,
-            first_on_page,
+            effective_y,
         );
         collect_footnotes_from_element(&element, &mut current_footnotes);
         current_elements.push((effective_y, element));

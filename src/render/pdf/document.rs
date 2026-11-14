@@ -3,7 +3,7 @@ use super::*;
 /// A link annotation to be placed on a PDF page.
 pub(super) struct LinkAnnotation {
     pub(super) rect: PdfRect,
-    pub(super) url: String,
+    pub(super) target: super::destinations::LinkTarget,
     /// The link element the annotation belongs to in the structure tree.
     pub(super) owner: crate::accessibility::StructureRef,
     /// The linked text, for the annotation's `/Contents` description.
@@ -20,7 +20,7 @@ pub(super) fn text_run_link_annotation(run: &TextRun, rect: PdfRect) -> Option<L
     }
     Some(LinkAnnotation {
         rect,
-        url: url.clone(),
+        target: super::destinations::LinkTarget::from_href(url),
         owner: run.metadata.structure,
         text: run.text.clone(),
     })

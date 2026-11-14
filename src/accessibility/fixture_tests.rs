@@ -46,6 +46,37 @@ fn report_fixture_selects_no_base14_font() {
     assert!(base14.is_empty(), "{base14:?}");
 }
 
+/// ISO 32000-1 12.3.2.3: an `#id` link is a named destination resolved
+/// through the catalog's `/Dests` name tree (keys in byte order, 7.9.6) to
+/// the anchor's page. A link to no element is dropped: a `Link` whose
+/// annotation leads nowhere is dead for assistive technology (ISO 14289-1
+/// 7.18.5).
+#[test]
+fn anchor_links_resolve_to_named_destinations() {
+    let pdf = tagged(
+        r##"<html lang="en"><head><title>A</title></head><body>
+        <h1 id="top">Top</h1><p><a href="#end">Go to end</a></p>
+        <p style="height: 800pt">x</p><h2 id="end">End</h2>
+        <p><a href="#top">Back</a> <a href="#missing">Nowhere</a></p></body></html>"##,
+    );
+    assert_eq!(pdf.matches("/Subtype /Link").count(), 2, "{pdf}");
+    assert!(
+        pdf.contains("/Dest (end) /F 4 /Contents (Go to end)"),
+        "{pdf}"
+    );
+    assert!(pdf.contains("/Dest (top) /F 4 /Contents (Back)"), "{pdf}");
+    assert!(!pdf.contains("missing"), "{pdf}");
+    assert!(pdf.contains("/Names << /Dests "), "{pdf}");
+    let kids = &pdf[pdf.find("/Kids [").unwrap() + "/Kids [".len()..];
+    let second_page = kids.split(' ').nth(3).unwrap();
+    let tree = &pdf[pdf.find("/Names [(end) [").unwrap()..];
+    assert!(
+        tree.starts_with(&format!("/Names [(end) [{second_page} 0 R /XYZ null ")),
+        "{pdf}"
+    );
+    assert!(tree.contains(" null] (top) ["), "{pdf}");
+}
+
 /// Matterhorn 18-001 / ISO 14289-1 7.1: a `position: fixed` box is content
 /// where it is authored and page furniture on every later page, so its text
 /// is a content item exactly once and each copy is a Pagination artifact.
@@ -152,6 +183,8 @@ fn report_fixture_carries_every_required_structure_type() {
         "/S /Formula ",
         "/S /Span /P ",
         "/E (Great British Pounds)",
+        "/Dest (detail) /F 4 /Contents (detail table)",
+        "/Names << /Dests ",
         "/ID (fn",
         "/IDTree << /Names [(fn",
     ] {

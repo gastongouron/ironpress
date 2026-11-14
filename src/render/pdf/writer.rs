@@ -64,6 +64,8 @@ pub(crate) struct PdfWriter {
     pub(super) graphics_state: PdfGraphicsState,
     /// Marked-content recording for accessible output; disabled by default.
     pub(crate) structure: super::structure::StructureRecorder,
+    /// Targets of `#id` links, resolved in accessible output only.
+    pub(super) destinations: super::destinations::NamedDestinations,
 }
 
 /// Renderer-owned subset of the PDF graphics state which cannot be recovered

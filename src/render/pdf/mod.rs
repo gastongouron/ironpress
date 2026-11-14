@@ -54,6 +54,7 @@ mod clipping;
 mod compositing;
 mod conic_gradients;
 mod container;
+mod destinations;
 mod document;
 mod flex_cell_shadows;
 mod flow_layout;
@@ -457,6 +458,14 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         .map(structure::StructureRecorder::for_document)
         .unwrap_or_default();
     pdf_writer.svg_defs = collect_document_svg_defs(pages);
+    if pdf_writer.structure.is_enabled() {
+        pdf_writer.destinations = destinations::NamedDestinations::resolving(
+            pages
+                .iter()
+                .flat_map(|page| page.generated_content.anchors())
+                .map(|anchor| anchor.id.as_str()),
+        );
+    }
     // `available_width` is derived per page inside the loop below, since a page
     // may carry an `@page :first` margin override that changes its content box.
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
@@ -515,6 +524,13 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
             Vec::new()
         };
         let fixed_textblock_flow_adjustments = fixed_textblock_flow_adjustments(&page.elements);
+        for anchor in page.generated_content.anchors() {
+            pdf_writer.destinations.locate(
+                &anchor.id,
+                page_idx,
+                page_size.height - flow_margin.top - anchor.block_offset,
+            );
+        }
         {
             let mut ctx = PageRenderContext::new(
                 &mut pdf_writer,
