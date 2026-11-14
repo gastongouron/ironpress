@@ -6,6 +6,7 @@
 //! after the page tree and before the catalog, the same way the outline is.
 
 mod artifacts;
+mod lists;
 mod metadata;
 mod recorder;
 mod tables;

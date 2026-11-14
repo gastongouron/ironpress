@@ -184,7 +184,8 @@ does not change page geometry. The CLI exposes the same controls through
 
 `.accessible(true)` (CLI `--accessible`) produces a Tagged PDF that conforms
 to PDF/UA-1 (ISO 14289-1) for ordinary documents: a structure tree in document
-order (headings, paragraphs, lists, tables with header scope, figures with
+order (headings, paragraphs, lists and definition lists, tables with header
+scope, figures with
 their `alt` text, links with descriptions, `#id` links as destinations,
 abbreviations with their `title` as the expansion), page furniture and
 decoration as

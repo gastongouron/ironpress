@@ -262,6 +262,7 @@ impl StructureTree {
         let mut reference_of: Vec<Option<usize>> = vec![None; count];
         let mut note_of: Vec<Option<usize>> = vec![None; count];
         let mut note_label_of: Vec<Option<usize>> = vec![None; count];
+        let mut definition_items = super::lists::DefinitionItems::default();
         let document = tree.push(Element::new("Document", None));
         tree.elements[document].attributes = format!(
             " /Lang {}",
@@ -275,6 +276,14 @@ impl StructureTree {
             }
             let node = &nodes[index];
             let parent_attach = attach[parent_of(index)].unwrap_or(document);
+            // ISO 32000-1 Table 335: a term and the descriptions after it
+            // form one LI of Lbl and LBody elements.
+            let parent_attach = match node.role {
+                StructureRole::Lbl | StructureRole::LBody => {
+                    definition_items.item_for(&mut tree, parent_of(index), parent_attach, node.role)
+                }
+                _ => parent_attach,
+            };
             // ISO 14289-1 7.9: a footnote is a Reference where it is called
             // and a Note, with a unique ID, where its body is painted.
             if !references[index].is_empty() {

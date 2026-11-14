@@ -46,6 +46,33 @@ fn report_fixture_selects_no_base14_font() {
     assert!(base14.is_empty(), "{base14:?}");
 }
 
+/// ISO 32000-1 Table 335: a definition list is an `L` whose items are `LI`
+/// elements holding one or more `Lbl` (terms) and `LBody` (descriptions);
+/// a term after a description starts a new item. PDF/UA-1 7.2 (veraPDF
+/// 7.2-40): the list declares its numbering, `None` for terms.
+#[test]
+fn definition_lists_group_terms_and_descriptions_into_items() {
+    let pdf = tagged(
+        r#"<html lang="en"><head><title>D</title></head><body>
+        <dl><dt>Alpha</dt><dd>First</dd><dt>Beta</dt><dt>Gamma</dt><dd>Second</dd><dd>Third</dd></dl>
+        </body></html>"#,
+    );
+    assert_eq!(pdf.matches("/S /L ").count(), 1, "{pdf}");
+    assert!(pdf.contains("/ListNumbering /None"), "{pdf}");
+    assert_eq!(pdf.matches("/S /Lbl ").count(), 3, "{pdf}");
+    assert_eq!(pdf.matches("/S /LBody ").count(), 3, "{pdf}");
+    assert!(!pdf.contains("/S /P "), "{pdf}");
+    let item_kids: Vec<usize> = pdf
+        .match_indices("/S /LI ")
+        .map(|(at, _)| {
+            let kids = &pdf[at..];
+            let kids = &kids[kids.find("/K [").unwrap() + "/K [".len()..];
+            kids[..kids.find(']').unwrap()].matches(" 0 R").count()
+        })
+        .collect();
+    assert_eq!(item_kids, vec![2, 4], "{pdf}");
+}
+
 /// ISO 32000-1 12.3.2.3: an `#id` link is a named destination resolved
 /// through the catalog's `/Dests` name tree (keys in byte order, 7.9.6) to
 /// the anchor's page. A link to no element is dropped: a `Link` whose
@@ -167,6 +194,8 @@ fn report_fixture_carries_every_required_structure_type() {
         "/Type /OBJR",
         "/ListNumbering /Disc",
         "/ListNumbering /Decimal",
+        "/ListNumbering /None",
+        "/S /LBody ",
         "/Scope /Column",
         "/Scope /Row",
         "/ColSpan 2",

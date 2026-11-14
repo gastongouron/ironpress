@@ -19,6 +19,10 @@ pub(crate) enum StructureRole {
     Heading(HeadingLevel),
     L,
     LI,
+    /// A definition term (`dt`); the tree builder groups it into an `LI`.
+    Lbl,
+    /// A definition description (`dd`); grouped into an `LI` with its term.
+    LBody,
     Table,
     THead,
     TBody,
@@ -83,6 +87,8 @@ impl StructureRole {
             Self::Heading(level) => level.pdf_name(),
             Self::L => "L",
             Self::LI => "LI",
+            Self::Lbl => "Lbl",
+            Self::LBody => "LBody",
             Self::Table => "Table",
             Self::THead => "THead",
             Self::TBody => "TBody",
@@ -135,8 +141,6 @@ impl StructureRole {
             HtmlTag::H6 => Self::Heading(HeadingLevel(6)),
             HtmlTag::P
             | HtmlTag::Pre
-            | HtmlTag::Dt
-            | HtmlTag::Dd
             | HtmlTag::Input
             | HtmlTag::Select
             | HtmlTag::Textarea
@@ -154,12 +158,15 @@ impl StructureRole {
             | HtmlTag::Header
             | HtmlTag::Footer
             | HtmlTag::Figure
-            | HtmlTag::Dl
             | HtmlTag::Details
             | HtmlTag::Summary
             | HtmlTag::Address => Self::Div,
-            HtmlTag::Ul | HtmlTag::Ol => Self::L,
+            HtmlTag::Ul | HtmlTag::Ol | HtmlTag::Dl => Self::L,
             HtmlTag::Li => Self::LI,
+            // ISO 32000-1 Table 335: a term and its descriptions form one LI
+            // of Lbl and LBody elements; the tree builder groups them.
+            HtmlTag::Dt => Self::Lbl,
+            HtmlTag::Dd => Self::LBody,
             HtmlTag::Table => Self::Table,
             HtmlTag::Thead => Self::THead,
             HtmlTag::Tbody => Self::TBody,
@@ -212,6 +219,9 @@ mod tests {
             (HtmlTag::Ul, StructureRole::L),
             (HtmlTag::Ol, StructureRole::L),
             (HtmlTag::Li, StructureRole::LI),
+            (HtmlTag::Dl, StructureRole::L),
+            (HtmlTag::Dt, StructureRole::Lbl),
+            (HtmlTag::Dd, StructureRole::LBody),
             (HtmlTag::Table, StructureRole::Table),
             (HtmlTag::Thead, StructureRole::THead),
             (HtmlTag::Tbody, StructureRole::TBody),
