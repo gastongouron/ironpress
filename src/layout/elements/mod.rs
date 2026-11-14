@@ -373,6 +373,16 @@ pub(crate) trait LayoutElement: Debug {
                 PageContentRole::MainFlow.for_position(owner.positioning().scheme)
             })
     }
+
+    /// Whether this node is a later-page copy of a box that repeats on every
+    /// page. The original carries the content once; the copies are page
+    /// furniture for assistive technology (Matterhorn 18-001).
+    fn is_repeated_page_copy(&self) -> bool {
+        self.page_content_role() == PageContentRole::RepeatedDecoration
+            && self
+                .positioning_owner()
+                .is_some_and(|owner| owner.positioning().repeat == PageRepeat::Copy)
+    }
 }
 
 pub(crate) type LayoutNode = Box<dyn LayoutElement>;

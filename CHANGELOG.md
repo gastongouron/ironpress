@@ -25,8 +25,9 @@
   formulas are `Formula` elements whose glyphs come from the embedded fonts,
   SVG `<text>` set in a standard font paints through the embedded face body
   text uses, a hyphen inserted at a soft hyphen carries `/ActualText` with
-  U+00AD so the word reads unbroken, and `<abbr title>` becomes a `Span`
-  whose `/E` entry carries the expansion.
+  U+00AD so the word reads unbroken, `<abbr title>` becomes a `Span` whose
+  `/E` entry carries the expansion, and a `position: fixed` box is content
+  where it is authored (only its copies on later pages are artifacts).
 
 ### Changed
 

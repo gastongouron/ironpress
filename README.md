@@ -210,9 +210,10 @@ a decorative image, and `TaggedPdf { missing_alt: MissingAltPolicy::Artifact,
 structure tree (the first heading becomes H1 and no level is skipped); the
 outline keeps the authored levels.
 
-Known limits of the current step: text inside `position: fixed` boxes is
-painted as an artifact (hidden from assistive technology); right-to-left
-lines are in visual order; a formula symbol no available font covers (with
+Known limits of the current step: a `position: fixed` box is content on the
+page where it is authored and an artifact on the pages it repeats on;
+right-to-left lines are in visual order; a formula symbol no available font
+covers (with
 the bundled fonts alone, for example `∀`, `∈`, `⊂`, `⟨⟩`) still uses the
 unembedded Symbol font.
 

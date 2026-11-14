@@ -567,14 +567,12 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
                 if physical_page_background {
                     ctx.text.pdf_writer.page_content_transform = physical_page_transform;
                 }
-                // Continuation re-paints and repeated fixed boxes are page
-                // furniture for assistive technology (Matterhorn 18-001).
+                // Continuation re-paints and later-page copies of fixed boxes
+                // are page furniture for assistive technology (Matterhorn
+                // 18-001); the first instance of a fixed box is content.
                 let furniture = paint_only
                     || (ctx.text.pdf_writer.structure.is_enabled()
-                        && matches!(
-                            element.page_content_role(),
-                            crate::layout::elements::PageContentRole::RepeatedDecoration
-                        ));
+                        && element.is_repeated_page_copy());
                 let region = if furniture {
                     ctx.text
                         .pdf_writer

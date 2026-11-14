@@ -642,6 +642,16 @@ fn resolve_sticky_axis(
     }
 }
 
+/// Which instance of a box that repeats on every page (`position: fixed`)
+/// a node is. The original carries the content once; a copy on a later page
+/// is page furniture for assistive technology (Matterhorn 18-001).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum PageRepeat {
+    #[default]
+    Original,
+    Copy,
+}
+
 /// Physical positioned-layout state. The resolved placement and authored
 /// constraints stay together so pagination never has to infer whether a
 /// top-left coordinate came from `top`/`left`, `bottom`/`right`, or `auto`.
@@ -652,6 +662,7 @@ pub(crate) struct Positioning {
     constraints: PositionConstraints,
     pub(crate) containing_block: Option<ContainingBlock>,
     pub(crate) containing_block_depth: usize,
+    pub(crate) repeat: PageRepeat,
 }
 
 impl Positioning {
@@ -698,6 +709,7 @@ impl Positioning {
             },
             containing_block: None,
             containing_block_depth: 0,
+            repeat: PageRepeat::Original,
         }
     }
 

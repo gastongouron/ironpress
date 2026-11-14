@@ -10,8 +10,8 @@ use super::text::{OverflowWrap, TextWrapOptions, wrap_text_runs};
 use crate::layout::elements::{
     BlockSize, Container, FlexRow, FragmentBreakRule, GridRow, HorizontalRule, Image,
     IntoLayoutNode, LayoutElement, LayoutNode, LayoutVisitor, LayoutVisitorMut, MathBlock,
-    NamedString, PageContentRole, ProgressBar, RunningElement, Svg, Table, TableFragmentGroup,
-    TableRow, TextBlock, visit_layout_tree,
+    NamedString, PageContentRole, PageRepeat, ProgressBar, RunningElement, Svg, Table,
+    TableFragmentGroup, TableRow, TextBlock, visit_layout_tree,
 };
 use crate::style::computed::{
     BoxDecorationBreak, Clear, Float, FootnotePolicy, ObjectFit, Position,
@@ -2218,6 +2218,9 @@ impl RepeatedPageDecorations {
             let mut repeated = element.clone();
             if let Some(background) = repeated.page_area_background_mut() {
                 background.fit_page_area(geometry.page_area_in_flow_space());
+            }
+            if let Some(owner) = repeated.positioning_owner_mut() {
+                owner.positioning_mut().repeat = PageRepeat::Copy;
             }
             (*block_offset, repeated)
         }));

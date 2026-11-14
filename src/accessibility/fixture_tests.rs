@@ -46,6 +46,26 @@ fn report_fixture_selects_no_base14_font() {
     assert!(base14.is_empty(), "{base14:?}");
 }
 
+/// Matterhorn 18-001 / ISO 14289-1 7.1: a `position: fixed` box is content
+/// where it is authored and page furniture on every later page, so its text
+/// is a content item exactly once and each copy is a Pagination artifact.
+#[test]
+fn fixed_boxes_are_content_once_and_pagination_artifacts_afterwards() {
+    let pdf = tagged(
+        r#"<html lang="en"><head><title>F</title></head><body>
+        <div style="position: fixed; top: 0">Running note</div>
+        <p style="height: 800pt">Body</p></body></html>"#,
+    );
+    assert_eq!(pdf.matches("/Type /Page /MediaBox").count(), 2, "{pdf}");
+    assert_eq!(pdf.matches("/S /Div ").count(), 1, "{pdf}");
+    assert_eq!(pdf.matches("/Div << /MCID ").count(), 1, "{pdf}");
+    assert_eq!(
+        pdf.matches("/Artifact << /Type /Pagination >> BDC").count(),
+        1,
+        "{pdf}"
+    );
+}
+
 /// ISO 32000-1 14.9.5: an abbreviation's expansion is the `/E` entry of its
 /// structure element; a `<abbr>` without a title adds no element.
 #[test]
