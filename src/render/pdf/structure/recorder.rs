@@ -142,6 +142,15 @@ impl StructureRecorder {
         })))
     }
 
+    /// Accessible output embeds every shown glyph (ISO 14289-1 7.21.4.1).
+    pub(crate) fn font_policy(&self) -> crate::render::pdf_fonts::FontPolicy {
+        if self.0.is_some() {
+            crate::render::pdf_fonts::FontPolicy::Embedded
+        } else {
+            crate::render::pdf_fonts::FontPolicy::Historical
+        }
+    }
+
     pub(crate) fn is_enabled(&self) -> bool {
         self.0.is_some()
     }

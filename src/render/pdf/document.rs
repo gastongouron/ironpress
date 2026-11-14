@@ -64,7 +64,7 @@ pub(super) fn paint_page_text(
     pdf_writer: &mut PdfWriter,
     page_images: &mut Vec<ImageRef>,
 ) {
-    if !pdf_writer.structure.is_enabled() {
+    if !pdf_writer.structure.font_policy().embeds_side_text() {
         let encoded = encode_pdf_text(text);
         content.push_str("BT\n");
         content.push_str("/Helvetica 9 Tf\n");
@@ -964,7 +964,7 @@ pub(super) fn margin_box_font_usage(
     pages: &[Page],
     decoration: Option<&PageDecoration>,
     custom_fonts: &HashMap<String, TtfFont>,
-    embed_page_text: bool,
+    font_policy: crate::render::pdf_fonts::FontPolicy,
 ) -> MarginBoxFontUsage {
     let Some(decoration) = decoration else {
         return MarginBoxFontUsage::default();
@@ -976,7 +976,7 @@ pub(super) fn margin_box_font_usage(
 
     for (page_index, (page, runs)) in pages.iter().zip(&mut usage.per_page_runs).enumerate() {
         let page_number = page_index + 1;
-        if embed_page_text {
+        if font_policy.embeds_side_text() {
             for text in [&decoration.header, &decoration.footer]
                 .into_iter()
                 .flatten()

@@ -21,7 +21,8 @@
   cluster map to a zero-width space), content inside `opacity`,
   `mix-blend-mode` or `mask` containers keeps its structure through the form
   XObject's own `/StructParents`, footnotes become `Reference` and `Note`
-  elements with an `/IDTree`, and vertical upright text is tagged.
+  elements with an `/IDTree`, vertical upright text is tagged, and display
+  formulas are `Formula` elements whose glyphs come from the embedded fonts.
 
 ### Changed
 

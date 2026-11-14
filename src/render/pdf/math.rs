@@ -1,4 +1,89 @@
 use super::*;
+use crate::layout::elements::MathBlock;
+use crate::layout::math::MathGlyph;
+use crate::style::computed::FontStyle;
+
+/// Delimiters taller than this many font sizes are drawn as paths.
+const SCALED_DELIMITER_FACTOR: f32 = 1.3;
+
+/// A formula glyph painted as an embedded text run, positioned relative to
+/// the formula's layout origin.
+pub(in crate::render) struct EmbeddedMathRun {
+    pub(in crate::render) run: TextRun,
+    pub(in crate::render) dx: f32,
+    pub(in crate::render) dy: f32,
+}
+
+impl MathBlock {
+    /// The formula glyphs an available embedded face covers, as text runs.
+    pub(in crate::render) fn embedded_runs(
+        &self,
+        custom_fonts: &HashMap<String, TtfFont>,
+    ) -> Vec<EmbeddedMathRun> {
+        self.layout
+            .glyphs
+            .iter()
+            .filter_map(|glyph| glyph.embedded_run(custom_fonts))
+            .collect()
+    }
+}
+
+impl MathGlyph {
+    /// This glyph as an embedded text run, when the sans face the formula is
+    /// set in or the fallback chain covers it. Rules, radicals and scaled
+    /// delimiters are vector paths and have no run.
+    pub(in crate::render) fn embedded_run(
+        &self,
+        custom_fonts: &HashMap<String, TtfFont>,
+    ) -> Option<EmbeddedMathRun> {
+        let (text, dx, dy, font_size, italic) = match self {
+            Self::Char {
+                ch,
+                x,
+                y,
+                font_size,
+                italic,
+            } => (ch.to_string(), *x, *y, *font_size, *italic),
+            Self::Text {
+                text,
+                x,
+                y,
+                font_size,
+            } => (text.clone(), *x, *y, *font_size, false),
+            Self::Delimiter {
+                ch,
+                x,
+                y,
+                height,
+                font_size,
+            } if *height <= font_size * SCALED_DELIMITER_FACTOR => {
+                (ch.to_string(), *x, *y, *font_size, false)
+            }
+            Self::Rule { .. } | Self::Radical { .. } | Self::Delimiter { .. } => return None,
+        };
+        let run = TextRun {
+            text,
+            font_size,
+            font_style: if italic {
+                FontStyle::Italic
+            } else {
+                FontStyle::Normal
+            },
+            font_family: crate::system_fonts::resolve_font_family(
+                &crate::style::computed::FontStack::from_family(FontFamily::Helvetica),
+                custom_fonts,
+                false,
+                italic,
+                crate::parser::css::FontStretch::default(),
+            ),
+            line_height_factor: 1.0,
+            ..Default::default()
+        };
+        let covered = !crate::text::needs_unicode_fallback(&run, custom_fonts)
+            || crate::text::shape_with_unicode_fallback(&run, custom_fonts).is_some();
+        covered.then_some(EmbeddedMathRun { run, dx, dy })
+    }
+}
 
 /// Map a Unicode character to the Adobe Symbol font encoding byte.
 pub(super) fn unicode_to_symbol(ch: char) -> Option<u8> {
@@ -211,7 +296,7 @@ pub(super) fn render_math_glyphs(
                 let px = origin_x + x;
                 let py = origin_y + y;
                 // For small delimiters, use text; for large, draw paths
-                if *height <= font_size * 1.3 {
+                if *height <= font_size * SCALED_DELIMITER_FACTOR {
                     let encoded = encode_pdf_text(&ch.to_string());
                     content.push_str("BT\n");
                     content.push_str(&format!("/Helvetica {font_size} Tf\n"));
@@ -303,5 +388,77 @@ pub(super) fn render_math_glyphs(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::HtmlConverter;
+
+    const SUM: &str = r#"<html lang="en"><head><title>Math</title></head><body>
+        <div class="math-display" data-math="\sum_{k=1}^{n} k = \frac{n(n+1)}{2}"></div>
+        </body></html>"#;
+
+    fn pdf(html: &str, accessible: bool) -> String {
+        let bytes = HtmlConverter::new()
+            .accessible(accessible)
+            .compress(false)
+            .convert(html)
+            .unwrap();
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    /// Text operators selecting one of the unembedded base-14 fonts.
+    fn base14_text_operators(pdf: &str) -> usize {
+        pdf.lines()
+            .filter(|line| {
+                line.ends_with(" Tf")
+                    && (line.starts_with("/Symbol ") || line.starts_with("/Helvetica"))
+            })
+            .count()
+    }
+
+    /// ISO 14289-1 7.21.4.1: fonts used for rendering content are embedded;
+    /// 7.1: the formula is the content of its `Formula` element.
+    #[test]
+    fn accessible_display_math_paints_embedded_glyphs_inside_a_formula_mark() {
+        let tagged = pdf(SUM, true);
+        assert!(tagged.contains("/Formula << /MCID "), "{tagged}");
+        assert_eq!(base14_text_operators(&tagged), 0, "{tagged}");
+        assert!(
+            tagged.contains("/Alt (\\\\sum_{k=1}^{n} k = \\\\frac{n\\(n+1\\)}{2})"),
+            "{tagged}"
+        );
+        assert!(pdf(SUM, false).contains("/Symbol "));
+    }
+
+    /// Embedding follows font coverage: the bundled Liberation Sans carries
+    /// Greek, no bundled face carries U+2200 FOR ALL, and rules are paths.
+    #[test]
+    fn embedded_run_follows_bundled_font_coverage() {
+        let mut fonts = HashMap::new();
+        crate::system_fonts::load_bundled_liberation_fonts(&mut fonts);
+        let glyph = |ch| MathGlyph::Char {
+            ch,
+            x: 1.0,
+            y: 2.0,
+            font_size: 12.0,
+            italic: true,
+        };
+        let alpha = glyph('α')
+            .embedded_run(&fonts)
+            .expect("Liberation Sans covers Greek");
+        assert_eq!(alpha.run.text, "α");
+        assert_eq!((alpha.dx, alpha.dy, alpha.run.font_size), (1.0, 2.0, 12.0));
+        assert!(matches!(alpha.run.font_style, FontStyle::Italic));
+        assert!(glyph('\u{2200}').embedded_run(&fonts).is_none());
+        let rule = MathGlyph::Rule {
+            x: 0.0,
+            y: 0.0,
+            width: 1.0,
+            thickness: 0.5,
+        };
+        assert!(rule.embedded_run(&fonts).is_none());
     }
 }

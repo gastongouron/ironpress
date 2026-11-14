@@ -357,6 +357,7 @@ impl LayoutVisitor for PageElementRenderer<'_, '_, '_> {
             element,
             PdfPoint::new(self.frame.margin.left, top),
             self.frame.available_width,
+            &mut self.ctx.text,
         );
         group.finish(self.content, self.ctx);
     }
@@ -459,22 +460,14 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
     // `available_width` is derived per page inside the loop below, since a page
     // may carry an `@page :first` margin override that changes its content box.
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
-    let margin_font_usage = margin_box_font_usage(
-        pages,
-        decoration,
-        custom_fonts,
-        pdf_writer.structure.is_enabled(),
-    );
+    let font_policy = pdf_writer.structure.font_policy();
+    let margin_font_usage = margin_box_font_usage(pages, decoration, custom_fonts, font_policy);
     let prepared_custom_fonts = prepare_custom_fonts_with_additional_runs(
         pages,
         custom_fonts,
         &margin_font_usage.per_page_runs,
         &[],
-        if pdf_writer.structure.is_enabled() {
-            crate::render::pdf_fonts::ToUnicodePolicy::Complete
-        } else {
-            crate::render::pdf_fonts::ToUnicodePolicy::ClusterStart
-        },
+        font_policy,
     );
 
     register_used_custom_fonts(&mut pdf_writer, custom_fonts, &prepared_custom_fonts);

@@ -61,6 +61,7 @@ fn report_fixture_carries_every_required_structure_type() {
         "/ActualText <FEFF2022>",
         "/S /Reference ",
         "/S /Note ",
+        "/S /Formula ",
         "/ID (fn",
         "/IDTree << /Names [(fn",
     ] {

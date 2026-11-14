@@ -25,6 +25,34 @@ pub(crate) enum ToUnicodePolicy {
     Complete,
 }
 
+/// Font handling that differs between default and accessible output.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum FontPolicy {
+    /// The historical output: body text is embedded, page furniture and
+    /// formulas show through the unembedded base-14 fonts, and `ToUnicode`
+    /// maps cluster starts only.
+    #[default]
+    Historical,
+    /// ISO 14289-1 7.21.4.1 and 7.21.7: every shown glyph comes from an
+    /// embedded face and has a Unicode value.
+    Embedded,
+}
+
+impl FontPolicy {
+    pub(crate) fn to_unicode(self) -> ToUnicodePolicy {
+        match self {
+            Self::Historical => ToUnicodePolicy::ClusterStart,
+            Self::Embedded => ToUnicodePolicy::Complete,
+        }
+    }
+
+    /// Whether text that default output paints with a base-14 font (page
+    /// headers and footers, formulas) is painted through embedded faces.
+    pub(crate) fn embeds_side_text(self) -> bool {
+        self == Self::Embedded
+    }
+}
+
 pub(crate) struct PreparedCustomFont {
     pub(crate) base_font_name: String,
     source_font_name: String,
@@ -213,10 +241,15 @@ pub(crate) fn prepare_custom_fonts_with_additional_runs(
     custom_fonts: &HashMap<String, TtfFont>,
     per_page_runs: &[Vec<TextRun>],
     trailing_runs: &[TextRun],
-    to_unicode: ToUnicodePolicy,
+    policy: FontPolicy,
 ) -> PreparedCustomFonts {
-    let usage =
-        collect_font_usage_with_additional_runs(pages, custom_fonts, per_page_runs, trailing_runs);
+    let usage = collect_font_usage_with_additional_runs(
+        pages,
+        custom_fonts,
+        per_page_runs,
+        trailing_runs,
+        policy,
+    );
 
     usage
         .into_iter()
@@ -224,7 +257,7 @@ pub(crate) fn prepare_custom_fonts_with_additional_runs(
             custom_fonts.get(&usage_key.source_name).map(|ttf| {
                 (
                     usage_key.resource_name().into_owned(),
-                    prepare_font(ttf, &usage, usage_key.glyph_style(), to_unicode)
+                    prepare_font(ttf, &usage, usage_key.glyph_style(), policy.to_unicode())
                         .with_source_font_name(usage_key.source_name.clone()),
                 )
             })
@@ -237,11 +270,12 @@ fn collect_font_usage_with_additional_runs(
     custom_fonts: &HashMap<String, TtfFont>,
     per_page_runs: &[Vec<TextRun>],
     trailing_runs: &[TextRun],
+    policy: FontPolicy,
 ) -> BTreeMap<FontUsageKey, FontUsage> {
     let mut usage = BTreeMap::new();
     for (page_index, page) in pages.iter().enumerate() {
         for (_, element) in &page.elements {
-            collect_font_usage_from_element(element, custom_fonts, &mut usage);
+            collect_font_usage_from_element(element, custom_fonts, &mut usage, policy);
         }
         if let Some(runs) = per_page_runs.get(page_index) {
             for run in runs {
@@ -249,7 +283,7 @@ fn collect_font_usage_with_additional_runs(
             }
         }
         for element in page.generated_content.running_elements() {
-            collect_font_usage_from_element(element, custom_fonts, &mut usage);
+            collect_font_usage_from_element(element, custom_fonts, &mut usage, policy);
         }
         for footnote in &page.footnotes {
             for run in footnote.text_runs() {
@@ -267,10 +301,12 @@ fn collect_font_usage_from_element(
     element: &dyn LayoutElement,
     custom_fonts: &HashMap<String, TtfFont>,
     usage: &mut BTreeMap<FontUsageKey, FontUsage>,
+    policy: FontPolicy,
 ) {
     let mut collector = FontUsageCollector {
         custom_fonts,
         usage,
+        policy,
     };
     collect_font_usage_walk(element, &mut collector);
 }
@@ -291,6 +327,7 @@ fn collect_font_usage_walk(element: &dyn LayoutElement, collector: &mut FontUsag
 struct FontUsageCollector<'a> {
     custom_fonts: &'a HashMap<String, TtfFont>,
     usage: &'a mut BTreeMap<FontUsageKey, FontUsage>,
+    policy: FontPolicy,
 }
 
 impl LayoutVisitor for FontUsageCollector<'_> {
@@ -342,7 +379,17 @@ impl LayoutVisitor for FontUsageCollector<'_> {
     fn visit_image(&mut self, _element: &Image) {}
     fn visit_horizontal_rule(&mut self, _element: &HorizontalRule) {}
     fn visit_progress_bar(&mut self, _element: &ProgressBar) {}
-    fn visit_math_block(&mut self, _element: &MathBlock) {}
+    /// Formula glyphs are embedded only when the output embeds side text;
+    /// default output keeps them on the base-14 fonts and its subsets as is.
+    fn visit_math_block(&mut self, element: &MathBlock) {
+        if !self.policy.embeds_side_text() {
+            return;
+        }
+        for embedded in element.embedded_runs(self.custom_fonts) {
+            collect_font_usage_from_run(&embedded.run, self.custom_fonts, self.usage);
+        }
+    }
+
     fn visit_container(&mut self, _element: &Container) {}
     fn visit_running_element(&mut self, _element: &RunningElement) {}
     fn visit_named_string(&mut self, _element: &NamedString) {}
@@ -1402,7 +1449,7 @@ mod tests {
         let element = PageBreak::default();
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<FontUsageKey, FontUsage> = BTreeMap::new();
-        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        collect_font_usage_from_element(&element, &fonts, &mut usage, FontPolicy::default());
         assert!(usage.is_empty(), "PageBreak should produce no font usage");
     }
 
@@ -1418,7 +1465,7 @@ mod tests {
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<FontUsageKey, FontUsage> = BTreeMap::new();
         // Should not panic; empty cells with no custom fonts yield empty usage.
-        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        collect_font_usage_from_element(&element, &fonts, &mut usage, FontPolicy::default());
         assert!(usage.is_empty());
     }
 
@@ -1434,7 +1481,7 @@ mod tests {
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<FontUsageKey, FontUsage> = BTreeMap::new();
-        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        collect_font_usage_from_element(&element, &fonts, &mut usage, FontPolicy::default());
         assert!(usage.is_empty());
     }
 
@@ -1454,7 +1501,7 @@ mod tests {
         };
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<FontUsageKey, FontUsage> = BTreeMap::new();
-        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        collect_font_usage_from_element(&element, &fonts, &mut usage, FontPolicy::default());
         assert!(usage.is_empty());
     }
 
@@ -1463,7 +1510,7 @@ mod tests {
         let element = text_block_element(vec![empty_text_line()]);
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<FontUsageKey, FontUsage> = BTreeMap::new();
-        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        collect_font_usage_from_element(&element, &fonts, &mut usage, FontPolicy::default());
         // No custom fonts configured, so usage stays empty.
         assert!(usage.is_empty());
     }
@@ -1492,7 +1539,7 @@ mod tests {
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<FontUsageKey, FontUsage> = BTreeMap::new();
         // Should not panic when recursing through nested rows.
-        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        collect_font_usage_from_element(&element, &fonts, &mut usage, FontPolicy::default());
         assert!(usage.is_empty());
     }
 
@@ -1514,7 +1561,7 @@ mod tests {
         let element = text_block_element(vec![line]);
         let fonts: HashMap<String, TtfFont> = HashMap::new();
         let mut usage: BTreeMap<FontUsageKey, FontUsage> = BTreeMap::new();
-        collect_font_usage_from_element(&element, &fonts, &mut usage);
+        collect_font_usage_from_element(&element, &fonts, &mut usage, FontPolicy::default());
         assert!(
             usage.is_empty(),
             "non-custom font families should not produce any usage entries"
@@ -1553,8 +1600,13 @@ mod tests {
         let per_page_runs = vec![vec![custom_text_run("B"), standard_text_run("Ω")]];
         let trailing_runs = vec![custom_text_run("C")];
 
-        let borrowed =
-            collect_font_usage_with_additional_runs(&pages, &fonts, &per_page_runs, &trailing_runs);
+        let borrowed = collect_font_usage_with_additional_runs(
+            &pages,
+            &fonts,
+            &per_page_runs,
+            &trailing_runs,
+            FontPolicy::default(),
+        );
 
         // Recreate the former cloning approach as the oracle: generated page
         // text was inserted after ordinary elements, and the combined margin
@@ -1595,7 +1647,13 @@ mod tests {
             )],
             ..Page::default()
         });
-        let cloned = collect_font_usage_with_additional_runs(&synthetic_pages, &fonts, &[], &[]);
+        let cloned = collect_font_usage_with_additional_runs(
+            &synthetic_pages,
+            &fonts,
+            &[],
+            &[],
+            FontPolicy::default(),
+        );
 
         assert_eq!(
             borrowed.keys().collect::<Vec<_>>(),
@@ -1612,14 +1670,14 @@ mod tests {
             &fonts,
             &per_page_runs,
             &trailing_runs,
-            ToUnicodePolicy::default(),
+            FontPolicy::default(),
         );
         let cloned_fonts = prepare_custom_fonts_with_additional_runs(
             &synthetic_pages,
             &fonts,
             &[],
             &[],
-            ToUnicodePolicy::default(),
+            FontPolicy::default(),
         );
         assert_eq!(
             borrowed_fonts.keys().collect::<Vec<_>>(),
