@@ -378,7 +378,14 @@ pub(super) fn render_upright_vertical_line_text(
                 page_images,
             )
         } else {
-            render_upright_vertical_run(
+            // The upright painter writes its own text object, so it marks
+            // here; the horizontal fallback marks itself.
+            let upright = pdf_writer.structure.begin_content(
+                content,
+                run.metadata.structure,
+                super::structure::MarkKind::Text,
+            );
+            let advance = render_upright_vertical_run(
                 content,
                 run,
                 position.vertical_baseline_x(run, custom_fonts),
@@ -386,8 +393,9 @@ pub(super) fn render_upright_vertical_line_text(
                 parent_font_size,
                 custom_fonts,
                 prepared_custom_fonts,
-            )
-            .unwrap_or_else(|| {
+            );
+            pdf_writer.structure.end(content, upright);
+            advance.unwrap_or_else(|| {
                 render_run_glyphs(
                     content,
                     run,

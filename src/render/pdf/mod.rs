@@ -470,6 +470,11 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         custom_fonts,
         &margin_font_usage.per_page_runs,
         &[],
+        if pdf_writer.structure.is_enabled() {
+            crate::render::pdf_fonts::ToUnicodePolicy::Complete
+        } else {
+            crate::render::pdf_fonts::ToUnicodePolicy::ClusterStart
+        },
     );
 
     register_used_custom_fonts(&mut pdf_writer, custom_fonts, &prepared_custom_fonts);

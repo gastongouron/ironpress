@@ -78,12 +78,28 @@ impl StructureRef {
 
     /// The same element, but as its list-item label (`Lbl`).
     pub(crate) fn as_label(self, numbering: ListNumbering) -> Self {
+        self.with_role(ContentRole::Label(numbering))
+    }
+
+    /// The same element with another content role; `Untagged` and
+    /// `Decorative` are unchanged.
+    pub(crate) fn with_role(self, role: ContentRole) -> Self {
         match self {
-            Self::Content { element, .. } => Self::Content {
-                element,
-                role: ContentRole::Label(numbering),
-            },
+            Self::Content { element, .. } => Self::Content { element, role },
             other => other,
+        }
+    }
+
+    /// The ref of a footnote call: the footnote element itself rather than
+    /// its nearest emitting ancestor, so the body painted later on the page
+    /// pairs with the call (ISO 14289-1 7.9: `Reference` and `Note`).
+    pub(crate) fn for_footnote(element: &ElementNode, inherited: Self) -> Self {
+        if element.ordinal.is_anonymous() || inherited == Self::Decorative {
+            return inherited;
+        }
+        Self::Content {
+            element: element.ordinal,
+            role: ContentRole::FootnoteCall,
         }
     }
 }
@@ -96,6 +112,12 @@ pub(crate) enum ContentRole {
     Body,
     /// A list item's marker.
     Label(ListNumbering),
+    /// A footnote call in the running text (`Reference`).
+    FootnoteCall,
+    /// A footnote body at the bottom of the page (`Note`).
+    Note,
+    /// The marker of a footnote body (`Lbl` inside the `Note`).
+    NoteLabel,
 }
 
 /// The `/ListNumbering` values of ISO 32000-1 Table 347.

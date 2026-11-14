@@ -1360,6 +1360,9 @@ pub struct FootnoteItem {
     pub marker_color: crate::types::Color,
     pub marker_prefix: String,
     pub formatting: FootnoteFormatting,
+    /// The footnote element, so the body becomes the `Note` paired with the
+    /// call's `Reference` in the structure tree.
+    pub(crate) structure: crate::accessibility::StructureRef,
 }
 
 impl FootnoteItem {
@@ -1380,6 +1383,12 @@ impl FootnoteItem {
                 color: self.marker_color,
                 font_family: self.body.font_family.clone(),
                 line_height_factor: self.body.line_height_factor,
+                metadata: TextRunMetadata {
+                    structure: self
+                        .structure
+                        .with_role(crate::accessibility::ContentRole::NoteLabel),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             TextRun {
@@ -1394,6 +1403,12 @@ impl FootnoteItem {
                 color: self.body.color,
                 font_family: self.body.font_family.clone(),
                 line_height_factor: self.body.line_height_factor,
+                metadata: TextRunMetadata {
+                    structure: self
+                        .structure
+                        .with_role(crate::accessibility::ContentRole::Note),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         ]

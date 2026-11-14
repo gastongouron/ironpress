@@ -22,8 +22,14 @@ pub(crate) struct Tagging {
     pub(super) missing_alt: MissingAltPolicy,
     /// Pages already handed to the writer, in page order.
     pub(super) pages: Vec<PageRecord>,
+    /// Form XObjects that carry marks of their own, with their parent-tree key.
+    pub(super) forms: Vec<FormRecord>,
     /// Marks of the page being painted, indexed by MCID.
     current: Vec<MarkRecord>,
+    /// Groups being painted that will become form XObjects: their marks get
+    /// a namespace of their own (ISO 32000-1 14.7.4.4, `/StructParents` on
+    /// the form), so the saved page state is restored when they close.
+    form_scopes: Vec<FormScope>,
     /// Depth of enclosing artifacts and isolated groups: nothing inside them
     /// may allocate an MCID.
     suppression: u32,
@@ -77,14 +83,35 @@ pub(crate) enum OpenMark {
     Skipped,
     /// A content mark; nested painters join it.
     Content,
-    /// An artifact or an isolated group; nothing inside allocates an MCID.
+    /// An artifact; nothing inside allocates an MCID.
     Suppressing,
+    /// The owner mark around a group cut into a form XObject; marks inside
+    /// belong to the form namespace.
+    Form,
 }
 
 pub(super) struct PageRecord {
     pub(super) key: u32,
     pub(super) marks: Vec<MarkRecord>,
     pub(super) annotations: Vec<AnnotationRecord>,
+}
+
+/// Marks painted into a form XObject rather than directly onto the page.
+pub(super) struct FormRecord {
+    pub(super) key: u32,
+    pub(super) object_id: usize,
+    /// Index of the page that invokes the form.
+    pub(super) page: usize,
+    pub(super) marks: Vec<MarkRecord>,
+}
+
+struct FormScope {
+    saved_marks: Vec<MarkRecord>,
+    saved_open: u32,
+    saved_suppression: u32,
+    /// Where the group content starts, for renumbering when it ends up
+    /// inline after all.
+    content_start: usize,
 }
 
 pub(crate) struct AnnotationRecord {
@@ -106,7 +133,9 @@ impl StructureRecorder {
             skeleton: structure.skeleton.clone(),
             missing_alt: structure.missing_alt,
             pages: Vec::new(),
+            forms: Vec::new(),
             current: Vec::new(),
+            form_scopes: Vec::new(),
             suppression: 0,
             open: 0,
             next_key: 0,
@@ -150,8 +179,9 @@ impl StructureRecorder {
         }
     }
 
-    /// Open the owner's mark around a paint group that will be cut into a
-    /// form XObject. The form inherits the mark, so nothing inside allocates.
+    /// Open the owner mark around a paint group that will be cut into a form
+    /// XObject. Content inside keeps its own structure: the form gets a
+    /// `/StructParents` entry and its marks are numbered from zero.
     pub(crate) fn begin_group(&mut self, content: &mut String, owner: StructureRef) -> OpenMark {
         let Some(tagging) = self.0.as_mut() else {
             return OpenMark::Skipped;
@@ -163,8 +193,53 @@ impl StructureRecorder {
             return tagging.begin_suppressing(content, "/Artifact BMC\n");
         }
         tagging.begin_mark(content, owner, MarkKind::Group);
-        tagging.suppression += 1;
-        OpenMark::Suppressing
+        tagging.form_scopes.push(FormScope {
+            saved_marks: std::mem::take(&mut tagging.current),
+            saved_open: tagging.open,
+            saved_suppression: tagging.suppression,
+            content_start: content.len(),
+        });
+        tagging.open = 0;
+        tagging.suppression = 0;
+        OpenMark::Form
+    }
+
+    /// Close a group mark. `form` is the object id of the form XObject that
+    /// received the group content, or `None` when it stayed inline.
+    pub(crate) fn end_group(&mut self, content: &mut String, mark: OpenMark, form: Option<usize>) {
+        let Some(tagging) = self.0.as_mut() else {
+            return;
+        };
+        if !matches!(mark, OpenMark::Form) {
+            self.end(content, mark);
+            return;
+        }
+        let Some(scope) = tagging.form_scopes.pop() else {
+            return;
+        };
+        let inner = std::mem::replace(&mut tagging.current, scope.saved_marks);
+        tagging.open = scope.saved_open;
+        tagging.suppression = scope.saved_suppression;
+        match form {
+            Some(object_id) => {
+                let key = tagging.next_key;
+                tagging.next_key += 1;
+                tagging.forms.push(FormRecord {
+                    key,
+                    object_id,
+                    page: tagging.pages.len(),
+                    marks: inner,
+                });
+            }
+            None => {
+                // Nothing was cut: the marks are on the page after all, so
+                // they join its namespace after the ones already allocated.
+                let offset = tagging.current.len();
+                renumber_mcids(content, scope.content_start, offset);
+                tagging.current.extend(inner);
+            }
+        }
+        content.push_str("EMC\n");
     }
 
     /// Open a typed artifact region (page furniture, repeated rows).
@@ -192,6 +267,7 @@ impl StructureRecorder {
                 content.push_str("EMC\n");
                 tagging.suppression = tagging.suppression.saturating_sub(1);
             }
+            OpenMark::Form => self.end_group(content, OpenMark::Form, None),
         }
     }
 
@@ -257,6 +333,32 @@ impl Tagging {
     }
 }
 
+/// Shift every `/MCID n` the recorder wrote after `start` by `offset`.
+fn renumber_mcids(content: &mut String, start: usize, offset: usize) {
+    if offset == 0 || start >= content.len() {
+        return;
+    }
+    const KEY: &str = "<< /MCID ";
+    let mut renumbered = String::with_capacity(content.len() - start);
+    let mut rest = &content[start..];
+    while let Some(at) = rest.find(KEY) {
+        let digits_start = at + KEY.len();
+        let digits_end = digits_start
+            + rest[digits_start..]
+                .find(|character: char| !character.is_ascii_digit())
+                .unwrap_or(rest.len() - digits_start);
+        renumbered.push_str(&rest[..digits_start]);
+        match rest[digits_start..digits_end].parse::<usize>() {
+            Ok(mcid) => renumbered.push_str(&(mcid + offset).to_string()),
+            Err(_) => renumbered.push_str(&rest[digits_start..digits_end]),
+        }
+        rest = &rest[digits_end..];
+    }
+    renumbered.push_str(rest);
+    content.truncate(start);
+    content.push_str(&renumbered);
+}
+
 impl Tagging {
     fn begin_suppressing(&mut self, content: &mut String, operator: &str) -> OpenMark {
         content.push_str(operator);
@@ -266,10 +368,17 @@ impl Tagging {
 
     fn begin_mark(&mut self, content: &mut String, owner: StructureRef, kind: MarkKind) {
         let mcid = self.current.len();
-        let tag = match kind {
-            MarkKind::Label => "Lbl",
-            MarkKind::Figure { .. } => "Figure",
-            MarkKind::Text | MarkKind::Group => self.emitting_role(owner).pdf_name(),
+        let footnote_role = match owner {
+            StructureRef::Content { role, .. } => Some(role),
+            _ => None,
+        };
+        let tag = match (kind, footnote_role) {
+            (MarkKind::Label, _) => "Lbl",
+            (MarkKind::Figure { .. }, _) => "Figure",
+            (_, Some(ContentRole::FootnoteCall)) => "Reference",
+            (_, Some(ContentRole::Note)) => "Note",
+            (_, Some(ContentRole::NoteLabel)) => "Lbl",
+            _ => self.emitting_role(owner).pdf_name(),
         };
         let actual_text = match (kind, owner) {
             (
@@ -421,6 +530,49 @@ mod tests {
         let keys = recorder.page_keys(0).unwrap();
         recorder.finish_page(keys, Vec::new());
         assert!(recorder.0.as_ref().unwrap().pages[0].marks.is_empty());
+    }
+
+    #[test]
+    fn groups_cut_into_forms_keep_their_own_mcid_namespace() {
+        // ISO 32000-1 14.7.4.4: marked content inside a form XObject is keyed
+        // by the form /StructParents entry and numbered from zero.
+        let (mut recorder, _nodes) = recorder("<div><p>a</p></div>");
+        let mut content = String::new();
+        let first = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        recorder.end(&mut content, first);
+        let group = recorder.begin_group(&mut content, content_ref(2));
+        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::Text);
+        recorder.end(&mut content, inner);
+        recorder.end_group(&mut content, group, Some(42));
+        let after = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        recorder.end(&mut content, after);
+        assert_eq!(
+            content,
+            "/Div << /MCID 0 >> BDC\nEMC\n/Div << /MCID 1 >> BDC\n/P << /MCID 0 >> BDC\nEMC\nEMC\n/Div << /MCID 2 >> BDC\nEMC\n"
+        );
+        let tagging = recorder.0.as_ref().unwrap();
+        assert_eq!(tagging.forms.len(), 1);
+        assert_eq!((tagging.forms[0].key, tagging.forms[0].object_id), (0, 42));
+        assert_eq!(tagging.forms[0].marks.len(), 1);
+        assert_eq!(tagging.current.len(), 3);
+    }
+
+    #[test]
+    fn groups_left_inline_renumber_their_marks_into_the_page() {
+        let (mut recorder, _nodes) = recorder("<div><p>a</p></div>");
+        let mut content = String::new();
+        let first = recorder.begin_content(&mut content, content_ref(2), MarkKind::Text);
+        recorder.end(&mut content, first);
+        let group = recorder.begin_group(&mut content, content_ref(2));
+        let inner = recorder.begin_content(&mut content, content_ref(3), MarkKind::Text);
+        recorder.end(&mut content, inner);
+        recorder.end_group(&mut content, group, None);
+        assert_eq!(
+            content,
+            "/Div << /MCID 0 >> BDC\nEMC\n/Div << /MCID 1 >> BDC\n/P << /MCID 2 >> BDC\nEMC\nEMC\n"
+        );
+        assert_eq!(recorder.0.as_ref().unwrap().current.len(), 3);
+        assert!(recorder.0.as_ref().unwrap().forms.is_empty());
     }
 
     #[test]

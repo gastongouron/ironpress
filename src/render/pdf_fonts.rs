@@ -12,6 +12,19 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 pub(crate) type PreparedCustomFonts = BTreeMap<String, PreparedCustomFont>;
 type ToUnicodeMap = Vec<(u16, Vec<u16>)>;
 
+/// How glyphs that carry no cluster text are mapped in `ToUnicode`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum ToUnicodePolicy {
+    /// Only the first glyph of a shaping cluster carries the cluster's text,
+    /// the historical output.
+    #[default]
+    ClusterStart,
+    /// Every shown glyph has a mapping and none is U+0000, U+FEFF or U+FFFE
+    /// (ISO 14289-1 7.21.7): continuation glyphs of a cluster map to a
+    /// zero-width space, so extracted text stays the cluster text.
+    Complete,
+}
+
 pub(crate) struct PreparedCustomFont {
     pub(crate) base_font_name: String,
     source_font_name: String,
@@ -27,6 +40,29 @@ impl PreparedCustomFont {
     fn with_source_font_name(mut self, source_font_name: String) -> Self {
         self.source_font_name = source_font_name;
         self
+    }
+
+    /// Give every used glyph a Unicode value (`ToUnicodePolicy::Complete`).
+    fn complete_to_unicode(&mut self, usage: &FontUsage) {
+        const ZERO_WIDTH_SPACE: u16 = 0x200B;
+        let mut mappings: BTreeMap<u16, Vec<u16>> = self.to_unicode_map.drain(..).collect();
+        for unicode in mappings.values_mut() {
+            unicode.retain(|unit| !matches!(unit, 0x0000 | 0xFEFF | 0xFFFE));
+            if unicode.is_empty() {
+                unicode.push(ZERO_WIDTH_SPACE);
+            }
+        }
+        for glyph_id in &usage.glyphs {
+            let code = self
+                .glyph_id_map
+                .get(glyph_id)
+                .copied()
+                .unwrap_or(*glyph_id);
+            mappings
+                .entry(code)
+                .or_insert_with(|| vec![ZERO_WIDTH_SPACE]);
+        }
+        self.to_unicode_map = mappings.into_iter().collect();
     }
 
     pub(crate) fn source_font_name<'a>(&'a self, resource_name: &'a str) -> &'a str {
@@ -177,6 +213,7 @@ pub(crate) fn prepare_custom_fonts_with_additional_runs(
     custom_fonts: &HashMap<String, TtfFont>,
     per_page_runs: &[Vec<TextRun>],
     trailing_runs: &[TextRun],
+    to_unicode: ToUnicodePolicy,
 ) -> PreparedCustomFonts {
     let usage =
         collect_font_usage_with_additional_runs(pages, custom_fonts, per_page_runs, trailing_runs);
@@ -187,7 +224,7 @@ pub(crate) fn prepare_custom_fonts_with_additional_runs(
             custom_fonts.get(&usage_key.source_name).map(|ttf| {
                 (
                     usage_key.resource_name().into_owned(),
-                    prepare_font(ttf, &usage, usage_key.glyph_style())
+                    prepare_font(ttf, &usage, usage_key.glyph_style(), to_unicode)
                         .with_source_font_name(usage_key.source_name.clone()),
                 )
             })
@@ -564,22 +601,27 @@ fn prepare_font(
     ttf: &TtfFont,
     usage: &FontUsage,
     glyph_style: Type3GlyphStyle,
+    to_unicode: ToUnicodePolicy,
 ) -> PreparedCustomFont {
-    if (glyph_style == Type3GlyphStyle::SyntheticWeight
+    let mut font = if (glyph_style == Type3GlyphStyle::SyntheticWeight
         || crate::render::pdf::sfnt_has_cff_outlines(&ttf.data))
         && usage.glyphs.len() <= u8::MAX as usize
         && skrifa::FontRef::from_index(&ttf.data, ttf.face_index.get()).is_ok()
     {
-        return type3_font(ttf, usage, glyph_style);
+        type3_font(ttf, usage, glyph_style)
+    } else {
+        let glyphs: Vec<u16> = usage.glyphs.iter().copied().collect();
+        let remapper = subsetter::GlyphRemapper::new_from_glyphs_sorted(&glyphs);
+
+        subsetter::subset(&ttf.data, ttf.face_index.get(), &remapper)
+            .ok()
+            .map(|font_data| subset_font(ttf, usage, &remapper, font_data))
+            .unwrap_or_else(|| fallback_font(ttf))
+    };
+    if to_unicode == ToUnicodePolicy::Complete {
+        font.complete_to_unicode(usage);
     }
-
-    let glyphs: Vec<u16> = usage.glyphs.iter().copied().collect();
-    let remapper = subsetter::GlyphRemapper::new_from_glyphs_sorted(&glyphs);
-
-    subsetter::subset(&ttf.data, ttf.face_index.get(), &remapper)
-        .ok()
-        .map(|font_data| subset_font(ttf, usage, &remapper, font_data))
-        .unwrap_or_else(|| fallback_font(ttf))
+    font
 }
 
 fn subset_font(
@@ -1152,6 +1194,35 @@ mod tests {
         assert_eq!(font.pdf_glyph_id(0), 0);
     }
 
+    #[test]
+    fn complete_policy_maps_every_used_glyph_and_strips_forbidden_values() {
+        // ISO 14289-1 7.21.7 (veraPDF 7.21.7-1/2): every glyph a text operator
+        // shows has a Unicode value, and none is U+0000, U+FEFF or U+FFFE.
+        let mut usage = FontUsage::default();
+        usage.record_glyph(5, vec![0x0066, 0x0069]);
+        usage.record_glyph(7, Vec::new());
+        usage.record_glyph(9, vec![0xFEFF]);
+        let mut font = PreparedCustomFont {
+            base_font_name: "Test".into(),
+            source_font_name: String::new(),
+            font_data: Vec::new(),
+            widths: Vec::new(),
+            to_unicode_map: vec![(1, vec![0x0066, 0x0069]), (3, vec![0xFEFF])],
+            glyph_id_map: HashMap::from([(5, 1), (7, 2), (9, 3)]),
+            embedding: FontEmbedding::Cid,
+            type3_glyphs: Vec::new(),
+        };
+        font.complete_to_unicode(&usage);
+        assert_eq!(
+            font.to_unicode_map,
+            vec![
+                (1, vec![0x0066, 0x0069]),
+                (2, vec![0x200B]),
+                (3, vec![0x200B]),
+            ]
+        );
+    }
+
     // ── to_unicode_map_for_full_font ─────────────────────────────────────────
 
     #[test]
@@ -1305,7 +1376,12 @@ mod tests {
         let ttf = make_stub_ttf(); // data: std::sync::Arc::new(Vec::new())
         let mut usage = FontUsage::default();
         usage.record_glyph(1, vec![0x0041]);
-        let prepared = prepare_font(&ttf, &usage, Type3GlyphStyle::Plain);
+        let prepared = prepare_font(
+            &ttf,
+            &usage,
+            Type3GlyphStyle::Plain,
+            ToUnicodePolicy::default(),
+        );
         // Fallback: base_font_name must NOT contain a '+' prefix tag.
         assert!(
             !prepared.base_font_name.starts_with(char::is_uppercase)
@@ -1536,9 +1612,15 @@ mod tests {
             &fonts,
             &per_page_runs,
             &trailing_runs,
+            ToUnicodePolicy::default(),
         );
-        let cloned_fonts =
-            prepare_custom_fonts_with_additional_runs(&synthetic_pages, &fonts, &[], &[]);
+        let cloned_fonts = prepare_custom_fonts_with_additional_runs(
+            &synthetic_pages,
+            &fonts,
+            &[],
+            &[],
+            ToUnicodePolicy::default(),
+        );
         assert_eq!(
             borrowed_fonts.keys().collect::<Vec<_>>(),
             cloned_fonts.keys().collect::<Vec<_>>()

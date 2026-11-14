@@ -36,6 +36,17 @@ impl TaggedDocumentObjects {
     ) -> Result<Self, IronpressError> {
         let tree = StructureTree::build(&tagging)?;
         let root_id = tree.write(objects, &tagging, page_ids);
+        // ISO 32000-1 14.7.4.4: a form XObject holding marked content carries
+        // the key of its own parent-tree entry.
+        for form in &tagging.forms {
+            if let Some(object) = objects.get_mut(form.object_id - 1) {
+                *object = object.replacen(
+                    "/FormType 1",
+                    &format!("/FormType 1 /StructParents {}", form.key),
+                    1,
+                );
+            }
+        }
 
         let xmp_id = objects.len() + 1;
         let info_id = xmp_id + 1;

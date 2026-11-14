@@ -52,6 +52,7 @@ fn collect_footnotes_from_runs(
             marker_color: data.marker_color,
             marker_prefix: data.marker_prefix,
             formatting: data.formatting,
+            structure: run.metadata.structure,
         });
     }
 }
@@ -3547,6 +3548,7 @@ mod break_tests {
             marker_color: crate::types::Color::BLACK,
             marker_prefix: String::new(),
             formatting: Default::default(),
+            structure: Default::default(),
         }
     }
 

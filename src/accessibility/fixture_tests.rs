@@ -59,6 +59,10 @@ fn report_fixture_carries_every_required_structure_type() {
         "/Artifact << /Type /Pagination >> BDC",
         "/Lbl << /MCID ",
         "/ActualText <FEFF2022>",
+        "/S /Reference ",
+        "/S /Note ",
+        "/ID (fn",
+        "/IDTree << /Names [(fn",
     ] {
         assert!(pdf.contains(needle), "missing {needle:?}");
     }
@@ -166,4 +170,33 @@ fn every_mcid_in_the_fixture_resolves_through_the_parent_tree() {
         references >= marked,
         "{marked} marks but {references} parent-tree references"
     );
+}
+
+const EFFECTS: &str = include_str!("../../tests/pdfua/effects.html");
+
+#[test]
+fn composited_containers_keep_their_inner_structure() {
+    // ISO 32000-1 14.7.4.4: content cut into a form XObject is addressed
+    // through the form's own /StructParents entry and /MCR /Stm kids, so the
+    // heading, link and list inside an opacity container stay navigable.
+    let pdf = tagged(EFFECTS);
+    assert!(pdf.contains("/FormType 1 /StructParents "), "{pdf}");
+    assert!(
+        pdf.contains("/Type /MCR /Pg ") && pdf.contains(" /Stm "),
+        "{pdf}"
+    );
+    assert_eq!(pdf.matches("/S /H2 ").count(), 1, "{pdf}");
+    assert_eq!(pdf.matches("/S /Link ").count(), 1, "{pdf}");
+    assert_eq!(pdf.matches("/S /LI ").count(), 2, "{pdf}");
+}
+
+#[test]
+fn continuation_glyphs_get_a_unicode_value_in_accessible_output() {
+    // ISO 14289-1 7.21.7 (veraPDF 7.21.7-1): every shown glyph maps to
+    // Unicode; a combining mark shaped into its base's cluster maps to a
+    // zero-width space, and default output is unchanged.
+    let tagged_pdf = tagged(EFFECTS);
+    assert!(tagged_pdf.contains("<200B>"), "{tagged_pdf}");
+    let default_pdf = text(&HtmlConverter::new().convert(EFFECTS).unwrap());
+    assert!(!default_pdf.contains("<200B>"), "{default_pdf}");
 }

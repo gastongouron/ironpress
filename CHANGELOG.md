@@ -15,8 +15,13 @@
   carries `/MarkInfo`, `/Lang`, `/StructTreeRoot`, `/ViewerPreferences` and
   XMP metadata with `pdfuaid:part` and `dc:title`. A missing title, language
   or image `alt` is reported as a `RenderError` with a fix hint. The
-  `tests/pdfua/` fixture validates with veraPDF's `ua1` profile; output
-  without the option is byte-identical to before.
+  `tests/pdfua/` fixtures validate with veraPDF's `ua1` profile; output
+  without the option is byte-identical to before. In accessible output every
+  shown glyph has a `ToUnicode` value (continuation glyphs of a shaping
+  cluster map to a zero-width space), content inside `opacity`,
+  `mix-blend-mode` or `mask` containers keeps its structure through the form
+  XObject's own `/StructParents`, footnotes become `Reference` and `Note`
+  elements with an `/IDTree`, and vertical upright text is tagged.
 
 ### Changed
 

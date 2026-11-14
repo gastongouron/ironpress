@@ -209,11 +209,10 @@ a decorative image, and `TaggedPdf { missing_alt: MissingAltPolicy::Artifact,
 structure tree (the first heading becomes H1 and no level is skipped); the
 outline keeps the authored levels.
 
-Known limits of the current step: display math, vertical CJK text and text
-inside `position: fixed` boxes are painted as artifacts (hidden from assistive
-technology); text inside an element with `opacity`, `mix-blend-mode` or a
-mask is one unit; right-to-left lines are in visual order; footnote text
-belongs to the document rather than to a `Note`.
+Known limits of the current step: display math, inline SVG `<text>` that
+falls back to a built-in font, and text inside `position: fixed` boxes are
+painted as artifacts (hidden from assistive technology); right-to-left lines
+are in visual order.
 
 ## Features at a glance
 

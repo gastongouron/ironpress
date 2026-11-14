@@ -3726,7 +3726,14 @@ fn collect_text_runs_inner(
                                             }),
                                         text_shadow: call_style.text_shadow.clone(),
                                         shaping: text_run_shaping(call_style),
-                                        metadata: text_run_metadata(call_style),
+                                        metadata: crate::layout::engine::TextRunMetadata {
+                                            structure:
+                                                crate::accessibility::StructureRef::for_footnote(
+                                                    el,
+                                                    style.structure,
+                                                ),
+                                            ..text_run_metadata(call_style)
+                                        },
                                         ..Default::default()
                                     },
                                     call_style.font_variant_caps,
