@@ -598,7 +598,7 @@ impl StructureTree {
     }
 }
 
-/// `/Lang`, `/Alt` and the Figure bounding box of one element.
+/// `/Lang`, `/E`, `/Alt` and the Figure bounding box of one element.
 fn node_attributes(
     node: &SkeletonNode,
     figure_box: Option<PdfRect>,
@@ -606,6 +606,9 @@ fn node_attributes(
     let mut attributes = String::new();
     if let Some(lang) = &node.facts.lang {
         attributes.push_str(&format!(" /Lang {}", PdfTextString::from(lang.as_str())));
+    }
+    if let Some(expansion) = &node.facts.expansion {
+        attributes.push_str(&format!(" /E {}", PdfTextString::from(expansion.as_str())));
     }
     match node.role {
         StructureRole::Figure => {

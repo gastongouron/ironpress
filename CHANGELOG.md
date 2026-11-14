@@ -24,8 +24,9 @@
   elements with an `/IDTree`, vertical upright text is tagged, display
   formulas are `Formula` elements whose glyphs come from the embedded fonts,
   SVG `<text>` set in a standard font paints through the embedded face body
-  text uses, and a hyphen inserted at a soft hyphen carries `/ActualText`
-  with U+00AD so the word reads unbroken.
+  text uses, a hyphen inserted at a soft hyphen carries `/ActualText` with
+  U+00AD so the word reads unbroken, and `<abbr title>` becomes a `Span`
+  whose `/E` entry carries the expansion.
 
 ### Changed
 

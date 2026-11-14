@@ -170,6 +170,11 @@ impl StructureRole {
             HtmlTag::Caption | HtmlTag::Figcaption => Self::Caption,
             HtmlTag::Img | HtmlTag::Svg => Self::Figure,
             HtmlTag::A if attribute("href").is_some_and(|href| !href.is_empty()) => Self::Link,
+            // ISO 32000-1 14.9.5: the expansion lives in /E on a structure
+            // element, so an abbreviation with a title gets its own Span.
+            HtmlTag::Abbr if attribute("title").is_some_and(|title| !title.is_empty()) => {
+                Self::Span
+            }
             _ if attribute("lang").is_some_and(|lang| !lang.is_empty()) => Self::Span,
             _ => Self::Transparent,
         }
@@ -251,6 +256,16 @@ mod tests {
         assert_eq!(
             StructureRole::classify(&element(HtmlTag::P, &[("lang", "fr")])),
             StructureRole::P
+        );
+        // ISO 32000-1 14.9.5: an expansion needs an element to carry /E; an
+        // abbreviation without one has nothing to say.
+        assert_eq!(
+            StructureRole::classify(&element(HtmlTag::Abbr, &[("title", "PDF")])),
+            StructureRole::Span
+        );
+        assert_eq!(
+            StructureRole::classify(&element(HtmlTag::Abbr, &[("title", " ")])),
+            StructureRole::Transparent
         );
     }
 

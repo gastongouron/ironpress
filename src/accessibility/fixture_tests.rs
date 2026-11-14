@@ -46,6 +46,22 @@ fn report_fixture_selects_no_base14_font() {
     assert!(base14.is_empty(), "{base14:?}");
 }
 
+/// ISO 32000-1 14.9.5: an abbreviation's expansion is the `/E` entry of its
+/// structure element; a `<abbr>` without a title adds no element.
+#[test]
+fn abbreviation_titles_become_expansions() {
+    let pdf = tagged(
+        r#"<html lang="en"><head><title>E</title></head><body>
+        <p>Set in <abbr title="Portable Document Format">PDF</abbr> and <abbr>HTML</abbr>.</p>
+        </body></html>"#,
+    );
+    assert!(
+        pdf.contains("/S /Span /P ") && pdf.contains("/E (Portable Document Format)"),
+        "{pdf}"
+    );
+    assert_eq!(pdf.matches("/S /Span ").count(), 1, "{pdf}");
+}
+
 /// ISO 32000-1 14.9.4: a hyphen the line breaker inserts at a soft hyphen
 /// is replaced by U+00AD in `/ActualText`, so the word reads unbroken.
 #[test]
@@ -114,6 +130,8 @@ fn report_fixture_carries_every_required_structure_type() {
         "/S /Reference ",
         "/S /Note ",
         "/S /Formula ",
+        "/S /Span /P ",
+        "/E (Great British Pounds)",
         "/ID (fn",
         "/IDTree << /Names [(fn",
     ] {

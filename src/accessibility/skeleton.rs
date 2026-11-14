@@ -37,6 +37,9 @@ pub(crate) struct NodeFacts {
     pub(crate) formula_source: Option<String>,
     /// The `<title>` child of an inline `<svg>`, its accessible name.
     pub(crate) svg_title: Option<String>,
+    /// The `title` of an `<abbr>`: the expansion ISO 32000-1 14.9.5 carries
+    /// in `/E`.
+    pub(crate) expansion: Option<String>,
 }
 
 /// The HTML `scope` attribute of a `<th>`.
@@ -143,6 +146,9 @@ impl NodeFacts {
             svg_title: (element.tag == HtmlTag::Svg)
                 .then(|| svg_title(element))
                 .flatten(),
+            expansion: (element.tag == HtmlTag::Abbr)
+                .then(|| attribute("title"))
+                .flatten(),
         }
     }
 }
@@ -245,7 +251,9 @@ mod tests {
                <td colspan="x" rowspan="70000" id="c1" lang="fr">x</td></tr></table>
                <img alt="" title=" Chart ">
                <svg><title> Sales </title><rect/></svg>
-               <div data-math="x^2" aria-label="squared"></div>"#,
+               <div data-math="x^2" aria-label="squared"></div>
+               <abbr title=" Portable Document Format ">PDF</abbr>
+               <span title="not an abbreviation">x</span>"#,
         )
         .unwrap();
         let skeleton = StructureSkeleton::assign(&mut nodes);
@@ -280,6 +288,13 @@ mod tests {
         let formula = facts("div");
         assert_eq!(formula.formula_source.as_deref(), Some("x^2"));
         assert_eq!(formula.aria_label.as_deref(), Some("squared"));
+
+        // ISO 32000-1 14.9.5: only an abbreviation's title is an expansion.
+        assert_eq!(
+            facts("abbr").expansion.as_deref(),
+            Some("Portable Document Format")
+        );
+        assert_eq!(facts("span").expansion, None);
     }
 
     #[test]
