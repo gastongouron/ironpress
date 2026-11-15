@@ -75,6 +75,11 @@
 - Ruby binding: magnus 0.9 drops Ruby 3.0 (end of life since April 2024). The
   gem requires Ruby 3.1 or later.
 
+### CI
+
+- The veraPDF PDF/UA-1 validation of the `tests/pdfua/` fixtures runs in the
+  main CI workflow and gates the crate and npm publication.
+
 ## [1.7.0] — 2026-09-15
 
 ### Added
