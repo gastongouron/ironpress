@@ -34,7 +34,9 @@
   `/ActualText`, a `background-clip: text` line is read once through
   `/ActualText` however often its outlines repeat, and a `content: url()`
   image with alternative text (`content: url(x) / "text"`, css-content-3) is
-  a `Figure` with that `/Alt` while one without is an artifact.
+  a `Figure` with that `/Alt` while one without is an artifact, and a Type 3
+  font carries the font descriptor Tagged PDF requires (ISO 32000-1 Table
+  112).
 
 ### Changed
 

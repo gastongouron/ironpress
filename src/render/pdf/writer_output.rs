@@ -82,25 +82,15 @@ impl PdfWriter {
 
         // 2. FontDescriptor
         let descriptor_id = self.next_id();
-        let pdf_metrics = ttf.pdf_vertical_metrics();
-        let ascent_pdf = (pdf_metrics.ascent as i32 * 1000) / ttf.units_per_em as i32;
-        let descent_pdf = (pdf_metrics.descent as i32 * 1000) / ttf.units_per_em as i32;
-        let bbox_pdf = [
-            (ttf.bbox[0] as i32 * 1000) / ttf.units_per_em as i32,
-            (ttf.bbox[1] as i32 * 1000) / ttf.units_per_em as i32,
-            (ttf.bbox[2] as i32 * 1000) / ttf.units_per_em as i32,
-            (ttf.bbox[3] as i32 * 1000) / ttf.units_per_em as i32,
-        ];
-        self.objects.push(format!(
-            "{descriptor_id} 0 obj\n<< /Type /FontDescriptor /FontName /{base_font_name} /Flags {flags} /FontBBox [{b0} {b1} {b2} {b3}] /Ascent {ascent} /Descent {descent} /ItalicAngle 0 /CapHeight {ascent} /StemV 80 /{font_file_key} {stream_id} 0 R >>\nendobj",
-            flags = ttf.flags,
-            b0 = bbox_pdf[0],
-            b1 = bbox_pdf[1],
-            b2 = bbox_pdf[2],
-            b3 = bbox_pdf[3],
-            ascent = ascent_pdf,
-            descent = descent_pdf,
-        ));
+        self.objects.push(
+            super::font_descriptor::FontDescriptor::embedded(
+                ttf,
+                base_font_name,
+                font_file_key,
+                stream_id,
+            )
+            .object(descriptor_id),
+        );
 
         // 3. CID widths array keyed by glyph ID so shaped glyph IDs can be
         // emitted directly with Identity-H.

@@ -58,6 +58,7 @@ mod destinations;
 mod document;
 mod flex_cell_shadows;
 mod flow_layout;
+mod font_descriptor;
 mod function_gradients;
 mod geometry;
 mod gradient_rasters;

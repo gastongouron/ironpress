@@ -188,6 +188,43 @@ fn filtered_flex_items_are_read_through_actual_text() {
     assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
 }
 
+/// ISO 32000-1 Table 112: a Type 3 font (here the synthetic bold of a
+/// single-weight face) carries a font descriptor in a Tagged PDF document
+/// and none otherwise; Table 122 requires its Flags, ItalicAngle and StemV.
+#[test]
+fn type3_fonts_carry_a_descriptor_in_tagged_output_only() {
+    let font = include_bytes!("../../assets/LiberationSans-Regular.ttf").to_vec();
+    let html = r#"<html lang="en"><head><title>T</title></head><body>
+        <p style="font-family: single; font-weight: bold">Bold</p></body></html>"#;
+    let tagged = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .add_font("single", font.clone())
+            .convert(html)
+            .unwrap(),
+    );
+    let type3 = tagged
+        .lines()
+        .find(|line| line.contains("/Subtype /Type3 "))
+        .unwrap_or_default();
+    assert!(type3.contains(" /FontDescriptor "), "{tagged}");
+    assert_eq!(
+        tagged
+            .matches("<< /Type /FontDescriptor /Flags 32 /ItalicAngle 0 /StemV 80 >>")
+            .count(),
+        1,
+        "{tagged}"
+    );
+    let plain = text(
+        &HtmlConverter::new()
+            .add_font("single", font)
+            .convert(html)
+            .unwrap(),
+    );
+    assert!(plain.contains("/Subtype /Type3 "), "{plain}");
+    assert!(!plain.contains("/FontDescriptor"), "{plain}");
+}
+
 /// css-content-3 §1.2 and ISO 14289-1 7.3 (veraPDF 7.3-1): a generated
 /// image with alternative text (`content: url() / "…"`) is a Figure of its
 /// own under the element that generated it, with that text as `/Alt` and its

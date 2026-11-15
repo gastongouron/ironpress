@@ -45,11 +45,22 @@ impl PdfWriter {
             to_unicode.len(),
         ));
 
+        // ISO 32000-1 Table 112: a Type 3 font carries a font descriptor in
+        // a Tagged PDF document and none otherwise.
+        let descriptor = if self.structure.is_enabled() {
+            let descriptor_id = self.next_id();
+            self.objects
+                .push(super::font_descriptor::FontDescriptor::type3(ttf).object(descriptor_id));
+            format!(" /FontDescriptor {descriptor_id} 0 R")
+        } else {
+            String::new()
+        };
+
         let font_id = self.next_id();
         let font_matrix_scale = 1.0 / ttf.units_per_em.max(1) as f32;
         let [left, bottom, right, top] = type3_font_bbox(ttf, prepared_font.type3_glyph_style());
         self.objects.push(format!(
-            "{font_id} 0 obj\n<< /Type /Font /Subtype /Type3 /Name /{base_font_name} /FontBBox [{left} {bottom} {right} {top}] /FontMatrix [{font_matrix_scale} 0 0 -{font_matrix_scale} 0 0] /CharProcs << {char_proc_entries} >> /Encoding << /Type /Encoding /Differences [{first_char} {differences}] >> /FirstChar {first_char} /LastChar {last_char} /Widths [{widths}] /Resources << >> /ToUnicode {to_unicode_id} 0 R >>\nendobj",
+            "{font_id} 0 obj\n<< /Type /Font /Subtype /Type3 /Name /{base_font_name} /FontBBox [{left} {bottom} {right} {top}] /FontMatrix [{font_matrix_scale} 0 0 -{font_matrix_scale} 0 0] /CharProcs << {char_proc_entries} >> /Encoding << /Type /Encoding /Differences [{first_char} {differences}] >> /FirstChar {first_char} /LastChar {last_char} /Widths [{widths}] /Resources << >> /ToUnicode {to_unicode_id} 0 R{descriptor} >>\nendobj",
             base_font_name = prepared_font.base_font_name,
             font_matrix_scale = format_pdf_number(font_matrix_scale),
         ));
