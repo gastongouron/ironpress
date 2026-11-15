@@ -188,6 +188,25 @@ fn filtered_flex_items_are_read_through_actual_text() {
     assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
 }
 
+/// UAX #9 and ISO 14289-1 7.1: a right-to-left line is painted in visual
+/// order, but its marks are kids of the paragraph in logical order; under
+/// `unicode-bidi: bidi-override` the reversed glyphs carry the logical text
+/// in `/ActualText` (ISO 32000-1 14.9.4).
+#[test]
+fn right_to_left_lines_read_in_logical_order() {
+    let pdf = tagged_body(
+        r#"<p dir="rtl">אב <b>גד</b></p>
+        <p style="direction: rtl; unicode-bidi: bidi-override">abc</p>"#,
+    );
+    let first = pdf.find("/S /P ").unwrap();
+    let paragraph = &pdf[first..first + pdf[first..].find("endobj").unwrap()];
+    assert!(paragraph.contains("/K [1 0]"), "{pdf}");
+    assert!(
+        pdf.contains("/P << /MCID 2 /ActualText (abc) >> BDC"),
+        "{pdf}"
+    );
+}
+
 /// ISO 14289-1 7.21.4.1 concerns the fonts text reaches, so accessible
 /// output lists only the standard fonts its content selects: none for the
 /// report, whose text is all embedded; historical output keeps all thirteen.

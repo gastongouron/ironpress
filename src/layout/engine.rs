@@ -855,11 +855,27 @@ impl RunHyphenation {
     }
 }
 
+/// Where a run sits in the reading order of its line (UAX #9 logical order)
+/// and how its characters were painted.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReadingPosition {
+    /// The line the run belongs to, numbered across the document once pages
+    /// are final; `None` for a line no pass numbered.
+    pub(crate) line: Option<u32>,
+    /// Byte offset of the run's text in the logical text of its paragraph.
+    pub(crate) logical_start: usize,
+    /// The characters were reversed for painting (`unicode-bidi:
+    /// bidi-override` with `direction: rtl`), so the glyphs read backwards.
+    pub(crate) reversed: bool,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextRunMetadata {
     pub(crate) font_locale: crate::font_pack::FontLocale,
     /// How this run ends at a line break.
     pub(crate) hyphenation: RunHyphenation,
+    /// Where the run sits in the reading order of its line.
+    pub(crate) reading: ReadingPosition,
     /// The element whose content this run is, for the structure tree.
     pub(crate) structure: crate::accessibility::StructureRef,
     /// CSS `text-emphasis` state, kept together because its mark, colour,
@@ -878,6 +894,24 @@ pub struct TextRunMetadata {
     /// and contextual shaping together makes every width and paint consumer
     /// advance through one semantic boundary.
     pub(crate) boundary: InlineBoundaryAdvance,
+}
+
+impl TextRunMetadata {
+    /// What a reader should see instead of the shown glyphs, if anything
+    /// (ISO 32000-1 14.9.4): the characters in logical order, a synthesized
+    /// hyphen as U+00AD.
+    pub(crate) fn actual_text(&self, shown: &str) -> Option<String> {
+        if self.reading.reversed {
+            let logical: String = shown.chars().rev().collect();
+            return Some(self.hyphenation.spoken_text(&logical));
+        }
+        self.hyphenation.actual_text(shown)
+    }
+
+    /// The text a reader should see.
+    pub(crate) fn spoken_text(&self, shown: &str) -> String {
+        self.actual_text(shown).unwrap_or_else(|| shown.to_string())
+    }
 }
 
 /// OpenType features that affect the shape and advance of a text run.
@@ -1369,6 +1403,16 @@ pub struct TextLine {
     /// beside it. Zero for ordinary lines.
     pub x_offset: f32,
     pub metadata: TextLineMetadata,
+}
+
+impl TextLine {
+    /// The runs in reading order: by logical position, which is the painted
+    /// order unless bidi reordering placed them.
+    pub(crate) fn logical_runs(&self) -> Vec<&TextRun> {
+        let mut runs: Vec<&TextRun> = self.runs.iter().collect();
+        runs.sort_by_key(|run| run.metadata.reading.logical_start);
+        runs
+    }
 }
 
 /// The format of an embedded image.
@@ -2301,6 +2345,7 @@ pub(crate) fn layout_with_rules_and_fonts_raster_quality(
     );
     assign_page_print_scales(&mut pages, page_size, margin);
     super::fragmentation::transfer_page_spanning_graphical_effects(&mut pages, page_size, margin);
+    super::elements::LineNumbering::number(&mut pages);
     if let Some(first_page) = pages.first_mut() {
         first_page.document_svg_defs = document_svg_defs;
     }

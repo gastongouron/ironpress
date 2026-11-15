@@ -38,9 +38,9 @@ impl SpokenText {
     fn push_lines(&mut self, lines: &[TextLine]) {
         for line in lines {
             let spoken: String = line
-                .runs
-                .iter()
-                .map(|run| run.metadata.hyphenation.spoken_text(&run.text))
+                .logical_runs()
+                .into_iter()
+                .map(|run| run.metadata.spoken_text(&run.text))
                 .collect();
             self.push_str(spoken.trim());
         }

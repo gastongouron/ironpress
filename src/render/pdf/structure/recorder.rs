@@ -11,6 +11,7 @@ use crate::accessibility::{
     ContentRole, DocumentMetadata, DocumentStructure, ElementOrdinal, ListNumbering,
     MissingAltPolicy, NodeFacts, StructureRef, StructureRole, StructureSkeleton,
 };
+use crate::layout::engine::ReadingPosition;
 
 /// Per-document tagging state, present only for accessible output.
 #[derive(Default)]
@@ -50,8 +51,12 @@ pub(super) struct MarkRecord {
 pub(crate) enum MarkKind {
     /// Text; `actual_text` is what a reader should see instead of the shown
     /// glyphs (ISO 32000-1 14.9.4), for example a word whose line-end hyphen
-    /// the line breaker inserted.
-    Text { actual_text: Option<String> },
+    /// the line breaker inserted; `position` is where the text sits in the
+    /// reading order of its line.
+    Text {
+        actual_text: Option<String>,
+        position: ReadingPosition,
+    },
     /// A list item's geometric bullet.
     Label,
     /// A replaced image or inline SVG, with its painted box in default user
@@ -65,8 +70,15 @@ pub(crate) enum MarkKind {
 }
 
 impl MarkKind {
-    /// Text shown as is.
-    pub(crate) const TEXT: Self = Self::Text { actual_text: None };
+    /// Text shown as is, outside any line.
+    pub(crate) const TEXT: Self = Self::Text {
+        actual_text: None,
+        position: ReadingPosition {
+            line: None,
+            logical_start: 0,
+            reversed: false,
+        },
+    };
 }
 
 /// Typed artifact regions painters open explicitly (ISO 32000-1 14.8.2.2);
@@ -423,6 +435,7 @@ impl Tagging {
             (
                 MarkKind::Text {
                     actual_text: Some(text),
+                    ..
                 },
                 _,
             ) => Some(PdfTextString::from(text.as_str())),
@@ -644,6 +657,7 @@ mod tests {
         let kind = MarkKind::Text {
             actual_text: crate::layout::engine::RunHyphenation::SynthesizedHyphen
                 .actual_text("hy-"),
+            position: ReadingPosition::default(),
         };
         let mark = recorder.begin_content(&mut content, content_ref(2), kind);
         recorder.end(&mut content, mark);

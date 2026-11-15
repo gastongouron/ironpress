@@ -17,6 +17,7 @@ mod picture;
 mod placement;
 mod principal;
 mod properties;
+mod reading_order;
 mod stacking;
 mod table;
 #[cfg(test)]
@@ -39,6 +40,7 @@ pub(crate) use picture::{PictureMeaning, SpokenText};
 pub(crate) use placement::{FragmentBox, FragmentPlacement, FragmentPlacementOwner};
 pub(crate) use principal::{PrincipalBox, impl_principal_layout_element};
 pub(crate) use properties::*;
+pub(crate) use reading_order::LineNumbering;
 pub(crate) use stacking::{Stacking, StackingLevel, StackingParticipant, StackingRole};
 pub(crate) use table::{
     CollapsedBorderEdge, CollapsedBorderJoint, CollapsedBorderJoints, CollapsedBorderLine,

@@ -189,7 +189,8 @@ scope, figures with
 their `alt` text, links with descriptions, `#id` links as destinations,
 abbreviations with their `title` as the expansion, filtered boxes and
 `background-clip: text` lines with their text in `/ActualText`, generated
-`content: url()` images with their alternative text as figures), page
+`content: url()` images with their alternative text as figures,
+right-to-left and mixed-direction lines in logical order), page
 furniture and
 decoration as
 artifacts, the language and title in the catalog and XMP metadata, and every
@@ -218,8 +219,8 @@ outline keeps the authored levels.
 Known limits of the current step: a generated image without alternative text
 (`content: url(x)` with no `/ "text"`) is decoration; a `position: fixed` box
 is content on the
-page where it is authored and an artifact on the pages it repeats on;
-right-to-left lines are in visual order; a formula symbol no available font
+page where it is authored and an artifact on the pages it repeats on; a
+formula symbol no available font
 covers (with
 the bundled fonts alone, for example `∀`, `∈`, `⊂`, `⟨⟩`) still uses the
 unembedded Symbol font.

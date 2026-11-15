@@ -36,8 +36,9 @@
   image with alternative text (`content: url(x) / "text"`, css-content-3) is
   a `Figure` with that `/Alt` while one without is an artifact, a Type 3
   font carries the font descriptor Tagged PDF requires (ISO 32000-1 Table
-  112), and the font resources list only the standard fonts the content
-  selects.
+  112), the font resources list only the standard fonts the content
+  selects, and right-to-left and mixed-direction lines read in logical
+  order (a `bidi-override` run carries its logical text in `/ActualText`).
 
 ### Changed
 

@@ -4,14 +4,24 @@
 use super::super::geometry::PdfRect;
 use super::recorder::MarkKind;
 use crate::layout::elements::{PictureMeaning, SpokenText};
-use crate::layout::engine::{InlineImage, TextLine, TextRun};
+use crate::layout::engine::{InlineImage, ReadingPosition, TextLine, TextRun};
 
 impl MarkKind {
+    /// The mark of a run painted as glyphs: its logical text when the glyphs
+    /// differ from it, and its place in the line's reading order.
+    pub(crate) fn run(run: &TextRun) -> Self {
+        Self::Text {
+            actual_text: run.metadata.actual_text(&run.text),
+            position: run.metadata.reading,
+        }
+    }
+
     /// A run painted as an image (a blurred line): the reader sees its text
     /// instead of the picture (ISO 32000-1 14.9.4).
     pub(crate) fn rasterized_run(run: &TextRun) -> Self {
         Self::Text {
-            actual_text: Some(run.metadata.hyphenation.spoken_text(&run.text)),
+            actual_text: Some(run.metadata.spoken_text(&run.text)),
+            position: run.metadata.reading,
         }
     }
 
@@ -26,6 +36,7 @@ impl MarkKind {
     fn spoken(text: &SpokenText) -> Self {
         Self::Text {
             actual_text: (!text.is_empty()).then(|| text.as_str().to_string()),
+            position: ReadingPosition::default(),
         }
     }
 

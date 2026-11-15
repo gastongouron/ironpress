@@ -40,11 +40,23 @@ pub(super) struct Element {
     id: Option<String>,
 }
 
+/// Where a mark comes in reading order: paint order, except that the marks
+/// of one line sort by their logical position (UAX #9), so right-to-left
+/// and mixed-direction lines read in logical order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct MarkOrder {
+    /// Paint sequence of the first mark of the line, or of the mark itself
+    /// when it belongs to no line.
+    line: usize,
+    logical: usize,
+    paint: usize,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct Mark {
     page: usize,
     mcid: usize,
-    sequence: usize,
+    sequence: MarkOrder,
     /// The form XObject holding the mark, when it is not on the page itself.
     stream: Option<usize>,
 }
@@ -131,6 +143,8 @@ impl StructureTree {
         // Marks are sequenced in paint order; a form was painted while its page
         // was, so its marks follow that page.
         let mut sequence = 0;
+        // The line being painted and the sequence of its first mark.
+        let mut current_line: (Option<u32>, usize) = (None, 0);
         let mut distribute = |page: usize,
                               stream: Option<usize>,
                               marks: &[super::recorder::MarkRecord],
@@ -198,10 +212,36 @@ impl StructureTree {
                     }
                     (None, _) => (emitting(), TargetKind::Body),
                 };
+                let position = match &mark.kind {
+                    MarkKind::Text { position, .. } => {
+                        position.line.map(|line| (line, position.logical_start))
+                    }
+                    _ => None,
+                };
+                let order = match position {
+                    Some((line, logical)) => {
+                        if current_line.0 != Some(line) {
+                            current_line = (Some(line), *sequence);
+                        }
+                        MarkOrder {
+                            line: current_line.1,
+                            logical,
+                            paint: *sequence,
+                        }
+                    }
+                    None => {
+                        current_line = (None, *sequence);
+                        MarkOrder {
+                            line: *sequence,
+                            logical: 0,
+                            paint: *sequence,
+                        }
+                    }
+                };
                 let recorded = Mark {
                     page,
                     mcid,
-                    sequence: *sequence,
+                    sequence: order,
                     stream,
                 };
                 *sequence += 1;
@@ -540,7 +580,7 @@ impl StructureTree {
         let element_id = |index: usize| root_id + 1 + index;
         let page_object = |page: usize| page_ids.get(page).copied().unwrap_or(1);
 
-        let mut first_sequence: Vec<Option<usize>> = vec![None; self.elements.len()];
+        let mut first_sequence: Vec<Option<MarkOrder>> = vec![None; self.elements.len()];
         for index in (0..self.elements.len()).rev() {
             let own = self.elements[index]
                 .marks
