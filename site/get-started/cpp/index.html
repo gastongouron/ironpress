@@ -91,6 +91,23 @@ int main() {
 auto first = converter.convert_html(first_html);
 auto second = converter.convert_html(second_html);</code></pre>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>converter
+    .set_accessibility(true)
+    .set_document_language("en-GB")
+    .set_document_title("Quarterly report");
+
+auto pdf = converter.convert_html(html);</code></pre>
+            <p>
+              <code>set_accessibility(true)</code> writes a Tagged PDF that conforms
+              to PDF/UA-1; an invalid language tag or a blank title throws
+              <code>ironpress::Error</code>.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Provide fonts as bytes</h2>
             <p>The C++ wrapper does not read document paths or access the network. Read a TrueType font or optional CJK or emoji pack in your application, then lend its bytes for one call.</p>
             <pre><code>std::vector&lt;std::uint8_t&gt; font = read_font();

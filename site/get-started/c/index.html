@@ -113,6 +113,22 @@ ironpress_converter_convert_html(converter, html, &amp;pdf, &amp;error);
 ironpress_buffer_free(&amp;pdf);
 ironpress_converter_free(&amp;converter);</code></pre>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>IronpressBytes language = {(const uint8_t *)"en-GB", 5};
+IronpressBytes title = {(const uint8_t *)"Quarterly report", 16};
+ironpress_converter_set_accessible(converter, IRONPRESS_TRUE, &amp;error);
+ironpress_converter_set_document_language(converter, language, &amp;error);
+ironpress_converter_set_document_title(converter, title, &amp;error);</code></pre>
+            <p>
+              <code>ironpress_converter_set_accessible</code> writes a Tagged PDF
+              that conforms to PDF/UA-1; an invalid language tag or a blank
+              title returns <code>IRONPRESS_STATUS_INVALID_ARGUMENT</code>.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Provide fonts as bytes</h2>
             <p>The C ABI does not read document paths or access the network. Your application may read a TrueType font or optional CJK or emoji pack, then pass its bytes to the converter.</p>
             <p>Input ranges are borrowed only for the duration of the call. The converter copies custom fonts and takes its own parsed font-pack value.</p>

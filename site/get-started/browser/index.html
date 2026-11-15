@@ -92,6 +92,21 @@ try {
   converter.free();
 }</code></pre>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>converter.accessible(true);
+converter.documentLanguage("en-GB");
+converter.documentTitle("Quarterly report");
+
+const pdf = converter.htmlToPdf(html);</code></pre>
+            <p>
+              <code>accessible(true)</code> writes a Tagged PDF that conforms to
+              PDF/UA-1; an invalid language tag or a blank title throws.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Provide fonts and document assets</h2>
             <p>The WASM renderer does not read paths. Fetch or import resource bytes in your host application, then pass them to the converter.</p>
             <pre><code>const response = await fetch("/fonts/Inter.ttf");

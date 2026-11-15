@@ -134,6 +134,22 @@ let pdf = converter.convert("&lt;h1&gt;Results&lt;/h1&gt;")?;</code></pre>
               page margin needs sanitized images, tables, or styled markup.
             </p>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>let pdf = HtmlConverter::new()
+    .accessible(true)
+    .document_language("en-GB".parse()?)
+    .document_title("Quarterly report".parse()?)
+    .convert(html)?;</code></pre>
+            <p>
+              <code>accessible(true)</code> writes a Tagged PDF that conforms to
+              PDF/UA-1; an unmet requirement is reported as an
+              <code>IronpressError</code> with a fix hint.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Load fonts, images, and styles safely</h2>
             <p>
               Relative URLs are denied until you establish a local boundary.

@@ -96,6 +96,22 @@ pdf = converter.convert("&lt;h1&gt;Results&lt;/h1&gt;")
 markdown_pdf = converter.convert_markdown("# Results")</code></pre>
             <p>Use <code>convert_to_file</code> or <code>convert_markdown_to_file</code> when direct output is more convenient than receiving bytes.</p>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>converter.accessible(True)
+converter.document_language("en-GB")
+converter.document_title("Quarterly report")
+
+pdf = converter.convert(html)</code></pre>
+            <p>
+              <code>accessible(True)</code> writes a Tagged PDF that conforms to
+              PDF/UA-1; an invalid language tag or a blank title raises
+              <code>ValueError</code>.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Load local resources and fonts</h2>
             <p>Grant a canonical directory before relative document URLs can access local files:</p>
             <pre><code>from pathlib import Path

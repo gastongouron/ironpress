@@ -60,6 +60,7 @@ source of truth for complete platform and release-package matrices.
 | Ruby | Run `bundle exec rake` from `bindings/ruby` |
 | Browser and Node.js WASM | `scripts/build-wasm-package.sh`, then `node scripts/test-node-package.mjs` |
 | Website | Run `npm ci --ignore-scripts`, `npm test`, and `npm run check` from `scripts` |
+| Accessible output | Convert `tests/pdfua/report.html` and `tests/pdfua/effects.html` with `--accessible` and validate both with veraPDF (`--flavour ua1`), as the `pdfua` CI job does; output without `--accessible` must stay byte-identical |
 
 See the workflows in [`.github/workflows`](.github/workflows) for required tool
 versions, native targets, package layout checks, and release verification.

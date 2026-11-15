@@ -183,19 +183,18 @@ does not change page geometry. The CLI exposes the same controls through
 ## Accessible PDFs
 
 `.accessible(true)` (CLI `--accessible`) produces a Tagged PDF that conforms
-to PDF/UA-1 (ISO 14289-1) for ordinary documents: a structure tree in document
-order (headings, paragraphs, lists and definition lists, tables with header
-scope, figures with
-their `alt` text, links with descriptions, `#id` links as destinations,
-abbreviations with their `title` as the expansion, filtered boxes and
+to PDF/UA-1 (ISO 14289-1) for ordinary documents. The structure tree follows
+the document: headings, paragraphs, lists and definition lists, tables with
+header scope, figures with their `alt` text, links with descriptions, `#id`
+links as destinations, abbreviations with their `title` as the expansion,
+footnotes as references and notes, display formulas, filtered boxes and
 `background-clip: text` lines with their text in `/ActualText`, generated
-`content: url()` images with their alternative text as figures,
-right-to-left and mixed-direction lines in logical order), page
-furniture and
-decoration as
-artifacts, the language and title in the catalog and XMP metadata, and every
-font embedded. The fixture in `tests/pdfua/` passes veraPDF's `ua1` profile.
-Output without the option is byte-identical to before.
+`content: url()` images with their alternative text as figures, and
+right-to-left and mixed-direction lines in logical order. Page furniture and
+decoration are artifacts, the language and title are in the catalog and the
+XMP metadata, and every font is embedded. The fixtures in `tests/pdfua/` pass
+the veraPDF `ua1` profile in CI. Output without the option is byte-identical
+to before.
 
 ```rust
 use ironpress::HtmlConverter;
@@ -218,12 +217,11 @@ outline keeps the authored levels.
 
 Known limits of the current step: a generated image without alternative text
 (`content: url(x)` with no `/ "text"`) is decoration; a `position: fixed` box
-is content on the
-page where it is authored and an artifact on the pages it repeats on; a
-formula symbol no available font
-covers (with
-the bundled fonts alone, for example `∀`, `∈`, `⊂`, `⟨⟩`) still uses the
-unembedded Symbol font.
+is content on the page where it is authored and an artifact on the pages it
+repeats on; `progress` and `meter` are paragraphs rather than figures; a table
+cell cites its headers through `scope` only, not `headers`; and a formula
+symbol that neither the sans face of the formula nor the bundled fallback
+faces cover still uses the unembedded Symbol font.
 
 ## Features at a glance
 
@@ -236,6 +234,7 @@ unembedded Symbol font.
 | **SVG** | Vector rendering: path, shapes, gradients, transforms, clip paths, `viewBox` | [Layout Engine](../../wiki/Layout-Engine) |
 | **Images** | JPEG + PNG, data URIs, local files, remote URLs (`remote` feature) | [Architecture](../../wiki/Architecture) |
 | **PDF** | PDF 1.4, bookmarks, link annotations, headers/footers, gradients, streaming output | [PDF Rendering](../../wiki/PDF-Rendering) |
+| **Accessibility** | Opt-in Tagged PDF conforming to PDF/UA-1: structure tree, artifacts, `alt` text, language, title | [Accessible PDFs](#accessible-pdfs) |
 | **C ABI** | Stable native API with versioned Linux, macOS, and Windows libraries | [C binding](bindings/c/README.md) |
 | **C++** | Move-only C++17 RAII owners over the stable native ABI | [C++ binding](bindings/cpp/README.md) |
 | **.NET** | Managed `HtmlConverter`, typed failures, and RID-native assets | [.NET binding](bindings/dotnet/README.md) |

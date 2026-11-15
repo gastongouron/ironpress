@@ -28,6 +28,7 @@
 //! - Streaming output via `std::io::Write`
 //! - Async file I/O via optional `tokio` integration
 //! - HTML sanitization enabled by default
+//! - Opt-in accessible output: a Tagged PDF conforming to PDF/UA-1
 //!
 //! ## Quick start
 //!
@@ -62,6 +63,19 @@
 //! let mut buf = Vec::new();
 //! ironpress::html_to_pdf_writer("<h1>Hello</h1>", &mut buf).unwrap();
 //! assert!(buf.starts_with(b"%PDF"));
+//! ```
+//!
+//! ## Accessible output
+//!
+//! ```
+//! use ironpress::HtmlConverter;
+//!
+//! let pdf = HtmlConverter::new()
+//!     .accessible(true)
+//!     .document_language("en".parse().unwrap())
+//!     .convert("<title>Hello</title><h1>Hello</h1><p>World</p>")
+//!     .unwrap();
+//! assert!(pdf.starts_with(b"%PDF-1.7"));
 //! ```
 //!
 //! ## Custom fonts

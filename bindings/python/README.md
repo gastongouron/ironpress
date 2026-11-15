@@ -54,6 +54,9 @@ markdown_pdf = converter.convert_markdown("# Results")
 
 Python configuration methods mutate the converter. Use `convert_to_file` or
 `convert_markdown_to_file` when direct output is more convenient than bytes.
+`accessible(True)`, with `document_title` and `document_language`, produces a
+Tagged PDF conforming to PDF/UA-1; an invalid language tag or a blank title
+raises `ValueError`.
 
 ## Local resources and fonts
 

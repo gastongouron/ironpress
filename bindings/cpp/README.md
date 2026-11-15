@@ -51,6 +51,8 @@ int main() {
 
 Use `set_header_html` or `set_footer_html` for sanitized images, tables, and
 styled markup in page margins. The plain setters never infer HTML.
+`set_accessibility(true)`, with `set_document_title` and
+`set_document_language`, produces a Tagged PDF conforming to PDF/UA-1.
 
 `Converter` and `Pdf` cannot be copied. Moving either object transfers its one
 native owner, and destruction releases that owner through the matching C ABI

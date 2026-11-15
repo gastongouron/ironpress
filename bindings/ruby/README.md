@@ -60,6 +60,9 @@ markdown_pdf = converter.convert_markdown("# Results")
 
 Configuration methods return the converter, so policies compose in an idiomatic
 chain. Use `convert_to_file` or `convert_markdown_to_file` for direct output.
+`accessible(true)`, with `document_title` and `document_language`, produces a
+Tagged PDF conforming to PDF/UA-1; an invalid language tag or a blank title
+raises `ArgumentError`.
 
 ## Local resources and fonts
 

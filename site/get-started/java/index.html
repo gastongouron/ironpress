@@ -95,6 +95,23 @@ try (var converter = new HtmlConverter()) {
     byte[] second = converter.convertHtml(secondDocument);
 }</code></pre>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>try (var converter = new HtmlConverter()
+        .setAccessibility(true)
+        .setDocumentLanguage("en-GB")
+        .setDocumentTitle("Quarterly report")) {
+    byte[] pdf = converter.convertHtml(document);
+}</code></pre>
+            <p>
+              <code>setAccessibility(true)</code> writes a Tagged PDF that conforms
+              to PDF/UA-1; an invalid language tag or a blank title throws
+              <code>IronpressException</code>.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Provide fonts as bytes</h2>
             <p>The Java API accepts custom TrueType fonts and optional CJK or emoji packs as bytes. It never downloads a font implicitly.</p>
             <pre><code>try (var converter = new HtmlConverter()

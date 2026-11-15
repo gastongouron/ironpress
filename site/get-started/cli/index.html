@@ -103,6 +103,21 @@
               sanitization, and raster controls.
             </p>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>ironpress report.html report.pdf \
+  --accessible \
+  --lang en-GB \
+  --title "Quarterly report"</code></pre>
+            <p>
+              <code>--accessible</code> writes a Tagged PDF that conforms to
+              PDF/UA-1; <code>--lang</code> and <code>--title</code> imply it,
+              and Markdown input needs <code>--lang</code>.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Resolve local images, CSS, and fonts</h2>
             <p>Grant a base directory before a document can resolve relative URLs:</p>
             <pre><code>ironpress templates/invoice.html invoice.pdf \
