@@ -207,6 +207,9 @@ impl PdfWriter {
     }
 
     fn add_page_content_stream(&mut self, content: &str) -> usize {
+        if self.structure.is_enabled() {
+            self.note_standard_fonts(&PdfResourceUsage::from_stream(content));
+        }
         let content_id = self.next_id();
         match self
             .opts
@@ -250,25 +253,18 @@ impl PdfWriter {
 
         // Font objects
         let font_base_id = self.objects.len() + 1;
-        let font_names = [
-            // Helvetica (sans-serif)
-            "Helvetica",
-            "Helvetica-Bold",
-            "Helvetica-Oblique",
-            "Helvetica-BoldOblique",
-            // Times Roman (serif)
-            "Times-Roman",
-            "Times-Bold",
-            "Times-Italic",
-            "Times-BoldItalic",
-            // Courier (monospace)
-            "Courier",
-            "Courier-Bold",
-            "Courier-Oblique",
-            "Courier-BoldOblique",
-            // Symbol (math/Greek)
-            "Symbol",
-        ];
+        // Historical output lists every standard font; accessible output
+        // lists the ones its content selects. ISO 14289-1 7.21.4.1 concerns
+        // fonts text reaches, so this is hygiene rather than conformance.
+        let font_names: Vec<&str> = if self.structure.is_enabled() {
+            STANDARD_FONTS
+                .iter()
+                .filter(|name| self.standard_fonts_in_use.contains(*name))
+                .copied()
+                .collect()
+        } else {
+            STANDARD_FONTS.to_vec()
+        };
 
         // `finish_to_writer` owns the writer, so retain that ownership all the
         // way through final assembly instead of duplicating every textual PDF

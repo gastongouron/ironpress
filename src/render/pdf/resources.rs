@@ -1,8 +1,32 @@
 use super::*;
 
+/// The standard 14 fonts the writer lists without embedding them, in the
+/// order their objects are written.
+pub(super) const STANDARD_FONTS: [&str; 13] = [
+    // Helvetica (sans-serif)
+    "Helvetica",
+    "Helvetica-Bold",
+    "Helvetica-Oblique",
+    "Helvetica-BoldOblique",
+    // Times Roman (serif)
+    "Times-Roman",
+    "Times-Bold",
+    "Times-Italic",
+    "Times-BoldItalic",
+    // Courier (monospace)
+    "Courier",
+    "Courier-Bold",
+    "Courier-Oblique",
+    "Courier-BoldOblique",
+    // Symbol (math/Greek)
+    "Symbol",
+];
+
 #[derive(Debug, Default)]
 pub(super) struct PdfResourceUsage {
     pub(super) uses_font: bool,
+    /// The standard fonts the stream selects.
+    pub(super) standard_fonts: Vec<&'static str>,
     pub(super) xobjects: Vec<String>,
     pub(super) ext_gstates: Vec<String>,
     pub(super) shadings: Vec<String>,
@@ -46,9 +70,15 @@ impl PdfResourceUsage {
                     }
                 }
                 "Tf" => {
-                    resources.uses_font |= index
-                        .checked_sub(2)
-                        .is_some_and(|index| name(tokens[index]).is_some());
+                    let font = index.checked_sub(2).and_then(|index| name(tokens[index]));
+                    resources.uses_font |= font.is_some();
+                    if let Some(standard) = STANDARD_FONTS
+                        .iter()
+                        .find(|standard| font == Some(standard))
+                        && !resources.standard_fonts.contains(standard)
+                    {
+                        resources.standard_fonts.push(standard);
+                    }
                 }
                 _ => {}
             }
@@ -174,6 +204,16 @@ mod tests {
             dictionary,
             "<< /ExtGState << /Mask 2 0 R >> /Pattern << /Color 3 0 R >> >>"
         );
+    }
+
+    /// Standard fonts are told apart from embedded ones by name, once each.
+    #[test]
+    fn standard_fonts_selected_are_listed_once() {
+        let usage = PdfResourceUsage::from_stream(
+            "BT\n/Symbol 12 Tf\n(a) Tj\n/liberationsans 12 Tf\n(b) Tj\n/Symbol 9 Tf\nET\n",
+        );
+        assert!(usage.uses_font);
+        assert_eq!(usage.standard_fonts, ["Symbol"]);
     }
 
     #[test]

@@ -188,6 +188,17 @@ fn filtered_flex_items_are_read_through_actual_text() {
     assert!(!pdf.contains(" Tj\n") && !pdf.contains(" TJ\n"), "{pdf}");
 }
 
+/// ISO 14289-1 7.21.4.1 concerns the fonts text reaches, so accessible
+/// output lists only the standard fonts its content selects: none for the
+/// report, whose text is all embedded; historical output keeps all thirteen.
+#[test]
+fn accessible_output_lists_only_the_standard_fonts_it_selects() {
+    let report = tagged(REPORT);
+    assert_eq!(report.matches("/Subtype /Type1 ").count(), 0, "{report}");
+    let plain = text(&HtmlConverter::new().convert(REPORT).unwrap());
+    assert_eq!(plain.matches("/Subtype /Type1 ").count(), 13, "{plain}");
+}
+
 /// ISO 32000-1 Table 112: a Type 3 font (here the synthetic bold of a
 /// single-weight face) carries a font descriptor in a Tagged PDF document
 /// and none otherwise; Table 122 requires its Flags, ItalicAngle and StemV.

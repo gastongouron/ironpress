@@ -204,3 +204,37 @@ fn non_ascii_titles_are_written_as_utf16_text_strings() {
         "{pdf}"
     );
 }
+
+/// ISO 14289-1 7.21.4.1 concerns the fonts text reaches, so a tagged
+/// document's font resources list only the standard fonts its content
+/// selects, in their usual order; an untagged one lists all thirteen as it
+/// always has.
+#[test]
+fn tagged_font_resources_list_only_the_standard_fonts_selected() {
+    let content = "BT /Symbol 12 Tf (a) Tj /Helvetica-Bold 12 Tf (b) Tj ET\n";
+    let pdf_with = |mut writer: PdfWriter| {
+        writer.add_page(
+            100.0,
+            100.0,
+            PagePaintStreams::document_only(content),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+        let mut pdf = Vec::new();
+        writer.finish_to_writer(&mut pdf, &[]).unwrap();
+        String::from_utf8(pdf).unwrap()
+    };
+    let tagged = pdf_with(tagged_writer("Fonts", "en"));
+    let listed: Vec<&str> = tagged
+        .lines()
+        .filter_map(|line| line.strip_prefix("<< /Type /Font /Subtype /Type1 /BaseFont /"))
+        .filter_map(|rest| rest.split(' ').next())
+        .collect();
+    assert_eq!(listed, ["Helvetica-Bold", "Symbol"], "{tagged}");
+
+    let mut plain = PdfWriter::new();
+    plain.opts.compress = false;
+    assert_eq!(pdf_with(plain).matches("/Subtype /Type1 ").count(), 13);
+}
