@@ -23,6 +23,9 @@ class BindingContractTest < Minitest::Test
     background_raster_dpi
     occlusion_cull
     sanitize
+    accessible
+    document_title
+    document_language
     add_font
     add_font_pack
     header
@@ -78,6 +81,10 @@ class BindingContractTest < Minitest::Test
 
     assert pdf.start_with?("%PDF")
     assert_includes pdf, "/MediaBox [0 0 320 480]"
+
+    converter.accessible(true).document_title("Contract").document_language("en-GB")
+    assert_includes converter.convert("<p>Accessible</p>"), "/StructTreeRoot"
+    assert_raises(ArgumentError) { converter.document_language("1234") }
   end
 
   def test_font_pack_is_parsed_at_the_binding_boundary

@@ -48,6 +48,8 @@ final class HtmlConverterContractTest {
               "<h1 style='font-family:ParitySans'>Java binding</h1><p lang='ja'>第</p>");
       assertPdf(pdf);
       assertContains(pdf, "/MediaBox [0 0 320 480]");
+      converter.setAccessibility(true).setDocumentTitle("Contract").setDocumentLanguage("en-GB");
+      assertContains(converter.convertHtml("<p>Accessible</p>"), "/StructTreeRoot");
       assertPdf(converter.convertMarkdown("# Markdown binding"));
     }
   }
@@ -73,6 +75,9 @@ final class HtmlConverterContractTest {
 
       assertThrows(IllegalArgumentException.class, () -> PageDimensions.ofPoints(0, 100));
       assertThrows(IllegalArgumentException.class, () -> converter.setMargin(Float.NaN));
+      var languageError =
+          assertThrows(IronpressException.class, () -> converter.setDocumentLanguage("1234"));
+      assertEquals(IronpressErrorKind.INVALID_ARGUMENT, languageError.getKind());
       assertThrows(IllegalArgumentException.class, () -> converter.setHeader("\ud800"));
 
       var argumentError =

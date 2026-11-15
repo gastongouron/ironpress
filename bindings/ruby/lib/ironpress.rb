@@ -31,6 +31,9 @@ module Ironpress
       background_raster_dpi
       occlusion_cull
       sanitize
+      accessible
+      document_title
+      document_language
       add_font
       add_font_pack
       base_path

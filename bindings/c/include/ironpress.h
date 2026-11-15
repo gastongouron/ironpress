@@ -187,6 +187,18 @@ IronpressStatus ironpress_converter_free(IronpressConverter **converter);
 IronpressStatus ironpress_converter_new(IronpressConverter **out_converter,
                                         IronpressError **out_error);
 
+// Enable or disable accessible output: a Tagged PDF conforming to PDF/UA-1.
+// The document needs a title and a language, from the HTML or from
+// `ironpress_converter_set_document_title` and
+// `ironpress_converter_set_document_language`.
+//
+// # Safety
+//
+// Handles and output pointers must follow `ABI.md`.
+IronpressStatus ironpress_converter_set_accessible(IronpressConverter *converter,
+                                                   uint8_t enabled,
+                                                   IronpressError **out_error);
+
 // Enable or disable automatic source-image downscaling.
 //
 // # Safety
@@ -213,6 +225,27 @@ IronpressStatus ironpress_converter_set_background_raster_dpi(IronpressConverter
 IronpressStatus ironpress_converter_set_compress(IronpressConverter *converter,
                                                  uint8_t enabled,
                                                  IronpressError **out_error);
+
+// Set the document language of accessible output as a BCP 47 tag; implies
+// accessible output. An invalid tag is rejected with
+// `IRONPRESS_STATUS_INVALID_ARGUMENT`.
+//
+// # Safety
+//
+// Handles, input bytes, and output pointers must follow `ABI.md`.
+IronpressStatus ironpress_converter_set_document_language(IronpressConverter *converter,
+                                                          IronpressBytes tag,
+                                                          IronpressError **out_error);
+
+// Set the document title of accessible output; implies accessible output.
+// A blank title is rejected with `IRONPRESS_STATUS_INVALID_ARGUMENT`.
+//
+// # Safety
+//
+// Handles, input bytes, and output pointers must follow `ABI.md`.
+IronpressStatus ironpress_converter_set_document_title(IronpressConverter *converter,
+                                                       IronpressBytes title,
+                                                       IronpressError **out_error);
 
 // Set CSS filter rasterization resolution in dots per inch.
 //

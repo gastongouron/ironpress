@@ -80,6 +80,12 @@ internal static class Program
         StartsWithPdf(pdf);
         Contains(pdf, "/MediaBox [0 0 320 480]", "Custom page size was not applied.");
 
+        converter.SetAccessibility(true).SetDocumentTitle("Contract").SetDocumentLanguage("en-GB");
+        Contains(
+            converter.ConvertHtml("<p>Accessible</p>"),
+            "/StructTreeRoot",
+            "Accessible output has no structure tree.");
+
         StartsWithPdf(converter.ConvertMarkdown("# Markdown binding"));
     }
 
@@ -106,6 +112,9 @@ internal static class Program
         Throws<ArgumentOutOfRangeException>(() => PageDimensions.FromPoints(0, 100));
         Throws<ArgumentOutOfRangeException>(() => converter.SetMargin(float.NaN));
         Throws<ArgumentException>(() => converter.SetHeader("\ud800"));
+
+        var languageError = Throws<IronpressException>(() => converter.SetDocumentLanguage("1234"));
+        Equal(IronpressErrorKind.InvalidArgument, languageError.Kind, "Language error category changed.");
     }
 
     private static void DisposedConvertersRejectWork(TestContext _)

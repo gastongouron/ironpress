@@ -219,6 +219,41 @@ impl HtmlConverter {
         self.update(|converter| converter.sanitize(enabled));
     }
 
+    /// Enable or disable accessible output: a Tagged PDF conforming to PDF/UA-1.
+    ///
+    /// The document needs a title and a language, from the HTML or from
+    /// `document_title` and `document_language`.
+    ///
+    /// Args:
+    ///     enabled: Whether to produce accessible output.
+    fn accessible(&mut self, enabled: bool) {
+        self.update(|converter| converter.accessible(enabled));
+    }
+
+    /// Set the document title of accessible output (implies `accessible(True)`).
+    ///
+    /// Args:
+    ///     title: A non-blank title; it overrides `<title>` and the first heading.
+    fn document_title(&mut self, title: &str) -> PyResult<()> {
+        let title = title
+            .parse::<ironpress_core::DocumentTitle>()
+            .map_err(|error| PyValueError::new_err(error.to_string()))?;
+        self.update(|converter| converter.document_title(title));
+        Ok(())
+    }
+
+    /// Set the document language of accessible output (implies `accessible(True)`).
+    ///
+    /// Args:
+    ///     tag: A BCP 47 language tag such as `en-GB`; it overrides `lang` on `<html>`.
+    fn document_language(&mut self, tag: &str) -> PyResult<()> {
+        let language = tag
+            .parse::<ironpress_core::DocumentLanguage>()
+            .map_err(|error| PyValueError::new_err(error.to_string()))?;
+        self.update(|converter| converter.document_language(language));
+        Ok(())
+    }
+
     /// Register a custom TrueType font.
     ///
     /// The name should match the `font-family` value used in CSS. The

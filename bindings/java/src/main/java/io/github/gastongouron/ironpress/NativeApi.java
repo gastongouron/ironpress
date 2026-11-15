@@ -53,6 +53,14 @@ interface NativeApi extends Library {
 
   int ironpress_converter_set_sanitize(Pointer converter, byte enabled, PointerByReference error);
 
+  int ironpress_converter_set_accessible(Pointer converter, byte enabled, PointerByReference error);
+
+  int ironpress_converter_set_document_title(
+      Pointer converter, NativeBytes title, PointerByReference error);
+
+  int ironpress_converter_set_document_language(
+      Pointer converter, NativeBytes tag, PointerByReference error);
+
   int ironpress_converter_set_header(
       Pointer converter, NativeBytes header, PointerByReference error);
 

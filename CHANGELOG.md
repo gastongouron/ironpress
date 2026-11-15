@@ -39,6 +39,14 @@
   112), the font resources list only the standard fonts the content
   selects, and right-to-left and mixed-direction lines read in logical
   order (a `bidi-override` run carries its logical text in `/ActualText`).
+  Every language binding exposes the three settings: `accessible`,
+  `document_title` and `document_language` (C ABI
+  `ironpress_converter_set_accessible`, `_set_document_title`,
+  `_set_document_language`; C++ `set_accessibility`,
+  `set_document_title`, `set_document_language`; .NET and Java
+  `SetAccessibility`/`setAccessibility`, `SetDocumentTitle`/`setDocumentTitle`,
+  `SetDocumentLanguage`/`setDocumentLanguage`; WebAssembly `accessible`,
+  `documentTitle`, `documentLanguage`).
 
 ### Changed
 

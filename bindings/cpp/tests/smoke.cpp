@@ -152,6 +152,21 @@ int main(int argc, char** argv) {
     require_contains(font_pack_pdf, "NotoEmoji",
                      "emoji font pack was not embedded");
 
+    converter.set_accessibility(true)
+        .set_document_title("C++ contract")
+        .set_document_language("en-GB");
+    const auto accessible_pdf = converter.convert_html("<p>Accessible</p>");
+    require_contains(accessible_pdf, "/StructTreeRoot",
+                     "accessible output has no structure tree");
+    bool invalid_language_was_typed = false;
+    try {
+        converter.set_document_language("1234");
+    } catch (const ironpress::Error& error) {
+        invalid_language_was_typed =
+            error.status() == ironpress::Status::invalid_argument;
+    }
+    require(invalid_language_was_typed, "an invalid language tag was accepted");
+
     auto moved_pdf = std::move(pdf);
     require(!pdf, "moved-from PDF still owns the native buffer");
     require_pdf(moved_pdf);

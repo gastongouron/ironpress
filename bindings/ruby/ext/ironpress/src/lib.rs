@@ -109,6 +109,24 @@ impl NativeConverter {
         self.configured(|converter| converter.sanitize(enabled))
     }
 
+    fn accessible(&self, enabled: bool) -> Self {
+        self.configured(|converter| converter.accessible(enabled))
+    }
+
+    fn document_title(ruby: &Ruby, this: &Self, title: String) -> Result<Self, Error> {
+        let title = title
+            .parse::<ironpress_core::DocumentTitle>()
+            .map_err(|error| Error::new(ruby.exception_arg_error(), error.to_string()))?;
+        Ok(this.configured(|converter| converter.document_title(title)))
+    }
+
+    fn document_language(ruby: &Ruby, this: &Self, tag: String) -> Result<Self, Error> {
+        let language = tag
+            .parse::<ironpress_core::DocumentLanguage>()
+            .map_err(|error| Error::new(ruby.exception_arg_error(), error.to_string()))?;
+        Ok(this.configured(|converter| converter.document_language(language)))
+    }
+
     fn add_font(&self, name: String, data: RString) -> Self {
         // SAFETY: `data` remains rooted for this call and is copied before returning.
         let bytes = unsafe { data.as_slice() }.to_vec();
@@ -223,6 +241,15 @@ fn init(_ruby: &Ruby) -> Result<(), Error> {
         method!(NativeConverter::occlusion_cull, 1),
     )?;
     class.define_method("sanitize", method!(NativeConverter::sanitize, 1))?;
+    class.define_method("accessible", method!(NativeConverter::accessible, 1))?;
+    class.define_method(
+        "document_title",
+        method!(NativeConverter::document_title, 1),
+    )?;
+    class.define_method(
+        "document_language",
+        method!(NativeConverter::document_language, 1),
+    )?;
     class.define_method("add_font", method!(NativeConverter::add_font, 2))?;
     class.define_method("add_font_pack", method!(NativeConverter::add_font_pack, 2))?;
     class.define_method("base_path", method!(NativeConverter::base_path, 1))?;

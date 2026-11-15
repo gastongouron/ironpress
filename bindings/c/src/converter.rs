@@ -1,6 +1,6 @@
 use std::ffi::c_char;
 
-use ironpress_core::{HtmlConverter, Margin, PageSize};
+use ironpress_core::{DocumentLanguage, DocumentTitle, HtmlConverter, Margin, PageSize};
 
 use crate::handles::{
     IronpressBuffer, IronpressConverter, IronpressError, OutputSlot, boundary, free_owned,
@@ -236,6 +236,69 @@ pub unsafe extern "C" fn ironpress_converter_set_header(
             let converter = IronpressConverter::parse_mut(converter)?;
             let header = header.parse_text("header")?.to_owned();
             converter.update(|current| current.header(header));
+            Ok(())
+        })
+    }
+}
+
+/// Set the document title of accessible output; implies accessible output.
+/// A blank title is rejected with `IRONPRESS_STATUS_INVALID_ARGUMENT`.
+///
+/// # Safety
+///
+/// Handles, input bytes, and output pointers must follow `ABI.md`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ironpress_converter_set_document_title(
+    converter: *mut IronpressConverter,
+    title: IronpressBytes,
+    out_error: *mut *mut IronpressError,
+) -> IronpressStatus {
+    // SAFETY: Raw handles, input bytes, and output slots are validated before use.
+    unsafe {
+        boundary(out_error, || {
+            let converter = IronpressConverter::parse_mut(converter)?;
+            let title = title
+                .parse_text("title")?
+                .parse::<DocumentTitle>()
+                .map_err(|error| {
+                    crate::status::Failure::new(
+                        crate::status::IRONPRESS_STATUS_INVALID_ARGUMENT,
+                        error.to_string(),
+                    )
+                })?;
+            converter.update(|current| current.document_title(title));
+            Ok(())
+        })
+    }
+}
+
+/// Set the document language of accessible output as a BCP 47 tag; implies
+/// accessible output. An invalid tag is rejected with
+/// `IRONPRESS_STATUS_INVALID_ARGUMENT`.
+///
+/// # Safety
+///
+/// Handles, input bytes, and output pointers must follow `ABI.md`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ironpress_converter_set_document_language(
+    converter: *mut IronpressConverter,
+    tag: IronpressBytes,
+    out_error: *mut *mut IronpressError,
+) -> IronpressStatus {
+    // SAFETY: Raw handles, input bytes, and output slots are validated before use.
+    unsafe {
+        boundary(out_error, || {
+            let converter = IronpressConverter::parse_mut(converter)?;
+            let language = tag
+                .parse_text("language")?
+                .parse::<DocumentLanguage>()
+                .map_err(|error| {
+                    crate::status::Failure::new(
+                        crate::status::IRONPRESS_STATUS_INVALID_ARGUMENT,
+                        error.to_string(),
+                    )
+                })?;
+            converter.update(|current| current.document_language(language));
             Ok(())
         })
     }

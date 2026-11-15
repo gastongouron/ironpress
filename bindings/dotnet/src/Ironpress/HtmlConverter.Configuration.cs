@@ -127,17 +127,42 @@ public sealed partial class HtmlConverter
         return Complete(status, error);
     }
 
+    /// <summary>
+    /// Enable or disable accessible output: a Tagged PDF conforming to PDF/UA-1.
+    /// The document needs a title and a language, from the HTML or from
+    /// <see cref="SetDocumentTitle"/> and <see cref="SetDocumentLanguage"/>.
+    /// </summary>
+    public HtmlConverter SetAccessibility(bool enabled)
+    {
+        EnsureOpen();
+        var status = NativeMethods.ironpress_converter_set_accessible(
+            converter,
+            ToNativeBoolean(enabled),
+            out var error);
+        return Complete(status, error);
+    }
+
+    /// <summary>Set the document title of accessible output; implies accessibility.</summary>
+    public HtmlConverter SetDocumentTitle(string title) =>
+        SetTextOption(TextOptionKind.DocumentTitle, title);
+
+    /// <summary>
+    /// Set the document language of accessible output as a BCP 47 tag; implies accessibility.
+    /// </summary>
+    public HtmlConverter SetDocumentLanguage(string tag) =>
+        SetTextOption(TextOptionKind.DocumentLanguage, tag);
+
     /// <summary>Set plain text rendered in the top page margin.</summary>
-    public HtmlConverter SetHeader(string text) => SetPageText(PageTextKind.Header, text);
+    public HtmlConverter SetHeader(string text) => SetTextOption(TextOptionKind.Header, text);
 
     /// <summary>Set an HTML fragment rendered in the top margin of every page.</summary>
-    public HtmlConverter SetHeaderHtml(string html) => SetPageText(PageTextKind.HeaderHtml, html);
+    public HtmlConverter SetHeaderHtml(string html) => SetTextOption(TextOptionKind.HeaderHtml, html);
 
     /// <summary>Set footer text, with optional {page} and {pages} placeholders.</summary>
-    public HtmlConverter SetFooter(string text) => SetPageText(PageTextKind.Footer, text);
+    public HtmlConverter SetFooter(string text) => SetTextOption(TextOptionKind.Footer, text);
 
     /// <summary>Set an HTML fragment rendered in the bottom margin of every page.</summary>
-    public HtmlConverter SetFooterHtml(string html) => SetPageText(PageTextKind.FooterHtml, html);
+    public HtmlConverter SetFooterHtml(string html) => SetTextOption(TextOptionKind.FooterHtml, html);
 
     private HtmlConverter SetResolution(ResolutionKind kind, float dotsPerInch)
     {
@@ -158,7 +183,7 @@ public sealed partial class HtmlConverter
         return Complete(status, error);
     }
 
-    private unsafe HtmlConverter SetPageText(PageTextKind kind, string text)
+    private unsafe HtmlConverter SetTextOption(TextOptionKind kind, string text)
     {
         EnsureOpen();
         var encoded = Utf8Input.Encode(text, nameof(text));
@@ -168,13 +193,17 @@ public sealed partial class HtmlConverter
             nint error;
             var status = kind switch
             {
-                PageTextKind.Header => NativeMethods.ironpress_converter_set_header(
+                TextOptionKind.Header => NativeMethods.ironpress_converter_set_header(
                     converter, input, out error),
-                PageTextKind.Footer => NativeMethods.ironpress_converter_set_footer(
+                TextOptionKind.Footer => NativeMethods.ironpress_converter_set_footer(
                     converter, input, out error),
-                PageTextKind.HeaderHtml => NativeMethods.ironpress_converter_set_header_html(
+                TextOptionKind.HeaderHtml => NativeMethods.ironpress_converter_set_header_html(
                     converter, input, out error),
-                PageTextKind.FooterHtml => NativeMethods.ironpress_converter_set_footer_html(
+                TextOptionKind.FooterHtml => NativeMethods.ironpress_converter_set_footer_html(
+                    converter, input, out error),
+                TextOptionKind.DocumentTitle => NativeMethods.ironpress_converter_set_document_title(
+                    converter, input, out error),
+                TextOptionKind.DocumentLanguage => NativeMethods.ironpress_converter_set_document_language(
                     converter, input, out error),
                 _ => throw new UnreachableException(),
             };
@@ -192,11 +221,13 @@ public sealed partial class HtmlConverter
         Background,
     }
 
-    private enum PageTextKind
+    private enum TextOptionKind
     {
         Header,
         Footer,
         HeaderHtml,
         FooterHtml,
+        DocumentTitle,
+        DocumentLanguage,
     }
 }

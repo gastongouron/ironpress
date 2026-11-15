@@ -80,6 +80,27 @@ internal static partial class NativeMethods
 
     [LibraryImport(LibraryName)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial NativeStatus ironpress_converter_set_accessible(
+        ConverterHandle converter,
+        byte enabled,
+        out nint error);
+
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial NativeStatus ironpress_converter_set_document_title(
+        ConverterHandle converter,
+        NativeBytes title,
+        out nint error);
+
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial NativeStatus ironpress_converter_set_document_language(
+        ConverterHandle converter,
+        NativeBytes tag,
+        out nint error);
+
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial NativeStatus ironpress_converter_set_image_dpi(
         ConverterHandle converter,
         float dpi,

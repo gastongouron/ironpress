@@ -14,6 +14,7 @@ conventions of its runtime while sharing the portable converter contract below.
 | PDF and raster quality controls | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Sanitization | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Plain-text and HTML headers/footers | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Accessible Tagged PDF (PDF/UA-1) with title and language | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Custom TTF fonts | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Optional CJK and emoji packs | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Local resource boundary | Yes | No | No | No | No | Yes | Yes | No | No |
