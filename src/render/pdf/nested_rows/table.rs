@@ -33,8 +33,7 @@ impl NestedRowsRenderer<'_, '_> {
         // as artifacts and its links get no annotations. Untagged output is
         // unchanged.
         let repeated_copy = pdf_writer.structure.is_enabled()
-            && element.fragmentation.instance
-                == crate::layout::elements::RowInstance::RepeatedCopy;
+            && element.fragmentation.instance == crate::layout::elements::RowInstance::RepeatedCopy;
         let annotation_marker = annotations.len();
         if self.first_margin == FirstMarginState::Pending {
             cursor_y -=
