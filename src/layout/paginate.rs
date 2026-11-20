@@ -10,8 +10,8 @@ use super::text::{OverflowWrap, TextWrapOptions, wrap_text_runs};
 use crate::layout::elements::{
     BlockSize, Container, FlexRow, FragmentBreakRule, GridRow, HorizontalRule, Image,
     IntoLayoutNode, LayoutElement, LayoutNode, LayoutVisitor, LayoutVisitorMut, MathBlock,
-    NamedString, PageContentRole, ProgressBar, RunningElement, Svg, Table, TableFragmentGroup,
-    TableRow, TextBlock, visit_layout_tree,
+    NamedString, PageContentRole, PageRepeat, ProgressBar, RunningElement, Svg, Table,
+    TableFragmentGroup, TableRow, TextBlock, visit_layout_tree,
 };
 use crate::style::computed::{
     BoxDecorationBreak, Clear, Float, FootnotePolicy, ObjectFit, Position,
@@ -52,6 +52,7 @@ fn collect_footnotes_from_runs(
             marker_color: data.marker_color,
             marker_prefix: data.marker_prefix,
             formatting: data.formatting,
+            structure: run.metadata.structure,
         });
     }
 }
@@ -253,13 +254,17 @@ fn extract_page_state_markers(
     });
 }
 
+/// Place the anchors collected since the previous box at the top of the
+/// box that follows them.
 fn apply_pending_target_anchors(
     pending_target_anchors: &mut Vec<String>,
     generated_content: &mut super::page_values::PageGeneratedContent,
-    at_page_start: bool,
+    block_offset: f32,
 ) {
     for name in pending_target_anchors.drain(..) {
-        generated_content.capture_named_string(name, String::new(), at_page_start);
+        if let Some(id) = target_anchor_id(&name) {
+            generated_content.capture_anchor(id.to_string(), block_offset);
+        }
     }
 }
 
@@ -2012,17 +2017,19 @@ fn split_table_node(
     rule: FragmentBreakRule,
 ) -> Option<(LayoutNode, LayoutNode)> {
     let principal = &element.principal;
+    // The header rows repeated in the continuation and the footer rows
+    // repeated in the first fragment are copies of the authored rows.
     let headers = principal
         .children
         .iter()
         .filter(|child| table_row_pagination_state(child.as_ref()).is_header)
-        .cloned()
+        .map(MarkRepeatedRow::copy_of)
         .collect::<Vec<_>>();
     let footers = principal
         .children
         .iter()
         .filter(|child| table_row_pagination_state(child.as_ref()).is_footer)
-        .cloned()
+        .map(MarkRepeatedRow::copy_of)
         .collect::<Vec<_>>();
     let footer_extent = footers
         .iter()
@@ -2217,6 +2224,9 @@ impl RepeatedPageDecorations {
             let mut repeated = element.clone();
             if let Some(background) = repeated.page_area_background_mut() {
                 background.fit_page_area(geometry.page_area_in_flow_space());
+            }
+            if let Some(owner) = repeated.positioning_owner_mut() {
+                owner.positioning_mut().repeat = PageRepeat::Copy;
             }
             (*block_offset, repeated)
         }));
@@ -3265,7 +3275,8 @@ pub(crate) fn paginate_with_context(
             // NOT flushed to the page edge — any reserved slack stays as
             // whitespace below it).
             if in_table_body && !pending_table_footers.is_empty() {
-                for footer in pending_table_footers.clone() {
+                for mut footer in pending_table_footers.clone() {
+                    footer.accept_mut(&mut MarkRepeatedRow);
                     let footer_h = row_content_height(&footer);
                     collect_footnotes_from_element(&footer, &mut current_footnotes);
                     current_elements.push((y, footer));
@@ -3304,7 +3315,8 @@ pub(crate) fn paginate_with_context(
                 && !suppress_repeated_headers_after_break
                 && !pending_table_headers.is_empty()
             {
-                for header in pending_table_headers.clone() {
+                for mut header in pending_table_headers.clone() {
+                    header.accept_mut(&mut MarkRepeatedRow);
                     let header_h = row_content_height(header.as_ref());
                     collect_footnotes_from_element(&header, &mut current_footnotes);
                     current_elements.push((y, header));
@@ -3344,7 +3356,7 @@ pub(crate) fn paginate_with_context(
             apply_pending_target_anchors(
                 &mut pending_target_anchors,
                 &mut current_generated_content,
-                first_on_page,
+                y,
             );
             collect_footnotes_from_element(&element, &mut current_footnotes);
             current_elements.push((y, element));
@@ -3410,7 +3422,7 @@ pub(crate) fn paginate_with_context(
                 apply_pending_target_anchors(
                     &mut pending_target_anchors,
                     &mut current_generated_content,
-                    first_on_page,
+                    y,
                 );
                 collect_footnotes_from_element(&first, &mut current_footnotes);
                 current_elements.push((y, first));
@@ -3470,7 +3482,7 @@ pub(crate) fn paginate_with_context(
         apply_pending_target_anchors(
             &mut pending_target_anchors,
             &mut current_generated_content,
-            first_on_page,
+            effective_y,
         );
         collect_footnotes_from_element(&element, &mut current_footnotes);
         current_elements.push((effective_y, element));
@@ -3545,6 +3557,7 @@ mod break_tests {
             marker_color: crate::types::Color::BLACK,
             marker_prefix: String::new(),
             formatting: Default::default(),
+            structure: Default::default(),
         }
     }
 
@@ -5001,5 +5014,23 @@ mod break_tests {
         );
         assert_eq!(pages.len(), 2);
         assert_eq!(pages[1].elements.len(), 1);
+    }
+}
+
+/// Flags re-emitted `<thead>`/`<tfoot>` rows as copies of the authored row.
+struct MarkRepeatedRow;
+
+impl MarkRepeatedRow {
+    /// A copy of `row` flagged as a repeat, leaving the authored row as is.
+    fn copy_of(row: &LayoutNode) -> LayoutNode {
+        let mut copy = row.clone();
+        copy.accept_mut(&mut Self);
+        copy
+    }
+}
+
+impl crate::layout::elements::LayoutVisitorMut for MarkRepeatedRow {
+    fn visit_table_row(&mut self, element: &mut crate::layout::elements::TableRow) {
+        element.fragmentation.instance = crate::layout::elements::RowInstance::RepeatedCopy;
     }
 }

@@ -156,6 +156,9 @@ pub(super) fn render_inline_box(
     let fragment_geometry = box_geometry.fragment(Default::default());
     let background_box =
         paint_geometry.background_clip_box(BackgroundClip::Border, inline.paint.border_radii);
+    // A list bullet is its item's label; any other box leaves marking to
+    // the text lines it contains.
+    let label = pdf_writer.structure.begin_label(content, inline.structure);
 
     // Background fill.
     if let Some(background) = inline.paint.background_color {
@@ -172,12 +175,22 @@ pub(super) fn render_inline_box(
     // (inside the border) with the decoded raster, scaled to the box size.
     if let Some(image) = &inline.image {
         let content_box = paint_geometry.content_box();
+        // With alternative text the image is a Figure of its own; without
+        // it is decoration (css-content-3 §1.2).
+        let bbox = pdf_writer
+            .page_content_transform
+            .transform_rect(content_box);
+        let picture = pdf_writer.structure.begin_content(
+            content,
+            inline.structure,
+            super::structure::MarkKind::generated_figure(image, bbox, inline.reading),
+        );
         let img_obj_id = pdf_writer.add_image_object(
-            &image.data,
-            image.source_width,
-            image.source_height,
-            image.format,
-            image.png_metadata.as_ref(),
+            &image.asset.data,
+            image.asset.source_width,
+            image.asset.source_height,
+            image.asset.format,
+            image.asset.png_metadata.as_ref(),
         );
         let img_name = format!("Im{img_obj_id}");
         content.push_str(&format!(
@@ -187,6 +200,7 @@ pub(super) fn render_inline_box(
             left = content_box.left,
             bottom = content_box.bottom,
         ));
+        pdf_writer.structure.end(content, picture);
         page_images.push(ImageRef {
             name: img_name,
             obj_id: img_obj_id,
@@ -256,6 +270,7 @@ pub(super) fn render_inline_box(
             );
         }
     }
+    pdf_writer.structure.end(content, label);
 }
 
 fn paint_centered_inline_stroke(
@@ -374,7 +389,14 @@ pub(super) fn render_upright_vertical_line_text(
                 page_images,
             )
         } else {
-            render_upright_vertical_run(
+            // The upright painter writes its own text object, so it marks
+            // here; the horizontal fallback marks itself.
+            let upright = pdf_writer.structure.begin_content(
+                content,
+                run.metadata.structure,
+                super::structure::MarkKind::run(run),
+            );
+            let advance = render_upright_vertical_run(
                 content,
                 run,
                 position.vertical_baseline_x(run, custom_fonts),
@@ -382,8 +404,9 @@ pub(super) fn render_upright_vertical_line_text(
                 parent_font_size,
                 custom_fonts,
                 prepared_custom_fonts,
-            )
-            .unwrap_or_else(|| {
+            );
+            pdf_writer.structure.end(content, upright);
+            advance.unwrap_or_else(|| {
                 render_run_glyphs(
                     content,
                     run,

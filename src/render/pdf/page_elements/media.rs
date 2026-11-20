@@ -1,6 +1,23 @@
 use super::*;
-use crate::layout::elements::{Image, Svg};
+use crate::layout::elements::{Image, PaintGroupOwner, Svg};
+use crate::render::pdf::structure::MarkKind;
 use std::borrow::Cow;
+
+/// A Figure mark whose `/BBox` is the painted box in default user space.
+fn figure_mark(paint_box: PdfRect, pdf_writer: &PdfWriter) -> MarkKind {
+    MarkKind::Figure {
+        bbox: pdf_writer.page_content_transform.transform_rect(paint_box),
+    }
+}
+
+/// The mark of a raster: a Figure, or the text of the boxes a filter
+/// rasterized.
+fn picture_mark(element: &Image, paint_box: PdfRect, pdf_writer: &PdfWriter) -> MarkKind {
+    MarkKind::picture(
+        &element.paint.meaning,
+        pdf_writer.page_content_transform.transform_rect(paint_box),
+    )
+}
 
 /// Final source and destination used to paint one replaced raster.
 ///
@@ -188,6 +205,12 @@ pub(in crate::render::pdf) fn paint_image_box(
             PdfImageInterpolation::for_css_image_rendering(element.sampling.rendering),
         );
         let image_name = format!("Im{image_id}");
+        let kind = picture_mark(element, expanded_box, ctx.text.pdf_writer);
+        let figure =
+            ctx.text
+                .pdf_writer
+                .structure
+                .begin_content(content, element.paint_group().owner, kind);
         push_raster_xobject(
             content,
             &image_name,
@@ -195,6 +218,7 @@ pub(in crate::render::pdf) fn paint_image_box(
             image,
             ctx.text.pdf_writer,
         );
+        ctx.text.pdf_writer.structure.end(content, figure);
         ctx.text.page_images.push(ImageRef {
             name: image_name,
             obj_id: image_id,
@@ -230,6 +254,12 @@ pub(in crate::render::pdf) fn paint_image_box(
         element.sampling.rendering,
     );
     let image_name = format!("Im{image_id}");
+    let kind = picture_mark(element, paint.bounds, ctx.text.pdf_writer);
+    let figure =
+        ctx.text
+            .pdf_writer
+            .structure
+            .begin_content(content, element.paint_group().owner, kind);
     if paint.clip {
         content.push_str("q\n");
         content.push_str(&format!("{}W n\n", image_content.rect_path()));
@@ -244,6 +274,7 @@ pub(in crate::render::pdf) fn paint_image_box(
     if paint.clip {
         content.push_str("Q\n");
     }
+    ctx.text.pdf_writer.structure.end(content, figure);
     ctx.text.page_images.push(ImageRef {
         name: image_name,
         obj_id: image_id,
@@ -331,6 +362,12 @@ pub(in crate::render::pdf) fn paint_svg_box(
     let svg_content = paint_geometry.padding_box();
     let content_w = svg_content.width;
     let content_h = svg_content.height;
+    let kind = figure_mark(svg_content, ctx.text.pdf_writer);
+    let figure =
+        ctx.text
+            .pdf_writer
+            .structure
+            .begin_content(content, element.paint_group().owner, kind);
     content.push_str("q\n");
     // Position on page and flip y-axis for SVG coordinates
     content.push_str(&format!(
@@ -353,6 +390,7 @@ pub(in crate::render::pdf) fn paint_svg_box(
             ty = placement.translate_y,
         ));
         {
+            let font_policy = ctx.text.pdf_writer.structure.font_policy();
             let mut image_sink = SvgPageImageSink {
                 pdf_writer: ctx.text.pdf_writer,
                 page_images: ctx.text.page_images,
@@ -366,6 +404,7 @@ pub(in crate::render::pdf) fn paint_svg_box(
                 raster_scale_y: placement.scale_y.abs(),
                 custom_fonts: Some(ctx.text.custom_fonts),
                 prepared_custom_fonts: Some(ctx.text.prepared_custom_fonts),
+                font_policy,
             };
             crate::render::svg_to_pdf::render_svg_tree_with_resources(
                 &element.tree,
@@ -376,6 +415,7 @@ pub(in crate::render::pdf) fn paint_svg_box(
         content.push_str("Q\n");
     }
     content.push_str("Q\n");
+    ctx.text.pdf_writer.structure.end(content, figure);
     paint_box_decoration(
         content,
         fragment_geometry,

@@ -128,7 +128,7 @@ fn projected_body_padding_is_not_subtracted_from_root_percentages_twice() {
             .with_initial_containing_block(Size::new(120.0, 114.0)),
         &rules,
         &HashMap::new(),
-        document.font_locale,
+        document.head.font_locale,
         &crate::layout::page_context::PageBackgroundContext::uniform(
             None,
             0.0,
@@ -211,7 +211,7 @@ fn viewport_math_uses_page_area_before_projected_body_padding() {
             .with_initial_containing_block(Size::new(360.0, 468.0)),
         &rules,
         &HashMap::new(),
-        document.font_locale,
+        document.head.font_locale,
         &page_background,
         crate::layout::paginate::PaginationContext::new(
             crate::layout::page_context::PageGeometryContext::uniform(page, projected_body_padding),

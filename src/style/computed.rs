@@ -3023,8 +3023,42 @@ pub enum ContentItem {
     NoCloseQuote,
     /// `url(...)` / `<image>` — makes the pseudo-element a replaced element
     /// filled with the referenced image (css-content-3 §1, §2). Holds the raw
-    /// URL/data-URI string.
-    Url(String),
+    /// URL/data-URI string and the alternative text written after the slash.
+    Image {
+        url: String,
+        alt: Vec<AltTextItem>,
+    },
+}
+
+/// One piece of the alternative text for speech that follows the slash of a
+/// `content` value (css-content-3 §1.2).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AltTextItem {
+    String(String),
+    Attr(String),
+}
+
+impl AltTextItem {
+    /// The alternative text these items spell with the element's
+    /// `attributes`: `None` when no slash was written, the (possibly empty)
+    /// text otherwise.
+    pub(crate) fn resolve(
+        items: &[Self],
+        attributes: &std::collections::HashMap<String, String>,
+    ) -> Option<String> {
+        if items.is_empty() {
+            return None;
+        }
+        Some(
+            items
+                .iter()
+                .map(|item| match item {
+                    Self::String(text) => text.as_str(),
+                    Self::Attr(name) => attributes.get(name).map_or("", String::as_str),
+                })
+                .collect(),
+        )
+    }
 }
 
 pub(crate) const TARGET_PLACEHOLDER_START: &str = "__ironpress-target:";
@@ -3279,6 +3313,9 @@ pub struct ComputedStyle {
     pub font_family: FontFamily,
     pub font_stack: FontStack,
     pub(crate) font_locale: crate::font_pack::FontLocale,
+    /// Identity of the element this style belongs to. Inherited on purpose:
+    /// an unstamped construct attributes its content to the nearest ancestor.
+    pub(crate) structure: crate::accessibility::StructureRef,
     pub color: Color,
     pub background_color: Option<Color>,
     pub margin: EdgeSizes,
@@ -3711,6 +3748,7 @@ impl Default for ComputedStyle {
             font_family: FontFamily::TimesRoman,
             font_stack: FontStack::default(),
             font_locale: crate::font_pack::FontLocale::Unspecified,
+            structure: crate::accessibility::StructureRef::Untagged,
             color: Color::BLACK,
             background_color: None,
             margin: EdgeSizes::default(),
@@ -8521,7 +8559,10 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
                 .trim()
                 .trim_matches(|c: char| c == '"' || c == '\'')
                 .to_string();
-            items.push(ContentItem::Url(url));
+            items.push(ContentItem::Image {
+                url,
+                alt: Vec::new(),
+            });
             rest = tail;
         } else if let Some(tail) = rest.strip_prefix("no-open-quote") {
             items.push(ContentItem::NoOpenQuote);
@@ -8535,6 +8576,23 @@ fn parse_content_value(raw: &str) -> Vec<ContentItem> {
         } else if let Some(tail) = rest.strip_prefix("close-quote") {
             items.push(ContentItem::CloseQuote);
             rest = tail;
+        } else if let Some(tail) = rest.strip_prefix('/') {
+            // css-content-3 §1.2: what follows the slash is the alternative
+            // text for speech of the whole value; it names the image.
+            let alt: Vec<AltTextItem> = parse_content_value(tail)
+                .into_iter()
+                .filter_map(|item| match item {
+                    ContentItem::String(text) => Some(AltTextItem::String(text)),
+                    ContentItem::Attr(name) => Some(AltTextItem::Attr(name)),
+                    _ => None,
+                })
+                .collect();
+            for item in &mut items {
+                if let ContentItem::Image { alt: slot, .. } = item {
+                    *slot = alt.clone();
+                }
+            }
+            break;
         } else if let Some(space) = rest.find(char::is_whitespace) {
             rest = &rest[space..];
         } else {
@@ -21862,14 +21920,48 @@ mod tests {
         let items = parse_content_value_pub("url(\"data:image/png;base64,AAA=\")");
         assert_eq!(
             items,
-            vec![ContentItem::Url("data:image/png;base64,AAA=".to_string())]
+            vec![ContentItem::Image {
+                url: "data:image/png;base64,AAA=".to_string(),
+                alt: Vec::new()
+            }]
         );
     }
 
     #[test]
     fn content_url_unquoted() {
         let items = parse_content_value_pub("url(icon.png)");
-        assert_eq!(items, vec![ContentItem::Url("icon.png".to_string())]);
+        assert_eq!(
+            items,
+            vec![ContentItem::Image {
+                url: "icon.png".to_string(),
+                alt: Vec::new()
+            }]
+        );
+    }
+
+    /// css-content-3 §1.2: the strings and `attr()` references after the
+    /// slash are the image's alternative text; without a slash there is none.
+    #[test]
+    fn content_url_slash_alt_text() {
+        let items = parse_content_value_pub("url(icon.png) / \"Warning: \" attr(data-level)");
+        let alt = vec![
+            AltTextItem::String("Warning: ".to_string()),
+            AltTextItem::Attr("data-level".to_string()),
+        ];
+        assert_eq!(
+            items,
+            vec![ContentItem::Image {
+                url: "icon.png".to_string(),
+                alt: alt.clone()
+            }]
+        );
+        let attributes =
+            std::collections::HashMap::from([("data-level".to_string(), "high".to_string())]);
+        assert_eq!(
+            AltTextItem::resolve(&alt, &attributes).as_deref(),
+            Some("Warning: high")
+        );
+        assert_eq!(AltTextItem::resolve(&[], &attributes), None);
     }
 
     #[test]

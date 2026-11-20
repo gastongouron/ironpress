@@ -757,7 +757,8 @@ impl<'a> InlineFormattingContext<'a> {
                     &element.attributes,
                     &selector_context,
                     self.font_metrics,
-                );
+                )
+                .for_element(element);
                 Some(InlineFormattingChild {
                     role: InlineFormattingRole::of(element, &style),
                     style,
@@ -795,7 +796,8 @@ impl<'a> InlineFormattingContext<'a> {
                 &element.attributes,
                 &selector_context,
                 self.font_metrics,
-            );
+            )
+            .for_element(element);
 
             match InlineFormattingRole::of(element, &style) {
                 InlineFormattingRole::Atomic(kind) => {
@@ -866,7 +868,8 @@ impl<'a> InlineFormattingContext<'a> {
                 &element.attributes,
                 &selector_context,
                 self.font_metrics,
-            );
+            )
+            .for_element(element);
 
             match InlineFormattingRole::of(element, &style) {
                 InlineFormattingRole::Atomic(kind) => {

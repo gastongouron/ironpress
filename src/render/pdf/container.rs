@@ -355,6 +355,7 @@ impl LayoutVisitor for DirectChildRenderer<'_, '_, '_> {
                 element,
                 PdfPoint::new(self.flow.frame.content_origin.x, top),
                 self.flow.frame.width(),
+                &mut self.ctx.text,
             );
             group.finish(self.content, self.ctx);
         }

@@ -18,6 +18,7 @@ pub(crate) use vector_source::ExactVectorFilterSource;
 
 use std::collections::HashMap;
 
+use crate::layout::elements::PictureMeaning;
 use crate::layout::elements::{
     Image, ImagePaint, ImageSampling, IntoLayoutNode, LayoutNode, ReplacedGeometry,
 };
@@ -36,6 +37,8 @@ use crate::types::EdgeSizes;
 pub(crate) struct FilterRasterOutput {
     pub(crate) asset: RasterImageAsset,
     pub(crate) raster_overflow: EdgeSizes,
+    /// What the picture stands for in the structure tree.
+    pub(crate) meaning: PictureMeaning,
 }
 
 /// A resolved filter list together with its color-interpolation space.
@@ -148,6 +151,7 @@ pub(crate) struct FilteredGraphic {
     asset: RasterImageAsset,
     geometry: surface::SourceGeometry,
     overflow: EdgeSizes,
+    meaning: PictureMeaning,
     group: crate::layout::elements::PaintGroup,
 }
 
@@ -171,6 +175,7 @@ impl FilteredGraphic {
             paint: ImagePaint {
                 raster_overflow: self.overflow,
                 group: self.group,
+                meaning: self.meaning,
                 ..Default::default()
             },
         }
@@ -213,11 +218,13 @@ pub(crate) fn composite_source(
         filter,
         group.map(FilterCompositing::from_group).unwrap_or_default(),
         filter_dpi,
+        PictureMeaning::of_element(element),
     )?;
     Some(FilteredGraphic {
         asset: output.asset,
         geometry,
         overflow: output.raster_overflow,
+        meaning: output.meaning,
         group: group
             .cloned()
             .unwrap_or_default()
@@ -232,6 +239,7 @@ pub(crate) fn composite_source_graphic(
     filter: &ResolvedFilter,
     compositing: FilterCompositing,
     filter_dpi: f32,
+    meaning: PictureMeaning,
 ) -> Option<(FilterRasterOutput, surface::SourceGeometry)> {
     if !filter.requires_source_surface() {
         return None;
@@ -276,6 +284,7 @@ pub(crate) fn composite_source_graphic(
         FilterRasterOutput {
             asset: crate::render::blur::rgba_to_png_alpha_asset(frame.pixels, filter_dpi)?,
             raster_overflow: frame.overflow,
+            meaning,
         },
         layout_geometry,
     ))

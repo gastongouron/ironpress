@@ -412,6 +412,7 @@ fn styled_text_run(
 pub(crate) fn text_run_metadata(style: &ComputedStyle) -> crate::layout::engine::TextRunMetadata {
     crate::layout::engine::TextRunMetadata {
         font_locale: style.font_locale,
+        structure: style.structure,
         emphasis: crate::layout::text_emphasis::TextEmphasis {
             mark: style.text_emphasis_mark,
             color: style.text_emphasis_color,
@@ -1569,6 +1570,7 @@ fn finalize_soft_hyphen_line(runs: &mut [TextRun], broke_line: bool) {
                 run.text.pop();
             }
             run.text.push('-');
+            run.metadata.hyphenation = crate::layout::engine::RunHyphenation::SynthesizedHyphen;
         } else {
             run.text = strip_soft_hyphens(&run.text);
         }
@@ -3335,6 +3337,8 @@ fn build_inline_box(
     };
 
     Some(InlineBox {
+        structure: Default::default(),
+        reading: Default::default(),
         width: total_w,
         height: total_h,
         margin_left: style.margin.left.max(0.0),
@@ -3616,7 +3620,8 @@ fn collect_text_runs_inner(
                     &el.attributes,
                     &selector_ctx,
                     FontMetrics::new(fonts),
-                );
+                )
+                .for_element(el);
                 let role = InlineFormattingRole::of(el, &style);
                 if context.accepts(role, el) {
                     if el.attributes.contains_key("data-math") {
@@ -3723,7 +3728,14 @@ fn collect_text_runs_inner(
                                             }),
                                         text_shadow: call_style.text_shadow.clone(),
                                         shaping: text_run_shaping(call_style),
-                                        metadata: text_run_metadata(call_style),
+                                        metadata: crate::layout::engine::TextRunMetadata {
+                                            structure:
+                                                crate::accessibility::StructureRef::for_footnote(
+                                                    el,
+                                                    style.structure,
+                                                ),
+                                            ..text_run_metadata(call_style)
+                                        },
                                         ..Default::default()
                                     },
                                     call_style.font_variant_caps,

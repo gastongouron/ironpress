@@ -115,6 +115,34 @@ impl WasmHtmlConverter {
         self.update(|converter| converter.sanitize(enabled));
     }
 
+    /// Enable or disable accessible output: a Tagged PDF conforming to
+    /// PDF/UA-1. The document needs a title and a language, from the HTML or
+    /// from `documentTitle` and `documentLanguage`.
+    pub fn accessible(&mut self, enabled: bool) {
+        self.update(|converter| converter.accessible(enabled));
+    }
+
+    /// Set the document title of accessible output; implies accessibility.
+    #[wasm_bindgen(js_name = documentTitle)]
+    pub fn document_title(&mut self, title: &str) -> Result<(), JsError> {
+        let title = title
+            .parse::<crate::accessibility::DocumentTitle>()
+            .map_err(|error| JsError::new(&error.to_string()))?;
+        self.update(|converter| converter.document_title(title));
+        Ok(())
+    }
+
+    /// Set the document language of accessible output as a BCP 47 tag;
+    /// implies accessibility.
+    #[wasm_bindgen(js_name = documentLanguage)]
+    pub fn document_language(&mut self, tag: &str) -> Result<(), JsError> {
+        let language = tag
+            .parse::<crate::accessibility::DocumentLanguage>()
+            .map_err(|error| JsError::new(&error.to_string()))?;
+        self.update(|converter| converter.document_language(language));
+        Ok(())
+    }
+
     /// Register one custom TrueType font.
     #[wasm_bindgen(js_name = addFont)]
     pub fn add_font(&mut self, name: &str, bytes: &[u8]) {

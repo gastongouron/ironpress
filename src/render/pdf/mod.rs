@@ -54,9 +54,11 @@ mod clipping;
 mod compositing;
 mod conic_gradients;
 mod container;
+mod destinations;
 mod document;
 mod flex_cell_shadows;
 mod flow_layout;
+mod font_descriptor;
 mod function_gradients;
 mod geometry;
 mod gradient_rasters;
@@ -83,6 +85,7 @@ mod raster_placement;
 mod resources;
 mod shadows;
 mod stacking;
+mod structure;
 mod table_borders;
 mod text_baselines;
 mod text_lines;
@@ -233,6 +236,8 @@ impl LayoutVisitor for PageElementRenderer<'_, '_, '_> {
     }
 
     fn visit_table_row(&mut self, element: &TableRow) {
+        // Repeated header and footer rows mark themselves as artifacts in the
+        // row painter, which every table row goes through.
         render_table_row(self.content, element, self.frame, self.ctx);
     }
 
@@ -342,6 +347,7 @@ impl LayoutVisitor for PageElementRenderer<'_, '_, '_> {
             element,
             PdfPoint::new(self.frame.margin.left, top),
             self.frame.available_width,
+            &mut self.ctx.text,
         );
         group.finish(self.content, self.ctx);
     }
@@ -384,7 +390,7 @@ pub(crate) fn render_pdf_to_writer_full_opts<W: std::io::Write>(
     opts: RenderOpts,
 ) -> Result<(), IronpressError> {
     render_pdf_to_writer_full_opts_with_resources(
-        PdfRenderDocument::new(pages, page_size, margin, custom_fonts, decoration),
+        PdfRenderDocument::new(pages, page_size, margin, custom_fonts, decoration, None),
         writer,
         opts,
         crate::security::resources::ResourceLoader::default(),
@@ -397,6 +403,8 @@ pub(crate) struct PdfRenderDocument<'a> {
     margin: Margin,
     custom_fonts: &'a HashMap<String, TtfFont>,
     decoration: Option<&'a PageDecoration>,
+    /// Present only for accessible output.
+    structure: Option<&'a crate::accessibility::DocumentStructure>,
 }
 
 impl<'a> PdfRenderDocument<'a> {
@@ -406,6 +414,7 @@ impl<'a> PdfRenderDocument<'a> {
         margin: Margin,
         custom_fonts: &'a HashMap<String, TtfFont>,
         decoration: Option<&'a PageDecoration>,
+        structure: Option<&'a crate::accessibility::DocumentStructure>,
     ) -> Self {
         Self {
             pages,
@@ -413,6 +422,7 @@ impl<'a> PdfRenderDocument<'a> {
             margin,
             custom_fonts,
             decoration,
+            structure,
         }
     }
 }
@@ -429,19 +439,33 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         margin,
         custom_fonts,
         decoration,
+        structure,
     } = document;
     let mut pdf_writer = PdfWriter::with_resources(resources);
     pdf_writer.opts = opts;
+    pdf_writer.structure = structure
+        .map(structure::StructureRecorder::for_document)
+        .unwrap_or_default();
     pdf_writer.svg_defs = collect_document_svg_defs(pages);
+    if pdf_writer.structure.is_enabled() {
+        pdf_writer.destinations = destinations::NamedDestinations::resolving(
+            pages
+                .iter()
+                .flat_map(|page| page.generated_content.anchors())
+                .map(|anchor| anchor.id.as_str()),
+        );
+    }
     // `available_width` is derived per page inside the loop below, since a page
     // may carry an `@page :first` margin override that changes its content box.
     let mut bookmarks: Vec<BookmarkEntry> = Vec::new();
-    let margin_font_usage = margin_box_font_usage(pages, decoration, custom_fonts);
+    let font_policy = pdf_writer.structure.font_policy();
+    let margin_font_usage = margin_box_font_usage(pages, decoration, custom_fonts, font_policy);
     let prepared_custom_fonts = prepare_custom_fonts_with_additional_runs(
         pages,
         custom_fonts,
         &margin_font_usage.per_page_runs,
         &[],
+        font_policy,
     );
 
     register_used_custom_fonts(&mut pdf_writer, custom_fonts, &prepared_custom_fonts);
@@ -489,6 +513,13 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
             Vec::new()
         };
         let fixed_textblock_flow_adjustments = fixed_textblock_flow_adjustments(&page.elements);
+        for anchor in page.generated_content.anchors() {
+            pdf_writer.destinations.locate(
+                &anchor.id,
+                page_idx,
+                page_size.height - flow_margin.top - anchor.block_offset,
+            );
+        }
         {
             let mut ctx = PageRenderContext::new(
                 &mut pdf_writer,
@@ -541,6 +572,20 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
                 if physical_page_background {
                     ctx.text.pdf_writer.page_content_transform = physical_page_transform;
                 }
+                // Continuation re-paints and later-page copies of fixed boxes
+                // are page furniture for assistive technology (Matterhorn
+                // 18-001); the first instance of a fixed box is content.
+                let furniture = paint_only
+                    || (ctx.text.pdf_writer.structure.is_enabled()
+                        && element.is_repeated_page_copy());
+                let region = if furniture {
+                    ctx.text
+                        .pdf_writer
+                        .structure
+                        .begin_artifact(&mut element_content, structure::ArtifactKind::Pagination)
+                } else {
+                    structure::OpenMark::Skipped
+                };
                 element.accept(&mut PageElementRenderer {
                     content: &mut element_content,
                     frame: element_frame,
@@ -552,10 +597,14 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
                     },
                     ctx: &mut ctx,
                 });
+                ctx.text
+                    .pdf_writer
+                    .structure
+                    .end(&mut element_content, region);
                 if physical_page_background {
                     ctx.text.pdf_writer.page_content_transform = page_content_transform;
                 }
-                if paint_only {
+                if furniture {
                     ctx.text.discard_annotations_since(annotation_marker);
                 }
                 let descendants = ctx.stacking.take_since(marker);
@@ -605,6 +654,13 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         // Keep them out of the print-device layout transform so exact
         // half-pixel edges retain their authored page geometry.
         let mut decoration_content = String::new();
+        let decoration_annotations = annotations.len();
+        // Everything in the margin bands is page furniture: one Pagination
+        // artifact wraps it, so no MCID is ever allocated in this stream.
+        let furniture = pdf_writer
+            .structure
+            .begin_artifact(&mut decoration_content, structure::ArtifactKind::Pagination);
+        let furniture_start = decoration_content.len();
 
         // Render page header/footer in margin area.
         if let Some(dec) = decoration {
@@ -616,28 +672,32 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
                 let text = header_text
                     .replace("{page}", &page_num.to_string())
                     .replace("{pages}", &total_pages.to_string());
-                let encoded = encode_pdf_text(&text);
                 let header_y = page_size.height - page_margin.top / 2.0;
-                decoration_content.push_str("BT\n");
-                decoration_content.push_str("/Helvetica 9 Tf\n");
-                decoration_content.push_str("0.4 0.4 0.4 rg\n");
-                decoration_content.push_str(&format!("{center_x} {header_y} Td\n"));
-                decoration_content.push_str(&format!("({encoded}) Tj\n"));
-                decoration_content.push_str("ET\n");
+                paint_page_text(
+                    &mut decoration_content,
+                    &text,
+                    PdfPoint::new(center_x, header_y),
+                    custom_fonts,
+                    &prepared_custom_fonts,
+                    &mut pdf_writer,
+                    &mut page_images,
+                );
             }
 
             if let Some(ref footer_text) = dec.footer {
                 let text = footer_text
                     .replace("{page}", &page_num.to_string())
                     .replace("{pages}", &total_pages.to_string());
-                let encoded = encode_pdf_text(&text);
                 let footer_y = page_margin.bottom / 2.0;
-                decoration_content.push_str("BT\n");
-                decoration_content.push_str("/Helvetica 9 Tf\n");
-                decoration_content.push_str("0.4 0.4 0.4 rg\n");
-                decoration_content.push_str(&format!("{center_x} {footer_y} Td\n"));
-                decoration_content.push_str(&format!("({encoded}) Tj\n"));
-                decoration_content.push_str("ET\n");
+                paint_page_text(
+                    &mut decoration_content,
+                    &text,
+                    PdfPoint::new(center_x, footer_y),
+                    custom_fonts,
+                    &prepared_custom_fonts,
+                    &mut pdf_writer,
+                    &mut page_images,
+                );
             }
 
             // CSS `@page` margin boxes (CSS Paged Media 3 §5): running
@@ -818,6 +878,15 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         }
 
         sheet.paint_marks(&mut decoration_content, page_size);
+        let furniture_only = decoration_content.len() == furniture_start;
+        pdf_writer.structure.end(&mut decoration_content, furniture);
+        if furniture_only {
+            decoration_content.clear();
+        }
+        if pdf_writer.structure.is_enabled() {
+            // Links in page furniture have no Link element to belong to.
+            annotations.truncate(decoration_annotations);
+        }
         let page_matrix = sheet.page_matrix(page_size).cm_operator();
         let page_area = PdfRect::new(
             page_margin.left,
@@ -833,7 +902,7 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
         // The clip slices transformed contents only after pagination, so
         // transferred paint reaches its owning page without leaking from
         // adjacent pages.
-        let document_content = format!(
+        let mut document_content = format!(
             "q 1 0 0 1 0 0 cm\nq {page_matrix}\
              q {}{page_background_content}Q\n\
              q {}{document_canvas_content}Q\n\
@@ -843,8 +912,16 @@ pub(crate) fn render_pdf_to_writer_full_opts_with_resources<W: std::io::Write>(
             page_area.rect_path(),
             page_content_transform.operator(),
         );
-        let decoration_stream = (!decoration_content.is_empty())
+        // Every painting operator outside marked content becomes a Layout
+        // artifact; page-level streams only, never form XObjects.
+        pdf_writer
+            .structure
+            .normalize_page_stream(&mut document_content);
+        let mut decoration_stream = (!decoration_content.is_empty())
             .then(|| format!("q 1 0 0 1 0 0 cm\nq {page_matrix}{decoration_content}Q\nQ\n",));
+        if let Some(stream) = decoration_stream.as_mut() {
+            pdf_writer.structure.normalize_page_stream(stream);
+        }
 
         for annotation in &mut annotations {
             annotation.rect = page_content_transform.transform_rect(annotation.rect);

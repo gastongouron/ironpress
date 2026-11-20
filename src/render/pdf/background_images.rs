@@ -361,6 +361,7 @@ pub(super) fn render_svg_background(
             tx = placement.translate_x,
             ty = placement.translate_y,
         ));
+        let font_policy = pdf_writer.structure.font_policy();
         let mut image_sink = SvgPageImageSink {
             pdf_writer,
             page_images,
@@ -378,6 +379,7 @@ pub(super) fn render_svg_background(
             // the fallback when no context is wired up, e.g. in tests).
             custom_fonts,
             prepared_custom_fonts,
+            font_policy,
         };
         crate::render::svg_to_pdf::render_svg_tree_with_resources(tree, &mut cell, &mut resources);
     }

@@ -2,6 +2,52 @@
 
 ## Unreleased
 
+### Added
+
+- Opt-in accessible output: `HtmlConverter::accessible(true)`, `document_title`,
+  `document_language` and `tagged_pdf`, and the CLI flags `--accessible`,
+  `--lang` and `--title`, produce a Tagged PDF conforming to PDF/UA-1. The
+  structure tree follows the document (headings normalized to a valid
+  sequence, paragraphs, lists with `Lbl`/`LBody`, tables with explicit header
+  scope and a regular grid, figures with `alt`, links with descriptions),
+  headers, footers, repeated table header rows and other decoration are
+  artifacts, header text is painted with an embedded font, and the catalog
+  carries `/MarkInfo`, `/Lang`, `/StructTreeRoot`, `/ViewerPreferences` and
+  XMP metadata with `pdfuaid:part` and `dc:title`. A missing title, language
+  or image `alt` is reported as a `RenderError` with a fix hint. The
+  `tests/pdfua/` fixtures validate with veraPDF's `ua1` profile; output
+  without the option is byte-identical to before. In accessible output every
+  shown glyph has a `ToUnicode` value (continuation glyphs of a shaping
+  cluster map to a zero-width space), content inside `opacity`,
+  `mix-blend-mode` or `mask` containers keeps its structure through the form
+  XObject's own `/StructParents`, footnotes become `Reference` and `Note`
+  elements with an `/IDTree`, vertical upright text is tagged, display
+  formulas are `Formula` elements whose glyphs come from the embedded fonts,
+  SVG `<text>` set in a standard font paints through the embedded face body
+  text uses, a hyphen inserted at a soft hyphen carries `/ActualText` with
+  U+00AD so the word reads unbroken, `<abbr title>` becomes a `Span` whose
+  `/E` entry carries the expansion, a `position: fixed` box is content
+  where it is authored (only its copies on later pages are artifacts), and
+  an `#id` link is a named destination to the anchor's page (a link to no
+  element is dropped), `dl`/`dt`/`dd` become `L`/`LI` with `Lbl` and
+  `LBody`, a box a `filter` paints as a picture keeps its text in
+  `/ActualText`, a `background-clip: text` line is read once through
+  `/ActualText` however often its outlines repeat, and a `content: url()`
+  image with alternative text (`content: url(x) / "text"`, css-content-3) is
+  a `Figure` with that `/Alt` while one without is an artifact, a Type 3
+  font carries the font descriptor Tagged PDF requires (ISO 32000-1 Table
+  112), the font resources list only the standard fonts the content
+  selects, and right-to-left and mixed-direction lines read in logical
+  order (a `bidi-override` run carries its logical text in `/ActualText`).
+  Every language binding exposes the three settings: `accessible`,
+  `document_title` and `document_language` (C ABI
+  `ironpress_converter_set_accessible`, `_set_document_title`,
+  `_set_document_language`; C++ `set_accessibility`,
+  `set_document_title`, `set_document_language`; .NET and Java
+  `SetAccessibility`/`setAccessibility`, `SetDocumentTitle`/`setDocumentTitle`,
+  `SetDocumentLanguage`/`setDocumentLanguage`; WebAssembly `accessible`,
+  `documentTitle`, `documentLanguage`).
+
 ### Changed
 
 - Text shaping runs on harfrust and glyph outlines, bounds and advances come
@@ -28,6 +74,11 @@
   or later.
 - Ruby binding: magnus 0.9 drops Ruby 3.0 (end of life since April 2024). The
   gem requires Ruby 3.1 or later.
+
+### CI
+
+- The veraPDF PDF/UA-1 validation of the `tests/pdfua/` fixtures runs in the
+  main CI workflow and gates the crate and npm publication.
 
 ## [1.7.0] — 2026-09-15
 

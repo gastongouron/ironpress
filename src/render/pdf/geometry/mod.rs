@@ -261,7 +261,7 @@ impl Mul for PdfMatrix {
 /// Axis-aligned rectangle in PDF page coordinates: x grows right and y grows
 /// up from the bottom-left corner.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub(super) struct PdfRect {
+pub(crate) struct PdfRect {
     pub(super) left: f32,
     pub(super) bottom: f32,
     pub(super) width: f32,

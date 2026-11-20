@@ -41,6 +41,8 @@ The managed facade covers the portable C ABI contract:
 - named or custom page dimensions and per-side margins
 - compression, JPEG quality, image resizing, and raster resolutions
 - sanitization, headers, and footers
+- accessible output (Tagged PDF, PDF/UA-1) with `SetAccessibility`,
+  `SetDocumentTitle`, and `SetDocumentLanguage`
 - custom TrueType font bytes
 - optional Japanese, Korean, Simplified Chinese, Traditional Chinese, and emoji packs
 

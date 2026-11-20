@@ -147,6 +147,7 @@ ironpress --page-size letter --landscape --margin 54 input.html output.pdf
 ironpress --header "Report" --footer "Page {page} of {pages}" input.html output.pdf
 ironpress --header-html '<strong>Report</strong>' input.html output.pdf
 echo '<h1>Hello</h1>' | ironpress --stdin output.pdf
+ironpress --accessible --lang en-GB --title "Quarterly report" input.html output.pdf
 ```
 
 ## Builder API
@@ -179,6 +180,50 @@ while using 192 DPI for flattened synthetic backgrounds; lowering one field
 does not change page geometry. The CLI exposes the same controls through
 `--image-dpi`, `--filter-dpi`, and `--background-raster-dpi`.
 
+## Accessible PDFs
+
+`.accessible(true)` (CLI `--accessible`) produces a Tagged PDF that conforms
+to PDF/UA-1 (ISO 14289-1) for ordinary documents. The structure tree follows
+the document: headings, paragraphs, lists and definition lists, tables with
+header scope, figures with their `alt` text, links with descriptions, `#id`
+links as destinations, abbreviations with their `title` as the expansion,
+footnotes as references and notes, display formulas, filtered boxes and
+`background-clip: text` lines with their text in `/ActualText`, generated
+`content: url()` images with their alternative text as figures, and
+right-to-left and mixed-direction lines in logical order. Page furniture and
+decoration are artifacts, the language and title are in the catalog and the
+XMP metadata, and every font is embedded. The fixtures in `tests/pdfua/` pass
+the veraPDF `ua1` profile in CI. Output without the option is byte-identical
+to before.
+
+```rust
+use ironpress::HtmlConverter;
+
+let pdf = HtmlConverter::new()
+    .accessible(true)
+    .document_language("en-GB".parse()?)   // overrides lang on <html>
+    .document_title("Quarterly report".parse()?) // overrides <title>, then the first heading
+    .convert(html)?;
+```
+
+The document needs a title (`<title>`, the first heading, or `.document_title`,
+CLI `--title`) and a language (`lang` on `<html>`, or `.document_language`,
+CLI `--lang`); Markdown input therefore needs `--lang`. An `<img>` without
+`alt` is an error, because a guessed description helps nobody; `alt=""` marks
+a decorative image, and `TaggedPdf { missing_alt: MissingAltPolicy::Artifact,
+.. }` hides every unnamed image instead. Heading levels are normalized in the
+structure tree (the first heading becomes H1 and no level is skipped); the
+outline keeps the authored levels.
+
+Known limits of the current step: a generated image without alternative text
+(`content: url(x)` with no `/ "text"`) is decoration; a `position: fixed` box
+is content on the page where it is authored and an artifact on the pages it
+repeats on; `progress` and `meter` are paragraphs rather than figures; a table
+cell cites its headers through `scope` only, not `headers`; an inline `<svg>`
+inside a paragraph's text is read before that text, wherever it sits in it;
+and a formula symbol that neither the sans face of the formula nor the bundled
+fallback faces cover still uses the unembedded Symbol font.
+
 ## Features at a glance
 
 | Area | Highlights | Details |
@@ -190,6 +235,7 @@ does not change page geometry. The CLI exposes the same controls through
 | **SVG** | Vector rendering: path, shapes, gradients, transforms, clip paths, `viewBox` | [Layout Engine](../../wiki/Layout-Engine) |
 | **Images** | JPEG + PNG, data URIs, local files, remote URLs (`remote` feature) | [Architecture](../../wiki/Architecture) |
 | **PDF** | PDF 1.4, bookmarks, link annotations, headers/footers, gradients, streaming output | [PDF Rendering](../../wiki/PDF-Rendering) |
+| **Accessibility** | Opt-in Tagged PDF conforming to PDF/UA-1: structure tree, artifacts, `alt` text, language, title | [Accessible PDFs](#accessible-pdfs) |
 | **C ABI** | Stable native API with versioned Linux, macOS, and Windows libraries | [C binding](bindings/c/README.md) |
 | **C++** | Move-only C++17 RAII owners over the stable native ABI | [C++ binding](bindings/cpp/README.md) |
 | **.NET** | Managed `HtmlConverter`, typed failures, and RID-native assets | [.NET binding](bindings/dotnet/README.md) |

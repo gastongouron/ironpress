@@ -187,9 +187,31 @@ jobs:
             cargo fuzz run "$target" -- -max_total_time=30
           done
 
+  pdfua:
+    name: veraPDF ua1 (tests/pdfua)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Convert the fixtures with accessible output
+        run: |
+          cargo build --quiet --bin ironpress
+          target/debug/ironpress --accessible \
+            --header "Quarterly report" --footer "Page {page} of {pages}" \
+            tests/pdfua/report.html target/pdfua-report.pdf
+          target/debug/ironpress --accessible tests/pdfua/effects.html target/pdfua-effects.pdf
+      - name: Validate with veraPDF (PDF/UA-1 profile)
+        run: |
+          for fixture in report effects; do
+            docker run --rm -v "$PWD/target:/data" \
+              ghcr.io/verapdf/cli:v1.31.233 \
+              --flavour ua1 --format text "/data/pdfua-$fixture.pdf" | tee "verapdf-$fixture.txt"
+            grep -q '^PASS ' "verapdf-$fixture.txt"
+          done
+
   publish-npm:
     runs-on: ubuntu-latest
-    needs: [release-metadata, test, msrv, clippy, fmt, node-package, python-bindings, ruby-bindings]
+    needs: [release-metadata, test, msrv, clippy, fmt, node-package, python-bindings, ruby-bindings, pdfua]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: read
@@ -217,7 +239,7 @@ jobs:
 
   publish-crate:
     runs-on: ubuntu-latest
-    needs: [release-metadata, test, msrv, clippy, fmt, python-bindings, ruby-bindings]
+    needs: [release-metadata, test, msrv, clippy, fmt, python-bindings, ruby-bindings, pdfua]
     if: >-
       startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'workflow_dispatch' &&

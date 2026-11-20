@@ -982,6 +982,7 @@ fn selector_matches_virtual_html(selector: &str) -> bool {
 fn selector_matches_virtual_body(selector: &str) -> bool {
     let html = ElementNode {
         tag: HtmlTag::Html,
+        ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
         raw_tag_name: "html".to_string(),
         attributes: HashMap::new(),
         children: Vec::new(),

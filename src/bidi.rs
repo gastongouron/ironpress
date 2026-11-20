@@ -45,21 +45,26 @@ pub(crate) fn reorder_runs_bidi(
         if !paragraph_rtl {
             return runs.to_vec();
         }
+        let starts = logical_starts(runs);
         let mut result: Vec<TextRun> = Vec::with_capacity(runs.len());
-        for run in runs.iter().rev() {
+        for (index, run) in runs.iter().enumerate().rev() {
             if run.text.is_empty() && run.inline_box.is_some() {
                 let mut object = run.clone();
                 object.reverse_inline_edge_role();
+                object.metadata.reading.logical_start = starts[index];
                 result.push(object);
                 continue;
             }
             if run.text.is_empty() {
                 continue;
             }
-            result.push(TextRun {
+            let mut reversed = TextRun {
                 text: run.text.chars().rev().collect(),
                 ..run.clone()
-            });
+            };
+            reversed.metadata.reading.logical_start = starts[index];
+            reversed.metadata.reading.reversed = true;
+            result.push(reversed);
         }
         return if result.is_empty() {
             runs.to_vec()
@@ -119,10 +124,10 @@ pub(crate) fn reorder_runs_bidi(
         // *order of runs* is visual (left-to-right on the page), so we emit
         // runs in the order `visual_runs` gives them.
         // Find chars in this byte range (already in logical order).
-        let segment_chars: Vec<(char, usize, bool)> = char_info
+        let segment_chars: Vec<(char, usize, usize, bool)> = char_info
             .iter()
             .filter(|(_, bo, _, _)| byte_range.contains(bo))
-            .map(|(ch, _, ri, object)| (*ch, *ri, *object))
+            .map(|(ch, bo, ri, object)| (*ch, *bo, *ri, *object))
             .collect();
 
         // Group consecutive chars by run index. Characters remain logical
@@ -134,21 +139,24 @@ pub(crate) fn reorder_runs_bidi(
         let mut range_runs = Vec::new();
         let mut current_text = String::new();
         let mut current_run_idx: Option<usize> = None;
+        let mut current_start = 0;
 
-        for (ch, run_idx, is_object) in &segment_chars {
+        for (ch, start, run_idx, is_object) in &segment_chars {
             if *is_object {
                 if let Some(prev_idx) = current_run_idx.take() {
                     if !current_text.is_empty() {
-                        range_runs.push(TextRun {
-                            text: std::mem::take(&mut current_text),
-                            ..runs[prev_idx].clone()
-                        });
+                        range_runs.push(segment(
+                            &runs[prev_idx],
+                            std::mem::take(&mut current_text),
+                            current_start,
+                        ));
                     }
                 }
                 let mut object = runs[*run_idx].clone();
                 if range_is_rtl {
                     object.reverse_inline_edge_role();
                 }
+                object.metadata.reading.logical_start = *start;
                 range_runs.push(object);
                 continue;
             }
@@ -157,23 +165,26 @@ pub(crate) fn reorder_runs_bidi(
             } else {
                 if let Some(prev_idx) = current_run_idx {
                     if !current_text.is_empty() {
-                        range_runs.push(TextRun {
-                            text: std::mem::take(&mut current_text),
-                            ..runs[prev_idx].clone()
-                        });
+                        range_runs.push(segment(
+                            &runs[prev_idx],
+                            std::mem::take(&mut current_text),
+                            current_start,
+                        ));
                     }
                 }
                 current_run_idx = Some(*run_idx);
+                current_start = *start;
                 current_text.push(*ch);
             }
         }
 
         if let Some(idx) = current_run_idx {
             if !current_text.is_empty() {
-                range_runs.push(TextRun {
-                    text: std::mem::take(&mut current_text),
-                    ..runs[idx].clone()
-                });
+                range_runs.push(segment(
+                    &runs[idx],
+                    std::mem::take(&mut current_text),
+                    current_start,
+                ));
             }
         }
         if range_is_rtl {
@@ -189,6 +200,34 @@ pub(crate) fn reorder_runs_bidi(
         move_trailing_spaces_to_previous_visual_run(&mut result);
         result
     }
+}
+
+/// The piece of `run` holding `text`, which starts at byte `logical_start` of
+/// the paragraph's logical text.
+fn segment(run: &TextRun, text: String, logical_start: usize) -> TextRun {
+    let mut segment = TextRun {
+        text,
+        ..run.clone()
+    };
+    segment.metadata.reading.logical_start = logical_start;
+    segment
+}
+
+/// Byte offset of each run in the paragraph's logical text, an atomic inline
+/// box counting as its object replacement character.
+fn logical_starts(runs: &[TextRun]) -> Vec<usize> {
+    let mut offset = 0;
+    runs.iter()
+        .map(|run| {
+            let start = offset;
+            offset += if run.text.is_empty() && run.inline_box.is_some() {
+                OBJECT_REPLACEMENT_CHARACTER.len_utf8()
+            } else {
+                run.text.len()
+            };
+            start
+        })
+        .collect()
 }
 
 fn move_first_visual_run_leading_spaces_to_end(runs: &mut [TextRun]) {
@@ -371,5 +410,53 @@ mod tests {
         let result = reorder_runs_bidi(&runs, false, true);
         let combined: String = result.iter().map(|r| r.text.as_str()).collect();
         assert_eq!(combined, "ABCDEF");
+    }
+}
+
+#[cfg(test)]
+mod reading_order_tests {
+    use super::*;
+
+    fn run(text: &str) -> TextRun {
+        TextRun {
+            text: text.to_string(),
+            ..Default::default()
+        }
+    }
+
+    /// UAX #9: runs of a right-to-left paragraph paint in visual order, and
+    /// each keeps the byte offset of its text in the logical paragraph, so
+    /// the logical order can be recovered.
+    #[test]
+    fn reordered_runs_keep_their_logical_start() {
+        let visual = reorder_runs_bidi(&[run("אב"), run("גד")], true, false);
+        let texts: Vec<&str> = visual.iter().map(|run| run.text.as_str()).collect();
+        assert_eq!(texts, ["גד", "אב"]);
+        let starts: Vec<usize> = visual
+            .iter()
+            .map(|run| run.metadata.reading.logical_start)
+            .collect();
+        assert_eq!(starts, [4, 0]);
+        assert!(visual.iter().all(|run| !run.metadata.reading.reversed));
+    }
+
+    /// css-writing-modes-4 §2.4: under `bidi-override` with `direction: rtl`
+    /// the characters are painted reversed; the run says so and reads its
+    /// logical text back (ISO 32000-1 14.9.4).
+    #[test]
+    fn overridden_runs_read_their_logical_text() {
+        let visual = reorder_runs_bidi(&[run("ab"), run("cd")], true, true);
+        let texts: Vec<&str> = visual.iter().map(|run| run.text.as_str()).collect();
+        assert_eq!(texts, ["dc", "ba"]);
+        let starts: Vec<usize> = visual
+            .iter()
+            .map(|run| run.metadata.reading.logical_start)
+            .collect();
+        assert_eq!(starts, [2, 0]);
+        assert_eq!(
+            visual[0].metadata.actual_text(&visual[0].text).as_deref(),
+            Some("cd")
+        );
+        assert_eq!(run("ab").metadata.actual_text("ab"), None);
     }
 }

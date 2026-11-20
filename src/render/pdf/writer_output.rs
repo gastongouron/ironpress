@@ -82,25 +82,15 @@ impl PdfWriter {
 
         // 2. FontDescriptor
         let descriptor_id = self.next_id();
-        let pdf_metrics = ttf.pdf_vertical_metrics();
-        let ascent_pdf = (pdf_metrics.ascent as i32 * 1000) / ttf.units_per_em as i32;
-        let descent_pdf = (pdf_metrics.descent as i32 * 1000) / ttf.units_per_em as i32;
-        let bbox_pdf = [
-            (ttf.bbox[0] as i32 * 1000) / ttf.units_per_em as i32,
-            (ttf.bbox[1] as i32 * 1000) / ttf.units_per_em as i32,
-            (ttf.bbox[2] as i32 * 1000) / ttf.units_per_em as i32,
-            (ttf.bbox[3] as i32 * 1000) / ttf.units_per_em as i32,
-        ];
-        self.objects.push(format!(
-            "{descriptor_id} 0 obj\n<< /Type /FontDescriptor /FontName /{base_font_name} /Flags {flags} /FontBBox [{b0} {b1} {b2} {b3}] /Ascent {ascent} /Descent {descent} /ItalicAngle 0 /CapHeight {ascent} /StemV 80 /{font_file_key} {stream_id} 0 R >>\nendobj",
-            flags = ttf.flags,
-            b0 = bbox_pdf[0],
-            b1 = bbox_pdf[1],
-            b2 = bbox_pdf[2],
-            b3 = bbox_pdf[3],
-            ascent = ascent_pdf,
-            descent = descent_pdf,
-        ));
+        self.objects.push(
+            super::font_descriptor::FontDescriptor::embedded(
+                ttf,
+                base_font_name,
+                font_file_key,
+                stream_id,
+            )
+            .object(descriptor_id),
+        );
 
         // 3. CID widths array keyed by glyph ID so shaped glyph IDs can be
         // emitted directly with Identity-H.
@@ -153,28 +143,61 @@ impl PdfWriter {
             }
             None => format!("{document_id} 0 R"),
         };
+        // Hidden content never produces a link: ISO 14289-1 7.18.5 wants
+        // every link annotation inside a Link element. Nor does a link to no
+        // element of the document.
+        let mut annotations = annotations;
+        if self.structure.is_enabled() {
+            annotations.retain(|annot| {
+                annot.owner != crate::accessibility::StructureRef::Decorative
+                    && self.destinations.keeps(&annot.target)
+            });
+        }
         let page_id = self.objects.len() + annotations.len() + 1;
+        let page_keys = self.structure.page_keys(annotations.len());
 
         // Annotation objects
         let mut annot_ids = Vec::new();
-        for annot in &annotations {
+        let mut annotation_records = Vec::new();
+        for (index, annot) in annotations.iter().enumerate() {
             let annot_id = self.next_id();
+            let tagging = page_keys.as_ref().map_or_else(String::new, |keys| {
+                format!(
+                    " /F 4 /Contents {} /StructParent {}",
+                    self.structure
+                        .link_description(annot.owner, &annot.text, &annot.target.href()),
+                    keys.annotations[index],
+                )
+            });
             self.objects.push(format!(
-                "{annot_id} 0 obj\n<< /Type /Annot /Subtype /Link /P {page_id} 0 R /Rect [{x1} {y1} {x2} {y2}] /Border [0 0 0] /A << /Type /Action /S /URI /URI ({uri}) >> >>\nendobj",
+                "{annot_id} 0 obj\n<< /Type /Annot /Subtype /Link /P {page_id} 0 R /Rect [{x1} {y1} {x2} {y2}] /Border [0 0 0] {action}{tagging} >>\nendobj",
                 page_id = page_id,
                 x1 = annot.rect.left,
                 y1 = annot.rect.bottom,
                 x2 = annot.rect.right(),
                 y2 = annot.rect.top(),
-                uri = escape_pdf_string(&annot.url),
+                action = self.destinations.annotation_entry(&annot.target),
             ));
             annot_ids.push(annot_id);
+            if let Some(keys) = &page_keys {
+                annotation_records.push(super::structure::AnnotationRecord {
+                    key: keys.annotations[index],
+                    object_id: annot_id,
+                    owner: annot.owner,
+                });
+            }
         }
 
         // Page object (placeholder — will be updated in finish())
+        let page_tagging = page_keys.as_ref().map_or_else(String::new, |keys| {
+            format!(" /StructParents {} /Tabs /S", keys.page)
+        });
         self.objects.push(format!(
-            "{page_id} 0 obj\n<< /Type /Page /MediaBox [0 0 {width} {height}] /Contents {page_contents} >>\nendobj",
+            "{page_id} 0 obj\n<< /Type /Page /MediaBox [0 0 {width} {height}]{page_tagging} /Contents {page_contents} >>\nendobj",
         ));
+        if let Some(keys) = page_keys {
+            self.structure.finish_page(keys, annotation_records);
+        }
 
         self.page_ids.push(page_id);
         self.page_annotations.push(annot_ids);
@@ -184,6 +207,9 @@ impl PdfWriter {
     }
 
     fn add_page_content_stream(&mut self, content: &str) -> usize {
+        if self.structure.is_enabled() {
+            self.note_standard_fonts(&PdfResourceUsage::from_stream(content));
+        }
         let content_id = self.next_id();
         match self
             .opts
@@ -214,30 +240,31 @@ impl PdfWriter {
         bookmarks: &[BookmarkEntry],
     ) -> Result<(), IronpressError> {
         let mut bytes_written: usize = 0;
-        out.write_all(b"%PDF-1.4\n")?;
-        bytes_written += b"%PDF-1.4\n".len();
+        // ISO 14289-1 is written against PDF 1.7, and `/Tabs` and
+        // `/ActualText` are PDF 1.5 constructs; untagged output keeps its
+        // historical header.
+        let header: &[u8] = if self.structure.is_enabled() {
+            b"%PDF-1.7\n"
+        } else {
+            b"%PDF-1.4\n"
+        };
+        out.write_all(header)?;
+        bytes_written += header.len();
 
         // Font objects
         let font_base_id = self.objects.len() + 1;
-        let font_names = [
-            // Helvetica (sans-serif)
-            "Helvetica",
-            "Helvetica-Bold",
-            "Helvetica-Oblique",
-            "Helvetica-BoldOblique",
-            // Times Roman (serif)
-            "Times-Roman",
-            "Times-Bold",
-            "Times-Italic",
-            "Times-BoldItalic",
-            // Courier (monospace)
-            "Courier",
-            "Courier-Bold",
-            "Courier-Oblique",
-            "Courier-BoldOblique",
-            // Symbol (math/Greek)
-            "Symbol",
-        ];
+        // Historical output lists every standard font; accessible output
+        // lists the ones its content selects. ISO 14289-1 7.21.4.1 concerns
+        // fonts text reaches, so this is hygiene rather than conformance.
+        let font_names: Vec<&str> = if self.structure.is_enabled() {
+            STANDARD_FONTS
+                .iter()
+                .filter(|name| self.standard_fonts_in_use.contains(*name))
+                .copied()
+                .collect()
+        } else {
+            STANDARD_FONTS.to_vec()
+        };
 
         // `finish_to_writer` owns the writer, so retain that ownership all the
         // way through final assembly instead of duplicating every textual PDF
@@ -555,10 +582,32 @@ impl PdfWriter {
             format!(" /Outlines {root_id} 0 R /PageMode /UseOutlines")
         };
 
+        // Structure tree root, XMP metadata and document information for
+        // accessible output; nothing is appended otherwise.
+        let tagged_objects = self
+            .structure
+            .into_tagging()
+            .map(|tagging| {
+                super::structure::TaggedDocumentObjects::append_to(
+                    &mut all_objects,
+                    tagging,
+                    &self.page_ids,
+                )
+            })
+            .transpose()?;
+        let (catalog_tagging, trailer_tagging) = match &tagged_objects {
+            Some(objects) => (objects.catalog_entries(), objects.trailer_entries()),
+            None => ("", ""),
+        };
+
+        let names_ref = self
+            .destinations
+            .append_to(&mut all_objects, &self.page_ids);
+
         // Catalog
         let catalog_id = all_objects.len() + 1;
         all_objects.push(format!(
-            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R{outlines_ref} >>\nendobj",
+            "{catalog_id} 0 obj\n<< /Type /Catalog /Pages {pages_id} 0 R{outlines_ref}{names_ref}{catalog_tagging} >>\nendobj",
         ));
 
         // Write objects and track offsets for xref
@@ -595,7 +644,7 @@ impl PdfWriter {
 
         // Trailer
         let trailer = format!(
-            "trailer\n<< /Size {} /Root {catalog_id} 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n",
+            "trailer\n<< /Size {} /Root {catalog_id} 0 R{trailer_tagging} >>\nstartxref\n{xref_offset}\n%%EOF\n",
             all_objects.len() + 1,
         );
         out.write_all(trailer.as_bytes())?;

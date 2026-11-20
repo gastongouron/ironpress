@@ -105,6 +105,21 @@ int main(int argc, char **argv) {
                 IRONPRESS_STATUS_OK,
             "sanitization configuration failed");
 
+    require(ironpress_converter_set_accessible(converter, IRONPRESS_FALSE, &error) ==
+                IRONPRESS_STATUS_OK,
+            "accessibility configuration failed");
+    require(ironpress_converter_set_document_language(converter, text("1234"),
+                                                     &error) ==
+                IRONPRESS_STATUS_INVALID_ARGUMENT,
+            "an invalid language tag was accepted");
+    require(ironpress_error_free(&error) == IRONPRESS_STATUS_OK,
+            "language error release failed");
+    require(ironpress_converter_set_document_title(converter, text("  "), &error) ==
+                IRONPRESS_STATUS_INVALID_ARGUMENT,
+            "a blank document title was accepted");
+    require(ironpress_error_free(&error) == IRONPRESS_STATUS_OK,
+            "title error release failed");
+
     IronpressBytes custom_font = read_file(argv[1]);
     require(ironpress_converter_add_font(converter, text("ParitySans"), custom_font,
                                         &error) == IRONPRESS_STATUS_OK,
@@ -140,6 +155,23 @@ int main(int argc, char **argv) {
     require(pdf == NULL, "PDF release did not clear the handle");
     require(ironpress_buffer_free(&pdf) == IRONPRESS_STATUS_OK,
             "repeated PDF release was not safe");
+
+    require(ironpress_converter_set_accessible(converter, IRONPRESS_TRUE, &error) ==
+                IRONPRESS_STATUS_OK,
+            "accessibility enablement failed");
+    require(ironpress_converter_set_document_title(converter, text("C contract"),
+                                                  &error) == IRONPRESS_STATUS_OK,
+            "document title configuration failed");
+    require(ironpress_converter_set_document_language(converter, text("en-GB"),
+                                                     &error) == IRONPRESS_STATUS_OK,
+            "document language configuration failed");
+    require(ironpress_converter_convert_html(converter, text("<p>Accessible</p>"),
+                                            &pdf, &error) == IRONPRESS_STATUS_OK,
+            "accessible conversion failed");
+    require(memcmp(ironpress_buffer_data(pdf), "%PDF-1.7", 8) == 0,
+            "accessible conversion did not produce a PDF 1.7 document");
+    require(ironpress_buffer_free(&pdf) == IRONPRESS_STATUS_OK,
+            "accessible PDF release failed");
 
     const uint8_t invalid_utf8[] = {0xff};
     IronpressBytes invalid = {.data = invalid_utf8, .len = sizeof(invalid_utf8)};

@@ -23,6 +23,9 @@ PORTABLE_CONVERTER_METHODS = {
     "background_raster_dpi",
     "occlusion_cull",
     "sanitize",
+    "accessible",
+    "document_title",
+    "document_language",
     "add_font",
     "add_font_pack",
     "header",
@@ -74,6 +77,13 @@ class BindingContractTest(unittest.TestCase):
 
         self.assertTrue(pdf.startswith(b"%PDF"))
         self.assertIn(b"/MediaBox [0 0 320 480]", pdf)
+
+        converter.accessible(True)
+        converter.document_title("Contract")
+        converter.document_language("en-GB")
+        self.assertIn(b"/StructTreeRoot", converter.convert("<p>Accessible</p>"))
+        with self.assertRaises(ValueError):
+            converter.document_language("1234")
 
     def test_font_pack_is_parsed_at_the_binding_boundary(self):
         converter = ironpress.HtmlConverter()

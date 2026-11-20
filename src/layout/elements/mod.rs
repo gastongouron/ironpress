@@ -13,9 +13,11 @@ mod media;
 mod metadata;
 mod misc;
 mod multicol;
+mod picture;
 mod placement;
 mod principal;
 mod properties;
+mod reading_order;
 mod stacking;
 mod table;
 #[cfg(test)]
@@ -34,15 +36,17 @@ pub(crate) use media::{
 pub(crate) use metadata::{AvoidPageBreak, NamedString, PageBreak, RunningElement};
 pub(crate) use misc::{ColumnRule, HorizontalRule, MathBlock, ProgressBar, ProgressColors};
 pub(crate) use multicol::{MulticolColumn, MulticolContainer};
+pub(crate) use picture::{PictureMeaning, SpokenText};
 pub(crate) use placement::{FragmentBox, FragmentPlacement, FragmentPlacementOwner};
 pub(crate) use principal::{PrincipalBox, impl_principal_layout_element};
 pub(crate) use properties::*;
+pub(crate) use reading_order::LineNumbering;
 pub(crate) use stacking::{Stacking, StackingLevel, StackingParticipant, StackingRole};
 pub(crate) use table::{
     CollapsedBorderEdge, CollapsedBorderJoint, CollapsedBorderJoints, CollapsedBorderLine,
-    CollapsedTableBorders, Table, TableBoxDecoration, TableBoxDecorationOwner, TableCellPosition,
-    TableCells, TableFormatting, TableFragmentGroup, TableFragmentation, TableGridIdentity,
-    TableGridOwner, TableInlineGeometry, TableRow, TableSourcePath,
+    CollapsedTableBorders, RowInstance, Table, TableBoxDecoration, TableBoxDecorationOwner,
+    TableCellPosition, TableCells, TableFormatting, TableFragmentGroup, TableFragmentation,
+    TableGridIdentity, TableGridOwner, TableInlineGeometry, TableRow, TableSourcePath,
 };
 #[cfg(test)]
 pub(crate) use test_support::{LayoutElementTestExt, LayoutElementTestMutExt};
@@ -372,6 +376,16 @@ pub(crate) trait LayoutElement: Debug {
             .map_or(PageContentRole::MainFlow, |owner| {
                 PageContentRole::MainFlow.for_position(owner.positioning().scheme)
             })
+    }
+
+    /// Whether this node is a later-page copy of a box that repeats on every
+    /// page. The original carries the content once; the copies are page
+    /// furniture for assistive technology (Matterhorn 18-001).
+    fn is_repeated_page_copy(&self) -> bool {
+        self.page_content_role() == PageContentRole::RepeatedDecoration
+            && self
+                .positioning_owner()
+                .is_some_and(|owner| owner.positioning().repeat == PageRepeat::Copy)
     }
 }
 

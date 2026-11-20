@@ -62,6 +62,13 @@ pub(crate) struct PdfWriter {
     pub(super) opts: RenderOpts,
     pub(super) page_content_transform: PageContentTransform,
     pub(super) graphics_state: PdfGraphicsState,
+    /// Marked-content recording for accessible output; disabled by default.
+    pub(crate) structure: super::structure::StructureRecorder,
+    /// Targets of `#id` links, resolved in accessible output only.
+    pub(super) destinations: super::destinations::NamedDestinations,
+    /// The standard fonts the content selects; accessible output lists only
+    /// those, historical output always lists all of them.
+    pub(super) standard_fonts_in_use: std::collections::BTreeSet<&'static str>,
 }
 
 /// Renderer-owned subset of the PDF graphics state which cannot be recovered
@@ -79,6 +86,12 @@ impl PdfWriter {
     #[cfg(test)]
     pub(super) fn new() -> Self {
         Self::default()
+    }
+
+    /// Note the standard fonts a stream selects.
+    pub(super) fn note_standard_fonts(&mut self, usage: &PdfResourceUsage) {
+        self.standard_fonts_in_use
+            .extend(usage.standard_fonts.iter().copied());
     }
 
     pub(super) fn with_resources(resources: crate::security::resources::ResourceLoader) -> Self {
@@ -246,6 +259,7 @@ impl PdfWriter {
         let form_id = self.next_id();
         let [x, x1, y, y1] = paint_box.xy_domain();
         let resources = PdfResourceUsage::from_stream(&stream);
+        self.note_standard_fonts(&resources);
         let bytes = stream.into_bytes();
         let group = group.map_or_else(String::new, |group| format!(" {group}"));
         self.objects.push(format!(

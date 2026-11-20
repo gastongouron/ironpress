@@ -128,6 +128,11 @@ pub(crate) fn emphasis_mark_run(run: &TextRun) -> TextRun {
         font_family: run.css_font_family().clone(),
         font_synthesis: run.font_synthesis,
         shaping: run.shaping,
+        // The mark repeats nothing readable: an artifact for assistive technology.
+        metadata: crate::layout::engine::TextRunMetadata {
+            structure: crate::accessibility::StructureRef::Decorative,
+            ..Default::default()
+        },
         ..Default::default()
     }
 }

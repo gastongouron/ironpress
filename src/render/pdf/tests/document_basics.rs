@@ -729,6 +729,19 @@ fn render_link_no_annotation_without_href() {
     );
 }
 
+/// Output without the accessible option is unchanged: a fragment link keeps
+/// its relative URI action and no destination is written.
+#[test]
+fn render_fragment_link_keeps_uri_action_without_tagging() {
+    let html = r##"<p id="a"><a href="#a">Self</a></p>"##;
+    let nodes = parse_html(html).unwrap();
+    let pages = layout(&nodes, PageSize::A4, Margin::default());
+    let pdf = render_pdf(&pages, PageSize::A4, Margin::default()).unwrap();
+    let content = String::from_utf8_lossy(&pdf);
+    assert!(content.contains("/A << /Type /Action /S /URI /URI (#a) >>"));
+    assert!(!content.contains("/Dest"));
+}
+
 #[test]
 fn render_link_url_escaped() {
     // URL with parentheses should be properly escaped

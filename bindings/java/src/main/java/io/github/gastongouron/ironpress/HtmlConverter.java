@@ -95,27 +95,49 @@ public final class HtmlConverter implements AutoCloseable {
     return this;
   }
 
+  /**
+   * Enable or disable accessible output: a Tagged PDF conforming to PDF/UA-1. The document needs a
+   * title and a language, from the HTML or from {@link #setDocumentTitle} and {@link
+   * #setDocumentLanguage}.
+   */
+  public HtmlConverter setAccessibility(boolean enabled) {
+    owner.setAccessibility(enabled);
+    return this;
+  }
+
+  /** Set the document title of accessible output; implies accessibility. */
+  public HtmlConverter setDocumentTitle(String title) {
+    owner.setTextOption(ConverterOwner.TextOptionKind.DOCUMENT_TITLE, title);
+    return this;
+  }
+
+  /** Set the document language of accessible output as a BCP 47 tag; implies accessibility. */
+  public HtmlConverter setDocumentLanguage(String tag) {
+    owner.setTextOption(ConverterOwner.TextOptionKind.DOCUMENT_LANGUAGE, tag);
+    return this;
+  }
+
   /** Set plain text rendered in the top page margin. */
   public HtmlConverter setHeader(String text) {
-    owner.setPageText(ConverterOwner.PageTextKind.HEADER, text);
+    owner.setTextOption(ConverterOwner.TextOptionKind.HEADER, text);
     return this;
   }
 
   /** Set an HTML fragment rendered in the top margin of every page. */
   public HtmlConverter setHeaderHtml(String html) {
-    owner.setPageText(ConverterOwner.PageTextKind.HEADER_HTML, html);
+    owner.setTextOption(ConverterOwner.TextOptionKind.HEADER_HTML, html);
     return this;
   }
 
   /** Set footer text, with optional {@code {page}} and {@code {pages}} placeholders. */
   public HtmlConverter setFooter(String text) {
-    owner.setPageText(ConverterOwner.PageTextKind.FOOTER, text);
+    owner.setTextOption(ConverterOwner.TextOptionKind.FOOTER, text);
     return this;
   }
 
   /** Set an HTML fragment rendered in the bottom margin of every page. */
   public HtmlConverter setFooterHtml(String html) {
-    owner.setPageText(ConverterOwner.PageTextKind.FOOTER_HTML, html);
+    owner.setTextOption(ConverterOwner.TextOptionKind.FOOTER_HTML, html);
     return this;
   }
 

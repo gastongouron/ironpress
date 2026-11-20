@@ -237,7 +237,8 @@ pub(super) fn child_multicol_info(
         child_el.id(),
         &child_el.attributes,
         &selector_ctx,
-    );
+    )
+    .for_element(child_el);
     let breaks = resolve_child_column_breaks(
         child_el,
         env.rules,

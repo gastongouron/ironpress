@@ -43,7 +43,7 @@ use super::images::*;
 use super::inline::{
     layout_inline_block_group_with_env_and_spacing, layout_inline_mixed_sequence_with_env,
 };
-pub use super::inline_box::{CenteredStroke, InlineBox, InlineBoxPaint};
+pub use super::inline_box::{CenteredStroke, InlineBox, InlineBoxPaint, InlineImage};
 use super::inline_formatting::{
     AtomicInlineKind, GeneratedContentStyles, InlineContentSequence, InlineFormattingContext,
     InlineFormattingRole, PrincipalPseudoStyles,
@@ -827,9 +827,57 @@ impl InlineBoundaryAdvance {
     }
 }
 
+/// Whether a run ends in a hyphen the line breaker inserted at a soft
+/// hyphen. That hyphen is not part of the text: ISO 32000-1 14.9.4 replaces
+/// it by U+00AD in `/ActualText` so extraction and assistive technology read
+/// the unbroken word.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RunHyphenation {
+    #[default]
+    Authored,
+    SynthesizedHyphen,
+}
+
+impl RunHyphenation {
+    /// The text a reader should see instead of the shown glyphs, if any.
+    pub(crate) fn actual_text(self, shown: &str) -> Option<String> {
+        match self {
+            Self::Authored => None,
+            Self::SynthesizedHyphen => shown
+                .strip_suffix('-')
+                .map(|stem| format!("{stem}\u{00AD}")),
+        }
+    }
+
+    /// The text a reader should see: `shown` unless a hyphen was synthesized.
+    pub(crate) fn spoken_text(self, shown: &str) -> String {
+        self.actual_text(shown).unwrap_or_else(|| shown.to_string())
+    }
+}
+
+/// Where a run sits in the reading order of its line (UAX #9 logical order)
+/// and how its characters were painted.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReadingPosition {
+    /// The line the run belongs to, numbered across the document once pages
+    /// are final; `None` for a line no pass numbered.
+    pub(crate) line: Option<u32>,
+    /// Byte offset of the run's text in the logical text of its paragraph.
+    pub(crate) logical_start: usize,
+    /// The characters were reversed for painting (`unicode-bidi:
+    /// bidi-override` with `direction: rtl`), so the glyphs read backwards.
+    pub(crate) reversed: bool,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextRunMetadata {
     pub(crate) font_locale: crate::font_pack::FontLocale,
+    /// How this run ends at a line break.
+    pub(crate) hyphenation: RunHyphenation,
+    /// Where the run sits in the reading order of its line.
+    pub(crate) reading: ReadingPosition,
+    /// The element whose content this run is, for the structure tree.
+    pub(crate) structure: crate::accessibility::StructureRef,
     /// CSS `text-emphasis` state, kept together because its mark, colour,
     /// position, and resolved ruby geometry must travel as one unit.
     pub emphasis: crate::layout::text_emphasis::TextEmphasis,
@@ -846,6 +894,31 @@ pub struct TextRunMetadata {
     /// and contextual shaping together makes every width and paint consumer
     /// advance through one semantic boundary.
     pub(crate) boundary: InlineBoundaryAdvance,
+}
+
+impl TextRunMetadata {
+    /// What a reader should see instead of the shown glyphs, if anything
+    /// (ISO 32000-1 14.9.4): the characters in logical order, a synthesized
+    /// hyphen as U+00AD, and the text of a run holding a cluster of several
+    /// characters (a base with combining marks, say). `ToUnicode` maps each
+    /// glyph once, so a base glyph that also stands alone elsewhere cannot
+    /// carry its marks; the run's text can.
+    pub(crate) fn actual_text(&self, shown: &str) -> Option<String> {
+        if self.reading.reversed {
+            let logical: String = shown.chars().rev().collect();
+            return Some(self.hyphenation.spoken_text(&logical));
+        }
+        self.hyphenation.actual_text(shown).or_else(|| {
+            unicode_segmentation::UnicodeSegmentation::graphemes(shown, true)
+                .any(|cluster| cluster.chars().nth(1).is_some())
+                .then(|| shown.to_string())
+        })
+    }
+
+    /// The text a reader should see.
+    pub(crate) fn spoken_text(&self, shown: &str) -> String {
+        self.actual_text(shown).unwrap_or_else(|| shown.to_string())
+    }
 }
 
 /// OpenType features that affect the shape and advance of a text run.
@@ -1339,6 +1412,16 @@ pub struct TextLine {
     pub metadata: TextLineMetadata,
 }
 
+impl TextLine {
+    /// The runs in reading order: by logical position, which is the painted
+    /// order unless bidi reordering placed them.
+    pub(crate) fn logical_runs(&self) -> Vec<&TextRun> {
+        let mut runs: Vec<&TextRun> = self.runs.iter().collect();
+        runs.sort_by_key(|run| run.metadata.reading.logical_start);
+        runs
+    }
+}
+
 /// The format of an embedded image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
@@ -1358,6 +1441,9 @@ pub struct FootnoteItem {
     pub marker_color: crate::types::Color,
     pub marker_prefix: String,
     pub formatting: FootnoteFormatting,
+    /// The footnote element, so the body becomes the `Note` paired with the
+    /// call's `Reference` in the structure tree.
+    pub(crate) structure: crate::accessibility::StructureRef,
 }
 
 impl FootnoteItem {
@@ -1378,6 +1464,12 @@ impl FootnoteItem {
                 color: self.marker_color,
                 font_family: self.body.font_family.clone(),
                 line_height_factor: self.body.line_height_factor,
+                metadata: TextRunMetadata {
+                    structure: self
+                        .structure
+                        .with_role(crate::accessibility::ContentRole::NoteLabel),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             TextRun {
@@ -1392,6 +1484,12 @@ impl FootnoteItem {
                 color: self.body.color,
                 font_family: self.body.font_family.clone(),
                 line_height_factor: self.body.line_height_factor,
+                metadata: TextRunMetadata {
+                    structure: self
+                        .structure
+                        .with_role(crate::accessibility::ContentRole::Note),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         ]
@@ -2005,7 +2103,8 @@ fn first_root_child_margin_top(
                     el.id(),
                     &selector_attributes_with_has(el),
                     &selector_ctx,
-                );
+                )
+                .for_element(el);
                 return style.margin.top;
             }
         }
@@ -2253,6 +2352,7 @@ pub(crate) fn layout_with_rules_and_fonts_raster_quality(
     );
     assign_page_print_scales(&mut pages, page_size, margin);
     super::fragmentation::transfer_page_spanning_graphical_effects(&mut pages, page_size, margin);
+    super::elements::LineNumbering::number(&mut pages);
     if let Some(first_page) = pages.first_mut() {
         first_page.document_svg_defs = document_svg_defs;
     }
@@ -2447,15 +2547,17 @@ fn element_contains_text(element: &dyn LayoutElement, needle: &str) -> bool {
 }
 
 fn resolve_target_placeholders(pages: &mut [Page], dom_targets: &HashMap<String, String>) {
-    if dom_targets.is_empty() && !pages.iter().any(page_has_target_anchor_marker) {
+    if dom_targets.is_empty()
+        && pages
+            .iter()
+            .all(|page| page.generated_content.anchors().is_empty())
+    {
         return;
     }
     let mut page_by_id = HashMap::new();
     for (idx, page) in pages.iter().enumerate() {
-        for name in page.generated_content.named_string_names() {
-            if let Some(id) = target_anchor_id(name) {
-                page_by_id.entry(id.to_string()).or_insert(idx + 1);
-            }
+        for anchor in page.generated_content.anchors() {
+            page_by_id.entry(anchor.id.clone()).or_insert(idx + 1);
         }
     }
     for (id, text) in dom_targets {
@@ -2475,12 +2577,6 @@ fn resolve_target_placeholders(pages: &mut [Page], dom_targets: &HashMap<String,
             resolve_target_placeholders_in_element(element.as_mut(), dom_targets, &page_by_id);
         }
     }
-}
-
-fn page_has_target_anchor_marker(page: &Page) -> bool {
-    page.generated_content
-        .named_string_names()
-        .any(|name| target_anchor_id(name).is_some())
 }
 
 fn resolve_target_placeholders_in_element(
@@ -2666,7 +2762,8 @@ fn direct_flex_item_filters(
             &child_el.attributes,
             &selector_ctx,
             env.font_metrics(),
-        );
+        )
+        .for_element(child_el);
         if child_style.display == Display::None || child_style.position.is_absolute() {
             continue;
         }
@@ -3272,7 +3369,8 @@ pub(crate) fn flatten_nodes(
                     &el.attributes,
                     &selector_ctx,
                     env.font_metrics(),
-                );
+                )
+                .for_element(el);
                 if let Some(marker) = string_set_marker(el, env.rules, ancestors, &selector_ctx) {
                     output.push(marker);
                 }
@@ -3483,7 +3581,8 @@ fn flatten_element_with_running_mode(
                 .map(|containing_block| containing_block.height),
         ),
         env.font_metrics(),
-    );
+    )
+    .for_element(el);
     let authored_display_contents =
         authored_display_contents(el, env.rules, ancestors, &selector_ctx);
     apply_authored_insets(&mut style, el, env.rules, ancestors, &selector_ctx);
@@ -4385,6 +4484,19 @@ fn flatten_element_with_running_mode(
                 } else {
                     0.0
                 };
+            // The marker is the item's `Lbl`; in untagged output the ref
+            // stays `Untagged`, so nothing changes.
+            let marker_label = style
+                .structure
+                .as_label(crate::accessibility::ListNumbering::from(
+                    &style.list_style_type,
+                ));
+            for run in &mut runs[marker_run_start..] {
+                run.metadata.structure = marker_label;
+                if let Some(inline) = run.inline_box.as_deref_mut() {
+                    inline.structure = marker_label;
+                }
+            }
             if marker_suffix_gap > 0.0 {
                 runs.push(TextRun {
                     font_size: used_font_size(&style, env.fonts),
@@ -4711,7 +4823,8 @@ fn inline_loose_list_p(
                     &child_el.attributes,
                     &p_selector_ctx,
                     env.font_metrics(),
-                );
+                )
+                .for_element(child_el);
                 InlineRunCollector::new(
                     env.rules,
                     env.fonts,

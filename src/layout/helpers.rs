@@ -827,7 +827,7 @@ pub(crate) fn resolve_content_with_quotes(
             }
             // Replaced-element content (`url(...)`) is handled by the caller as
             // an image box, not text.
-            ContentItem::Url(_) => {}
+            ContentItem::Image { .. } => {}
         }
     }
     counter_state.quote_depth = depth;
@@ -857,10 +857,12 @@ fn resolve_target_attr_placeholders(s: &str, attributes: &HashMap<String, String
     out
 }
 
-/// Returns the first `url()` image reference in a content list, if any.
-pub(crate) fn content_image_url(items: &[ContentItem]) -> Option<&str> {
+/// The first `url()` image of a content list with its alternative text, if any.
+pub(crate) fn content_image(
+    items: &[ContentItem],
+) -> Option<(&str, &[crate::style::computed::AltTextItem])> {
     items.iter().find_map(|item| match item {
-        ContentItem::Url(url) => Some(url.as_str()),
+        ContentItem::Image { url, alt } => Some((url.as_str(), alt.as_slice())),
         _ => None,
     })
 }
@@ -1659,8 +1661,13 @@ pub(crate) fn build_pseudo_inline_run(
 
     // `content: url(...)` makes the pseudo a replaced inline image
     // (css-content-3 §1). Decode it and emit an image-bearing InlineBox.
-    if let Some(url) = content_image_url(&pseudo_style.content)
-        && let Some(inline) = build_pseudo_image_box(pseudo_style, url, resources)
+    if let Some((url, alt)) = content_image(&pseudo_style.content)
+        && let Some(inline) = build_pseudo_image_box(
+            pseudo_style,
+            url,
+            crate::style::computed::AltTextItem::resolve(alt, &el.attributes),
+            resources,
+        )
     {
         return TextRun {
             font_size: used_font_size(pseudo_style, fonts),
@@ -1816,6 +1823,7 @@ fn build_pseudo_inline_box(
 fn build_pseudo_image_box(
     pseudo_style: &ComputedStyle,
     url: &str,
+    alt: Option<String>,
     resources: &mut crate::security::resources::ResourceLoader,
 ) -> Option<InlineBox> {
     let image_src = crate::parser::css::extract_url_path(url).unwrap_or_else(|| url.to_string());
@@ -1848,7 +1856,8 @@ fn build_pseudo_image_box(
         },
         padding: EdgeSizes::ZERO,
         vertical_align: pseudo_style.vertical_align,
-        image: Some(image),
+        image: Some(crate::layout::engine::InlineImage::new(image, alt)),
+        structure: pseudo_style.structure,
         ..InlineBox::default()
     })
 }
@@ -1882,7 +1891,7 @@ pub(crate) fn build_list_image_marker(
         margin_right: gap,
         padding: EdgeSizes::ZERO,
         vertical_align: VerticalAlign::Baseline,
-        image: Some(image),
+        image: Some(crate::layout::engine::InlineImage::new(image, None)),
         ..InlineBox::default()
     })
 }
@@ -2371,16 +2380,16 @@ mod generated_content_tests {
     }
 
     #[test]
-    fn content_image_url_finds_url() {
+    fn content_image_finds_url() {
         let items = vec![
             ContentItem::String("x".to_string()),
-            ContentItem::Url("foo.png".to_string()),
+            ContentItem::Image {
+                url: "foo.png".to_string(),
+                alt: Vec::new(),
+            },
         ];
-        assert_eq!(content_image_url(&items), Some("foo.png"));
-        assert_eq!(
-            content_image_url(&[ContentItem::String("x".to_string())]),
-            None
-        );
+        assert_eq!(content_image(&items).map(|(url, _)| url), Some("foo.png"));
+        assert!(content_image(&[ContentItem::String("x".to_string())]).is_none());
     }
 
     #[test]

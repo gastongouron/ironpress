@@ -33,6 +33,9 @@ const portableMethods = [
   'backgroundRasterDpi',
   'occlusionCull',
   'sanitize',
+  'accessible',
+  'documentTitle',
+  'documentLanguage',
   'addFont',
   'addFontPack',
   'header',
@@ -67,6 +70,22 @@ if (!configuredPdf.subarray(0, 4).equals(Buffer.from('%PDF'))) {
 }
 if (!configuredPdf.includes(Buffer.from('/MediaBox [0 0 320 480]'))) {
   throw new Error('pageSizeCustom did not reach the WASM conversion');
+}
+configured.accessible(true);
+configured.documentTitle('Contract');
+configured.documentLanguage('en-GB');
+const accessiblePdf = Buffer.from(configured.htmlToPdf('<p>Accessible</p>'));
+if (!accessiblePdf.includes(Buffer.from('/StructTreeRoot'))) {
+  throw new Error('accessible output did not reach the WASM conversion');
+}
+let invalidLanguageWasRejected = false;
+try {
+  configured.documentLanguage('1234');
+} catch {
+  invalidLanguageWasRejected = true;
+}
+if (!invalidLanguageWasRejected) {
+  throw new Error('an invalid language tag was accepted');
 }
 configured.free();
 

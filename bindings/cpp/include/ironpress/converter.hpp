@@ -113,6 +113,24 @@ public:
         return configure_boolean(ironpress_converter_set_sanitize, enabled);
     }
 
+    /// Enable or disable accessible output: a Tagged PDF conforming to
+    /// PDF/UA-1. The document needs a title and a language, from the HTML or
+    /// from the two setters below.
+    Converter& set_accessibility(bool enabled) {
+        return configure_boolean(ironpress_converter_set_accessible, enabled);
+    }
+
+    /// Set the document title of accessible output; implies accessibility.
+    Converter& set_document_title(std::string_view title) {
+        return configure_text(ironpress_converter_set_document_title, title);
+    }
+
+    /// Set the document language of accessible output as a BCP 47 tag;
+    /// implies accessibility.
+    Converter& set_document_language(std::string_view tag) {
+        return configure_text(ironpress_converter_set_document_language, tag);
+    }
+
     /// Configure the plain-text page header.
     Converter& set_header(std::string_view header) {
         return configure_text(ironpress_converter_set_header, header);

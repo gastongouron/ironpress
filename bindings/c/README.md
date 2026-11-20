@@ -90,6 +90,10 @@ per-side margins, compression and raster controls, sanitization, headers,
 footers, custom TrueType fonts, and optional CJK or emoji packs.
 Rich page margins use `ironpress_converter_set_header_html` and
 `ironpress_converter_set_footer_html`; the existing setters remain plain text.
+`ironpress_converter_set_accessible`, with
+`ironpress_converter_set_document_title` and
+`ironpress_converter_set_document_language`, produces a Tagged PDF conforming
+to PDF/UA-1.
 
 Local paths, direct file output, streaming, asynchronous conversion, and remote
 resources are intentionally absent. Applications provide document and font

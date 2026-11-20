@@ -153,6 +153,14 @@ impl HtmlTag {
         }
     }
 
+    /// `h1` through `h6`.
+    pub fn is_heading(&self) -> bool {
+        matches!(
+            self,
+            Self::H1 | Self::H2 | Self::H3 | Self::H4 | Self::H5 | Self::H6
+        )
+    }
+
     pub fn is_block(&self) -> bool {
         matches!(
             self,
@@ -253,6 +261,9 @@ pub struct ElementNode {
     pub raw_tag_name: String,
     pub attributes: HashMap<String, String>,
     pub children: Vec<DomNode>,
+    /// Document-order identity assigned by the accessibility skeleton;
+    /// anonymous unless accessible output is requested.
+    pub(crate) ordinal: crate::accessibility::ElementOrdinal,
 }
 
 impl ElementNode {
@@ -264,6 +275,7 @@ impl ElementNode {
             raw_tag_name: String::new(),
             attributes: HashMap::new(),
             children: Vec::new(),
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
         };
         let raw = tmp.tag_name().to_string();
         Self {
@@ -271,6 +283,7 @@ impl ElementNode {
             raw_tag_name: raw,
             attributes: HashMap::new(),
             children: Vec::new(),
+            ordinal: crate::accessibility::ElementOrdinal::ANONYMOUS,
         }
     }
 

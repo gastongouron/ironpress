@@ -91,6 +91,21 @@ try {
 }</code></pre>
             <p>The initializer is idempotent. Concurrent or repeated calls resolve to the same initialized runtime.</p>
 
+            <h3 id="accessible">Produce an accessible PDF</h3>
+            <pre><code>converter.accessible(true);
+converter.documentLanguage("en-GB");
+converter.documentTitle("Quarterly report");
+
+const pdf = converter.htmlToPdf(html);</code></pre>
+            <p>
+              <code>accessible(true)</code> writes a Tagged PDF that conforms to
+              PDF/UA-1; an invalid language tag or a blank title throws.
+              The document needs a language and a title, from the HTML or
+              from these settings, and every <code>&lt;img&gt;</code> needs
+              <code>alt</code> text; <code>alt=""</code> marks a decorative
+              image. Output without the option is unchanged.
+            </p>
+
             <h2 id="resources">Provide fonts and assets as bytes</h2>
             <p>Node.js may read application files, but the portable converter accepts document resources as caller-provided data rather than paths.</p>
             <pre><code>import { readFile } from "node:fs/promises";

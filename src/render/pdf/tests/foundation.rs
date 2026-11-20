@@ -213,6 +213,7 @@ fn test_footnote(text: impl Into<String>) -> FootnoteItem {
         marker_color: Color::BLACK,
         marker_prefix: String::new(),
         formatting: Default::default(),
+        structure: Default::default(),
     }
 }
 

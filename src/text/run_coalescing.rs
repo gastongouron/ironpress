@@ -28,6 +28,7 @@ pub(crate) fn coalesce_text_runs(runs: &[TextRun]) -> Vec<TextRun> {
                 }
                 previous.text.push_str(&run.text);
                 previous.metadata.boundary = run.metadata.boundary;
+                previous.metadata.hyphenation = run.metadata.hyphenation;
             }
         } else {
             coalesced.push(run.clone());
@@ -75,7 +76,8 @@ fn resolved_metric_matches(previous: f32, next: f32) -> bool {
 }
 
 fn metadata_matches(previous: TextRunMetadata, next: TextRunMetadata) -> bool {
-    previous.emphasis == next.emphasis
+    previous.structure == next.structure
+        && previous.emphasis == next.emphasis
         && previous.spacing == next.spacing
         && previous.inline_decoration == next.inline_decoration
         && previous.is_drop_cap == next.is_drop_cap

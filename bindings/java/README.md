@@ -42,6 +42,8 @@ binding never downloads them.
 
 Use `setHeaderHtml` or `setFooterHtml` for sanitized images, tables, and styled
 markup in the page margins. The plain setters keep their existing text contract.
+`setAccessibility(true)`, with `setDocumentTitle` and `setDocumentLanguage`,
+produces a Tagged PDF conforming to PDF/UA-1.
 
 ## Supported runtimes
 

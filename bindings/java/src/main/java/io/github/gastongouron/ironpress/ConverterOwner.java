@@ -81,7 +81,13 @@ final class ConverterOwner implements AutoCloseable {
             api.ironpress_converter_set_sanitize(owner, nativeBoolean(enabled), error));
   }
 
-  void setPageText(PageTextKind kind, String text) {
+  void setAccessibility(boolean enabled) {
+    mutate(
+        (owner, error) ->
+            api.ironpress_converter_set_accessible(owner, nativeBoolean(enabled), error));
+  }
+
+  void setTextOption(TextOptionKind kind, String text) {
     ensureOpen();
     try (var input = NativeInput.text(text, "text")) {
       mutate(
@@ -93,6 +99,10 @@ final class ConverterOwner implements AutoCloseable {
                     api.ironpress_converter_set_header_html(owner, input.bytes(), error);
                 case FOOTER_HTML ->
                     api.ironpress_converter_set_footer_html(owner, input.bytes(), error);
+                case DOCUMENT_TITLE ->
+                    api.ironpress_converter_set_document_title(owner, input.bytes(), error);
+                case DOCUMENT_LANGUAGE ->
+                    api.ironpress_converter_set_document_language(owner, input.bytes(), error);
               });
     }
   }
@@ -169,11 +179,13 @@ final class ConverterOwner implements AutoCloseable {
     BACKGROUND
   }
 
-  enum PageTextKind {
+  enum TextOptionKind {
     HEADER,
     FOOTER,
     HEADER_HTML,
-    FOOTER_HTML
+    FOOTER_HTML,
+    DOCUMENT_TITLE,
+    DOCUMENT_LANGUAGE
   }
 
   enum DocumentKind {

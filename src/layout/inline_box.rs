@@ -41,6 +41,31 @@ pub struct InlineBoxPaint {
     pub centered_stroke: Option<CenteredStroke>,
 }
 
+/// Replaced content of a generated box: a `content: url()` image or a
+/// `list-style-image` marker.
+#[derive(Debug, Clone)]
+pub struct InlineImage {
+    pub asset: RasterImageAsset,
+    /// The alternative text for speech (css-content-3 §1.2); `None` when none
+    /// was written or it is blank, which makes the image decoration.
+    alt: Option<String>,
+}
+
+impl InlineImage {
+    pub(crate) fn new(asset: RasterImageAsset, alt: Option<String>) -> Self {
+        Self {
+            asset,
+            alt: alt
+                .map(|alt| alt.trim().to_string())
+                .filter(|alt| !alt.is_empty()),
+        }
+    }
+
+    pub(crate) fn alt(&self) -> Option<&str> {
+        self.alt.as_deref()
+    }
+}
+
 /// An atomic inline-level box laid out inside a line of text.
 #[derive(Debug, Clone, Default)]
 pub struct InlineBox {
@@ -60,10 +85,16 @@ pub struct InlineBox {
     /// Pre-wrapped inner text lines (empty for content-less boxes).
     pub lines: Vec<TextLine>,
     /// Replaced content painted into the content box.
-    pub image: Option<RasterImageAsset>,
+    pub image: Option<InlineImage>,
     /// CSS relative-position paint offset (right, down) in points.
     pub rel_offset_x: f32,
     pub rel_offset_y: f32,
+    /// The element this box belongs to; a list bullet carries its item's
+    /// label role so the renderer can mark it as the `Lbl`.
+    pub structure: crate::accessibility::StructureRef,
+    /// Where the box sits in the reading order of its line, copied from its
+    /// run once lines are numbered, so a generated figure reads in place.
+    pub(crate) reading: crate::layout::engine::ReadingPosition,
 }
 
 impl InlineBox {

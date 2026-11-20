@@ -106,6 +106,31 @@ pub unsafe extern "C" fn ironpress_converter_set_auto_resize_images(
     }
 }
 
+/// Enable or disable accessible output: a Tagged PDF conforming to PDF/UA-1.
+/// The document needs a title and a language, from the HTML or from
+/// `ironpress_converter_set_document_title` and
+/// `ironpress_converter_set_document_language`.
+///
+/// # Safety
+///
+/// Handles and output pointers must follow `ABI.md`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ironpress_converter_set_accessible(
+    converter: *mut IronpressConverter,
+    enabled: u8,
+    out_error: *mut *mut IronpressError,
+) -> IronpressStatus {
+    // SAFETY: Raw handles and output slots are validated before use.
+    unsafe {
+        boundary(out_error, || {
+            let converter = IronpressConverter::parse_mut(converter)?;
+            let enabled = CBoolean::parse(enabled)?.0;
+            converter.update(|current| current.accessible(enabled));
+            Ok(())
+        })
+    }
+}
+
 /// Set target source-image resolution in dots per inch.
 ///
 /// # Safety

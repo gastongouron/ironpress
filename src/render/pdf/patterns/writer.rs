@@ -231,6 +231,7 @@ dup abs 0.00001 lt{{ pop pop pop pop 0 0 0 }}{{ dup 3 1 roll div 4 1 roll dup 3 
         } = pattern.step;
         let matrix = pattern.matrix_dictionary_entry();
         let resources = PdfResourceUsage::from_stream(&stream);
+        self.note_standard_fonts(&resources);
         let pattern_id = self.next_id();
         let bytes = stream.into_bytes();
         self.objects.push(format!(

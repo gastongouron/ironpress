@@ -317,14 +317,21 @@ pub(in crate::render::pdf) fn render_text_block(
         );
         let img_name = format!("Im{img_obj_id}");
         let ov = blurred.overflow_pt;
-        content.push_str(&format!(
-            "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
-            w = tb_paint_box.width + 2.0 * ov,
-            h = tb_paint_box.height + 2.0 * ov,
-            ix = tb_paint_box.left - ov,
-            iy = tb_paint_box.bottom - ov,
-            name = img_name,
-        ));
+        // The text is in the picture: the block's mark reads it through
+        // /ActualText (ISO 32000-1 14.9.4).
+        ctx.text.pdf_writer.structure.append_content(
+            content,
+            element.paint.group.owner,
+            crate::render::pdf::structure::MarkKind::shown_once(lines),
+            &format!(
+                "q\n{w} 0 0 {h} {ix} {iy} cm\n/{name} Do\nQ\n",
+                w = tb_paint_box.width + 2.0 * ov,
+                h = tb_paint_box.height + 2.0 * ov,
+                ix = tb_paint_box.left - ov,
+                iy = tb_paint_box.bottom - ov,
+                name = img_name,
+            ),
+        );
         ctx.text.page_images.push(ImageRef {
             name: img_name,
             obj_id: img_obj_id,

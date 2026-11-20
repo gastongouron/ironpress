@@ -64,7 +64,16 @@ impl<T: Clone> PageAssignments<T> {
     }
 }
 
-/// Running elements and named strings active on one physical page.
+/// An element with an `id` placed on one page: the target of `#id` links
+/// and `target-counter()` references.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct PageAnchor {
+    pub(crate) id: String,
+    /// Block offset of the box the anchor precedes, from the page area top.
+    pub(crate) block_offset: f32,
+}
+
+/// Running elements, named strings and anchors active on one physical page.
 ///
 /// Pagination is the sole writer. Rendering only asks this type to resolve a
 /// parsed GCPM reference, so the two PDF passes cannot drift in policy handling.
@@ -72,6 +81,7 @@ impl<T: Clone> PageAssignments<T> {
 pub(crate) struct PageGeneratedContent {
     running_elements: PageAssignments<LayoutNode>,
     named_strings: PageAssignments<String>,
+    anchors: Vec<PageAnchor>,
 }
 
 impl PageGeneratedContent {
@@ -93,9 +103,19 @@ impl PageGeneratedContent {
         self.named_strings.assign(name, value, at_page_start);
     }
 
+    pub(crate) fn capture_anchor(&mut self, id: String, block_offset: f32) {
+        self.anchors.push(PageAnchor { id, block_offset });
+    }
+
+    /// The anchors placed on this page, in document order.
+    pub(crate) fn anchors(&self) -> &[PageAnchor] {
+        &self.anchors
+    }
+
     pub(crate) fn advance_page(&mut self) {
         self.running_elements.advance_page();
         self.named_strings.advance_page();
+        self.anchors.clear();
     }
 
     pub(crate) fn snapshot_and_advance(&mut self) -> Self {
@@ -147,10 +167,6 @@ impl PageGeneratedContent {
     #[cfg(test)]
     pub(crate) fn named_string_first(&self, name: &str) -> Option<&str> {
         self.named_strings.first.get(name).map(String::as_str)
-    }
-
-    pub(crate) fn named_string_names(&self) -> impl Iterator<Item = &str> {
-        self.named_strings.exit.keys().map(String::as_str)
     }
 }
 

@@ -59,6 +59,9 @@ pub(crate) struct SvgPdfResources<'a> {
     /// embedded, so SVG text references the SAME font resource (no duplicate
     /// embedding) and uses the same subset glyph-id remapping.
     pub prepared_custom_fonts: Option<&'a crate::render::pdf_fonts::PreparedCustomFonts>,
+    /// Whether `<text>` on a Base-14 face paints through the embedded face
+    /// body text uses (accessible output) or the standard font (default).
+    pub font_policy: crate::render::pdf_fonts::FontPolicy,
 }
 
 impl<'a> SvgPdfResources<'a> {
@@ -72,6 +75,7 @@ impl<'a> SvgPdfResources<'a> {
             raster_scale_y: 1.0,
             custom_fonts: None,
             prepared_custom_fonts: None,
+            font_policy: crate::render::pdf_fonts::FontPolicy::default(),
         }
     }
 
@@ -642,6 +646,7 @@ fn render_node(
                 eff_bold,
                 eff_italic,
                 resources.custom_fonts,
+                resources.font_policy,
             );
             let prepared_runs = prepare_svg_text_runs(
                 resolved_runs,
@@ -3321,6 +3326,7 @@ mod tests {
             raster_scale_y: 1.0,
             custom_fonts: None,
             prepared_custom_fonts: None,
+            font_policy: crate::render::pdf_fonts::FontPolicy::default(),
         };
 
         render_svg_tree_with_resources(&tree, &mut out, &mut resources);
