@@ -202,10 +202,9 @@ jobs:
           target/debug/ironpress --accessible tests/pdfua/effects.html target/pdfua-effects.pdf
       - name: Validate with veraPDF (PDF/UA-1 profile)
         run: |
-          # veraPDF 1.31.233, linux/amd64.
           for fixture in report effects; do
             docker run --rm -v "$PWD/target:/data" \
-              ghcr.io/verapdf/cli@sha256:cd2dc35808c2b78ef7b1ad6cd71330dc169314b5af7dc2669a5807ea67ce91b6 \
+              ghcr.io/verapdf/cli:v1.31.233 \
               --flavour ua1 --format text "/data/pdfua-$fixture.pdf" | tee "verapdf-$fixture.txt"
             grep -q '^PASS ' "verapdf-$fixture.txt"
           done
