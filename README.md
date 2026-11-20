@@ -219,9 +219,10 @@ Known limits of the current step: a generated image without alternative text
 (`content: url(x)` with no `/ "text"`) is decoration; a `position: fixed` box
 is content on the page where it is authored and an artifact on the pages it
 repeats on; `progress` and `meter` are paragraphs rather than figures; a table
-cell cites its headers through `scope` only, not `headers`; and a formula
-symbol that neither the sans face of the formula nor the bundled fallback
-faces cover still uses the unembedded Symbol font.
+cell cites its headers through `scope` only, not `headers`; an inline `<svg>`
+inside a paragraph's text is read before that text, wherever it sits in it;
+and a formula symbol that neither the sans face of the formula nor the bundled
+fallback faces cover still uses the unembedded Symbol font.
 
 ## Features at a glance
 
