@@ -94,7 +94,7 @@ impl<'a> Tree<'a> {
             .iter()
             .map(|&child| self.0.node(child))
             .find(|child| match &child.data {
-                NodeData::Element { name, .. } => name.local.as_ref() == tag,
+                NodeData::Element { name, .. } => &*name.local == tag,
                 _ => false,
             })
     }
@@ -105,7 +105,7 @@ impl<'a> Tree<'a> {
         };
         attrs
             .iter()
-            .find(|attribute| attribute.name.local.as_ref() == name)
+            .find(|attribute| &*attribute.name.local == name)
             .map(|attribute| attribute.value.as_ref())
     }
 
