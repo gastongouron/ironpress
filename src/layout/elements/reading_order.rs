@@ -20,13 +20,33 @@ impl LineNumbering {
         }
     }
 
+    /// Number each line and, where the bidi algorithm left the runs in their
+    /// logical order (no run carries a logical position), give every run its
+    /// offset in the line, so marks painted from it in later passes (an
+    /// inline box's image, say) still read in place. Inline boxes take their
+    /// run's position.
     fn number_lines(&mut self, lines: &mut [TextLine]) {
         for line in lines {
             let number = self.next;
             self.next += 1;
+            let reordered = line.runs.iter().any(|run| {
+                run.metadata.reading.logical_start != 0 || run.metadata.reading.reversed
+            });
+            let mut offset = 0;
             for run in &mut line.runs {
                 run.metadata.reading.line = Some(number);
+                if !reordered {
+                    run.metadata.reading.logical_start = offset;
+                }
+                // Measured as the bidi pass measures it: an inline box with no
+                // text stands for one U+FFFC.
+                offset += if run.text.is_empty() && run.inline_box.is_some() {
+                    '\u{FFFC}'.len_utf8()
+                } else {
+                    run.text.len()
+                };
                 if let Some(inline) = &mut run.inline_box {
+                    inline.reading = run.metadata.reading;
                     self.number_lines(&mut inline.lines);
                 }
             }

@@ -236,21 +236,9 @@ impl LayoutVisitor for PageElementRenderer<'_, '_, '_> {
     }
 
     fn visit_table_row(&mut self, element: &TableRow) {
-        // Repeated header and footer rows are page furniture: the structure
-        // tree keeps one THead, and readers hear each header once.
-        let region = if element.fragmentation.instance
-            == crate::layout::elements::RowInstance::RepeatedCopy
-        {
-            self.ctx
-                .text
-                .pdf_writer
-                .structure
-                .begin_artifact(self.content, structure::ArtifactKind::Pagination)
-        } else {
-            structure::OpenMark::Skipped
-        };
+        // Repeated header and footer rows mark themselves as artifacts in the
+        // row painter, which every table row goes through.
         render_table_row(self.content, element, self.frame, self.ctx);
-        self.ctx.text.pdf_writer.structure.end(self.content, region);
     }
 
     fn visit_grid_row(&mut self, element: &GridRow) {

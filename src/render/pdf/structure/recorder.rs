@@ -25,6 +25,10 @@ pub(crate) struct Tagging {
     pub(super) pages: Vec<PageRecord>,
     /// Form XObjects that carry marks of their own, with their parent-tree key.
     pub(super) forms: Vec<FormRecord>,
+    /// Object ids of form XObjects whose content is structured from inside
+    /// (their own marks, or a form holding one): an invocation of one is
+    /// neither tagged nor an artifact itself.
+    structured_forms: Vec<usize>,
     /// Marks of the page being painted, indexed by MCID.
     current: Vec<MarkRecord>,
     /// Groups being painted that will become form XObjects: their marks get
@@ -63,8 +67,13 @@ pub(crate) enum MarkKind {
     /// space for the `Layout` `/BBox` attribute.
     Figure { bbox: PdfRect },
     /// A generated image (`content: url()`): a Figure of its own named by
-    /// its alternative text, decoration without one (css-content-3 §1.2).
-    GeneratedFigure { bbox: PdfRect, alt: Option<String> },
+    /// its alternative text, decoration without one (css-content-3 §1.2);
+    /// `position` is where its box sits in the reading order of its line.
+    GeneratedFigure {
+        bbox: PdfRect,
+        alt: Option<String>,
+        position: ReadingPosition,
+    },
     /// A composited paint group cut into a form XObject.
     Group,
 }
@@ -130,9 +139,15 @@ struct FormScope {
     saved_marks: Vec<MarkRecord>,
     saved_open: u32,
     saved_suppression: u32,
+    /// Where the owner mark's `BDC` starts, so it can be withdrawn when the
+    /// form turns out to carry the structure itself.
+    mark_start: usize,
     /// Where the group content starts, for renumbering when it ends up
     /// inline after all.
     content_start: usize,
+    /// Structured forms recorded before the group opened: any recorded
+    /// since are nested inside it, so its own form is structured too.
+    structured_start: usize,
 }
 
 pub(crate) struct AnnotationRecord {
@@ -155,6 +170,7 @@ impl StructureRecorder {
             missing_alt: structure.missing_alt,
             pages: Vec::new(),
             forms: Vec::new(),
+            structured_forms: Vec::new(),
             current: Vec::new(),
             form_scopes: Vec::new(),
             suppression: 0,
@@ -236,12 +252,15 @@ impl StructureRecorder {
         if tagging.paints_as_artifact(owner, &MarkKind::Group) {
             return tagging.begin_suppressing(content, "/Artifact BMC\n");
         }
+        let mark_start = content.len();
         tagging.begin_mark(content, owner, MarkKind::Group);
         tagging.form_scopes.push(FormScope {
             saved_marks: std::mem::take(&mut tagging.current),
             saved_open: tagging.open,
             saved_suppression: tagging.suppression,
+            mark_start,
             content_start: content.len(),
+            structured_start: tagging.structured_forms.len(),
         });
         tagging.open = 0;
         tagging.suppression = 0;
@@ -264,16 +283,33 @@ impl StructureRecorder {
         let inner = std::mem::replace(&mut tagging.current, scope.saved_marks);
         tagging.open = scope.saved_open;
         tagging.suppression = scope.saved_suppression;
+        let structured =
+            !inner.is_empty() || tagging.structured_forms.len() > scope.structured_start;
         match form {
-            Some(object_id) => {
-                let key = tagging.next_key;
-                tagging.next_key += 1;
-                tagging.forms.push(FormRecord {
-                    key,
-                    object_id,
-                    page: tagging.pages.len(),
-                    marks: inner,
-                });
+            Some(object_id) if structured => {
+                // The form's own marks (or a structured form nested in it)
+                // carry its content into the tree. An owner mark around the
+                // invocation would claim the same content a second time, so it
+                // is withdrawn: its `BDC`, its MCID (the last one allocated
+                // before the cut) and its `EMC`.
+                content.replace_range(scope.mark_start..scope.content_start, "");
+                tagging.current.pop();
+                if !inner.is_empty() {
+                    let key = tagging.next_key;
+                    tagging.next_key += 1;
+                    tagging.forms.push(FormRecord {
+                        key,
+                        object_id,
+                        page: tagging.pages.len(),
+                        marks: inner,
+                    });
+                }
+                tagging.structured_forms.push(object_id);
+                return;
+            }
+            Some(_) => {
+                // Nothing inside was tagged: the form is plain content of
+                // the owner, which the mark around its invocation keeps.
             }
             None => {
                 // Nothing was cut: the marks are on the page after all, so
@@ -318,8 +354,35 @@ impl StructureRecorder {
     /// Wrap every painting operator outside marked content in a `Layout`
     /// artifact. Runs only in tagged mode and only on page-level streams.
     pub(crate) fn normalize_page_stream(&self, stream: &mut String) {
-        if self.0.is_some() {
-            *stream = artifact_unmarked_paint(stream);
+        if let Some(tagging) = self.0.as_ref() {
+            *stream = artifact_unmarked_paint(stream, &tagging.structured_forms);
+        }
+    }
+
+    /// Whether the group being painted has tagged content of its own, so the
+    /// form XObject it is cut into will carry its structure.
+    pub(crate) fn group_has_marks(&self) -> bool {
+        self.0.as_ref().is_some_and(|tagging| {
+            tagging.form_scopes.last().is_some_and(|scope| {
+                !tagging.current.is_empty()
+                    || tagging.structured_forms.len() > scope.structured_start
+            })
+        })
+    }
+
+    /// Normalize the stream of a form XObject that carries its own marks:
+    /// what it paints outside them (the group's own background, say) is no
+    /// longer covered by an owner mark around the invocation, so it becomes a
+    /// `Layout` artifact like unmarked page content.
+    pub(crate) fn normalize_form_stream(&self, stream: &mut String) {
+        self.normalize_page_stream(stream);
+    }
+
+    /// Record a form XObject that only invokes a structured form (a group
+    /// form wrapping a mask form), so its own invocation stays unwrapped too.
+    pub(crate) fn note_structured_form(&mut self, object_id: usize) {
+        if let Some(tagging) = self.0.as_mut() {
+            tagging.structured_forms.push(object_id);
         }
     }
 
@@ -588,7 +651,9 @@ mod tests {
     #[test]
     fn groups_cut_into_forms_keep_their_own_mcid_namespace() {
         // ISO 32000-1 14.7.4.4: marked content inside a form XObject is keyed
-        // by the form /StructParents entry and numbered from zero.
+        // by the form /StructParents entry and numbered from zero. The owner
+        // mark around the invocation is withdrawn, MCID included, so the
+        // form's content is claimed once.
         let (mut recorder, _nodes) = recorder("<div><p>a</p></div>");
         let mut content = String::new();
         let first = recorder.begin_content(&mut content, content_ref(2), MarkKind::TEXT);
@@ -601,13 +666,31 @@ mod tests {
         recorder.end(&mut content, after);
         assert_eq!(
             content,
-            "/Div << /MCID 0 >> BDC\nEMC\n/Div << /MCID 1 >> BDC\n/P << /MCID 0 >> BDC\nEMC\nEMC\n/Div << /MCID 2 >> BDC\nEMC\n"
+            "/Div << /MCID 0 >> BDC\nEMC\n/P << /MCID 0 >> BDC\nEMC\n/Div << /MCID 1 >> BDC\nEMC\n"
         );
         let tagging = recorder.0.as_ref().unwrap();
         assert_eq!(tagging.forms.len(), 1);
         assert_eq!((tagging.forms[0].key, tagging.forms[0].object_id), (0, 42));
         assert_eq!(tagging.forms[0].marks.len(), 1);
-        assert_eq!(tagging.current.len(), 3);
+        assert_eq!(tagging.current.len(), 2);
+        assert_eq!(tagging.structured_forms, [42]);
+    }
+
+    #[test]
+    fn forms_without_marks_of_their_own_stay_in_the_owner_mark() {
+        // A group with nothing tagged inside is plain content of its owner:
+        // the mark around the invocation stays and the form needs no
+        // /StructParents.
+        let (mut recorder, _nodes) = recorder("<div><p>a</p></div>");
+        let mut content = String::new();
+        let group = recorder.begin_group(&mut content, content_ref(2));
+        content.push_str("0 0 1 1 re f\n");
+        recorder.end_group(&mut content, group, Some(42));
+        assert_eq!(content, "/Div << /MCID 0 >> BDC\n0 0 1 1 re f\nEMC\n");
+        let tagging = recorder.0.as_ref().unwrap();
+        assert!(tagging.forms.is_empty());
+        assert!(tagging.structured_forms.is_empty());
+        assert_eq!(tagging.current.len(), 1);
     }
 
     #[test]

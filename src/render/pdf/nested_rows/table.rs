@@ -27,6 +27,15 @@ impl NestedRowsRenderer<'_, '_> {
         let internal_spacing = element.flow.internal;
         let flow_extra_bottom = element.flow.extra_end;
         let cell_frames = element.cell_inline_frames();
+        // A header or footer row that pagination repeated is page furniture
+        // in tagged output: the structure tree keeps the authored row, and
+        // readers hear each header once (Matterhorn 18-001). Its cells paint
+        // as artifacts and its links get no annotations. Untagged output is
+        // unchanged.
+        let repeated_copy = pdf_writer.structure.is_enabled()
+            && element.fragmentation.instance
+                == crate::layout::elements::RowInstance::RepeatedCopy;
+        let annotation_marker = annotations.len();
         if self.first_margin == FirstMarginState::Pending {
             cursor_y -=
                 collapsed_margin_top_extra(outer_margins.start, self.previous_margin_bottom);
@@ -80,6 +89,15 @@ impl NestedRowsRenderer<'_, '_> {
             };
             let marker = self.stacking.marker();
             let mut cell_content = String::new();
+            // The region lives in the cell's own content, so it stays around
+            // the cell when the stacking plan moves that content.
+            let cell_region = if repeated_copy {
+                pdf_writer
+                    .structure
+                    .begin_artifact(&mut cell_content, structure::ArtifactKind::Pagination)
+            } else {
+                structure::OpenMark::Skipped
+            };
             'paint_cell: {
                 let content = &mut cell_content;
                 let cell_x = origin_x + cell_frame.offset();
@@ -314,6 +332,7 @@ impl NestedRowsRenderer<'_, '_> {
                     cell_group.finish(content, &mut page_context);
                 }
             }
+            pdf_writer.structure.end(&mut cell_content, cell_region);
             let descendants = self.stacking.take_since(marker);
             self.stacking.commit(
                 stacking_scope,
@@ -326,6 +345,9 @@ impl NestedRowsRenderer<'_, '_> {
         }
         if stacking_scope.is_local() {
             self.stacking.paint_plan(stacking_plan, content);
+        }
+        if repeated_copy {
+            annotations.truncate(annotation_marker);
         }
         cursor_y -= row_height + internal_spacing.end + flow_extra_bottom + outer_margins.end;
         self.cursor_y = cursor_y;

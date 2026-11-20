@@ -41,12 +41,17 @@ impl MarkKind {
     }
 
     /// The mark of a generated image (`content: url()`) painted in `bbox`
-    /// (default user space): a Figure named by its alternative text,
-    /// decoration without one (css-content-3 §1.2).
-    pub(crate) fn generated_figure(image: &InlineImage, bbox: PdfRect) -> Self {
+    /// (default user space) at `position` in its line: a Figure named by its
+    /// alternative text, decoration without one (css-content-3 §1.2).
+    pub(crate) fn generated_figure(
+        image: &InlineImage,
+        bbox: PdfRect,
+        position: ReadingPosition,
+    ) -> Self {
         Self::GeneratedFigure {
             bbox,
             alt: image.alt().map(str::to_string),
+            position,
         }
     }
 

@@ -92,6 +92,9 @@ pub struct InlineBox {
     /// The element this box belongs to; a list bullet carries its item's
     /// label role so the renderer can mark it as the `Lbl`.
     pub structure: crate::accessibility::StructureRef,
+    /// Where the box sits in the reading order of its line, copied from its
+    /// run once lines are numbered, so a generated figure reads in place.
+    pub(crate) reading: crate::layout::engine::ReadingPosition,
 }
 
 impl InlineBox {

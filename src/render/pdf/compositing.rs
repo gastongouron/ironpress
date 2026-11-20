@@ -27,9 +27,9 @@ impl PaintGroupScope {
         let group = owner.paint_group();
         let effects = &group.effects;
         let grouped = effects.needs_source_isolation();
-        // Content cut into a form XObject inherits the marked content that
-        // invokes the form, so the owner's mark opens before the cut point
-        // and nothing inside the form allocates an MCID of its own.
+        // The owner's mark opens before the cut point. Content inside the
+        // group is tagged in the form's own namespace; when it is, the owner
+        // mark is withdrawn again so the form's content is not claimed twice.
         let mark = if (grouped || effects.masking.image.is_some()) && !ctx.paint_box.is_empty() {
             ctx.text
                 .pdf_writer
@@ -95,10 +95,20 @@ impl PaintGroupScope {
 
     pub(super) fn finish(self, content: &mut String, ctx: &mut PageRenderContext<'_>) {
         // The innermost cut receives the group's marks: the mask form when
-        // there is one, otherwise the transparency group form.
+        // there is one, otherwise the transparency group form. When the group
+        // has tagged content, the forms carry the structure: each cut
+        // normalizes its stream, and a group form that only invokes the mask
+        // form is structured as well.
+        let structured = ctx.text.pdf_writer.structure.group_has_marks();
         let mask_form = self
             .mask
             .and_then(|mask| mask.finish(content, ctx.text.pdf_writer, ctx.text.page_images));
+        if structured && let Some(mask_form) = mask_form {
+            ctx.text
+                .pdf_writer
+                .structure
+                .note_structured_form(mask_form);
+        }
         if self.clipped {
             content.push_str("Q\n");
         }
@@ -118,6 +128,15 @@ impl PaintGroupScope {
                 self.paint_box,
             )
         });
+        if structured
+            && mask_form.is_some()
+            && let Some(group_form) = group_form
+        {
+            ctx.text
+                .pdf_writer
+                .structure
+                .note_structured_form(group_form);
+        }
         ctx.text
             .pdf_writer
             .structure
@@ -157,11 +176,14 @@ impl MaskedTransparencyGroup {
         if self.start >= content.len() || self.paint_box.is_empty() {
             return None;
         }
-        let stream = content[self.start..].to_string();
+        let mut stream = content[self.start..].to_string();
         if stream.trim().is_empty() {
             return None;
         }
         content.truncate(self.start);
+        if pdf_writer.structure.group_has_marks() {
+            pdf_writer.structure.normalize_form_stream(&mut stream);
+        }
         let form = pdf_writer.add_transparency_group_form(stream, self.paint_box);
         content.push_str(&format!("q\n/{} gs\n/{} Do\nQ\n", self.state, form.name));
         let object_id = form.obj_id;
@@ -207,11 +229,16 @@ pub(super) fn finish_transparency_group(
     if group_start >= content.len() || paint_box.is_empty() {
         return None;
     }
-    let group_stream = content[group_start..].to_string();
+    let mut group_stream = content[group_start..].to_string();
     if group_stream.trim().is_empty() {
         return None;
     }
     content.truncate(group_start);
+    if pdf_writer.structure.group_has_marks() {
+        pdf_writer
+            .structure
+            .normalize_form_stream(&mut group_stream);
+    }
 
     let form_ref = pdf_writer.add_transparency_group_form(group_stream, paint_box);
     page_images.push(form_ref.clone());

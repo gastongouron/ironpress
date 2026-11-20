@@ -424,6 +424,127 @@ fn report_fixture_carries_every_required_structure_type() {
     assert!(pdf.matches("/S /Document ").count() == 1);
 }
 
+/// Matterhorn 18-001: a table header or footer row that pagination repeats
+/// is page furniture. When the table is split as a whole, the `thead` copy at
+/// the top of the continuation and the `tfoot` copy at the bottom of the first
+/// fragment paint as `Pagination` artifacts, so every cell is marked once and
+/// a link in a repeated row gets no second annotation.
+#[test]
+fn rows_repeated_by_a_table_split_are_artifacts() {
+    let rows = 60;
+    let body: String = (1..=rows)
+        .map(|row| format!("<tr><td>Row {row}</td><td>{row}</td></tr>"))
+        .collect();
+    let pdf = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .convert(&format!(
+                r##"<html lang="en"><head><title>T</title></head><body>
+                <table>
+                <thead><tr><th>Row</th><th><a href="https://example.com/value">Value</a></th></tr></thead>
+                <tbody>{body}</tbody>
+                <tfoot><tr><td>Total</td><td>sum</td></tr></tfoot>
+                </table></body></html>"##
+            ))
+            .unwrap(),
+    );
+    assert!(
+        pdf.matches("/Type /Page ").count() >= 2,
+        "the table must split"
+    );
+    // One mark per authored cell: "Row", the "Value" link, every body cell
+    // and the two footer cells.
+    assert_eq!(pdf.matches("/TH << /MCID ").count(), 1, "{pdf}");
+    assert_eq!(pdf.matches("/Link << /MCID ").count(), 1, "{pdf}");
+    assert_eq!(pdf.matches("/TD << /MCID ").count(), 2 * rows + 2, "{pdf}");
+    assert!(pdf.contains("/Artifact << /Type /Pagination >> BDC"));
+    assert_eq!(pdf.matches("/Subtype /Link ").count(), 1, "{pdf}");
+}
+
+/// ISO 32000-1 14.7.4.4: content in a form XObject with its own marks is
+/// reached through `/MCR /Stm` kids. A mark around the form's invocation
+/// would claim the same content again, so the opacity group's `Div` and the
+/// blended `P` own no page mark; each paragraph is marked once, inside its
+/// form, and neither invocation sits in an artifact (ISO 14289-1 7.1).
+#[test]
+fn content_in_isolated_groups_is_claimed_once() {
+    let pdf = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .convert(
+                r#"<html lang="en"><head><title>G</title></head><body>
+                <div style="opacity: 0.6; background: #eef"><p>Faded</p></div>
+                <p style="mix-blend-mode: multiply">Blended</p>
+                </body></html>"#,
+            )
+            .unwrap(),
+    );
+    assert_eq!(pdf.matches("/P << /MCID ").count(), 2, "{pdf}");
+    assert!(!pdf.contains("/Div << /MCID "), "{pdf}");
+    assert_eq!(
+        pdf.matches("/FormType 1 /StructParents ").count(),
+        2,
+        "{pdf}"
+    );
+    assert!(!pdf.contains("/Type /Layout >> BDC\n/Fm"), "{pdf}");
+}
+
+/// css-content-3 §1.2: a generated image is read where it is generated. A
+/// `::before` image is its paragraph's first kid, ahead of the text and of
+/// the paragraph's inline elements, although it is painted after them.
+#[test]
+fn generated_figures_are_read_where_they_are_generated() {
+    let pdf = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .convert(&format!(
+                r#"<html lang="en"><head><title>F</title><style>
+                p::before {{ content: url("{PIXEL}") / "Approved"; }}
+                </style></head><body>
+                <p>See <a href="https://example.com/a">a link</a> and the
+                <abbr title="Portable Document Format">PDF</abbr> abbreviation.</p>
+                </body></html>"#
+            ))
+            .unwrap(),
+    );
+    let lines: Vec<&str> = pdf.lines().collect();
+    let figure = lines
+        .windows(2)
+        .find(|pair| pair[1].contains("/S /Figure "))
+        .map(|pair| pair[0].trim_end_matches(" 0 obj"))
+        .expect("a Figure element");
+    let paragraph = lines
+        .iter()
+        .find(|line| line.contains("/S /P "))
+        .expect("a P element");
+    assert!(
+        paragraph.contains(&format!("/K [{figure} 0 R ")),
+        "{paragraph}"
+    );
+}
+
+/// ISO 32000-1 14.9.4: `ToUnicode` maps each glyph once, so a base letter
+/// that also appears on its own cannot carry a combining mark. The run's
+/// `/ActualText` keeps the mark: "x" followed by U+0301.
+#[test]
+fn combining_marks_are_kept_in_actual_text() {
+    let pdf = text(
+        &HtmlConverter::new()
+            .accessible(true)
+            .compress(false)
+            .convert(
+                r#"<html lang="en"><head><title>C</title></head><body>
+                <p>Accent: x&#x301; and a plain x.</p>
+                </body></html>"#,
+            )
+            .unwrap(),
+    );
+    assert!(pdf.contains("00780301"), "{pdf}");
+}
+
 #[test]
 fn ragged_rows_are_padded_in_the_output() {
     // veraPDF 7.2-41: the second body row has one data cell for two columns.

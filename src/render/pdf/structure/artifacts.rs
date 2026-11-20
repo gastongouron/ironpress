@@ -5,11 +5,20 @@
 //! artifact). Decoration painters therefore need no changes. Each inserted
 //! sequence wraps exactly one path object, text object, shading, XObject or
 //! inline image, so it can never straddle `q`/`Q`, `BT`/`ET` or a path.
+//!
+//! An invocation of a form XObject that carries its own structure is left
+//! alone: its content is tagged inside the form, and an artifact around it
+//! would put tagged content inside an artifact (ISO 14289-1 7.1).
 
-/// Wrap unmarked painting operators in `Layout` artifacts.
-pub(super) fn artifact_unmarked_paint(stream: &str) -> String {
+/// Wrap unmarked painting operators in `Layout` artifacts, except `Do` of the
+/// structured form XObjects listed by object id (resource name `Fm{id}`).
+pub(super) fn artifact_unmarked_paint(stream: &str, structured_forms: &[usize]) -> String {
     const OPEN: &str = "/Artifact << /Type /Layout >> BDC\n";
     const CLOSE: &str = "\nEMC";
+    let structured_names: Vec<String> = structured_forms
+        .iter()
+        .map(|object_id| format!("/Fm{object_id}"))
+        .collect();
 
     let mut out = String::with_capacity(stream.len() + stream.len() / 8);
     let mut copied = 0;
@@ -60,6 +69,9 @@ pub(super) fn artifact_unmarked_paint(stream: &str) -> String {
                     insert(&mut out, end, CLOSE);
                 }
             }
+            "Do" if structured_names
+                .iter()
+                .any(|name| stream[item_start..start].trim() == name) => {}
             "sh" | "Do" => {
                 if marked_depth == 0 {
                     insert(&mut out, item_start, OPEN);
@@ -272,7 +284,7 @@ mod tests {
         // so the artifact opens before `re` and closes after `f`.
         let stream = "q\n1 0 0 rg\n0 0 10 10 re\nf\nQ\n";
         assert_eq!(
-            artifact_unmarked_paint(stream),
+            artifact_unmarked_paint(stream, &[]),
             "q\n1 0 0 rg\n/Artifact << /Type /Layout >> BDC\n0 0 10 10 re\nf\nEMC\nQ\n"
         );
     }
@@ -282,7 +294,7 @@ mod tests {
         // veraPDF's content-item model excludes `n`: a clip is not painted.
         let stream = "q\n0 0 10 10 re\nW n\n0 0 5 5 re\nf\nQ\n";
         assert_eq!(
-            artifact_unmarked_paint(stream),
+            artifact_unmarked_paint(stream, &[]),
             "q\n0 0 10 10 re\nW n\n/Artifact << /Type /Layout >> BDC\n0 0 5 5 re\nf\nEMC\nQ\n"
         );
     }
@@ -296,7 +308,7 @@ mod tests {
                         /Artifact << /Type /Layout >> BDC\n/Sh0 sh\nEMC\n\
                         /Artifact << /Type /Layout >> BDC\n/Im1 Do\nEMC\n\
                         /Artifact << /Type /Layout >> BDC\nBI\n/W 1 /H 1 /CS /DeviceGray /BPC 8 /F /AHx\nID\n00>\nEI\nEMC\n";
-        assert_eq!(artifact_unmarked_paint(stream), expected);
+        assert_eq!(artifact_unmarked_paint(stream, &[]), expected);
     }
 
     #[test]
@@ -304,12 +316,12 @@ mod tests {
         // veraPDF 7.1-1: an artifact inside tagged content is a failure, so
         // nothing is inserted while a marked-content sequence is open.
         let stream = "/P << /MCID 0 >> BDC\nBT\n(a) Tj\nET\n0 0 1 1 re f\nEMC\n0 0 2 2 re\nS\n";
-        let once = artifact_unmarked_paint(stream);
+        let once = artifact_unmarked_paint(stream, &[]);
         assert_eq!(
             once,
             "/P << /MCID 0 >> BDC\nBT\n(a) Tj\nET\n0 0 1 1 re f\nEMC\n/Artifact << /Type /Layout >> BDC\n0 0 2 2 re\nS\nEMC\n"
         );
-        assert_eq!(artifact_unmarked_paint(&once), once);
+        assert_eq!(artifact_unmarked_paint(&once, &[]), once);
     }
 
     #[test]
@@ -317,16 +329,27 @@ mod tests {
         let stream =
             "BT\n(f re S \\) Do) Tj\n<466f> Tj\n/Span << /ActualText (Do) >> BDC\nEMC\nET\n";
         assert_eq!(
-            artifact_unmarked_paint(stream),
+            artifact_unmarked_paint(stream, &[]),
             format!("/Artifact << /Type /Layout >> BDC\n{stream}EMC\n"),
         );
         let bare = "/Do 1 0 0 1 0 0 cm\n";
-        assert_eq!(artifact_unmarked_paint(bare), bare);
+        assert_eq!(artifact_unmarked_paint(bare, &[]), bare);
     }
 
     #[test]
     fn streams_without_paint_are_unchanged() {
         let stream = "q 1 0 0 1 0 0 cm\nq 0 0 100 100 re\nW n\nQ\nQ\n";
-        assert_eq!(artifact_unmarked_paint(stream), stream);
+        assert_eq!(artifact_unmarked_paint(stream, &[]), stream);
+    }
+
+    #[test]
+    fn invocations_of_structured_forms_stay_unwrapped() {
+        // ISO 14289-1 7.1 (veraPDF 7.1-2): a form tagged from inside must not
+        // sit in an artifact; any other form invocation still becomes one.
+        let stream = "q\n/GSgrp31 gs\n/Fm31 Do\nQ\nq\n/Fm7 Do\nQ\n";
+        assert_eq!(
+            artifact_unmarked_paint(stream, &[31]),
+            "q\n/GSgrp31 gs\n/Fm31 Do\nQ\nq\n/Artifact << /Type /Layout >> BDC\n/Fm7 Do\nEMC\nQ\n"
+        );
     }
 }

@@ -899,13 +899,20 @@ pub struct TextRunMetadata {
 impl TextRunMetadata {
     /// What a reader should see instead of the shown glyphs, if anything
     /// (ISO 32000-1 14.9.4): the characters in logical order, a synthesized
-    /// hyphen as U+00AD.
+    /// hyphen as U+00AD, and the text of a run holding a cluster of several
+    /// characters (a base with combining marks, say). `ToUnicode` maps each
+    /// glyph once, so a base glyph that also stands alone elsewhere cannot
+    /// carry its marks; the run's text can.
     pub(crate) fn actual_text(&self, shown: &str) -> Option<String> {
         if self.reading.reversed {
             let logical: String = shown.chars().rev().collect();
             return Some(self.hyphenation.spoken_text(&logical));
         }
-        self.hyphenation.actual_text(shown)
+        self.hyphenation.actual_text(shown).or_else(|| {
+            unicode_segmentation::UnicodeSegmentation::graphemes(shown, true)
+                .any(|cluster| cluster.chars().nth(1).is_some())
+                .then(|| shown.to_string())
+        })
     }
 
     /// The text a reader should see.

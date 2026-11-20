@@ -183,7 +183,7 @@ pub(super) fn render_inline_box(
         let picture = pdf_writer.structure.begin_content(
             content,
             inline.structure,
-            super::structure::MarkKind::generated_figure(image, bbox),
+            super::structure::MarkKind::generated_figure(image, bbox, inline.reading),
         );
         let img_obj_id = pdf_writer.add_image_object(
             &image.asset.data,

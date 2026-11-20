@@ -38,6 +38,10 @@ pub(super) struct Element {
     numbering: Option<ListNumbering>,
     /// The `/ID` of a `Note`, listed in the structure tree root's `/IDTree`.
     id: Option<String>,
+    /// Generated content (a `content: url()` Figure): it has no place in the
+    /// document order of its parent's children, so it is placed among the
+    /// parent's kids by where its mark comes in reading order.
+    floats: bool,
 }
 
 /// Where a mark comes in reading order: paint order, except that the marks
@@ -94,6 +98,7 @@ impl Element {
             cell: None,
             numbering: None,
             id: None,
+            floats: false,
         }
     }
 }
@@ -143,8 +148,10 @@ impl StructureTree {
         // Marks are sequenced in paint order; a form was painted while its page
         // was, so its marks follow that page.
         let mut sequence = 0;
-        // The line being painted and the sequence of its first mark.
-        let mut current_line: (Option<u32>, usize) = (None, 0);
+        // The paint sequence of each line's first mark (lines are numbered
+        // once across the document).
+        let mut line_starts: std::collections::HashMap<u32, usize> =
+            std::collections::HashMap::new();
         let mut distribute = |page: usize,
                               stream: Option<usize>,
                               marks: &[super::recorder::MarkRecord],
@@ -166,6 +173,7 @@ impl StructureTree {
                     MarkKind::GeneratedFigure {
                         bbox,
                         alt: Some(alt),
+                        ..
                     } => Some((*bbox, alt.clone())),
                     _ => None,
                 };
@@ -213,30 +221,26 @@ impl StructureTree {
                     (None, _) => (emitting(), TargetKind::Body),
                 };
                 let position = match &mark.kind {
-                    MarkKind::Text { position, .. } => {
+                    MarkKind::Text { position, .. }
+                    | MarkKind::GeneratedFigure { position, .. } => {
                         position.line.map(|line| (line, position.logical_start))
                     }
                     _ => None,
                 };
                 let order = match position {
-                    Some((line, logical)) => {
-                        if current_line.0 != Some(line) {
-                            current_line = (Some(line), *sequence);
-                        }
-                        MarkOrder {
-                            line: current_line.1,
-                            logical,
-                            paint: *sequence,
-                        }
-                    }
-                    None => {
-                        current_line = (None, *sequence);
-                        MarkOrder {
-                            line: *sequence,
-                            logical: 0,
-                            paint: *sequence,
-                        }
-                    }
+                    // A line's marks sort by the paint sequence of its first
+                    // mark, wherever later marks of it were painted (an inline
+                    // box's image comes after the line's text).
+                    Some((line, logical)) => MarkOrder {
+                        line: *line_starts.entry(line).or_insert(*sequence),
+                        logical,
+                        paint: *sequence,
+                    },
+                    None => MarkOrder {
+                        line: *sequence,
+                        logical: 0,
+                        paint: *sequence,
+                    },
                 };
                 let recorded = Mark {
                     page,
@@ -426,6 +430,7 @@ impl StructureTree {
             };
             for figure in &figures[index] {
                 let mut element = Element::new("Figure", Some(parent));
+                element.floats = true;
                 element.attributes = format!(
                     " /Alt {}{}",
                     PdfTextString::from(figure.alt.as_str()),
@@ -676,21 +681,53 @@ impl StructureTree {
                     mark.mcid
                 ),
             };
+            // Children keep document order; the element's own marks and its
+            // floating children (generated figures) go in reading order
+            // before the first child that starts after them.
+            let (mut floating, placed): (Vec<usize>, Vec<usize>) = element
+                .children
+                .iter()
+                .partition(|child| self.elements[**child].floats);
+            floating.sort_by_key(|child| first_sequence[*child]);
             let mut kids = Vec::new();
             let mut next_mark = 0;
-            for child in &element.children {
-                if let Some(child_sequence) = first_sequence[*child] {
-                    while marks
-                        .get(next_mark)
-                        .is_some_and(|mark| mark.sequence < child_sequence)
-                    {
-                        kids.push(mark_kid(&marks[next_mark]));
-                        next_mark += 1;
-                    }
+            let mut next_float = 0;
+            let mut flush_before = |bound: Option<MarkOrder>, kids: &mut Vec<String>| loop {
+                let mark = marks.get(next_mark).map(|mark| mark.sequence);
+                let float = floating
+                    .get(next_float)
+                    .and_then(|child| first_sequence[*child]);
+                let take_float = match (mark, float) {
+                    (Some(mark), Some(float)) => float < mark,
+                    (None, Some(_)) => true,
+                    (_, None) => false,
+                };
+                let next = if take_float { float } else { mark };
+                if next.is_none() || bound.is_some_and(|bound| next >= Some(bound)) {
+                    break;
                 }
-                kids.push(format!("{} 0 R", element_id(*child)));
+                if take_float {
+                    kids.push(format!("{} 0 R", element_id(floating[next_float])));
+                    next_float += 1;
+                } else {
+                    kids.push(mark_kid(&marks[next_mark]));
+                    next_mark += 1;
+                }
+            };
+            for child in placed {
+                if let Some(child_sequence) = first_sequence[child] {
+                    flush_before(Some(child_sequence), &mut kids);
+                }
+                kids.push(format!("{} 0 R", element_id(child)));
             }
-            kids.extend(marks[next_mark..].iter().map(mark_kid));
+            flush_before(None, &mut kids);
+            // A floating child without marks of its own has nowhere to go
+            // but the end.
+            kids.extend(
+                floating[next_float..]
+                    .iter()
+                    .map(|child| format!("{} 0 R", element_id(*child))),
+            );
             kids.extend(element.annotations.iter().map(|annotation| {
                 format!(
                     "<< /Type /OBJR /Obj {} 0 R /Pg {} 0 R >>",

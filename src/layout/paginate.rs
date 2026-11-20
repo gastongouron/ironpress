@@ -2017,17 +2017,19 @@ fn split_table_node(
     rule: FragmentBreakRule,
 ) -> Option<(LayoutNode, LayoutNode)> {
     let principal = &element.principal;
+    // The header rows repeated in the continuation and the footer rows
+    // repeated in the first fragment are copies of the authored rows.
     let headers = principal
         .children
         .iter()
         .filter(|child| table_row_pagination_state(child.as_ref()).is_header)
-        .cloned()
+        .map(MarkRepeatedRow::copy_of)
         .collect::<Vec<_>>();
     let footers = principal
         .children
         .iter()
         .filter(|child| table_row_pagination_state(child.as_ref()).is_footer)
-        .cloned()
+        .map(MarkRepeatedRow::copy_of)
         .collect::<Vec<_>>();
     let footer_extent = footers
         .iter()
@@ -5017,6 +5019,15 @@ mod break_tests {
 
 /// Flags re-emitted `<thead>`/`<tfoot>` rows as copies of the authored row.
 struct MarkRepeatedRow;
+
+impl MarkRepeatedRow {
+    /// A copy of `row` flagged as a repeat, leaving the authored row as is.
+    fn copy_of(row: &LayoutNode) -> LayoutNode {
+        let mut copy = row.clone();
+        copy.accept_mut(&mut Self);
+        copy
+    }
+}
 
 impl crate::layout::elements::LayoutVisitorMut for MarkRepeatedRow {
     fn visit_table_row(&mut self, element: &mut crate::layout::elements::TableRow) {
