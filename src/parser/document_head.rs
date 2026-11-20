@@ -50,7 +50,7 @@ impl HtmlLanguage {
 impl DocumentHead {
     /// Read the head facts from the parsed document before conversion drops
     /// the `<head>` subtree and unwraps `<html>` and `<body>`.
-    pub(crate) fn scan(document: &Document) -> Self {
+    pub(in crate::parser) fn scan(document: &Document) -> Self {
         let tree = Tree(document);
         let Some(html) = tree.find_child(tree.root(), "html") else {
             return Self::default();
