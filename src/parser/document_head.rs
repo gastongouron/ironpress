@@ -148,7 +148,6 @@ mod tests {
         assert_eq!(blank.title, None);
     }
 
-
     #[test]
     fn language_takes_the_nearest_declaration_and_keeps_malformed_values() {
         let nearest = scan("<html lang='en'><body lang='fr-CA'><p>x</p></body></html>");
@@ -175,7 +174,6 @@ mod tests {
             malformed.language
         );
     }
-
 
     #[test]
     fn font_locale_follows_the_same_attributes() {
